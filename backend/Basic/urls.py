@@ -1,0 +1,32 @@
+from django.urls import path
+from .views import VillagePopulationRawSQL, VillagePopulationAPI,MultipleVillagesAPI, VillagesCatchmentIntersection, AllStretches, Catchments, BasinAPI, RiverMapAPI, RiverStretched, Drain, CohortView, DefaultBaseMapAPI, StateShapefileAPI, MultipleDistrictsAPI,MultipleSubdistrictsAPI, Locations_stateAPI,Locations_districtAPI,Locations_subdistrictAPI,Locations_villageAPI,Time_series,Demographic,SewageCalculation,WaterSupplyCalculationAPI,DomesticWaterDemandCalculationAPIView,FloatingWaterDemandCalculationAPIView,InstitutionalWaterDemandCalculationAPIView,FirefightingWaterDemandCalculationAPIView
+urlpatterns = [
+    path("state",Locations_stateAPI.as_view(),name="states"),
+    path("district",Locations_districtAPI.as_view(),name="districts"),
+    path("subdistrict",Locations_subdistrictAPI.as_view(),name="subdistricts"),
+    path("village",Locations_villageAPI.as_view(),name="villages"),
+    path("time_series/arthemitic",Time_series.as_view(),name="time_series"),
+    path("time_series/demographic",Demographic.as_view(),name="demographic"),
+    path("sewage_calculation",SewageCalculation.as_view(), name="sewage_calculation"),
+    path("sewage_calculation/total_population",SewageCalculation.as_view(), name="total_population"),
+    path("water_supply", WaterSupplyCalculationAPI.as_view(), name="water_supply"),
+    path('domestic_water_demand', DomesticWaterDemandCalculationAPIView.as_view(), name='domestic_water_demand'),
+    path('floating_water_demand', FloatingWaterDemandCalculationAPIView.as_view(), name='floating_water_demand'),
+    path('institutional_water_demand', InstitutionalWaterDemandCalculationAPIView.as_view(), name='institutional_water_demand'),
+    path('firefighting_water_demand', FirefightingWaterDemandCalculationAPIView.as_view(), name='firefighting_water_demand'),
+    path('cohort', CohortView.as_view(), name='cohort'),
+    path('basemap', DefaultBaseMapAPI.as_view(), name='default-base-map'),
+    path('state-shapefile', StateShapefileAPI.as_view(), name='state-shapefile'),
+    path('multiple-districts', MultipleDistrictsAPI.as_view(), name='multiple-districts'),
+    path('multiple-subdistricts', MultipleSubdistrictsAPI.as_view(), name='multiple-subdistricts'),
+    path('rivers', RiverMapAPI.as_view(), name='river-map'),
+    path('river-stretched', RiverStretched.as_view(), name='river-stretched'), 
+    path('drain', Drain.as_view(), name='drain'),
+    path('basin', BasinAPI.as_view(), name='basin'),
+    path('catchment', Catchments.as_view(), name='catchment'),
+    path('all-stretches', AllStretches.as_view(), name='all-stretches'),
+    path('catchment_village', VillagesCatchmentIntersection.as_view(),name='catchment_village'),
+    path('multiple-villages', MultipleVillagesAPI.as_view(), name='multiple-villages-api'),
+    path('village-population', VillagePopulationAPI.as_view(), name='village-population'),
+      path('village-population-raw', VillagePopulationRawSQL.as_view(), name='village-population-raw')
+]
