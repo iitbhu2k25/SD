@@ -151,8 +151,19 @@ class StpReportInput(BaseModel):
         Very_High:float
         Very_Low: float
         Village_Name: str
-    
+    class LocationData(BaseModel):
+        state:str
+        districts:list
+        subDistricts: list
+        
+    class weight_insight(BaseModel):
+        file_name: str
+        weight: float
+        
+        
     table:List[CsvData]
     place: str
     clip: List[int] = None
     raster: List[DataItem] = None
+    location: LocationData
+    weight_data: List[weight_insight]

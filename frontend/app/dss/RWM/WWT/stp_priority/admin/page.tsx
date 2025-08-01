@@ -25,9 +25,10 @@ const MainContent = () => {
   const {
     selectionsLocked,
     display_raster,
-    selectedDistricts,
     selectedSubDistricts,
-    selectedState,
+    selectedSubDistrictsNames,
+    selectedDistrictsNames,
+    selectedStateName,
   } = useLocation();
 
   const { setstpOperation, loading, isMapLoading, stpOperation, setLoading } =
@@ -40,14 +41,20 @@ const MainContent = () => {
 
   const handlereport = async () => {
     setReportLoading(true);
+    const locationData = {
+      state: selectedStateName,
+      districts: selectedDistrictsNames,
+      subDistricts: selectedSubDistrictsNames,
+    }
     const data = {
       table: tableData,
       raster: display_raster,
       place: "Admin",
       clip: selectedSubDistricts,
+      location: locationData,
+      weight_data:selectedCategories
       // weight: selectedCategories,
     };
-    console.log(data);
     const response = await fetch("/api/stp_operation/stp_priority_report", {
       method: "POST",
       headers: {

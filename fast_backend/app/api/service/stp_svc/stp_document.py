@@ -13,7 +13,7 @@ import requests
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from io import BytesIO
 from pathlib import Path
 from celery import chord
@@ -71,11 +71,6 @@ class ResourceError(STRPReportError):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# make the main task that take the input
-# make the 1 clery to call the geoserver to load the raster in specied folder
-# make the 2 celery to make the image from geoserver fodler
-# make the 3 celery to make the document and gave the resp statuis
-# make the 4 clery to send via email
 
 
 @dataclass
@@ -135,18 +130,6 @@ class TableData:
     village_raw_data: Optional[List[Dict[str, Any]]] = None
     
     def __post_init__(self):
-        if self.weights_table is None:
-            self.weights_table = [
-                ["Factor", "Weight"],
-                ["Downstream Effect of Drain", "0.20"],
-                ["Drainage Distance", "0.15"],
-                ["Groundwater Depth", "0.12"],
-                ["LULC", "0.18"],
-                ["Major City Risk", "0.10"],
-                ["Population", "0.15"],
-                ["Proximity to River Quality", "0.10"]
-            ]
-        
         if self.village_raw_data and not self.village_priority_table:
             try:
                 self.village_priority_table = self._convert_raw_data_to_table()
@@ -247,6 +230,49 @@ def validate_geodataframe(gdf: gpd.GeoDataFrame, name: str = "GeoDataFrame") -> 
     if gdf.crs is None:
         raise ValidationError(f"{name} must have a defined CRS")
     
+class ImageManager:
+    """Manages image insertion and placeholder creation."""
+    
+    @staticmethod
+    def create_image_placeholder(figure_name: str) -> List:
+        """Create image placeholder with error handling."""
+        try:
+            elements = []
+            placeholder_text = f"[ {figure_name} will be inserted here ]"
+
+            style = ParagraphStyle(
+                'PlaceholderStyle',
+                parent=getSampleStyleSheet()['Normal'],
+                alignment=1,
+                fontSize=11,
+                textColor=colors.HexColor("#201E1E"),
+                borderPadding=6,
+                spaceAfter=6,
+                spaceBefore=16,
+                leading=14
+            )
+
+            placeholder = Paragraph(f"<b>{placeholder_text}</b>", style)
+            elements.append(placeholder)
+            elements.append(Spacer(1, 6))
+            return elements
+        except Exception as e:
+            logger.error(f"Failed to create placeholder for {figure_name}: {e}")
+            return [Spacer(1, 20)]
+    
+    @staticmethod
+    def insert_actual_image(image_stream: BytesIO) -> Optional[List[Image]]:
+        """Insert actual image with validation."""
+        try:
+            if not isinstance(image_stream, BytesIO):
+                logger.error(f"Expected BytesIO, got {type(image_stream)}")
+                return None
+            
+            image_stream.seek(0)
+            return [Image(image_stream, width=600, height=400, hAlign='CENTER')]
+        except Exception as e:
+            logger.error(f"Failed to insert image: {e}")
+            return None
 
 class StyleManager:    
     _instance = None
@@ -324,6 +350,50 @@ class StyleManager:
         for name, kwargs in custom_styles:
             self.styles.add(ParagraphStyle(name=name, **kwargs))
 
+class TableGenerator:
+    """Handles table creation and styling."""
+    
+    @staticmethod
+    def create_styled_table(data: List[List[str]]) -> Optional[Table]:
+        """Create a styled table with headers and error handling."""
+        if not data or len(data) < 2:
+            logger.warning("Insufficient data for table creation")
+            return None
+        
+        try:
+            table = Table(data, hAlign='LEFT')
+            
+            table_style = [
+                # Header row styling
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                
+                # Data rows styling
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+                
+                # Grid and borders
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                
+                # Alternating row colors
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+            ]
+            
+            table.setStyle(TableStyle(table_style))
+            return table
+            
+        except Exception as e:
+            logger.error(f"Failed to create table: {e}")
+            return None
+
 
 class SpatialDataset:
     def __init__(self):
@@ -398,10 +468,10 @@ class MapGenerator:
             raise ResourceError(f"Raster processing failed: {e}")
 
     def _save_plot(self, fig,file_path:str) -> None:
-        """Save plot to BytesIO with error handling."""
+        file_path=file_path+".png"
         try:
             fig.savefig(
-                file_path+".png",
+                file_path,
                 format='png', 
                 dpi=self.dpi,
                 bbox_inches='tight', 
@@ -409,6 +479,7 @@ class MapGenerator:
                 facecolor='white',
                 edgecolor='none'
             )
+            return file_path
             logger.info(f"Plot saved to file: {file_path}")
         except Exception as e:
             logger.error(f"Failed to save plot: {e}")
@@ -538,8 +609,8 @@ class MapGenerator:
                 )
 
                 plt.tight_layout()
-                self._save_plot(fig, file_path=file_path[:-4])
-                return file_path
+                return self._save_plot(fig, file_path=file_path[:-4])
+
                     
         except Exception as e:
             logger.error(f"Failed to generate image: {e}")
@@ -584,7 +655,7 @@ class StpDocument:
                 response.append(None)
         return response
    
-    def static_pdf(self, folder_path: list, csv_data: List) -> str:
+    def static_pdf(self, folder_path: list, csv_data: List,location_data:list,weight_data:list) -> str:
         """Generate static PDF with error handling."""
         try:
             config = ReportConfig(
@@ -604,9 +675,9 @@ class StpDocument:
                 Proximity_River_Quality="Proximity to poor-quality river segments (based on BOD and DO from CPCB datasets) was considered a critical factor. Villages draining into these segments were prioritized for immediate intervention to mitigate ecological degradation (CPCB, 2020).",
             )
             
-            table_data = TableData(village_raw_data=csv_data)
+            table_data = TableData(village_raw_data=csv_data,weights_table=weight_data)
             generator = ReportGenerator(config, static_data, table_data)
-            return generator.generate_report(layer_names=folder_path)
+            return generator.generate_report(layer_names=folder_path,location_data=location_data)
             
         except Exception as e:
             logger.error(f"Failed to generate static PDF: {e}")
@@ -620,7 +691,7 @@ class StpDocument:
             logger.error(f"Failed to load raster data: {e}")
             return []
 
-    def report_generator(self, layer_names: List, csv_data: List) -> str:
+    def report_generator(self, layer_names: List, csv_data: List,location_data:list,weight_data:list) -> str:
         """Generate complete report with automatic cleanup."""
         try:
             if not layer_names:
@@ -629,7 +700,7 @@ class StpDocument:
             try:
 
                 # Generate PDF
-                pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data)
+                pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data,location_data=location_data,weight_data=weight_data)
                 
                 logger.info(f"Report generated successfully: {pdf_path}")
                 return pdf_path
@@ -651,8 +722,8 @@ class StpDocument:
 class ReportGenerator:
     """Main report generation class with improved error handling."""
     
-    def __init__(self, config: ReportConfig, static_data: StaticTextData, 
-                 table_data: TableData, dpi: int = 100):
+    def __init__(self, config: 'ReportConfig', static_data: 'StaticTextData', 
+                 table_data: 'TableData', dpi: int = 100):
         
         self.config = config
         self.static_data = static_data
@@ -663,6 +734,7 @@ class ReportGenerator:
         self.dpi = max(50, min(dpi, 600))  # Constrain DPI
         self.iit_bhu_logo = f"{Settings().BASE_DIR}/media/images/iitbhu.png"
         self.slcr_logo = f"{Settings().BASE_DIR}/media/images/slcr.png"
+
     def _draw_logos(self, canvas, doc):
         """Draw logos on every page."""
         try:
@@ -698,36 +770,38 @@ class ReportGenerator:
             else:
                 logging.warning(f"SLCR logo not found at: {self.slcr_logo}")
             
-            canvas.restoreState()
         except Exception as e:
             logging.error(f"Error drawing logos: {str(e)}")
-            # Print current working directory and logo paths for debugging
+           
             logging.error(f"Current working directory: {os.getcwd()}")
             logging.error(f"IIT BHU logo path: {self.iit_bhu_logo}")
             logging.error(f"SLCR logo path: {self.slcr_logo}")
+
     def _create_header_footer(self, canvas, doc):
         """Create header and footer for each page including logos."""
         canvas.saveState()
         
-        # Draw logos
-        self._draw_logos(canvas, doc)
-        
-        # Add page number at bottom
-        page_num = canvas.getPageNumber()
-        text = f"Page {page_num}"
-        canvas.setFont('Helvetica', 9)
-        canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
-        
-        canvas.restoreState()
+        try:
+
+            self._draw_logos(canvas, doc)
+            page_num = canvas.getPageNumber()
+            text = f"Page {page_num}"
+            canvas.setFont('Helvetica', 9)
+            canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
+        except Exception as e:
+            logging.error(f"Error creating header/footer: {str(e)}")
+        finally:
+            canvas.restoreState()
+
     def _create_title_page_header(self, canvas, doc):
         """Create header for title page with logos positioned to avoid overlap."""
         canvas.saveState()
         
-        # Draw logos on title page in header area
-        logo_y_position = letter[1] - 0.8*inch  # Higher position for title page
-        logo_size = 1*inch  # Slightly larger for title page
-        
         try:
+            # Draw logos on title page in header area
+            logo_y_position = letter[1] - 0.8*inch  # Higher position for title page
+            logo_size = 1*inch  # Slightly larger for title page
+            
             if os.path.exists(self.iit_bhu_logo):
                 canvas.drawImage(
                     self.iit_bhu_logo,
@@ -751,8 +825,9 @@ class ReportGenerator:
                 )
         except Exception as e:
             logging.error(f"Error drawing title page logos: {str(e)}")
-        
-        canvas.restoreState()
+        finally:
+            canvas.restoreState()
+
     def _add_title_page(self):
         """Add title page to the report."""
         try:
@@ -783,92 +858,102 @@ class ReportGenerator:
             self.elements.extend(content)
         except Exception as e:
             logging.error(f"Error adding title page: {str(e)}")
-    # def _add_executive_summary(self):
-    #     """Add executive summary section."""
-    #     try:
-    #         self.elements.append(Paragraph("1. Executive Summary", 
-    #                                      self.style_manager.styles['SectionHeader']))
-            
-    #         summary_text = """
-    #         This report presents a geospatial and multi-criteria analysis for prioritizing villages and towns 
-    #         for the development or upgrading of Sewage Treatment Plants (STPs). The analysis integrates 
-    #         environmental, infrastructural, and demographic indicators to identify high-need areas within 
-    #         the study region. The outcomes are intended to support policy makers and urban planners in 
-    #         aligning sanitation interventions with SDG 6 targets on water and sanitation access.
-    #         """
-            
-    #         self.elements.append(Paragraph(summary_text, self.style_manager.styles['JustifiedBody']))
-    #         self.elements.append(Spacer(1, 20))
-    #     except Exception as e:
-    #         logger.error(f"Failed to add executive summary: {e}")
 
-    # def _add_study_area_overview(self, ) -> None:
-    #     self.elements.append(Paragraph("2. Study Area Overview", 
-    #                                     self.style_manager.styles['SectionHeader']))
-        
-    #     overview_text = f"""
-    #     The study area encompasses selected villages and urban settlements within [Insert District/State], 
-    #     characterized by varied physiographic and hydrological conditions. It is bounded by [insert geographical 
-    #     features or coordinates] and falls within the catchment area of the [Insert River Name], making sewage 
-    #     management critically important for downstream water quality. Rapid urbanization and increased population 
-    #     density in certain zones have further strained the existing sanitation infrastructure.
-    #     """
-        
-    #     self.elements.append(Paragraph(overview_text, self.style_manager.styles['JustifiedBody']))
+    def _add_executive_summary(self):
+        """Add executive summary section."""
+        try:
+            if len(self.elements) > 5:
+                self.elements.append(Spacer(1, 0.8*inch))
+            self.elements.append(Paragraph("1. Executive Summary", 
+                                         self.style_manager.styles['SectionHeader']))
             
-    # def _add_methodology_section(self):
-    #     """Add methodology section."""
-    #     try:
-    #         self.elements.append(Paragraph("3. Database and Methodology", 
-    #                                      self.style_manager.styles['SectionHeader']))
+            summary_text = """
+            This report presents a geospatial and multi-criteria analysis for prioritizing villages and towns 
+            for the development or upgrading of Sewage Treatment Plants (STPs). The analysis integrates 
+            environmental, infrastructural, and demographic indicators to identify high-need areas within 
+            the study region. The outcomes are intended to support policy makers and urban planners in 
+            aligning sanitation interventions with SDG 6 targets on water and sanitation access.
+            """
             
-    #         # Database subsection
-    #         self.elements.append(Paragraph("3.1 Database", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            self.elements.append(Paragraph(summary_text, self.style_manager.styles['JustifiedBody']))
+            self.elements.append(Spacer(1, 20))
+        except Exception as e:
+            logger.error(f"Failed to add executive summary: {e}")
+
+    def _add_study_area_overview(self, location_data) -> None:
+        self.elements.append(Paragraph("2. Study Area Overview",
+                                    self.style_manager.styles['SectionHeader']))
+        self.elements.append(Spacer(1, 0.2 * inch))
+
+        # Compose your narrative and location details
+        narrative = ("The study area encompasses selected villages and urban settlements "
+                    "characterized by varied physiographic and hydrological conditions.")
+
+        lines = [
+            narrative,
+            "",
+            f"State: {location_data[0][1]}",
+            f"District(s): {', '.join(location_data[1][1])}",
+            f"SubDistrict(s): {', '.join(location_data[2][1])}"
+        ]
+        content = "<br/>".join(lines)
+
+        self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
+    
+    def _add_methodology_section(self):
+        """Add methodology section."""
+        self.elements.append(Spacer(1, 0.8*inch))
+        try:
+            self.elements.append(Paragraph("3. Database and Methodology", 
+                                         self.style_manager.styles['SectionHeader']))
             
-    #         database_text = f"""
-    #         A range of spatial and non-spatial datasets were integrated for the STP prioritization analysis. 
-    #         The following thematic layers were used:
-    #         """
+            # Database subsection
+            self.elements.append(Paragraph("3.1 Database", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
+            database_text = """
+            A range of spatial and non-spatial datasets were integrated for the STP prioritization analysis. 
+            The following thematic layers were used:
+            """
             
-    #         # Factor descriptions
-    #         factors = [
-    #             ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
-    #             ("Drainage Distance", self.static_data.Drainage_Distance),
-    #             ("Groundwater Depth", self.static_data.Groundwater_Depth),
-    #             ("Groundwater Quality", self.static_data.Groundwater_Quality),
-    #             ("LULC", self.static_data.LULC),
-    #             ("Major City Risk", self.static_data.Major_City_Risk),
-    #             ("Population", self.static_data.Population),
-    #             ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
-    #         ]
+            self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
             
-    #         for factor_name, description in factors:
-    #             if description.strip():
-    #                 self.elements.append(Paragraph(f"<b>{factor_name}:</b> {description}", 
-    #                                              self.style_manager.styles['JustifiedBody']))
+            # Factor descriptions
+            factors = [
+                ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
+                ("Drainage Distance", self.static_data.Drainage_Distance),
+                ("Groundwater Depth", self.static_data.Groundwater_Depth),
+                ("Groundwater Quality", self.static_data.Groundwater_Quality),
+                ("LULC", self.static_data.LULC),
+                ("Major City Risk", self.static_data.Major_City_Risk),
+                ("Population", self.static_data.Population),
+                ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
+            ]
             
-    #         # Methodology subsection
-    #         self.elements.append(Paragraph("3.2 Methodology", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            for factor_name, description in factors:
+                if description.strip():
+                    self.elements.append(Paragraph(f"<b>{factor_name}:</b> {description}", 
+                                                 self.style_manager.styles['JustifiedBody']))
             
-    #         methodology_text = """
-    #         <b>(a) Data Reclassification:</b> Each factor raster was reclassified into suitability scores ranging from 1 (least priority) to 5 (highest priority). The classification thresholds were derived based on standard guidelines and quantile statistics (Malczewski, 1999).<br/><br/>
-    #         <b>(b) Data Normalization:</b> To ensure comparability among heterogeneous datasets, min-max normalization was applied to all continuous variables. Categorical variables were mapped using fixed priority schemes based on expert consultation.<br/><br/>
-    #         <b>(c) Confusion Matrix:</b> To validate the predictive robustness of the prioritization output, confusion matrices were generated by comparing known high-priority sites (e.g., existing STPs or identified hotspots) with the predicted scores.<br/><br/>
-    #         <b>(d) Weighted Overlay:</b> A Weighted Linear Combination (WLC) model was used, integrating all the thematic layers. The final priority score was computed using a weighted sum approach.<br/><br/>
-    #         """
+            # Methodology subsection
+            self.elements.append(Paragraph("3.2 Methodology", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         self.elements.append(Paragraph(methodology_text, self.style_manager.styles['JustifiedBody']))
-    #         self.elements.append(PageBreak())
+            methodology_text = """
+            <b>(a) Data Reclassification:</b> Each factor raster was reclassified into suitability scores ranging from 1 (least priority) to 5 (highest priority). The classification thresholds were derived based on standard guidelines and quantile statistics (Malczewski, 1999).<br/><br/>
+            <b>(b) Data Normalization:</b> To ensure comparability among heterogeneous datasets, min-max normalization was applied to all continuous variables. Categorical variables were mapped using fixed priority schemes based on expert consultation.<br/><br/>
+            <b>(c) Confusion Matrix:</b> To validate the predictive robustness of the prioritization output, confusion matrices were generated by comparing known high-priority sites (e.g., existing STPs or identified hotspots) with the predicted scores.<br/><br/>
+            <b>(d) Weighted Overlay:</b> A Weighted Linear Combination (WLC) model was used, integrating all the thematic layers. The final priority score was computed using a weighted sum approach.<br/><br/>
+            """
             
-    #     except Exception as e:
-    #         logger.error(f"Failed to add methodology section: {e}")
+            self.elements.append(Paragraph(methodology_text, self.style_manager.styles['JustifiedBody']))
+            self.elements.append(PageBreak())
+            
+        except Exception as e:
+            logger.error(f"Failed to add methodology section: {e}")
 
     # def _process_celery_results(self, celery_result: Dict[str, Any]):
-
+    #     """Process Celery results and add to document."""
     #     try:
     #         processed_factors = celery_result.get('processed_factors', [])
             
@@ -936,21 +1021,41 @@ class ReportGenerator:
     #         logger.error(f"Error processing Celery results: {e}")
     #         raise
     
-    # def _add_fallback_elements(self, factors_data: List[Tuple[str, str, str]]):
-    #     """Add fallback elements when Celery processing fails."""
-    #     try:
-    #         for factor_title, static_text, figure_title in factors_data:
-    #             self.elements.append(Paragraph(factor_title, self.style_manager.styles['SubsectionHeader']))
-    #             if static_text.strip():
-    #                 self.elements.append(Paragraph(static_text, self.style_manager.styles['JustifiedBody']))
-    #             self.elements.extend(ImageManager.create_image_placeholder(figure_title))
-    #             self.elements.append(Spacer(1, 15))
-    #             self.elements.append(PageBreak())
-    #     except Exception as e:
-    #         logger.error(f"Error adding fallback elements: {e}")
+    def _add_fallback_elements(self, processed_factors: List[Tuple[str, str, str]]):
+        try:
+            for factor_title, static_text, figure_path in processed_factors:
+                    # Add factor title and text
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['SubsectionHeader']
+                    ))
+                    
+                    if static_text.strip():
+                        self.elements.append(Paragraph(
+                            static_text, 
+                            self.style_manager.styles['JustifiedBody']
+                        ))
+                    
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
 
-    # def _generate_image_safely(self, name: str, gdf: gpd.GeoDataFrame) -> Optional[str]:
-    #     """Generate image and save to disk, return file path."""
+                    if figure_path:
+                        with open(figure_path, 'rb') as f:
+                            print("read image")
+                            image_bytes = io.BytesIO(f.read())
+                            image_elements = ImageManager.insert_actual_image(image_bytes)
+                            if image_elements:
+                                self.elements.extend(image_elements)
+                    self.elements.append(Spacer(1, 15))
+                    self.elements.append(PageBreak())
+        except Exception as e:
+            logger.error(f"Error processing Celery results: {e}")
+            raise
+    
+    # def _generate_image_safely(self, name: str, gdf) -> Optional[str]:
+    #     """Generate image and sa ve to disk, return file path."""
     #     try:
     #         clean_name = name[4:] if name.startswith("(") else name
     #         clean_name = clean_name.replace(" ", "_").replace("(", "").replace(")", "")
@@ -982,147 +1087,146 @@ class ReportGenerator:
     #         logger.error(f"Failed to generate image for {name}: {e}")
     #         return None
 
-    # def _add_results_section(self, gdf: gpd.GeoDataFrame):
-    #     """Add results section with comprehensive error handling."""
-    #     try:
-    #         self.elements.append(Paragraph("4. Results", self.style_manager.styles['SectionHeader']))
+    def _add_results_section(self,layer_names: List):
+        try:
+            self.elements.append(Paragraph("4. Results", self.style_manager.styles['SectionHeader']))
             
-    #         # Priority factors subsection
-    #         self.elements.append(Paragraph("4.1 STP Priority Factors", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            # Priority factors subsection
+            self.elements.append(Paragraph("4.1 STP Priority Factors", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         factors_text = """
-    #         The analysis reveals that factors such as downstream drain effect, proximity to polluted river segments, 
-    #         and population size exert the most significant influence on STP prioritization. Villages with high sewage 
-    #         potential but lacking treatment infrastructure clustered in specific zones.
-    #         """
+            factors_text = """
+            The analysis reveals that factors such as downstream drain effect, proximity to polluted river segments, 
+            and population size exert the most significant influence on STP prioritization. Villages with high sewage 
+            potential but lacking treatment infrastructure clustered in specific zones.
+            """
             
-    #         self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
+            self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
+
+            factors_data = []
+            for key, value in asdict(self.static_data).items():
+                name = key.replace("_", " ")
+                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
+                if match:
+                    factors_data.append((name,
+                        value,
+                        match["file_path"]
+                    ))
+            self._add_fallback_elements(factors_data)
             
-    #         # Define factors data
-    #         factors_data = [
-    #             ("(a) Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain, "Figure 1: Downstream Effect Map"),
-    #             ("(b) Drainage Distance", self.static_data.Drainage_Distance, "Figure 2: Drainage Distance Map"),
-    #             ("(c) Groundwater Depth", self.static_data.Groundwater_Depth, "Figure 3: Groundwater Depth Map"),
-    #             ("(d) Groundwater Quality", self.static_data.Groundwater_Quality, "Figure 4: Groundwater Quality Map"),
-    #             ("(e) LULC", self.static_data.LULC, "Figure 5: LULC Map"),
-    #             ("(f) Major City Risk", self.static_data.Major_City_Risk, "Figure 6: Major City Risk Map"),
-    #             ("(g) Population", self.static_data.Population, "Figure 7: Population Map"),
-    #             ("(h) Proximity River Quality", self.static_data.Proximity_River_Quality, "Figure 8: Proximity River Quality Map")
-    #         ]            
-    #         # Priority map
-    #         self.elements.append(Paragraph("4.2 STP Priority Map", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            # Priority map subsection
+                
+            self.elements.append(Paragraph("4.2 STP Priority Map", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         if self.static_data.priority_map_analysis.strip():
-    #             self.elements.append(Paragraph(self.static_data.priority_map_analysis, 
-    #                                          self.style_manager.styles['JustifiedBody']))
+            # if self.static_data.priority_map_analysis.strip():
+            #     self.elements.append(Paragraph(self.static_data.priority_map_analysis, 
+            #                                  self.style_manager.styles['JustifiedBody']))
             
-    #         self.elements.append(Paragraph("Figure 9: STP Priority Map", 
-    #                                      self.style_manager.styles['FigureCaption']))
+            # self.elements.append(Paragraph("Figure 9: STP Priority Map", 
+            #                              self.style_manager.styles['FigureCaption']))
             
-    #         # Generate priority map
-    #         priority_image_path = self._generate_image_safely("(i) STP Priority", gdf)
-    #         if priority_image_path and Path(priority_image_path).exists():
-    #             try:
-    #                 with open(priority_image_path, 'rb') as f:
-    #                     image_bytes = io.BytesIO(f.read())
+            # Generate priority map
+            # priority_image_path = self._generate_image_safely("(i) STP Priority", gdf)
+            # if priority_image_path and Path(priority_image_path).exists():
+            #     try:
+            #         with open(priority_image_path, 'rb') as f:
+            #             image_bytes = io.BytesIO(f.read())
                     
-    #                 image_elements = ImageManager.insert_actual_image(image_bytes)
-    #                 if image_elements:
-    #                     self.elements.extend(image_elements)
-    #                     logger.info("Successfully added priority map")
-    #                 else:
-    #                     self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
-    #             except Exception as e:
-    #                 logger.error(f"Failed to read priority map image: {e}")
-    #                 self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
-    #         else:
-    #             logger.warning("Priority map not generated or file not found")
-    #             self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
+            #         image_elements = ImageManager.insert_actual_image(image_bytes)
+            #         if image_elements:
+            #             self.elements.extend(image_elements)
+            #             logger.info("Successfully added priority map")
+            #         else:
+            #             self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
+            #     except Exception as e:
+            #         logger.error(f"Failed to read priority map image: {e}")
+            #         self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
+            # else:
+            #     logger.warning("Priority map not generated or file not found")
+            #     self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
             
-    #         self.elements.append(Spacer(1, 15))
-    #         self.elements.append(PageBreak())
+            self.elements.append(Spacer(1, 15))
+            self.elements.append(PageBreak())
             
-    #         # Weights details
-    #         self.elements.append(Paragraph("4.3 Details of the Assigned Weights", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            # Weights details
+            self.elements.append(Paragraph("4.3 Details of the Assigned Weights", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         if self.static_data.weight_details.strip():
-    #             self.elements.append(Paragraph(self.static_data.weight_details, 
-    #                                          self.style_manager.styles['JustifiedBody']))
+            # if self.static_data.weight_details.strip():
+            #     self.elements.append(Paragraph(self.static_data.weight_details, 
+            #                                  self.style_manager.styles['JustifiedBody']))
             
-    #         # Weights table
-    #         weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
-    #         if weights_table:
-    #             self.elements.append(weights_table)
-    #             self.elements.append(Paragraph("Table 1: Details of the Used Weights", 
-    #                                          self.style_manager.styles['FigureCaption']))
+            # Weights table
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
+            if weights_table:
+                self.elements.append(weights_table)
+                # self.elements.append(Paragraph("Table 1: Details of the Used Weights", 
+                #                              self.style_manager.styles['FigureCaption']))
+            self.elements.append(Spacer(1, 20))
             
-    #         self.elements.append(Spacer(1, 20))
+            # Village-wise analysis
+            self.elements.append(Paragraph("4.4 Village-wise Analysis of the STP Priority", 
+                                         self.style_manager.styles['SubsectionHeader']))
             
-    #         # Village-wise analysis
-    #         self.elements.append(Paragraph("4.4 Village-wise Analysis of the STP Priority", 
-    #                                      self.style_manager.styles['SubsectionHeader']))
+            # if self.static_data.village_analysis.strip():
+            #     self.elements.append(Paragraph(self.static_data.village_analysis, 
+            #                                  self.style_manager.styles['JustifiedBody']))
             
-    #         if self.static_data.village_analysis.strip():
-    #             self.elements.append(Paragraph(self.static_data.village_analysis, 
-    #                                          self.style_manager.styles['JustifiedBody']))
+            # Village analysis table
+            village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
+            if village_table:
+                self.elements.append(village_table)
+                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             
-    #         # Village analysis table
-    #         village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
-    #         if village_table:
-    #             self.elements.append(village_table)
-    #             self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
-    #                                          self.style_manager.styles['FigureCaption']))
+            self.elements.append(PageBreak())
             
-    #         self.elements.append(PageBreak())
-            
-    #     except Exception as e:
-    #         logger.error(f"Failed to add results section: {e}")
+        except Exception as e:
+            logger.error(f"Failed to add results section: {e}")
 
-    # def _add_references(self):
-    #     """Add references section."""
-    #     try:
-    #         self.elements.append(Paragraph("5. References", self.style_manager.styles['SectionHeader']))
+    def _add_references(self):
+        """Add references section."""
+        try:
+            self.elements.append(Paragraph("5. References", self.style_manager.styles['SectionHeader']))
             
-    #         references = [
-    #             "Anderson, J.R., Hardy, E.E., Roach, J.T., & Witmer, R.E. (1976). A Land Use and Land Cover Classification System for Use with Remote Sensor Data. USGS Professional Paper 964.",
-    #             "Central Pollution Control Board (CPCB). (2020). River Water Quality Assessment – Annual Report.",
-    #             "CGWB. (2022). Groundwater Yearbook – India 2021–22. Central Ground Water Board, Ministry of Jal Shakti.",
-    #             "Esri. (2020). Understanding Drainage Patterns Using Flow Direction and Accumulation.",
-    #             "Malczewski, J. (1999). GIS and Multicriteria Decision Analysis. John Wiley & Sons.",
-    #             "National Commission on Population. (2019). Population Projections for India and States 2011–2036. Ministry of Health & Family Welfare.",
-    #             "USEPA. (2004). Primer for Municipal Wastewater Treatment Systems."
-    #         ]
+            references = [
+                "Anderson, J.R., Hardy, E.E., Roach, J.T., & Witmer, R.E. (1976). A Land Use and Land Cover Classification System for Use with Remote Sensor Data. USGS Professional Paper 964.",
+                "Central Pollution Control Board (CPCB). (2020). River Water Quality Assessment – Annual Report.",
+                "CGWB. (2022). Groundwater Yearbook – India 2021–22. Central Ground Water Board, Ministry of Jal Shakti.",
+                "Esri. (2020). Understanding Drainage Patterns Using Flow Direction and Accumulation.",
+                "Malczewski, J. (1999). GIS and Multicriteria Decision Analysis. John Wiley & Sons.",
+                "National Commission on Population. (2019). Population Projections for India and States 2011–2036. Ministry of Health & Family Welfare.",
+                "USEPA. (2004). Primer for Municipal Wastewater Treatment Systems."
+            ]
             
-    #         for i, ref in enumerate(references, 1):
-    #             self.elements.append(Paragraph(f"{i}. {ref}", self.style_manager.styles['JustifiedBody']))
-    #     except Exception as e:
-    #         logger.error(f"Failed to add references: {e}")
+            for i, ref in enumerate(references, 1):
+                self.elements.append(Paragraph(f"{i}. {ref}", self.style_manager.styles['JustifiedBody']))
+        except Exception as e:
+            logger.error(f"Failed to add references: {e}")
 
-    # def _cleanup_temp_images(self):
-    #     """Clean up temporary image files after PDF generation."""
-    #     try:
-    #         image_files = list(self.folder_path.glob("*.png"))
-    #         for image_file in image_files:
-    #             try:
-    #                 image_file.unlink()
-    #                 logger.debug(f"Cleaned up image: {image_file}")
-    #             except Exception as e:
-    #                 logger.warning(f"Failed to delete image {image_file}: {e}")
-            
-    #         if image_files:
-    #             logger.info(f"Cleaned up {len(image_files)} temporary image files")
-    #     except Exception as e:
-    #         logger.warning(f"Error during image cleanup: {e}")
+    def _cleanup_temp_images(self):
+        """Clean up temporary image files after PDF generation."""
+        try:
+            if hasattr(self, 'folder_path') and self.folder_path:
+                image_files = list(self.folder_path.glob("*.png"))
+                for image_file in image_files:
+                    try:
+                        image_file.unlink()
+                        logger.debug(f"Cleaned up image: {image_file}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete image {image_file}: {e}")
+                
+                if image_files:
+                    logger.info(f"Cleaned up {len(image_files)} temporary image files")
+        except Exception as e:
+            logger.warning(f"Error during image cleanup: {e}")
 
-
-    # main fucntion to call make the pdf
-    def generate_report(self, layer_names: List) -> str:
+    def generate_report(self, layer_names: List,location_data:list) -> str:
         """Generate the complete report with comprehensive error handling."""
         try:
             full_output_path = self.config.get_full_output_path()
+            
             doc = SimpleDocTemplate(
                 full_output_path,
                 pagesize=self.config.page_size,
@@ -1139,18 +1243,17 @@ class ReportGenerator:
             
             # Build document sections
             self._add_title_page()
-            # self._add_executive_summary()
+            self._add_executive_summary()
+            self._add_study_area_overview(location_data=location_data)
+            self._add_methodology_section()
+            self._add_results_section(layer_names=layer_names)  # Uncomment when gdf is available
+            self._add_references()
             
-            # self._add_study_area_overview(clip=clip)
-            
-            # self._add_methodology_section()
-            # self._add_results_section()
-            # self._add_references()
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 
                      onLaterPages=self._create_header_footer)
             
             # Clean up temporary images after successful PDF generation
-            # self._cleanup_temp_images()
+            self._cleanup_temp_images()
             
             logger.info(f"Report generated successfully: {full_output_path}")
             return full_output_path
@@ -1160,11 +1263,13 @@ class ReportGenerator:
             raise STRPReportError(f"Report generation failed: {e}")
 
 
-
 @app.task(bind=True,pydantic=True,name="main pdf generation")
 def document_gen(self,payload: StpReportInput):
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
+        table_data = [item.model_dump() for item in payload.table]
+        location_data =[item for item in payload.location]
+        weight_data= [["Factor", "Weight"]] + [[d.file_name, str(d.weight)] for d in payload.weight_data]
         file_paths=StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
         tasks = []
         for item in file_paths:
@@ -1177,10 +1282,7 @@ def document_gen(self,payload: StpReportInput):
             sld_path=item["sld_path"],
             clip=payload.clip ) # Ensure it's serializable
         )
-        table_data = [item.model_dump() for item in payload.table]
-        job = chord(group(tasks))(final_step.s(table_data=table_data))
-        
-
+        job = chord(group(tasks))(final_step.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
     except Exception as e:
         logger.error(f"Failed to load raster data: {e}")
         raise STRPReportError(f"PDF generation failed: {e}")
@@ -1190,10 +1292,10 @@ def celery_currency(self,file_path:str,raster_path:str,sld_path:str,clip:List[st
     file_path=MapGenerator(dpi=10).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
-        "file_name":(os.path.splitext(os.path.basename(file_path))[0]).replace("_", " ")
+        "file_name":(os.path.splitext(os.path.basename(file_path))[0])
     }
 
 @app.task(bind=True,pydantic=True,name="pdf_generation_start")
-def final_step(self,results: List[dict],table_data:list)->None:
-    pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data)
-    print(pdf_path)
+def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
+    pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
+   
