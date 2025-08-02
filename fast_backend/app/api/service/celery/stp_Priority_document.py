@@ -1,7 +1,6 @@
 import os
 import io
 import uuid
-import base64
 import logging
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, PageBreak
 from reportlab.lib.pagesizes import letter
@@ -95,10 +94,10 @@ class ReportConfig:
     def __post_init__(self):
         if self.margins is None:
             self.margins = {
-                'top': 2.5*cm,
+                'top': 4.7*cm,
                 'bottom': 2.5*cm,
                 'left': 2.5*cm,
-                'right': 2.5*cm
+                'right': 3.2*cm
             }
         
         if self.output_folder is None:
@@ -121,6 +120,7 @@ class StaticTextData:
     Population: str = ""
     Proximity_River_Quality: str = ""
     STP_Priority: str = ""
+
     
 @dataclass
 class TableData:
@@ -269,7 +269,7 @@ class ImageManager:
                 return None
             
             image_stream.seek(0)
-            return [Image(image_stream, width=600, height=400, hAlign='CENTER')]
+            return [Image(image_stream, width=550, height=400, hAlign='CENTER')]
         except Exception as e:
             logger.error(f"Failed to insert image: {e}")
             return None
@@ -393,7 +393,6 @@ class TableGenerator:
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
             return None
-
 
 class SpatialDataset:
     def __init__(self):
@@ -862,8 +861,6 @@ class ReportGenerator:
     def _add_executive_summary(self):
         """Add executive summary section."""
         try:
-            if len(self.elements) > 5:
-                self.elements.append(Spacer(1, 0.8*inch))
             self.elements.append(Paragraph("1. Executive Summary", 
                                          self.style_manager.styles['SectionHeader']))
             
@@ -902,7 +899,6 @@ class ReportGenerator:
     
     def _add_methodology_section(self):
         """Add methodology section."""
-        self.elements.append(Spacer(1, 0.8*inch))
         try:
             self.elements.append(Paragraph("3. Database and Methodology", 
                                          self.style_manager.styles['SectionHeader']))
@@ -952,74 +948,6 @@ class ReportGenerator:
         except Exception as e:
             logger.error(f"Failed to add methodology section: {e}")
 
-    # def _process_celery_results(self, celery_result: Dict[str, Any]):
-    #     """Process Celery results and add to document."""
-    #     try:
-    #         processed_factors = celery_result.get('processed_factors', [])
-            
-    #         for factor_data in processed_factors:
-    #             try:
-    #                 # Add factor title and text
-    #                 self.elements.append(Paragraph(
-    #                     factor_data['factor_title'], 
-    #                     self.style_manager.styles['SubsectionHeader']
-    #                 ))
-                    
-    #                 if factor_data['static_text'].strip():
-    #                     self.elements.append(Paragraph(
-    #                         factor_data['static_text'], 
-    #                         self.style_manager.styles['JustifiedBody']
-    #                     ))
-                    
-    #                 self.elements.append(Paragraph(
-    #                     factor_data['figure_title'], 
-    #                     self.style_manager.styles['FigureCaption']
-    #                 ))
-
-    #                 # Handle image by reading from disk
-    #                 if factor_data['has_image'] and factor_data['image_path']:
-    #                     try:
-    #                         image_path = Path(factor_data['image_path'])
-    #                         if image_path.exists():
-    #                             # Read image from disk
-    #                             with open(image_path, 'rb') as f:
-    #                                 image_bytes = io.BytesIO(f.read())
-                                
-    #                             image_elements = ImageManager.insert_actual_image(image_bytes)
-    #                             if image_elements:
-    #                                 self.elements.extend(image_elements)
-    #                                 logger.info(f"Successfully added image for {factor_data['factor_title']}")
-    #                             else:
-    #                                 self.elements.extend(ImageManager.create_image_placeholder(
-    #                                     f"Error: {factor_data['figure_title']}"
-    #                                 ))
-    #                         else:
-    #                             logger.warning(f"Image file not found: {image_path}")
-    #                             self.elements.extend(ImageManager.create_image_placeholder(
-    #                                 f"Missing: {factor_data['figure_title']}"
-    #                             ))
-    #                     except Exception as e:
-    #                         logger.error(f"Failed to read image for {factor_data['factor_title']}: {e}")
-    #                         self.elements.extend(ImageManager.create_image_placeholder(
-    #                             f"Error: {factor_data['figure_title']}"
-    #                         ))
-    #                 else:
-    #                     error_info = factor_data.get('error', 'Unknown error')
-    #                     logger.warning(f"No valid image for {factor_data['factor_title']}: {error_info}")
-    #                     self.elements.extend(ImageManager.create_image_placeholder(
-    #                         f"Missing: {factor_data['figure_title']}"
-    #                     ))
-
-    #                 self.elements.append(Spacer(1, 15))
-    #                 self.elements.append(PageBreak())
-                    
-    #             except Exception as e:
-    #                 logger.error(f"Error processing factor data {factor_data.get('factor_title', 'unknown')}: {e}")
-    #                 continue
-                    
-    #     except Exception as e:
-    #         logger.error(f"Error processing Celery results: {e}")
-    #         raise
     
     def _add_fallback_elements(self, processed_factors: List[Tuple[str, str, str]]):
         try:
@@ -1053,39 +981,6 @@ class ReportGenerator:
         except Exception as e:
             logger.error(f"Error processing Celery results: {e}")
             raise
-    
-    # def _generate_image_safely(self, name: str, gdf) -> Optional[str]:
-    #     """Generate image and sa ve to disk, return file path."""
-    #     try:
-    #         clean_name = name[4:] if name.startswith("(") else name
-    #         clean_name = clean_name.replace(" ", "_").replace("(", "").replace(")", "")
-            
-    #         raster_path = self.folder_path / f"{clean_name}.tif"
-    #         sld_path = self.folder_path / f"{clean_name}.sld"
-            
-    #         if raster_path.exists() and sld_path.exists():
-    #             # Generate image
-    #             image_bytes = MapGenerator(dpi=self.dpi).make_image(
-    #                 clean_name, str(raster_path), str(sld_path), filtered_vector=gdf
-    #             )
-                
-    #             if image_bytes:
-    #                 # Save to disk
-    #                 output_image_path = self.folder_path / f"{clean_name}_priority_map.png"
-    #                 with open(output_image_path, 'wb') as f:
-    #                     f.write(image_bytes.getvalue())
-                    
-    #                 logger.info(f"Generated and saved priority map: {output_image_path}")
-    #                 return str(output_image_path)
-    #             else:
-    #                 logger.warning(f"No image bytes generated for {name}")
-    #                 return None
-    #         else:
-    #             logger.warning(f"Missing files for {name}: raster={raster_path.exists()}, sld={sld_path.exists()}")
-    #             return None
-    #     except Exception as e:
-    #         logger.error(f"Failed to generate image for {name}: {e}")
-    #         return None
 
     def _add_results_section(self,layer_names: List):
         try:
@@ -1113,66 +1008,25 @@ class ReportGenerator:
                         match["file_path"]
                     ))
             self._add_fallback_elements(factors_data)
-            
-            # Priority map subsection
-                
-            self.elements.append(Paragraph("4.2 STP Priority Map", 
-                                         self.style_manager.styles['SubsectionHeader']))
-            
-            # if self.static_data.priority_map_analysis.strip():
-            #     self.elements.append(Paragraph(self.static_data.priority_map_analysis, 
-            #                                  self.style_manager.styles['JustifiedBody']))
-            
-            # self.elements.append(Paragraph("Figure 9: STP Priority Map", 
-            #                              self.style_manager.styles['FigureCaption']))
-            
-            # Generate priority map
-            # priority_image_path = self._generate_image_safely("(i) STP Priority", gdf)
-            # if priority_image_path and Path(priority_image_path).exists():
-            #     try:
-            #         with open(priority_image_path, 'rb') as f:
-            #             image_bytes = io.BytesIO(f.read())
-                    
-            #         image_elements = ImageManager.insert_actual_image(image_bytes)
-            #         if image_elements:
-            #             self.elements.extend(image_elements)
-            #             logger.info("Successfully added priority map")
-            #         else:
-            #             self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
-            #     except Exception as e:
-            #         logger.error(f"Failed to read priority map image: {e}")
-            #         self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
-            # else:
-            #     logger.warning("Priority map not generated or file not found")
-            #     self.elements.extend(ImageManager.create_image_placeholder("Figure 9: STP Priority Map"))
-            
             self.elements.append(Spacer(1, 15))
-            self.elements.append(PageBreak())
             
             # Weights details
-            self.elements.append(Paragraph("4.3 Details of the Assigned Weights", 
+            self.elements.append(Paragraph("4.2 Details of the Assigned Weights", 
                                          self.style_manager.styles['SubsectionHeader']))
             
-            # if self.static_data.weight_details.strip():
-            #     self.elements.append(Paragraph(self.static_data.weight_details, 
-            #                                  self.style_manager.styles['JustifiedBody']))
-            
+
             # Weights table
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
             if weights_table:
                 self.elements.append(weights_table)
-                # self.elements.append(Paragraph("Table 1: Details of the Used Weights", 
-                #                              self.style_manager.styles['FigureCaption']))
+            
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
-            self.elements.append(Paragraph("4.4 Village-wise Analysis of the STP Priority", 
+            self.elements.append(Paragraph("4.3 Village-wise Analysis of the STP Priority", 
                                          self.style_manager.styles['SubsectionHeader']))
             
-            # if self.static_data.village_analysis.strip():
-            #     self.elements.append(Paragraph(self.static_data.village_analysis, 
-            #                                  self.style_manager.styles['JustifiedBody']))
-            
+        
             # Village analysis table
             village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
             if village_table:
@@ -1280,7 +1134,7 @@ def document_gen(self,payload: StpReportInput):
             file_path=file_path,
             raster_path=item["raster_path"],
             sld_path=item["sld_path"],
-            clip=payload.clip ) # Ensure it's serializable
+            clip=payload.clip ) 
         )
         job = chord(group(tasks))(final_step.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
     except Exception as e:
@@ -1289,7 +1143,7 @@ def document_gen(self,payload: StpReportInput):
 
 @app.task(bind=True,pydantic=True,name="celery_currency")
 def celery_currency(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=10).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=300).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])

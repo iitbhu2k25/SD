@@ -4,7 +4,7 @@ from app.api.service.stp_svc.spt_service import Stp_service
 from fastapi import HTTPException,status
 from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpReportInput
 from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
-from app.api.service.stp_svc.stp_document import document_gen
+from app.api.service.celery.stp_Priority_document import document_gen
 from fastapi.responses import FileResponse
 router=APIRouter()
 @router.post("/stp_visual_display")
