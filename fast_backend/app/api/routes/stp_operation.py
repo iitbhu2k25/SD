@@ -5,7 +5,9 @@ from fastapi import HTTPException,status
 from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpReportInput
 from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
 from app.api.service.celery.stp_Priority_document import document_gen
-from fastapi.responses import FileResponse
+from app.conf.ws_config import ConnectionManager
+from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
+connection_manager=ConnectionManager()
 router=APIRouter()
 @router.post("/stp_visual_display")
 def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
@@ -59,10 +61,21 @@ def stp_classify(db:db_dependency,payload:STPSutabilityInput):
 @router.post("/stp_priority_report",status_code=status.HTTP_201_CREATED)
 def stp_priority_report(payload:StpReportInput):
     try:  
-        resp = document_gen.delay(payload=payload.model_dump())
+        task_id= document_gen.delay(payload=payload.model_dump())
     except Exception as e:
         print("exception",e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+@router.websocket("/ws/{task_id}")
+async def report_download(websocket: WebSocket, task_id: str):
+    await connection_manager.connect(websocket)
+    try:
+        while True:
+            data=await websocket.receive_text()
+            print("data",data)
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+        
