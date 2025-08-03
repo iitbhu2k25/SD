@@ -77,12 +77,10 @@ def stp_priority_report(payload:StpReportInput):
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):
     await connection_manager.connect(websocket)
-    await connection_manager.send_personal_message("connection established", websocket)
-
     try:
+        # Wait for task result
         while True:
             parent_result = AsyncResult(task_id, app=app)
-
             if not parent_result.ready():
                 await asyncio.sleep(2)
                 continue
@@ -91,37 +89,48 @@ async def report_download(websocket: WebSocket, task_id: str):
                 result_data = parent_result.get(timeout=5)
                 chord_id = result_data['chord_id']
             except Exception as e:
-                await connection_manager.send_personal_message(json.dumps({
+                await websocket.send_json({
                     "status": "ERROR",
                     "message": f"Failed to get chord_id: {str(e)}"
-                }), websocket)
+                })
                 break
 
             chord_result = AsyncResult(chord_id, app=app)
-
-            # Wait for chord result to be ready
             while not chord_result.ready():
                 await asyncio.sleep(2)
 
             if chord_result.successful():
-                await connection_manager.send_personal_message(json.dumps({
+                file_path = chord_result.get()
+                await websocket.send_json({
                     "status": "SUCCESS",
-                    "result": chord_result.get()
-                }), websocket)
-            elif chord_result.failed():
-                await connection_manager.send_personal_message(json.dumps({
+                    "message": "Report is ready. Send 'SEND_FILE' to receive it."
+                })
+
+                # Wait for client to say "SEND_FILE"
+                data = await websocket.receive_text()
+                if data == "SEND_FILE":
+                    try:
+                        with open(file_path, "rb") as f:
+                            await websocket.send_bytes(f.read())
+                    except FileNotFoundError:
+                        await websocket.send_json({
+                            "status": "ERROR",
+                            "message": "File not found"
+                        })
+            else:
+                await websocket.send_json({
                     "status": "FAILURE",
                     "error": str(chord_result.result)
-                }), websocket)
+                })
 
-            break  # Exit outer loop after final result
+            break
 
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket)
 
     except Exception as e:
-        await connection_manager.send_personal_message(json.dumps({
+        await websocket.send_json({
             "status": "ERROR",
             "message": str(e)
-        }), websocket)
+        })
         connection_manager.disconnect(websocket)

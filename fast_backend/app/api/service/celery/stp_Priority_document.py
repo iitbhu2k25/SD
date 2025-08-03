@@ -1120,7 +1120,6 @@ class ReportGenerator:
 
 @app.task(bind=True,pydantic=True,name="main pdf generation")
 def document_gen(self,payload: StpReportInput):
-    sleep(50)
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
         table_data = [item.model_dump() for item in payload.table]
@@ -1146,7 +1145,7 @@ def document_gen(self,payload: StpReportInput):
 
 @app.task(bind=True,pydantic=True,name="celery_currency")
 def celery_currency(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=300).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=3).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
