@@ -16,6 +16,7 @@ import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import { api } from "@/services/api";
 
 
 const MainContent = () => {
@@ -55,24 +56,22 @@ const MainContent = () => {
       weight_data:selectedCategories
       // weight: selectedCategories,
     };
-    const response = await fetch("/api/stp_operation/stp_priority_report", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
+    const response = await api.post("/api/stp_operation/stp_priority_report",
+     {body: data}
+    )
     if (response.status != 201) {
+      console.log("report false")
       setReportLoading(false);
       toast.error("Report failed", {
         position: "top-center",
       });
       return null;
     }
-    toast.success("Report generated successfully");
-    const blob = await response.blob();
+    toast.success("Report generated started");
+    const task_id=response.message as Record<string, string>
+    console.log(task_id['task_id'])
+    
     setReportLoading(false);
-
   };
 
   const handleSubmit = () => {

@@ -52,6 +52,7 @@ import math
 from reportlab.platypus import Frame
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
+from time import sleep
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
 class STRPReportError(Exception):
@@ -1119,6 +1120,7 @@ class ReportGenerator:
 
 @app.task(bind=True,pydantic=True,name="main pdf generation")
 def document_gen(self,payload: StpReportInput):
+    sleep(50)
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
         table_data = [item.model_dump() for item in payload.table]
@@ -1137,6 +1139,7 @@ def document_gen(self,payload: StpReportInput):
             clip=payload.clip ) 
         )
         job = chord(group(tasks))(final_step.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
+        return {"chord_id": job.id}
     except Exception as e:
         logger.error(f"Failed to load raster data: {e}")
         raise STRPReportError(f"PDF generation failed: {e}")
@@ -1152,4 +1155,4 @@ def celery_currency(self,file_path:str,raster_path:str,sld_path:str,clip:List[st
 @app.task(bind=True,pydantic=True,name="pdf_generation_start")
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
     pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
-   
+    return pdf_path

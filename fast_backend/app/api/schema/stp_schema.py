@@ -167,3 +167,7 @@ class StpReportInput(BaseModel):
     raster: List[DataItem] = None
     location: LocationData
     weight_data: List[weight_insight]
+
+
+class celery_id(BaseModel):
+    task_id:str
