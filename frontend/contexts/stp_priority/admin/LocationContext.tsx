@@ -51,7 +51,9 @@ interface LocationContextType {
   selectionsLocked: boolean;
   display_raster: clip_rasters[];
   setdisplay_raster: (layer: clip_rasters[]) => void;
-
+  selectedStateName: string;
+  selectedDistrictsNames: string[];
+  selectedSubDistrictsNames: string[];
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number[]) => void;
@@ -77,6 +79,9 @@ const LocationContext = createContext<LocationContextType>({
   selectionsLocked: false,
   isLoading: false,
   display_raster:[],
+  selectedStateName: "",
+  selectedDistrictsNames: [],
+  selectedSubDistrictsNames: [],
   setdisplay_raster: () => {},
   handleStateChange: () => {},
   setSelectedDistricts: () => {},
@@ -101,13 +106,24 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     []
   );
 
+ 
+
   // State for additional information
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [display_raster, setdisplay_raster] = useState<clip_rasters[]>([]);
- 
+  const [selectedStateName, setSelectedStateName] = useState<string>("");
+  const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
+  const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
+  useEffect(()=>{
+      setSelectedStateName(states.find((state) => state.id === selectedState)?.name || "");
+      setSelectedDistrictNames(districts.filter((district) => selectedDistricts.includes(district.id as number)).map((district) => district.name));
+      setSelectedSubDistrictNames(subDistricts.filter((subDistrict) => selectedSubDistricts.includes(subDistrict.id as number)).map((subDistrict) => subDistrict.name));
+
+  },[selectionsLocked])
+
   useEffect(() => {
     const fetchStates = async () => {
       setIsLoading(true);
@@ -350,6 +366,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     resetSelections,
     display_raster,
     setdisplay_raster,
+    selectedStateName,
+    selectedDistrictsNames,
+    selectedSubDistrictsNames
   };
 
   return (

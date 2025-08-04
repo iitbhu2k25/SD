@@ -16,18 +16,25 @@ import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import { api } from "@/services/api";
+import { useWebSocket } from "@/services/websocket";
 
 
 const MainContent = () => {
   const { selectedCategories, stpProcess, tableData } = useCategory();
   const [reportLoading, setReportLoading] = useState(false);
-
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const { messages,sendMessage, isConnected } = useWebSocket(
+    taskId ? `ws://localhost:7000/api/stp_operation/ws/${taskId}` : '',
+    { reconnect: false }
+  );
   const {
     selectionsLocked,
     display_raster,
-    selectedDistricts,
     selectedSubDistricts,
-    selectedState,
+    selectedSubDistrictsNames,
+    selectedDistrictsNames,
+    selectedStateName,
   } = useLocation();
 
   const { setstpOperation, loading, isMapLoading, stpOperation, setLoading } =
@@ -38,34 +45,65 @@ const MainContent = () => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
 
-  const handlereport = async () => {
-    setReportLoading(true);
-    const data = {
-      table: tableData,
-      raster: display_raster,
-      place: "Admin",
-      clip: selectedSubDistricts,
-      // weight: selectedCategories,
-    };
-    console.log(data);
-    const response = await fetch("/api/stp_operation/stp_priority_report", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-    if (response.status != 201) {
-      setReportLoading(false);
-      toast.error("Report failed", {
-        position: "top-center",
-      });
-      return null;
-    }
-    toast.success("Report generated successfully");
-    const blob = await response.blob();
-    setReportLoading(false);
+  useEffect(() => {
+    // Handle WebSocket message updates
+    if (!messages.length) return;
 
+    const last = messages[messages.length - 1];
+    try {
+      const parsed = JSON.parse(last);
+      if (parsed.status === 'SUCCESS') {
+        toast.success("Report downloaded!");
+        sendMessage('SEND_FILE');
+      } else if (parsed.status === 'FAILURE') {
+        toast.error("Report failed: " + parsed.error);
+      } else if (parsed.status === 'ERROR') {
+        toast.error("WebSocket error: " + parsed.message);
+      }
+    } catch {
+      console.warn('Received non-JSON message:', last);
+    }finally{
+      setReportLoading(false);
+    }
+  }, [messages]);
+  const handlereport = async () => {
+    try {
+      setReportLoading(true);
+      const locationData = {
+        state: selectedStateName,
+        districts: selectedDistrictsNames,
+        subDistricts: selectedSubDistrictsNames,
+      }
+      const data = {
+        table: tableData,
+        raster: display_raster,
+        place: "Admin",
+        clip: selectedSubDistricts,
+        location: locationData,
+        weight_data: selectedCategories
+        // weight: selectedCategories,
+      };
+      const response = await api.post("/api/stp_operation/stp_priority_report",
+        { body: data }
+      )
+      if (response.status != 201) {
+        console.log("report false")
+        setReportLoading(false);
+        toast.error("Report failed", {
+          position: "top-center",
+        });
+        return null;
+      }
+      toast.success("Report generated started");
+      const task = response.message as Record<string, string>
+      setTaskId(task['task_id'])
+    } catch (error) {
+      console.error("Report error", error);
+      toast.error("Failed to start report");
+    }
+    finally {
+      setReportLoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -81,7 +119,7 @@ const MainContent = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-    {
+      {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation}
           title={
@@ -94,7 +132,7 @@ const MainContent = () => {
           }
         />
       }
-     
+
 
       <main className="px-4 py-8">
         {/* Changed from grid-cols-2 to grid-cols-3 to create a 2:1 ratio */}
@@ -128,11 +166,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={stpProcess}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          stpProcess
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${stpProcess
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {!stpProcess && (
                           <>
@@ -201,7 +238,7 @@ const MainContent = () => {
                       visible={reportLoading}
                       title={"Generating report for STP priorities"}
                       message={
-                          "Analyzing site priorities and generating results..."    
+                        "Analyzing site priorities and generating results..."
                       }
                     />
                   </div>

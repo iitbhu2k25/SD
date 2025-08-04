@@ -4,7 +4,7 @@ from pydantic import EmailStr
 
 # from app.api.service.stp_svc.spt_document import StpDocument
 from app.database.config.session import email_server
-from app.api.service.stp_svc.stp_document import document_gen
+from app.api.service.celery.stp_Priority_document import document_gen
 import asyncio
 
 # @app.task(bind=True,pydantic=True)

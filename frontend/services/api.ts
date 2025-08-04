@@ -34,7 +34,6 @@ async function request<T>(
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...headers,
     },
     credentials: 'include',

@@ -23,7 +23,7 @@ matplotlib
 contextily
 fastapi
 sqlalchemy
-uvicorn
+uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 alembic
@@ -47,3 +47,4 @@ datashader
 reportlab
 celery 
 redis
+websockets
