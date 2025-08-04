@@ -2,9 +2,9 @@ from fastapi import APIRouter
 from app.database.config.dependency import db_dependency
 from app.api.service.stp_svc.spt_service import Stp_service
 from fastapi import HTTPException,status
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpReportInput,celery_id
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
 from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
-from app.api.service.celery.stp_Priority_document import document_gen
+from app.api.service.celery.stp_Priority_Admin_document import document_gen
 from app.conf.ws_config import ConnectionManager
 from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
 from celery.result import AsyncResult
@@ -13,7 +13,7 @@ import asyncio
 from app.conf.celery import app 
 connection_manager=ConnectionManager()
 router=APIRouter()
-@router.post("/stp_visual_display")
+@router.post("/stp_priority_visual_display")
 def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
     try:
         return STPPriorityMapper().category_priority_map(db,payload.clip,payload.place)
@@ -49,7 +49,6 @@ def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
             detail=str(e)
         )
 
-
     
 @router.post("/stp_sutability")
 def stp_classify(db:db_dependency,payload:STPSutabilityInput):
@@ -62,8 +61,8 @@ def stp_classify(db:db_dependency,payload:STPSutabilityInput):
         )
 
 
-@router.post("/stp_priority_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
-def stp_priority_report(payload:StpReportInput):
+@router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+def stp_priority_admin_report(payload:StpPriorityAdminReport):
     try:  
         task_id= document_gen.delay(payload=payload.model_dump())
         return celery_id(task_id=task_id.id)

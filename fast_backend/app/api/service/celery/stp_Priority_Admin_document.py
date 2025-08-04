@@ -47,7 +47,7 @@ from celery import group, chord
 from app.conf.settings import Settings
 from app.api.service.geoserver import Geoserver
 from app.conf.celery import app
-from app.api.schema.stp_schema import  StpReportInput
+from app.api.schema.stp_schema import  StpPriorityAdminReport
 import math
 from reportlab.platypus import Frame
 from reportlab.lib.units import inch
@@ -1119,7 +1119,7 @@ class ReportGenerator:
 
 
 @app.task(bind=True,pydantic=True,name="main pdf generation")
-def document_gen(self,payload: StpReportInput):
+def document_gen(self,payload: StpPriorityAdminReport):
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
         table_data = [item.model_dump() for item in payload.table]

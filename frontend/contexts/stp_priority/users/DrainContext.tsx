@@ -61,6 +61,10 @@ interface RiverSystemContextType {
   selectedStretches: number[];
   selectedDrains: number[];
   selectedCatchments: number[];
+  selectedStreachNames: number[]
+  selectedDrainsNames: number[]
+  selectedCatchmentsNames: string[]
+  selectedRiverName: string | null;
   totalArea: number;
   totalCatchments: number;
   selectionsLocked: boolean;
@@ -96,6 +100,10 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   selectedStretches: [],
   selectedDrains: [],
   selectedCatchments: [],
+  selectedRiverName: null,
+  selectedStreachNames: [],
+  selectedDrainsNames: [],
+  selectedCatchmentsNames: [],
   totalArea: 0,
   totalCatchments: 0,
   setShowCatchment: () => {},
@@ -133,6 +141,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   const [selectedCatchments, setSelectedCatchments] = useState<number[]>([]);
   const [showCatchment, setShowCatchment] = useState<boolean>(false);
 
+  
   // State for additional information
   const [totalArea, setTotalArea] = useState<number>(0);
   const [totalCatchments, setTotalCatchments] = useState<number>(0);
@@ -142,6 +151,17 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   const [tableData, setTableData] = useState< DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
   // Load rivers on component mount
+
+  const [selectedRiverName, setSelectedRiverName] = useState<string>("");
+  const [selectedStreachNames, setSelectedStreachNames] = useState<number[]>([]);
+  const [selectedDrainsNames, setSelectedDrainsNames] = useState<number[]>([]);
+  const [selectedCatchmentsNames, setSelectedCatchmentsNames] = useState<string[]>([]);
+  useEffect(()=>{
+      setSelectedRiverName(rivers.find((river) => river.River_Code === selectedRiver)?.River_Name || "");
+      setSelectedStreachNames(stretches.filter((stretch) => selectedStretches.includes(stretch.id)).map((stretch) => stretch.id));
+      setSelectedDrainsNames(drains.filter((drain) => selectedDrains.includes(drain.id)).map((drain) => drain.id));
+      setSelectedCatchmentsNames(catchments.filter((catchment) => selectedCatchments.includes(catchment.id)).map((catchment) => catchment.village_name || ""));
+  },[selectionsLocked])
   useEffect(() => {
     const fetchRivers = async () => {
       setIsLoading(true);
@@ -152,7 +172,6 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
         }
 
         const data = await response.json();
-        console.log("river_data", data);
         const riverData: River[] = data.map((river: any) => ({
           River_Name: river.River_Name,
           River_Code: river.River_Code,
@@ -317,6 +336,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
           area: catchment.area,
         }));
         setCatchments(catchmentData);
+        setSelectedCatchments(catchmentData.map((catchment) => catchment.id));
       } catch (error) {
         console.log("Error fetching catchments:", error);
       } finally {
@@ -339,11 +359,10 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   useEffect(() => {
     const fetchDisplayRaster = async () => {
       if (selectionsLocked === true && selectedCatchments.length > 0) {
-        console.log("Starting raster fetch...");
-        console.log("selectedCatchments", selectedCatchments);
+    
         try {
           const response = await fetch(
-            "/api/stp_operation/stp_visual_display",
+            "/api/stp_operation/stp_priority_visual_display",
             {
               method: "POST",
               headers: {
@@ -452,6 +471,10 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     selectedStretches,
     selectedDrains,
     selectedCatchments,
+    selectedRiverName,
+    selectedCatchmentsNames,
+    selectedDrainsNames,
+    selectedStreachNames,
     totalArea,
     totalCatchments,
     selectionsLocked,

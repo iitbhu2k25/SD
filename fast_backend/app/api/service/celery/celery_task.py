@@ -4,7 +4,7 @@ from pydantic import EmailStr
 
 # from app.api.service.stp_svc.spt_document import StpDocument
 from app.database.config.session import email_server
-from app.api.service.celery.stp_Priority_document import document_gen
+from app.api.service.celery.stp_Priority_Admin_document import document_gen
 import asyncio
 
 # @app.task(bind=True,pydantic=True)
@@ -27,7 +27,7 @@ import asyncio
 #         asyncio.run(fm.send_message(message))
 
 # @app.task(bind=True,pydantic=True)
-# def priority_pdf_report(self,payload: StpReportInput):
+# def priority_pdf_report(self,payload: StpPriorityAdminReport):
 #     file_path = StpDocument().report_generator(
 #             layer_name=payload.raster,
 #             csv_data=payload.table,

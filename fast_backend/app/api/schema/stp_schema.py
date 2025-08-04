@@ -139,28 +139,32 @@ class Town_request(BaseModel):
     all_data : bool  = False
     
 
+#----------------------------------------------------------------------------------------
+# stp report schema
 
-class StpReportInput(BaseModel):
-    class DataItem(BaseModel):
+class celery_id(BaseModel):
+    task_id:str
+
+class weight_insight(BaseModel):
         file_name: str
-        layer_name: str
-    class CsvData(BaseModel):
+        weight: float
+
+class CsvData(BaseModel):
         High: float
         Low: float
         Medium: float
         Very_High:float
         Very_Low: float
         Village_Name: str
+
+class DataItem(BaseModel):
+    file_name: str
+    layer_name: str
+class StpPriorityAdminReport(BaseModel):
     class LocationData(BaseModel):
         state:str
         districts:list
         subDistricts: list
-        
-    class weight_insight(BaseModel):
-        file_name: str
-        weight: float
-        
-        
     table:List[CsvData]
     place: str
     clip: List[int] = None
@@ -169,5 +173,3 @@ class StpReportInput(BaseModel):
     weight_data: List[weight_insight]
 
 
-class celery_id(BaseModel):
-    task_id:str

@@ -83,7 +83,7 @@ const MainContent = () => {
         weight_data: selectedCategories
         // weight: selectedCategories,
       };
-      const response = await api.post("/api/stp_operation/stp_priority_report",
+      const response = await api.post("/api/stp_operation/stp_priority_admin_report",
         { body: data }
       )
       if (response.status != 201) {
@@ -196,10 +196,11 @@ const MainContent = () => {
                 )}
               </div>
               {tableData.length > 0 && (
-                <div className="p-6 bg-white rounded-2xl shadow-md">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Village Analysis Information
-                  </h2>
+                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn"> 
+                 <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                <h2 className="text-xl font-semibold mb-4">
+                  STP Priority Village wise Analysis :-
+                </h2>
                   <DataTable
                     columns={Village_columns}
                     data={tableData}
@@ -209,6 +210,7 @@ const MainContent = () => {
                     paginationRowsPerPageOptions={[5, 10, 20, 50]}
                   />
                 </div>
+                </section>
               )}
               <div className="flex m-8 justify-center">
                 {tableData.length > 0 && (
