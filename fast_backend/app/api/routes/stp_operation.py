@@ -2,9 +2,10 @@ from fastapi import APIRouter
 from app.database.config.dependency import db_dependency
 from app.api.service.stp_svc.spt_service import Stp_service
 from fastapi import HTTPException,status
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
-from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper
 from app.api.service.celery.stp_Priority_Admin_document import document_gen
+from app.api.service.celery.stp_Priority_Drain_document import document_gen1
 from app.conf.ws_config import ConnectionManager
 from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
 from celery.result import AsyncResult
@@ -72,6 +73,19 @@ def stp_priority_admin_report(payload:StpPriorityAdminReport):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+@router.post("/stp_priority_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+def stp_priority_drain_report(payload:StpPriorityDrainReport):
+    try:  
+        task_id= document_gen1.delay(payload=payload.model_dump())
+        return celery_id(task_id=task_id.id)
+    except Exception as e:
+        print("exception",e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
 
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):

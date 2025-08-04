@@ -47,7 +47,7 @@ from celery import group, chord
 from app.conf.settings import Settings
 from app.api.service.geoserver import Geoserver
 from app.conf.celery import app
-from app.api.schema.stp_schema import  StpPriorityAdminReport
+from app.api.schema.stp_schema import  StpPriorityDrainReport
 import math
 from reportlab.platypus import Frame
 from reportlab.lib.units import inch
@@ -399,7 +399,7 @@ class SpatialDataset:
     def __init__(self):
         self.village_path = Settings().villages_path
     
-    def find_village(self,clip:list)->gpd.GeoDataFrame:
+    def find_village_from_catchment(self,clip:list)->gpd.GeoDataFrame:
         try:
             if not clip:
                 raise ValidationError("Clip list cannot be empty")
@@ -407,7 +407,7 @@ class SpatialDataset:
             validate_file_exists(self.village_path, "Village file")
             
             gdf = gpd.read_file(self.village_path).to_crs(epsg=3857)
-            gdf = gdf[gdf['subdis_cod'].isin(clip)]
+            gdf = gdf[gdf['ID'].isin(clip)]
             
             if gdf.empty:
                 raise ValidationError(f"No village polygon found for clip IDs: {clip}")
@@ -529,7 +529,7 @@ class MapGenerator:
           
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_village(clip=filtered_vector)
+            filtered = SpatialDataset().find_village_from_catchment(clip=filtered_vector)
             filtered_new = filtered.to_crs("EPSG:4326")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
@@ -706,6 +706,15 @@ class StpDocument:
                 return pdf_path
             except Exception as e:
                 pass
+            # finally:
+            #     # Optional: Clean up temp folder after PDF generation
+            #     # Comment this out if you want to keep images for debugging
+            #     try:
+            #         shutil.rmtree(temp_folder)
+            #         logger.info(f"Cleaned up temporary folder: {temp_folder}")
+            #     except Exception as e:
+            #         logger.warning(f"Failed to cleanup temporary folder {temp_folder}: {e}")
+                
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
             raise STRPReportError(f"Report generation failed: {e}")
@@ -881,9 +890,10 @@ class ReportGenerator:
         lines = [
             narrative,
             "",
-            f"State: {location_data[0][1]}",
-            f"District(s): {', '.join(location_data[1][1])}",
-            f"SubDistrict(s): {', '.join(location_data[2][1])}"
+            f"River: {location_data[0][1]}",
+            f"Stretch(s): {', '.join(str(location_data[1][1]))}",
+            f"Drain(s): {', '.join(str(location_data[2][1]))}",
+            f"Catchment(s): {', '.join(location_data[3][1])}"
         ]
         content = "<br/>".join(lines)
 
@@ -1109,8 +1119,8 @@ class ReportGenerator:
             raise STRPReportError(f"Report generation failed: {e}")
 
 
-@app.task(bind=True,pydantic=True,name="main pdf generation")
-def document_gen(self,payload: StpPriorityAdminReport):
+@app.task(bind=True,pydantic=True,name="main pdf generation1")
+def document_gen1(self,payload: StpPriorityDrainReport):
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
         table_data = [item.model_dump() for item in payload.table]
@@ -1122,27 +1132,27 @@ def document_gen(self,payload: StpPriorityAdminReport):
             file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
             file_path = os.path.join(unique_folder_path, "image", file_name)  
             tasks.append(
-            celery_currency_image.s(
+            celery_currency_image1.s(
             file_path=file_path,
             raster_path=item["raster_path"],
             sld_path=item["sld_path"],
             clip=payload.clip ) 
         )
-        job = chord(group(tasks))(final_step.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
+        job = chord(group(tasks))(final_step1.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
         return {"chord_id": job.id}
     except Exception as e:
         logger.error(f"Failed to load raster data: {e}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
-@app.task(bind=True,pydantic=True,name="celery_currency_image")
-def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
+@app.task(bind=True,pydantic=True,name="celery_currency_image1")
+def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
     file_path=MapGenerator(dpi=400).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
     }
 
-@app.task(bind=True,pydantic=True,name="pdf_generation_start")
-def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
+@app.task(bind=True,pydantic=True,name="pdf_generation_start1")
+def final_step1(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
     pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
     return pdf_path

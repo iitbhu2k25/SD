@@ -30,7 +30,7 @@ const MainContent = () => {
   );
   const {
     selectionsLocked,
-    display_raster,
+    displayRaster,
     selectedSubDistricts,
     selectedSubDistrictsNames,
     selectedDistrictsNames,
@@ -76,7 +76,7 @@ const MainContent = () => {
       }
       const data = {
         table: tableData,
-        raster: display_raster,
+        raster: displayRaster,
         place: "Admin",
         clip: selectedSubDistricts,
         location: locationData,

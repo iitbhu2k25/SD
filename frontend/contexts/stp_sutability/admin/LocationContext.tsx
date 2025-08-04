@@ -50,7 +50,7 @@ interface LocationContextType {
   selectedTowns: number[];
   totalPopulation: number;
   selectionsLocked: boolean;
-  display_raster: clip_rasters[];
+  displayRaster: clip_rasters[];
   setdisplay_raster: (layer: clip_rasters[]) => void;
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
@@ -79,7 +79,7 @@ const LocationContext = createContext<LocationContextType>({
   totalPopulation: 0,
   selectionsLocked: false,
   isLoading: false,
-  display_raster:[],
+  displayRaster:[],
   setdisplay_raster: () => {},
   handleStateChange: () => {},
   setSelectedDistricts: () => {},
@@ -107,7 +107,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [display_raster, setdisplay_raster] = useState<clip_rasters[]>([]);
+  const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
   // Load states on component mount
   useEffect(() => {
     const fetchStates = async () => {
@@ -396,7 +396,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     setSelectedTowns,
     confirmSelections,
     resetSelections,
-    display_raster,
+    displayRaster,
     setdisplay_raster
   };
   

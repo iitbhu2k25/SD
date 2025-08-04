@@ -258,7 +258,7 @@ const Maping: React.FC = () => {
 
   const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const { selectedSubDistricts, display_raster, setdisplay_raster } =
+  const { selectedSubDistricts, displayRaster, setdisplay_raster } =
     useLocation();
   useEffect(() => {
     console.log("selectedSubDistricts", isPanelOpen);
@@ -928,18 +928,18 @@ const Maping: React.FC = () => {
           setTableData(result.csv_details);
 
           // Check if file_name already exists
-          const index = display_raster.findIndex(
+          const index = displayRaster.findIndex(
             (item) => item.file_name === "STP_Priority"
           );
 
           let newData;
           if (index !== -1) {
             // Update existing entry
-            newData = [...display_raster];
+            newData = [...displayRaster];
             newData[index] = append_data;
           } else {
             // Append new entry
-            newData = display_raster.concat(append_data);
+            newData = displayRaster.concat(append_data);
           }
 
           setdisplay_raster(newData);
@@ -1033,13 +1033,13 @@ const Maping: React.FC = () => {
   }, [rasterLayerInfo, layerOpacity]);
 
   useEffect(() => {
-    display_raster.map((item: any) => {
+    displayRaster.map((item: any) => {
       if (item.file_name == selectedradioLayer) {
         console.log("selected items", item);
         setRasterLayerInfo(item);
       }
     });
-    console.log("new update data", display_raster);
+    console.log("new update data", displayRaster);
   }, [selectedradioLayer]);
 
   // Handle opacity change
@@ -1082,7 +1082,7 @@ const Maping: React.FC = () => {
 
       return;
     }
-  }, [display_raster]);
+  }, [displayRaster]);
   // Move legend position
 
   return (
@@ -1251,7 +1251,7 @@ const Maping: React.FC = () => {
         </div>
 
         {/* Enhanced Layer Selection Dropdown */}
-        {isPanelOpen && display_raster.length > 0 && (
+        {isPanelOpen && displayRaster.length > 0 && (
           <div className="absolute right-2 sm:right-4 top-16 sm:top-20 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-2xl p-4 sm:p-6 w-72 sm:w-80 z-50 animate-in slide-in-from-top-2 duration-300">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800 flex items-center">
@@ -1280,7 +1280,7 @@ const Maping: React.FC = () => {
             </div>
 
             <div className="max-h-64 overflow-y-auto custom-scrollbar">
-              {display_raster.map((layer, index) => (
+              {displayRaster.map((layer, index) => (
                 <div
                   key={index}
                   className="flex items-center mb-3 p-3 hover:bg-blue-50 rounded-lg border border-transparent hover:border-blue-200 transition-all duration-200 cursor-pointer"

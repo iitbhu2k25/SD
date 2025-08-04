@@ -49,7 +49,7 @@ interface LocationContextType {
   selectedSubDistricts: number[];
   totalPopulation: number;
   selectionsLocked: boolean;
-  display_raster: clip_rasters[];
+  displayRaster: clip_rasters[];
   setdisplay_raster: (layer: clip_rasters[]) => void;
   selectedStateName: string;
   selectedDistrictsNames: string[];
@@ -78,7 +78,7 @@ const LocationContext = createContext<LocationContextType>({
   totalPopulation: 0,
   selectionsLocked: false,
   isLoading: false,
-  display_raster:[],
+  displayRaster:[],
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
@@ -113,7 +113,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [display_raster, setdisplay_raster] = useState<clip_rasters[]>([]);
+  const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
   const [selectedStateName, setSelectedStateName] = useState<string>("");
   const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
   const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
@@ -364,7 +364,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedSubDistricts,
     confirmSelections,
     resetSelections,
-    display_raster,
+    displayRaster,
     setdisplay_raster,
     selectedStateName,
     selectedDistrictsNames,

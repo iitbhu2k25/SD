@@ -20,10 +20,7 @@ import { api } from "@/services/api";
 import { useWebSocket } from "@/services/websocket";
 
 const MainContent = () => {
-  const {
-    selectedCategories,
-    stpProcess,
-  } = useCategory();
+  const { selectedCategories, stpProcess } = useCategory();
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const { messages, sendMessage, isConnected } = useWebSocket(
@@ -35,6 +32,7 @@ const MainContent = () => {
     totalArea,
     totalCatchments,
     selectionsLocked,
+    displayRaster,
     selectedCatchmentsNames,
     selectedStreachNames,
     selectedDrainsNames,
@@ -60,6 +58,27 @@ const MainContent = () => {
     setShowCategories(false);
   };
 
+  useEffect(() => {
+    // Handle WebSocket message updates
+    if (!messages.length) return;
+
+    const last = messages[messages.length - 1];
+    try {
+      const parsed = JSON.parse(last);
+      if (parsed.status === "SUCCESS") {
+        toast.success("Report downloaded!");
+        sendMessage("SEND_FILE");
+      } else if (parsed.status === "FAILURE") {
+        toast.error("Report failed: " + parsed.error);
+      } else if (parsed.status === "ERROR") {
+        toast.error("WebSocket error: " + parsed.message);
+      }
+    } catch {
+      console.warn("Received non-JSON message:", last);
+    } finally {
+      setReportLoading(false);
+    }
+  }, [messages]);
   const handleSubmit = () => {
     if (selectedCategories.length < 1) {
       toast.error("Please select at least one category", {
@@ -76,33 +95,43 @@ const MainContent = () => {
   };
 
   const handlereport = async () => {
-    const data={
-      "River":selectedRiverName,
-      "Stretch":selectedStreachNames,
-      "Drain":selectedDrainsNames,
-      "Catchment":selectedCatchmentsNames,
-    }
-    console.log("drain data ",data);
-  };
-
-  const captureCurrentMap = async (): Promise<string | null> => {
     try {
-      if (typeof window !== "undefined" && (window as any).captureMapImage) {
-        const imageData = await (window as any).captureMapImage();
-        return imageData;
-      } else {
-        throw new Error("Map capture function not available");
-      }
-    } catch (error) {
-      console.log("Error capturing map:", error);
-      toast.error(
-        "Unable to include map in report due to security restrictions. The report will be generated without the map image.",
-        { position: "top-center" }
+      const locationData = {
+        River: selectedRiverName,
+        Stretch: selectedStreachNames,
+        Drain: selectedDrainsNames,
+        Catchment: selectedCatchmentsNames,
+      };
+      const data = {
+        table: tableData,
+        raster: displayRaster,
+        place: "Drain",
+        clip: selectedCatchments,
+        location: locationData,
+        weight_data: selectedCategories,
+      };
+      const response = await api.post(
+        "/api/stp_operation/stp_priority_drain_report",
+        { body: data }
       );
-      return null;
+      if (response.status != 201) {
+        console.log("report false");
+        setReportLoading(false);
+        toast.error("Report failed", {
+          position: "top-center",
+        });
+        return null;
+      }
+      toast.success("Report generated started");
+      const task = response.message as Record<string, string>;
+      setTaskId(task["task_id"]);
+    } catch (error) {
+      console.error("Report error", error);
+      toast.error("Failed to start report");
+    } finally {
+      setReportLoading(false);
     }
   };
-  // Function to generate and download PDF with river system details
 
   return (
     <div className="min-h-screen bg-gray-50">
