@@ -1131,7 +1131,7 @@ def document_gen(self,payload: StpReportInput):
             file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
             file_path = os.path.join(unique_folder_path, "image", file_name)  
             tasks.append(
-            celery_currency.s(
+            celery_currency_image.s(
             file_path=file_path,
             raster_path=item["raster_path"],
             sld_path=item["sld_path"],
@@ -1143,8 +1143,8 @@ def document_gen(self,payload: StpReportInput):
         logger.error(f"Failed to load raster data: {e}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
-@app.task(bind=True,pydantic=True,name="celery_currency")
-def celery_currency(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
+@app.task(bind=True,pydantic=True,name="celery_currency_image")
+def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
     file_path=MapGenerator(dpi=400).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
