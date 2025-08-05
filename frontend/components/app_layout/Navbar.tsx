@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect, useRef, JSX } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import React from "react";
 type DropdownState = {
   [key: string]: boolean;
 };
@@ -13,6 +12,7 @@ const Navbar = (): JSX.Element => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [openDropdowns, setOpenDropdowns] = useState<DropdownState>({});
   const navRef = useRef<HTMLElement | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Handle sticky navbar on scroll
   useEffect(() => {
@@ -36,25 +36,35 @@ const Navbar = (): JSX.Element => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Toggle dropdown visibility (close others when opening one)
-  const toggleDropdown = (key: string): void => {
-    setOpenDropdowns((prev) => {
-      // Create a new object with all dropdowns closed
-      const updatedDropdowns = Object.keys(prev).reduce<DropdownState>(
-        (acc, curr) => {
-          acc[curr] = false;
-          return acc;
-        },
-        {}
-      );
+  // Toggle dropdown with delay for closing
+  const toggleDropdown = (key: string, open: boolean): void => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
 
-      // Toggle the current dropdown
-      updatedDropdowns[key] = !prev[key];
-      return updatedDropdowns;
-    });
+    if (open) {
+      setOpenDropdowns((prev) => {
+        const updatedDropdowns = Object.keys(prev).reduce<DropdownState>(
+          (acc, curr) => {
+            acc[curr] = false;
+            return acc;
+          },
+          {}
+        );
+        updatedDropdowns[key] = true;
+        return updatedDropdowns;
+      });
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        setOpenDropdowns((prev) => ({
+          ...prev,
+          [key]: false,
+        }));
+      }, 200);
+    }
   };
 
-  // Toggle submenu visibility (don't close parent dropdown)
+  // Toggle submenu visibility
   const toggleSubmenu = (e: React.MouseEvent, key: string): void => {
     e.stopPropagation();
     e.preventDefault();
@@ -71,8 +81,7 @@ const Navbar = (): JSX.Element => {
         isSticky
           ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-1000"
           : "bg-opacity-10 bg-[#081F5C]"
-      } 
-        border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-1000`}
+      } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-1000`}
     >
       <div className="container mx-auto px-4">
         {/* Mobile menu button */}
@@ -101,7 +110,7 @@ const Navbar = (): JSX.Element => {
 
         {/* Navbar items */}
         <div className={`${isMobileMenuOpen ? "block" : "hidden"} lg:block`}>
-          <ul className="flex flex-col lg:flex-row lg:justify-center space-y-2 lg:space-y-0">
+          <ul className="flex flex-col lg:flex-row lg:justify-center space-y-2 lg:space-y-0 lg:space-x-2">
             {/* Home */}
             <li className="relative group">
               <Link
@@ -133,9 +142,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* GWM */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("gwm", true)}
+              onMouseLeave={() => toggleDropdown("gwm", false)}
+            >
               <button
-                onClick={() => toggleDropdown("gwm")}
+                onClick={() => toggleDropdown("gwm", !openDropdowns.gwm)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 GWM
@@ -146,10 +159,14 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.gwm ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
               >
                 {/* Groundwater Potential Assessment */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("gwPotential", true)}
+                  onMouseLeave={() => toggleDropdown("gwPotential", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "gwPotential")}
@@ -164,7 +181,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwPotential ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -186,7 +203,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Resource Estimation */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("gwResource", true)}
+                  onMouseLeave={() => toggleDropdown("gwResource", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "gwResource")}
@@ -201,7 +222,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwResource ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -231,7 +252,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Managed Aquifer Recharge */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("gwAquifer", true)}
+                  onMouseLeave={() => toggleDropdown("gwAquifer", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "gwAquifer")}
@@ -246,7 +271,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwAquifer ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -292,7 +317,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* River Aquifer Interaction */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("gwRiver", true)}
+                  onMouseLeave={() => toggleDropdown("gwRiver", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "gwRiver")}
@@ -307,7 +336,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwRiver ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -331,9 +360,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* RWM */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("rwm", true)}
+              onMouseLeave={() => toggleDropdown("rwm", false)}
+            >
               <button
-                onClick={() => toggleDropdown("rwm")}
+                onClick={() => toggleDropdown("rwm", !openDropdowns.rwm)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 RWM
@@ -344,10 +377,14 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.rwm ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
               >
                 {/* River Estimation */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("rwEstimation", true)}
+                  onMouseLeave={() => toggleDropdown("rwEstimation", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "rwEstimation")}
@@ -362,7 +399,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwEstimation ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -408,7 +445,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Flood Forecasting and Management */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("rwFlood", true)}
+                  onMouseLeave={() => toggleDropdown("rwFlood", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "rwFlood")}
@@ -423,7 +464,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwFlood ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -453,7 +494,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Water Bodies Management */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("rwWaterBodies", true)}
+                  onMouseLeave={() => toggleDropdown("rwWaterBodies", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "rwWaterBodies")}
@@ -468,7 +513,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwWaterBodies ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -506,7 +551,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Waste Water Treatment */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("rwWasteWater", true)}
+                  onMouseLeave={() => toggleDropdown("rwWasteWater", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "rwWasteWater")}
@@ -521,7 +570,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwWasteWater ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -561,9 +610,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* WRM */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("wrm", true)}
+              onMouseLeave={() => toggleDropdown("wrm", false)}
+            >
               <button
-                onClick={() => toggleDropdown("wrm")}
+                onClick={() => toggleDropdown("wrm", !openDropdowns.wrm)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 WRM
@@ -574,10 +627,14 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.wrm ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-50`}
               >
                 {/* Demand and Forecasting */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("wrmDemand", true)}
+                  onMouseLeave={() => toggleDropdown("wrmDemand", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "wrmDemand")}
@@ -592,7 +649,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.wrmDemand ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -614,7 +671,11 @@ const Navbar = (): JSX.Element => {
                 </li>
 
                 {/* Resource Allocation */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("wrmAllocation", true)}
+                  onMouseLeave={() => toggleDropdown("wrmAllocation", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "wrmAllocation")}
@@ -629,7 +690,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.wrmAllocation ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -653,9 +714,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* SHSD */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("shsd", true)}
+              onMouseLeave={() => toggleDropdown("shsd", false)}
+            >
               <button
-                onClick={() => toggleDropdown("shsd")}
+                onClick={() => toggleDropdown("shsd", !openDropdowns.shsd)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 System Dynamics
@@ -666,10 +731,14 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.shsd ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-50`}
               >
                 {/* Resource Management */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("shsdResource", true)}
+                  onMouseLeave={() => toggleDropdown("shsdResource", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "shsdResource")}
@@ -684,7 +753,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.shsdResource ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -713,7 +782,11 @@ const Navbar = (): JSX.Element => {
                   </ul>
                 </li>
                 {/* Impact Assessment */}
-                <li className="relative group/submenu">
+                <li
+                  className="relative group/submenu"
+                  onMouseEnter={() => toggleDropdown("shsdImpact", true)}
+                  onMouseLeave={() => toggleDropdown("shsdImpact", false)}
+                >
                   <div
                     className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
                     onClick={(e) => toggleSubmenu(e, "shsdImpact")}
@@ -728,7 +801,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.shsdImpact ? "block" : "hidden"
-                    } lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -752,9 +825,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Activities */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("activities", true)}
+              onMouseLeave={() => toggleDropdown("activities", false)}
+            >
               <button
-                onClick={() => toggleDropdown("activities")}
+                onClick={() => toggleDropdown("activities", !openDropdowns.activities)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 Activities
@@ -762,7 +839,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.activities ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -784,9 +861,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Report and Publication */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("reportandpublication", true)}
+              onMouseLeave={() => toggleDropdown("reportandpublication", false)}
+            >
               <button
-                onClick={() => toggleDropdown("reportandpublication")}
+                onClick={() => toggleDropdown("reportandpublication", !openDropdowns.reportandpublication)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 Report and Publication
@@ -794,7 +875,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.reportandpublication ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -816,9 +897,13 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Visualization */}
-            <li className="relative group">
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("visualization", true)}
+              onMouseLeave={() => toggleDropdown("visualization", false)}
+            >
               <button
-                onClick={() => toggleDropdown("visualization")}
+                onClick={() => toggleDropdown("visualization", !openDropdowns.visualization)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
                 Visualization
@@ -826,7 +911,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.visualization ? "block" : "hidden"
-                } lg:hidden lg:group-hover:block absolute left-0 top-full bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -855,8 +940,7 @@ const Navbar = (): JSX.Element => {
               </ul>
             </li>
 
-            {/* Contact */}
-
+            {/* Dashboard */}
             <li className="relative group">
               <Link
                 href="/dss/dashboard"
@@ -865,7 +949,9 @@ const Navbar = (): JSX.Element => {
                 Dashboard
               </Link>
             </li>
-           <li className="relative group">
+
+            {/* Logout */}
+            <li className="relative group">
               <Link
                 href="/authentication/logout"
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"

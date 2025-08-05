@@ -1,7 +1,14 @@
 import type { NextConfig } from "next"
 
-
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.pexels.com',
+      },
+    ],
+  },
   async rewrites() {
     return [
       {
@@ -12,7 +19,7 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: "http://fast_backend:7000/api/:path*"
       },
-       {
+      {
         source: "/basics/:path*",
         destination: "http://backend:9000/basics/:path*",
       },

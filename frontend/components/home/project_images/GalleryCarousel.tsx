@@ -59,11 +59,13 @@ export default function GalleryCarousel() {
                 <div className="relative h-full w-full flex justify-center">
                   <Image
                     src={src}
+                    blurDataURL={src}
                     alt={`Gallery Image ${index + 1}`}
                     width={800}
                     height={500}
                     className="h-[500px] w-auto object-contain"
-                    priority={index === 0}
+                    priority={true}
+                    placeholder="blur" 
                     unoptimized={true}
                   />
                 </div>
