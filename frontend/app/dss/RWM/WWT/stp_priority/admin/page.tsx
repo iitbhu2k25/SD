@@ -25,7 +25,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const { messages,sendMessage, isConnected } = useWebSocket(
-    taskId ? `ws://localhost:7000/api/stp_operation/ws/${taskId}` : '',
+    taskId ? `ws://fast_backend:7000/api/stp_operation/ws/${taskId}` : '',
     { reconnect: false }
   );
   const {
