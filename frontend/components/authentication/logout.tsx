@@ -26,7 +26,7 @@ export const handleLogout = async () => {
 
     console.log("All local cookies deleted.");
     // Step 2: Call backend to clear HttpOnly cookie (if any)
-    const response = await api.post("/api/authentication/logout");
+    const response = await api.post("/authentication/logout");
 
     if (response.status === 201) {
       toast.success("Logout successful");

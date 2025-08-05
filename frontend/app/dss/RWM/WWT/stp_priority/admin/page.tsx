@@ -83,7 +83,7 @@ const MainContent = () => {
         weight_data: selectedCategories
         // weight: selectedCategories,
       };
-      const response = await api.post("/api/stp_operation/stp_priority_admin_report",
+      const response = await api.post("/stp_operation/stp_priority_admin_report",
         { body: data }
       )
       if (response.status != 201) {

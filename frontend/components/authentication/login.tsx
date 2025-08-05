@@ -59,7 +59,7 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
     if (hasErrors) return;
    
     try {
-      const response = await api.post("/api/authentication/login", {
+      const response = await api.post("/authentication/login", {
         body: {
           email: formValues.email,
           password: formValues.password,

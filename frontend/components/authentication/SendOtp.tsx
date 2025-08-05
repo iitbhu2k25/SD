@@ -13,7 +13,7 @@ function SendOTP() {
 
   const generateOtp = async () => {
     try {
-      const response = await api.post("/api/authentication/email_otp");
+      const response = await api.post("/authentication/email_otp");
       if (response.status === 201) {
         toast.success("OTP sent successfully!");
       }

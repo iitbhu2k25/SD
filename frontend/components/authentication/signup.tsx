@@ -52,7 +52,7 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
     if (!hasErrors) {
       console.log("Form data:", formValues);
       try {
-        const response = await api.post("/api/authentication/signup", {
+        const response = await api.post("/authentication/signup", {
           body: {
             username: formValues.username,
             email: formValues.email,

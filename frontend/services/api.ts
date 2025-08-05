@@ -10,7 +10,7 @@ interface RequestOptions {
   authToken?: string;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
 function buildQuery(params?: Record<string, string | number>): string {
   if (!params) return '';

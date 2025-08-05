@@ -55,7 +55,7 @@ export default function VerifyOtp() {
 
     try {
       // Call your API to verify the OTP
-      const response = await api.post("/api/authentication/email_verify", {
+      const response = await api.post("/authentication/email_verify", {
         body: { otp: fullCode }
       });
       console.log(response);
@@ -75,7 +75,7 @@ export default function VerifyOtp() {
 
   const handleResend = async () => {
     console.log("Resending OTP...");
-    const response = await api.post("/api/authentication/email_otp");
+    const response = await api.post("/authentication/email_otp");
     if (response.status === 201) {
       toast.success("OTP sent successfully!");
     }

@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
     console.error("Error verifying token:", err);
 
     try {
-      const backendRes = await api.get("/api/authentication/authentic");
+      const backendRes = await api.get("/authentication/authentic");
 
       if (backendRes.status === 201) {
         console.log("Token is valid on backend, proceeding...");

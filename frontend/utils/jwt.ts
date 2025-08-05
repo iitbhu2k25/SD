@@ -13,7 +13,7 @@ export async function validateToken(): Promise<{
   user: UserInfo | null;
 }> {
   try {
-    const response = await api.get("/api/authentication/authentic");
+    const response = await api.get("/authentication/authentic");
 
     if (response.status === 201) {
       const user = {
