@@ -130,6 +130,7 @@ async def report_download(websocket: WebSocket, task_id: str):
                             "status": "ERROR",
                             "message": "File not found"
                         })
+                connection_manager.disconnect(websocket)
             else:
                 await websocket.send_json({
                     "status": "FAILURE",

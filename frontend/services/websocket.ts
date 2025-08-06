@@ -10,7 +10,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const connect = useCallback(() => {
     if (!url) return;
 
-    const socket = new WebSocket(url);
+    const socket = new window.WebSocket(url);
     socketRef.current = socket;
 
     socket.onopen = () => {
