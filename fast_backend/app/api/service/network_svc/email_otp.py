@@ -3,12 +3,13 @@ import time
 import pyotp
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
+from fastapi import BackgroundTasks
 # now till i use the pytopt but i need
 # to move the random+ redis TTL
 class EmailService:
     def __init__(self):
         self.email_service=email_server
-        self.topt=pyotp.TOTP(s='base32secret3232',digits=6,interval=1000)
+        self.topt=pyotp.TOTP(s='base32secret3232',digits=6,interval=320)
 
     def send_otp(self):
         return self.topt.now()
@@ -16,7 +17,7 @@ class EmailService:
     def verify_otp(self,otp:str):
         return (self.topt.verify(otp))
     
-    async def _send_email(self,email:EmailStr):
+    def _send_email(self,backgroud:BackgroundTasks,email:EmailStr):
         opts=self.send_otp()
         html = f"""
                 <html>
@@ -33,7 +34,7 @@ class EmailService:
             subtype=MessageType.html)
 
         fm = FastMail(email_server)
-        await fm.send_message(message)
+        backgroud.add_task(fm.send_message,message=message)
         return opts
     
     

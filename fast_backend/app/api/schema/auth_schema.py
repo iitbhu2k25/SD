@@ -6,14 +6,17 @@ from datetime import datetime
 class login_input(BaseModel):
     email: EmailStr
     password: str = "rajat@123"
+    
 
 class signup_input(BaseModel):
     username: str = "rajat"
     email: EmailStr
     password: str = "rajat@123"
+    
 
 class OTPVerify(BaseModel):
     otp: str
+    
 class Token(BaseModel):
     access_token: str
     refresh_token:str

@@ -15,6 +15,7 @@ class UserCrud(CrudBase):
     def validate_email(self,email:str):
         return self.db.query(self.Model).filter(
             self.Model.email == email).first()
+        
     def get_user(self,id:int):
         return self.db.query(self.Model).filter(
             self.Model.id == id).first()

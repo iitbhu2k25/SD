@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/api/:path*',
-        destination: "http://fast_backend:7000/api/:path*"
+        destination: "http://localhost:7000/api/:path*"
       },
       {
         source: "/basics/:path*",

@@ -1,6 +1,6 @@
 from fastapi import APIRouter,Cookie,Header,Response
 from app.api.schema.auth_schema import Token
-from app.api.service.network_svc.auth_service import UserService
+from app.api.service.network_svc.auth_service import AuthService
 from app.api.service.network_svc.token_service import TokenManager
 from app.database.config.dependency import db_dependency
 from fastapi import Depends
@@ -15,7 +15,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def login_for_access_token(response:Response,db:db_dependency,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ):  
-    return UserService().swagger_login(db,payload=login_input(email=form_data.username,password=form_data.password),response=response)
+    return AuthService().swagger_login(db,payload=login_input(email=form_data.username,password=form_data.password),response=response)
 
 @app.post('/access_token')
 async def regenerate_access_token(

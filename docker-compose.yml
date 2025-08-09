@@ -1,18 +1,18 @@
 
 services:
-  frontend:
-    build:
-      context: ./frontend/
-      dockerfile: dockerfile.frontend 
-    image: frontend:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/home/app:z
-    depends_on:
-      - fast_backend
-      - geoserver
-    command: npm start
+  # frontend:
+  #   build:
+  #     context: ./frontend/
+  #     dockerfile: dockerfile.frontend 
+  #   image: frontend:latest
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/home/app:z
+  #   depends_on:
+  #     - fast_backend
+  #     - geoserver
+  #   command: npm start
 
   docker-staticmaps:
     image: mxdcodes/docker-staticmaps:latest
@@ -26,24 +26,25 @@ services:
       - DISABLE_TILE_CACHE=false
       - RATE_LIMIT_MS=60000
       - RATE_LIMIT_MAX=60
-  backend:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: backend:latest
-    ports:
-      - "9000:9000"
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/home/app:z
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:9000"
-    restart: always
-    depends_on:
-      - db
-      - geoserver
+
+  # backend:
+  #   build:
+  #     context: ./backend/
+  #     dockerfile: docker/dockerfile.backend
+  #   image: backend:latest
+  #   ports:
+  #     - "9000:9000"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./backend:/home/app:z
+  #   command: >
+  #     sh -c "python manage.py migrate &&
+  #            python manage.py runserver 0.0.0.0:9000"
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #     - geoserver
 
   fast_backend:
     build:
@@ -63,18 +64,18 @@ services:
       - fast_db
       - geoserver
 
-  db:
-    image: postgres:16-alpine
-    ports:
-      - "5440:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis
-      - geoserver
+  # db:
+  #   image: postgres:16-alpine
+  #   ports:
+  #     - "5440:5432"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: always
+  #   depends_on:
+  #     - redis
+  #     - geoserver
 
   fast_db:
     image: postgres:16-alpine
