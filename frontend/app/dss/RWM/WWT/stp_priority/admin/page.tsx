@@ -25,7 +25,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const { messages,sendMessage, isConnected } = useWebSocket(
-    taskId ? `wss://slcrdss.in/api/stp_operation/wss/${taskId}` : '',
+    taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : '',
     { reconnect: false }
   );
   const {

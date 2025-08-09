@@ -29,9 +29,9 @@ class AuthServiceInterface(ABC):
     def get_user(self,db:Session,token:str):
         pass
     
-    # @abstractmethod
-    # def logout(self,db:Session,Email:str)->bool:
-    #     pass
+    @abstractmethod
+    def logout(self,response:Response)->bool:
+        pass
     
     @abstractmethod
     def send_email_otp(self, user: any)->None:
@@ -108,6 +108,10 @@ class AuthService(AuthServiceInterface):
             raise Know_exception
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
+    
+    def logout(self, response):
+        response.delete_cookie(key="refresh_token")
+        response.delete_cookie(key="access_token")
     
     def swagger_login(self,db:Session,payload:login_input,response:Response):
         try:

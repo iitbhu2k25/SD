@@ -31,7 +31,7 @@ class EmailSchema(BaseModel):
     email: List[EmailStr]
     
 class UserOut(BaseModel):
-    id: int
+    user_id: int
     username: str
     email: str
     is_verified: bool

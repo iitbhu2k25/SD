@@ -951,13 +951,47 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Logout */}
-            <li className="relative group">
-              <Link
-                href="/authentication/logout"
+            <li
+              className="relative group"
+              onMouseEnter={() => toggleDropdown("user", true)}
+              onMouseLeave={() => toggleDropdown("user", false)}
+            >
+              <button
+                onClick={() => toggleDropdown("user", !openDropdowns.user)}
                 className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
               >
-                Logout
-              </Link>
+                User
+              </button>
+              <ul
+                className={`${
+                  openDropdowns.user ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+              >
+                <li>
+                  <Link
+                    href="/UserManagement/UserProfile"
+                    className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                  >
+                    profile
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/UserManagement/LogOut"
+                    className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                  >
+                    logout
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/UserManagement/SavedProject"
+                    className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                  >
+                    my projects
+                  </Link>
+                </li>
+              </ul>
             </li>
           </ul>
         </div>
