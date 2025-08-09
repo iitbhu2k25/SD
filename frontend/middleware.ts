@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { api } from "@/services/api";
 import { jwtVerify } from 'jose';
 
-const SECRET = process.env.SECRET||"slcrdss";
+const SECRET = process.env.NEXT_PUBLIC_SECRET;
 const protectedRoutes = ["/dss", "/profile", "/dashboard"]; // Add more as needed
 
 export async function middleware(request: NextRequest) {
