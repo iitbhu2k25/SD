@@ -24,7 +24,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const { messages, sendMessage, isConnected } = useWebSocket(
-    taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/wss/${taskId}` : "",
+    taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : "",
     { reconnect: false }
   );
   const {
@@ -111,7 +111,7 @@ const MainContent = () => {
         weight_data: selectedCategories,
       };
       const response = await api.post(
-        "/api/stp_operation/stp_priority_drain_report",
+        "/stp_operation/stp_priority_drain_report",
         { body: data }
       );
       if (response.status != 201) {
