@@ -359,7 +359,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   useEffect(() => {
     const fetchDisplayRaster = async () => {
       if (selectionsLocked === true && selectedCatchments.length > 0) {
-    
+        setIsLoading(true);
         try {
           const response = await fetch(
             "/api/stp_operation/stp_priority_visual_display",
@@ -377,6 +377,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
           const data = await response.json();
           setDisplayRaster(data);
+          setIsLoading(false);
         } catch (error) {
           console.log("Error fetching display raster:", error);
         }

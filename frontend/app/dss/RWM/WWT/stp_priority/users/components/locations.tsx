@@ -119,11 +119,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-md relative">
-      {" "}
-      {/* relative added here */}
-      {/* Dim and disable interactions on content when loading */}
-      <div className={isLoading ? "pointer-events-none opacity-50" : ""}>
+    <div className="p-4 bg-white rounded-lg shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* River Dropdown */}
           <div>
@@ -276,7 +272,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
             Reset
           </button>
         </div>
-      </div>
+
       {isLoading && (
         <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
       )}

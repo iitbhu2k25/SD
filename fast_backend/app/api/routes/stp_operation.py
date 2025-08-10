@@ -12,79 +12,45 @@ from celery.result import AsyncResult
 import json
 import asyncio
 from app.conf.celery import app 
+from app.utils.exception import validate
+
 connection_manager=ConnectionManager()
 router=APIRouter()
 @router.post("/stp_priority_visual_display")
+@validate
 def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
-    try:
-        return STPPriorityMapper().category_priority_map(db,payload.clip,payload.place)
-    except Exception as e:
-        print("exception",e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+    return STPPriorityMapper().category_priority_map(db,payload.clip,payload.place)
 
 @router.post("/stp_priority")
+@validate
 def stp_raster(db:db_dependency,payload: STPCategory):
-    try:
-        if len(payload.data)==0:
-            raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No data found"
-        )
-        raster_path,raster_weights=Stp_service.get_raster(db,payload)
-        return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
-    except Exception as e:
-        print("exception is ",e)
+    raster_path,raster_weights=Stp_service.get_raster(db,payload)
+    return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
     
 
 
 @router.post("/stp_sutability_visual_display")
+@validate
 def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
-    try:
-        return STPPriorityMapper().category_priority_map_villages(db,payload.clip,payload.place)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+    return STPPriorityMapper().category_priority_map_villages(db,payload.clip,payload.place)
 
     
 @router.post("/stp_sutability")
+@validate
 def stp_classify(db:db_dependency,payload:STPSutabilityInput):
-    try:
-        return STPSutabilityMapper().create_sutability_map(db,payload)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
+    return STPSutabilityMapper().create_sutability_map(db,payload)
 
 @router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@validate
 def stp_priority_admin_report(payload:StpPriorityAdminReport):
-    try:  
-        task_id= document_gen.delay(payload=payload.model_dump())
-        return celery_id(task_id=task_id.id)
-    except Exception as e:
-        print("exception",e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+    task_id= document_gen.delay(payload=payload.model_dump())
+    return celery_id(task_id=task_id.id)
 
 @router.post("/stp_priority_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@validate
 def stp_priority_drain_report(payload:StpPriorityDrainReport):
-    try:  
-        task_id= document_gen1.delay(payload=payload.model_dump())
-        return celery_id(task_id=task_id.id)
-    except Exception as e:
-        print("exception",e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+    task_id= document_gen1.delay(payload=payload.model_dump())
+    return celery_id(task_id=task_id.id)
 
 
 @router.websocket("/ws/{task_id}")
