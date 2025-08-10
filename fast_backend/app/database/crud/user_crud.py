@@ -2,6 +2,7 @@ from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
 from app.api.schema.auth_schema import signup_input
 from app.database.models.auth_model import User
+from app.api.exception.exceptions import UserNotRegistered
 
 class UserCrud(CrudBase):
     def __init__(self,db:Session,Model=User):
@@ -15,6 +16,12 @@ class UserCrud(CrudBase):
     def validate_email(self,email:str):
         return self.db.query(self.Model).filter(
             self.Model.email == email).first()
+    
+    def delete_email(self,email:str):
+        obj=self.validate_email(email)
+        if obj is None:
+            raise UserNotRegistered
+        return self.delete(obj.id)
         
     def get_user(self,id:int):
         return self.db.query(self.Model).filter(

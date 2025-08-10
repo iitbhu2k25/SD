@@ -28,7 +28,7 @@ class CrudBase:
     def get(self,id:int):
         self.obj=self.db.query(self.Model).filter(
             self.Model.id == id).first()
-        self.missing_obj(self,self.obj,id)
+        self._missing_obj(self.obj,id)
         return self.obj
     
     
@@ -59,7 +59,7 @@ class CrudBase:
     
     
     def __delete_obj(self,obj):
-        self.missing_obj(obj)
+        self._missing_obj(obj)
         if obj:
             self.db.delete(obj)
             self.db.commit()
@@ -68,7 +68,7 @@ class CrudBase:
 
     def delete(self,id:int):
         obj=self.get(id)
-        return self.__delete_obj(obj)
+        return self.__delete_obj(obj=obj)
         
 
     def commit(self,obj):

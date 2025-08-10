@@ -41,9 +41,9 @@ class AuthServiceInterface(ABC):
     def verify_otp(self,db:Session,user:UserOut,otp:str):
         pass
     
-    # @abstractmethod
-    # def delete_account(self,db:Session,email:str)->bool:
-    #     pass
+    @abstractmethod
+    def delete_account(self,db:Session,email:str)->bool:
+        pass
     
     # @abstractmethod
     # def reset_password(self, db: Session, email: str, password: str) -> bool:
@@ -122,6 +122,10 @@ class AuthService(AuthServiceInterface):
                     "token_type":"Bearer"}
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
+    
+    def delete_account(self, db:Session, email:str)->bool:
+        return UserCrud(db).delete_email(email)
+    
     def send_email_otp(self,backgroud:BackgroundTasks, email:str):
         try:
             if self.email._send_email(backgroud=backgroud,email=email):

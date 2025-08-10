@@ -40,3 +40,6 @@ def generate_email_opt(backgroud:BackgroundTasks,user: Annotated[str, Depends(ge
 def verify_email_opt(db:db_dependency,user: Annotated[UserOut, Depends(get_current_user_cookie)],otp:OTPVerify):
     return AuthService().verify_otp(db,user,otp.otp)
    
+@app.delete("/delete_account",status_code=status.HTTP_201_CREATED)
+def delete_account(db:db_dependency,email:str)->bool:
+    return AuthService().delete_account(db,email)
