@@ -1,19 +1,9 @@
-# Use Ubuntu as base image
 FROM ubuntu:22.04
-
-# Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set Python environment variables for better behavior
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/home/app
-
-# # Add UbuntuGIS PPA to get GDAL 3.8
-# RUN apt-get update && apt-get install -y software-properties-common && \
-#     add-apt-repository ppa:ubuntugis/ubuntugis-unstable
-
-# Install dependencies for building Python
 RUN apt-get update && apt-get install -y \
     wget \
     build-essential \
@@ -37,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install Python 3.12.9
+
 RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tgz && \
     tar -xf Python-3.12.9.tgz && \
     cd Python-3.12.9 && \
@@ -46,13 +36,13 @@ RUN wget https://www.python.org/ftp/python/3.12.9/Python-3.12.9.tgz && \
     cd .. && \
     rm -rf Python-3.12.9 Python-3.12.9.tgz
 
-# Create Python symlinks
+
 RUN ln -sf /usr/local/bin/python3.12 /usr/bin/python && \
     ln -sf /usr/local/bin/python3.12 /usr/bin/python3 && \
     ln -sf /usr/local/bin/pip3.12 /usr/bin/pip && \
     ln -sf /usr/local/bin/pip3.12 /usr/bin/pip3
 
-# Verify Python installation
+
 RUN python --version
 
 # Set the working directory in the container
@@ -85,4 +75,3 @@ USER appuser
 
 # Expose the port FastAPI will run on
 EXPOSE 7000
-

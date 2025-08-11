@@ -27,29 +27,29 @@ services:
       - RATE_LIMIT_MS=60000
       - RATE_LIMIT_MAX=60
 
-  # backend:
-  #   build:
-  #     context: ./backend/
-  #     dockerfile: docker/dockerfile.backend
-  #   image: backend:latest
-  #   ports:
-  #     - "9000:9000"
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - ./backend:/home/app:z
-  #   command: >
-  #     sh -c "python manage.py migrate &&
-  #            python manage.py runserver 0.0.0.0:9000"
-  #   restart: always
-  #   depends_on:
-  #     - db
-  #     - geoserver
+  backend:
+    build:
+      context: ./backend/
+      dockerfile: docker/dockerfile.backend
+    image: backend:latest
+    ports:
+      - "9000:9000"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/home/app:z
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:9000"
+    restart: always
+    depends_on:
+      - db
+      - geoserver
 
   fast_backend:
     build:
       context: ./fast_backend
-      dockerfile: DockerFile
+      dockerfile: Dockerfile
     image: backend_fast:latest
     ports:
       - "7000:7000"
@@ -64,21 +64,21 @@ services:
       - fast_db
       - geoserver
 
-  # db:
-  #   image: postgres:16-alpine
-  #   ports:
-  #     - "5440:5432"
-  #   env_file:
-  #     - .env
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: always
-  #   depends_on:
-  #     - redis
-  #     - geoserver
+  db:
+    image: postgres:16
+    ports:
+      - "5440:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    depends_on:
+      - redis
+      - geoserver
 
   fast_db:
-    image: postgres:16-alpine
+    image: postgres:16
     ports:
       - "5450:5432"
     env_file:
@@ -105,7 +105,7 @@ services:
   celery:
     build:
       context: ./fast_backend
-      dockerfile: DockerFile
+      dockerfile: Dockerfile
     image: celery:latest
     volumes:
       - ./fast_backend:/home/app:z 
@@ -124,7 +124,7 @@ services:
   flower:
     build:
       context: ./fast_backend
-      dockerfile: DockerFile
+      dockerfile: Dockerfile
     image: flower:latest
     command: celery --broker=redis://redis:6379/0 flower --port=5555
     ports:

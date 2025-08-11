@@ -2,7 +2,7 @@ fastapi
 pydantic
 sqlalchemy
 psycopg2-binary
-uvicorn
+uvicorn[standard]
 python-multipart
 python-jose
 python-dotenv

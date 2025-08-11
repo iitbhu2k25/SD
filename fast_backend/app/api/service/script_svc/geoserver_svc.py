@@ -10,35 +10,46 @@ geoserver_url = setting.GEOSERVER_URL
 username = setting.GEOSERVER_USERNAME
 password = setting.GEOSERVER_PASSWORD  
 geoserver_extenal_url=setting.GEOSERVER_EX_URL
-# wcs_url=f"{geoserver_extenal_url}+/wcs"
-# input_path=f"{settings.BASE_DIR}"+"/temp/input"
-# output_path=f"{settings.BASE_DIR}"+"/temp/output"
-  
-def create_workspace(workspace_name):
-    try:
-        check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}"
-        check_response = requests.get(
+
+def geoserver_response(check_url:str):
+    return requests.get(
             check_url,
             auth=HTTPBasicAuth(username, password)
         )
+
+def geoserver_post(url:str,data:dict):
+    headers = {"Content-type": "application/json"}
+    return requests.post(
+            url,
+            auth=HTTPBasicAuth(username, password),
+            json=data,
+            headers=headers
+        )
+
+def geoserver_put(url:str,data:dict):
+    headers = {"Content-type": "application/json"}
+    return requests.put(
+        url,
+        auth=HTTPBasicAuth(username, password),
+        json=data,
+        headers=headers
+        )
+
+def create_workspace(workspace_name):
+    try:
+        check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}"
+        check_response = geoserver_response(check_url)
         if check_response.status_code == 200:
             print(f"Workspace '{workspace_name}' already exists")
             return True
 
         workspace_url = f"{geoserver_url}/rest/workspaces"
-        headers = {"Content-type": "application/json"}
         data = {"workspace": {"name": workspace_name}}
 
-        response = requests.post(
-            workspace_url,
-            auth=HTTPBasicAuth(username, password),
-            json=data,
-            headers=headers
-        )
+        response = geoserver_post(url=workspace_url,data=data)
         if response.status_code == 201:
             print("workspace is created successfully")
             wfs_url = f"{geoserver_url}/rest/services/wfs/workspaces/{workspace_name}/settings"
-            headers = {"Content-type": "application/json"}
             wfs_data = {
                 "wfs": {
                     "enabled": True,
@@ -46,13 +57,7 @@ def create_workspace(workspace_name):
                     "workspace": {"name": workspace_name}
                 }
             }
-                
-            wfs_response = requests.put(
-                wfs_url,
-                auth=HTTPBasicAuth(username, password),
-                json=wfs_data,
-                headers=headers
-            )
+            wfs_response = geoserver_put(url=wfs_url,data=wfs_data)
                 
             if wfs_response.status_code in (200, 201):
                 print(f"WFS service enabled for workspace '{workspace_name}'")
@@ -70,12 +75,7 @@ def create_workspace(workspace_name):
                 }
             }
                 
-            wms_response = requests.put(
-                wms_url,
-                auth=HTTPBasicAuth(username, password),
-                json=wms_data,
-                headers=headers
-            )
+            wms_response =  geoserver_put(url=wms_url,data=wms_data)
                 
             if wms_response.status_code in (200, 201):
                 print(f"WMS service enabled for workspace '{workspace_name}'")
@@ -93,11 +93,7 @@ def create_workspace(workspace_name):
 
 def create_vector_stores(workspace_name, store_name):
     check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}"
-    
-    check_response = requests.get(
-        check_url,
-        auth=HTTPBasicAuth(username, password)
-    )
+    check_response = geoserver_response(check_url)
     
     if check_response.status_code == 200:
         print(f"Store '{store_name}' already exists in workspace '{workspace_name}'")
@@ -107,7 +103,6 @@ def create_vector_stores(workspace_name, store_name):
 
 def create_shapefile_store(workspace_name, store_name, geoserver_url):
     store_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores"
-    headers = {"Content-type": "application/json"}
     data = {
         "dataStore": {
             "name": store_name,
@@ -119,13 +114,7 @@ def create_shapefile_store(workspace_name, store_name, geoserver_url):
                 }
         }
     }
-    
-    response = requests.post(
-        store_url,
-        auth=HTTPBasicAuth(username, password),
-        json=data,
-        headers=headers
-    )
+    response = geoserver_post(url=store_url,data=data)
     
     if response.status_code == 201:
         print(f"Shapefile store '{store_name}' created successfully in workspace '{workspace_name}'")
@@ -138,12 +127,9 @@ def create_shapefile_store(workspace_name, store_name, geoserver_url):
 def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
     
     try:
-        # Check if store exists
+
         check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}"    
-        check_response = requests.get(
-            check_url,
-            auth=HTTPBasicAuth(username, password)
-        )
+        check_response =geoserver_response(check_url)
         if check_response.status_code != 200:
             print(f"Store '{store_name}' does not exist in workspace '{workspace_name}'")
             return False
@@ -161,16 +147,10 @@ def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
         upload_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}/file.shp?configure=all"
         if layer_name:
             upload_url += f"&name={layer_name}"
-        headers = {"Content-type": "application/zip"}
-        print("uploading shapefile",upload_url)
+
         with open(shapefile_path, 'rb') as f:
             data = f.read() 
-        response = requests.put(
-            upload_url,
-            auth=HTTPBasicAuth(username, password),
-            data=data,
-            headers=headers
-        )
+        response = geoserver_put(url=upload_url,data=data)
         
         if response.status_code in (200, 201):
             print(f"Shapefile uploaded and published as layer '{layer_name}'")
