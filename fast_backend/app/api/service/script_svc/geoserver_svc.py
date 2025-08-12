@@ -27,11 +27,11 @@ def geoserver_post(url:str,data:dict):
         )
 
 def geoserver_put(url:str,data:dict):
-    headers = {"Content-type": "application/json"}
+    headers = {"Content-type": "application/zip"}
     return requests.put(
         url,
         auth=HTTPBasicAuth(username, password),
-        json=data,
+        data=data,
         headers=headers
         )
 

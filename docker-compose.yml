@@ -91,13 +91,13 @@ services:
       - geoserver
 
   redis:
-    image: redis:alpine
+    image: redis:7.4-alpine
     ports:
       - "6379:6379"
     expose:
       - "6379"
     env_file:
-      - .env
+      - .fastdb.env
     restart: always
     volumes:
       - redis_data:/data 

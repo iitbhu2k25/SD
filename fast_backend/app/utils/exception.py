@@ -5,7 +5,7 @@ def validate(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            return await func(*args, **kwargs)
+            return  await func(*args, **kwargs)
         except HTTPException:
             raise
         except Exception as e:
