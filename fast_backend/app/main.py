@@ -8,7 +8,7 @@ app = FastAPI(title="Decision support system", version="1.0.0")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","slcrdss.in"],
+    allow_origins=["http://localhost:3000","slcrdss.in","http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

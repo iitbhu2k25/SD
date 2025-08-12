@@ -257,10 +257,8 @@ class RasterProcess:
                 villages_vector.set_crs("EPSG:32644", inplace=True) 
             villages_vector=villages_vector.to_crs("EPSG:32644")
             if place == "Drain":
-                print("drin")
                 villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
             else:
-                print("admins")
                 villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
             with rasterio.open(raster_path) as src:
                 out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
@@ -1030,11 +1028,13 @@ class STPSutabilityMapper:
     def _cliping_raster(self,final_path:str,payload:List):
         
         vector_name=None
+        clip=payload.clip
         if payload.place == "Drain":
-            final_path=self.processor.clip_to_user_villages(final_path,clip=payload.clip,place=payload.place)
+            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=payload.place)
         else:
-            clip,vector_name=self._town_to_villages(clip=payload.clip)
+            clip,vector_name=self._town_to_villages(clip=clip)
             final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place="Drain")
+
         return final_path,vector_name,clip
     
     def _town_to_villages(self,clip:List):
@@ -1087,7 +1087,6 @@ class STPSutabilityMapper:
         constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
         
         final_path,vector_name,clip=self._cliping_raster(final_path,payload)
-
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place="Admin",logic="sutability")
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=self.config.raster_store, raster_path=final_path)

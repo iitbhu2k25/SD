@@ -6,7 +6,8 @@ def validate(func):
     async def wrapper(*args, **kwargs):
         try:
             return  await func(*args, **kwargs)
-        except HTTPException:
+        except HTTPException as e:
+            print("error is here",e)
             raise
         except Exception as e:
             # Logging could go here
