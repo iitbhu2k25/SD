@@ -35,6 +35,14 @@ def geoserver_put(url:str,data:dict):
         headers=headers
         )
 
+def geoserver_put_service(url:str,data:dict):
+    headers = {"Content-type": "application/json"}
+    return requests.put(
+        url,
+        auth=HTTPBasicAuth(username, password),
+        json=data,
+        headers=headers
+        )
 def create_workspace(workspace_name):
     try:
         check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}"
@@ -57,7 +65,7 @@ def create_workspace(workspace_name):
                     "workspace": {"name": workspace_name}
                 }
             }
-            wfs_response = geoserver_put(url=wfs_url,data=wfs_data)
+            wfs_response = geoserver_put_service(url=wfs_url,data=wfs_data)
                 
             if wfs_response.status_code in (200, 201):
                 print(f"WFS service enabled for workspace '{workspace_name}'")
@@ -75,7 +83,7 @@ def create_workspace(workspace_name):
                 }
             }
                 
-            wms_response =  geoserver_put(url=wms_url,data=wms_data)
+            wms_response =  geoserver_put_service(url=wms_url,data=wms_data)
                 
             if wms_response.status_code in (200, 201):
                 print(f"WMS service enabled for workspace '{workspace_name}'")
