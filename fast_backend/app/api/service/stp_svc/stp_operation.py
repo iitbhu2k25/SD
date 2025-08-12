@@ -767,7 +767,9 @@ class STPPriorityMapper:
             final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
             final_path=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
-            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=self.config.raster_store, raster_path=final_path)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            unique_store_name = f"{self.config.raster_store}_{timestamp}"
+            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
                 return {
@@ -1089,7 +1091,9 @@ class STPSutabilityMapper:
         final_path,vector_name,clip=self._cliping_raster(final_path,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place="Admin",logic="sutability")
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=self.config.raster_store, raster_path=final_path)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+        unique_store_name = f"{self.config.raster_store}_{timestamp}"
+        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
         print("csv path",csv_path)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)
         if status:
