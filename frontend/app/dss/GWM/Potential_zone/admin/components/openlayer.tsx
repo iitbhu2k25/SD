@@ -21,10 +21,10 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/admin/MapContext";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
+import { useMap } from "@/contexts/stp_gwz/admin/MapContext";
+import { useCategory } from "@/contexts/stp_gwz/admin/CategoryContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
+import { useLocation } from "@/contexts/stp_gwz/admin/LocationContext";
 
 // Define base map type interface
 interface BaseMapDefinition {

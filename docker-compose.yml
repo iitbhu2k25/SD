@@ -91,7 +91,7 @@ services:
       - geoserver
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4
     ports:
       - "6379:6379"
     expose:
