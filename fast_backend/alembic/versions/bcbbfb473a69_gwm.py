@@ -1,8 +1,8 @@
-"""GWZ
+"""gwm
 
-Revision ID: e142a47212ec
+Revision ID: bcbbfb473a69
 Revises: 
-Create Date: 2025-08-14 08:44:13.773864
+Create Date: 2025-08-14 10:08:52.016783
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e142a47212ec'
+revision: str = 'bcbbfb473a69'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
-    sa.Column('sld_path', sa.String(), nullable=False),
+    sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),

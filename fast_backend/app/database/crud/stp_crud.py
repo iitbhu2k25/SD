@@ -126,6 +126,20 @@ class STP_sutability_crud(CrudBase):
         query=self.db.query(self.Model).filter()
         return self._pagination(query,all_data)
 
+class GWZ_crud(CrudBase):
+    def __init__(self,db:Session,Model=Groundwater_Zone_raster):
+        super().__init__(db,Model)
+        self.obj = None
+    def get_raster_path(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.file_name==name)
+        return (
+            query.first().file_path
+        )
+    def get_raster_category(self,all_data:bool=False):
+        query=self.db.query(self.Model).filter()
+        return self._pagination(query,all_data)
+    
 class STP_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_Priority_Visual_raster):
         super().__init__(db,Model)
@@ -144,7 +158,7 @@ class STP_sutability_visualization_crud(CrudBase):
         query=self.db.query(self.Model).filter().all()
         return query
 
-class GWA_crud(CrudBase):
+class GWA_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Zone_Visual_raster):
         super().__init__(db,Model)
         self.obj = None

@@ -151,7 +151,7 @@ export const CategoryProvider = ({
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/stp_sutability/get_priority_category?all_data=true', {
+      const response = await fetch('/api/stp_sutability/get_gwz_category?all_data=true', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

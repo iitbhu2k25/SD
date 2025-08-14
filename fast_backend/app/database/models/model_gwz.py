@@ -16,4 +16,4 @@ class Groundwater_Zone_raster(Base):
     file_name:Mapped[str]=mapped_column(String,nullable=False)
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
-    sld_path:Mapped[str]=mapped_column(String,nullable=False)
+    weight:Mapped[float]=mapped_column(Float,nullable=False)
