@@ -1,19 +1,13 @@
 'use client'
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { DataRow } from '@/interface/table';
-// =============================================
-// TYPES AND INTERFACES
-// =============================================
+import { api } from '@/services/api';
+
 
 export interface Category {
   id: number;
   file_name: string;
   weight: number;
-  description?: string;
-  category_type?: string;
-  data_source?: string;
-  last_updated?: string;
-  is_active?: boolean;
 }
 
 export interface SelectRasterLayer {
@@ -80,15 +74,9 @@ interface CategoryProviderProps {
   maxCategories?: number;
 }
 
-// =============================================
-// CONTEXT CREATION
-// =============================================
 
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
-// =============================================
-// ENHANCED CATEGORY PROVIDER
-// =============================================
 
 export const CategoryProvider = ({ 
   children, 
@@ -96,28 +84,22 @@ export const CategoryProvider = ({
   enableAutoSave = true,
   maxCategories = 10
 }: CategoryProviderProps) => {
-  // Core state
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryItems, setSelectedCategoryItems] = useState<SelectRasterLayer[]>([]);
   const [stpProcess, setStpProcess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Table state
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
 
-  // =============================================
-  // WEIGHT CALCULATION LOGIC
-  // =============================================
+
 
   const calculateWeights = useCallback((categories: SelectRasterLayer[]): SelectRasterLayer[] => {
     if (categories.length === 0) return [];
     
-    // Calculate sum of all influences
     const totalInfluence = categories.reduce((sum, category) => sum + category.Influence, 0);
-    
-    // If sum is 0, assign equal weights
+  
     if (totalInfluence === 0) {
       const equalWeight = parseFloat((1 / categories.length).toFixed(4));
       return categories.map(category => ({
@@ -126,7 +108,6 @@ export const CategoryProvider = ({
       }));
     }
     
-    // Calculate normalized weights
     return categories.map((category, index) => {
       const weight = parseFloat((category.Influence / totalInfluence).toFixed(4));
       return {
@@ -137,34 +118,22 @@ export const CategoryProvider = ({
     });
   }, []);
 
-  // Memoized selected categories with calculated weights
   const selectedCategories = useMemo(() => {
     return calculateWeights(selectedCategoryItems);
   }, [selectedCategoryItems, calculateWeights]);
-
-  // =============================================
-  // API FUNCTIONS
-  // =============================================
 
   const fetchCategories = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await fetch('/api/stp_sutability/get_priority_category?all_data=true', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },  
-      });
-      
-      if (!response.ok) {
+      const response = await api.get('/stp_operation/get_priority_category?all_data=true'); 
+      if (response.status !== 200) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data =response.message as Category[];
       
-      const data: Category[] = await response.json();
-      
-      // Validate and clean data
+
       const validatedData = data.filter(item => 
         item && 
         typeof item.file_name === 'string' && 
@@ -181,7 +150,6 @@ export const CategoryProvider = ({
           const saved = localStorage.getItem('selectedCategories');
           if (saved) {
             const savedCategories: SelectRasterLayer[] = JSON.parse(saved);
-            // Validate saved categories still exist
             const validSaved = savedCategories.filter(saved => 
               validatedData.some(cat => cat.file_name === saved.file_name)
             );
@@ -204,10 +172,6 @@ export const CategoryProvider = ({
   const refreshCategories = useCallback(async (): Promise<void> => {
     await fetchCategories();
   }, [fetchCategories]);
-
-  // =============================================
-  // CATEGORY MANAGEMENT FUNCTIONS
-  // =============================================
 
   const toggleCategory = useCallback((file_name: string): void => {
     setSelectedCategoryItems(prev => {
@@ -358,9 +322,7 @@ export const CategoryProvider = ({
     }
   }, [enableAutoSave]);
 
-  // =============================================
-  // UTILITY FUNCTIONS
-  // =============================================
+
 
   const isSelected = useCallback((file_name: string): boolean => {
     return selectedCategoryItems.some(item => item.file_name === file_name);
@@ -440,16 +402,12 @@ export const CategoryProvider = ({
     }
   }, [categories, enableAutoSave]);
 
-  // =============================================
-  // EFFECTS
-  // =============================================
 
-  // Initial data fetch
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // Clear error after 5 seconds
+
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(null), 5000);
@@ -457,9 +415,7 @@ export const CategoryProvider = ({
     }
   }, [error]);
 
-  // =============================================
-  // CONTEXT VALUE
-  // =============================================
+ 
 
   const contextValue: CategoryContextType = {
     // Core data

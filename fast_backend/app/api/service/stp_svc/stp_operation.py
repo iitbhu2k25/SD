@@ -773,11 +773,8 @@ class STPPriorityMapper:
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
                 return {
-                    "status": "success",
                     "workspace": self.config.raster_workspace,
-                    "store": self.config.raster_store,
                     "layer_name": layer_name,
-                    "type": "raster",
                     "csv_path":csv_path,
                     "csv_details":csv_details
                 }

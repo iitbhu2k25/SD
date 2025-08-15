@@ -1,26 +1,45 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import {District, SubDistrict}from '@/contexts/groundwaterzone/admin/LocationContext';
+import { River, Stretch, Drain, Catchment} from '@/contexts/stp_sutability/users/DrainContext';
 
-interface MultiSelectProps<T> {
+
+// Base interface for items that can be selected
+interface SelectableItem {
+  id: number;
+  name?: string;
+}
+
+interface RiverMultiSelectProps<T extends SelectableItem> {
   items: T[];
   selectedItems: number[];
   onSelectionChange: (selectedIds: number[]) => void;
-  label: string;
+  label: string;  
   placeholder: string;
   disabled?: boolean;
   displayPattern?: (item: T) => string;
 }
 
-export const MultiSelect = <T extends District|SubDistrict = District|SubDistrict>({
+export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
   items,
   selectedItems,
   onSelectionChange,
   label,
   placeholder,
   disabled = false,
-  displayPattern = (item) => item.name,
-}: MultiSelectProps<T>): React.ReactElement => {
+  displayPattern = (item) => {
+    // Default display pattern based on item type
+    if ('Stretch_ID' in item) {
+      return (item as Stretch).name ? `${(item as Stretch).name} (ID: ${(item as Stretch).Stretch_ID})` : `Stretch ${(item as Stretch).Stretch_ID}`;
+    }
+    if ('Drain_No' in item) {
+      return (item as Drain).name ? `${(item as Drain).name} (Nos: ${(item as Drain).Drain_No})` : `Drain ${(item as Drain).Drain_No}`;
+    }
+    if ('village_name' in item) {
+      return (item as Catchment).name ? `${(item as Catchment).name} (Grid: ${(item as Catchment).village_name})` : `Catchment ${(item as Catchment).village_name}`;
+    }
+    return '';
+  },
+}: RiverMultiSelectProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
@@ -31,10 +50,24 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
   // Filter items based on search query
-  const filteredItems = items.filter(item => 
-    displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+
+    const displayText = displayPattern(item).toLowerCase();
+    const searchTerm = searchQuery.toLowerCase();
+    
+    // Search in display text
+    if (displayText.includes(searchTerm)) return true;
+    
+    // Search in name if available
+    if (item.name && item.name.toLowerCase().includes(searchTerm)) return true;
+    
+    // Search in specific fields based on item type
+    if ('Stretch_ID' in item && item.Stretch_ID.toString().includes(searchTerm)) return true;
+    if ('Drain_No' in item && item.Drain_No.toString().includes(searchTerm)) return true;
+    if ('village_name' in item && item.village_name.toString().includes(searchTerm)) return true;
+    
+    return false;
+  });
 
   // Calculate dropdown position based on available space
   const calculateDropdownPosition = () => {
@@ -69,19 +102,33 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
     };
   }, []);
 
-  // Focus search input when dropdown opens and calculate position (only once) // Only depend on isOpen, not on selections
+  // Focus search input when dropdown opens and calculate position
+  useEffect(() => {
+    if (isOpen) {
+      calculateDropdownPosition();
+      if (searchInputRef.current) {
+        searchInputRef.current.focus();
+      }
+    }
+  }, [isOpen]);
+
 
   // Reset search and position when dropdown closes
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery('');
-      // Reset position to default when closing
       setDropdownPosition('bottom');
     }
   }, [isOpen]);
 
   // Recalculate position on window resize (only if dropdown is open)
-  
+  useEffect(() => {
+    if (isOpen) {
+      const handleResize = () => calculateDropdownPosition();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, [isOpen]);
 
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -101,11 +148,12 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
     }
   };
 
-  // Handle item selection without triggering position recalculation
+  // Handle item selection
   const handleItemSelect = (itemId: number) => {
     if (selectedItems.includes(itemId)) {
       // Item is already selected, remove it
       onSelectionChange(selectedItems.filter(id => id !== itemId));
+      
     } else {
       // Item is not selected, add it
       onSelectionChange([...selectedItems, itemId]);
@@ -203,25 +251,34 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
           </div>
           
           {/* Select All option */}
-          <div
-            className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
-              allSelected ? 'bg-blue-50' : ''
-            }`}
-            onClick={handleSelectAll}
-          >
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={handleSelectAll}
-              className="mr-2"
-            />
-            All {label}s
-          </div>
+          {items.length > 0 && (
+            <div
+              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
+                allSelected ? 'bg-blue-50' : ''
+              }`}
+              onClick={handleSelectAll}
+            >
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={handleSelectAll}
+                className="mr-2"
+              />
+              All {label}s
+            </div>
+          )}
           
           {/* No results message */}
-          {filteredItems.length === 0 && (
+          {filteredItems.length === 0 && searchQuery && (
             <div className="p-3 text-center text-gray-500">
               No {label}s found matching "{searchQuery}"
+            </div>
+          )}
+
+          {/* No items available message */}
+          {items.length === 0 && (
+            <div className="p-3 text-center text-gray-500">
+              No {label}s available
             </div>
           )}
           
@@ -240,7 +297,7 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
                 onChange={() => handleItemSelect(Number(item.id))}
                 className="mr-2"
               />
-              {displayPattern(item)}
+              <span className="text-sm">{displayPattern(item)}</span>
             </div>
           ))}
         </div>

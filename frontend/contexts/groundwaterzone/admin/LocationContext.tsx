@@ -261,7 +261,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         setIsLoading(true);
         try {
           const response = await fetch(
-            "/api/stp_operation/stp_gwz_visual_display",
+            "/api/stp_operation/groundwaterzone_visual_display",
             {
               method: "POST",
               headers: {

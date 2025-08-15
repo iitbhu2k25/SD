@@ -1,4 +1,5 @@
-import React, { use, useEffect, useRef, useState } from "react";
+"use client";
+import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
@@ -9,8 +10,8 @@ import ImageWMS from "ol/source/ImageWMS";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import GeoJSON from "ol/format/GeoJSON";
+import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
 import Image from "next/image";
-
 import { fromLonLat, transform } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -20,11 +21,11 @@ import {
   ZoomToExtent,
 } from "ol/control";
 
-import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
-import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
-import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
+import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
+import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
+import { none } from "ol/centerconstraint";
 
 // Define base map type interface
 interface BaseMapDefinition {
@@ -223,7 +224,7 @@ const GISCompass = () => {
   );
 };
 
-const Maping: React.FC = () => {
+const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const legendRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
@@ -234,7 +235,7 @@ const Maping: React.FC = () => {
   const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
 
   // Set initial loading state to true independent of any selection
-
+  const [loading, setLoading] = useState<boolean>(true);
   const [primaryLayerLoading, setPrimaryLayerLoading] = useState<boolean>(true);
   const [secondaryLayerLoading, setSecondaryLayerLoading] =
     useState<boolean>(false);
@@ -256,30 +257,43 @@ const Maping: React.FC = () => {
   // Add state for vector layer visibility - only secondary can be toggled
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
+  const [isPanelOpen, setIsPanelOpen] = useState(true); //default raster layer
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const { selectedSubDistricts, displayRaster, setdisplay_raster } =
-    useLocation();
+  const {
+    selectedSubDistricts,
+    displayRaster,
+    selectedTowns,
+    setdisplay_raster,
+  } = useLocation();
+
   useEffect(() => {
     console.log("selectedSubDistricts", isPanelOpen);
   }, [isPanelOpen]);
+  useEffect(() => {
+    displayRaster.map((item: any) => {
+      if (item.file_name == selectedradioLayer) {
+        console.log("selected items", item);
+        setRasterLayerInfo(item);
+      }
+    });
+    console.log("new update data", displayRaster);
+  }, [selectedradioLayer]);
   // Use the map context
   const {
     primaryLayer,
     secondaryLayer,
+    setSecondaryLayer,
     LayerFilter,
     LayerFilterValue,
+    setLayerFilter,
     geoServerUrl,
     defaultWorkspace,
     isMapLoading,
     setstpOperation,
     stpOperation,
-    loading,
-    setLoading,
   } = useMap();
 
-  const { selectedCategories, setStpProcess, setShowTable, setTableData } =
-    useCategory();
+  const { selectedCategory ,setTableData} = useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -287,6 +301,7 @@ const Maping: React.FC = () => {
 
   const [wtkpoly, setwtkpoly] = useState<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
   // Helper function to toggle full screen manually
   const toggleFullScreen = () => {
     if (!containerRef.current) return;
@@ -301,6 +316,7 @@ const Maping: React.FC = () => {
       }
     }
   };
+
   // Toggle active panel function
   const togglePanel = (panelName: string) => {
     if (activePanel === panelName) {
@@ -309,9 +325,11 @@ const Maping: React.FC = () => {
       setActivePanel(panelName);
     }
   };
+
   const openlayertoggle = () => {
     setIsPanelOpen(!isPanelOpen);
   };
+
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
     console.log("Selected layer:", layerName);
@@ -325,6 +343,7 @@ const Maping: React.FC = () => {
       secondaryLayerRef.current.setVisible(newVisibility);
       setShowSecondaryLayer(newVisibility);
     }
+    
   };
 
   // Listen for fullscreen changes
@@ -363,7 +382,7 @@ const Maping: React.FC = () => {
     setSelectedBaseMap(baseMapKey);
   };
 
-  // Add this function inside the Maping component
+  // Add this function inside the Mapping component
   const captureMap = async (): Promise<string | null> => {
     if (!mapInstanceRef.current) {
       console.warn("Map instance not available");
@@ -490,61 +509,59 @@ const Maping: React.FC = () => {
 
     baseLayerRef.current = initialBaseLayer;
     const css = `
-  /* C
-
-  
-  /* Animation classes */
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-in-out;
-  }
-  
-  .animate-slide-in-right {
-    animation: slideInRight 0.5s ease-in-out;
-  }
-  
-  .animate-slide-up {
-    animation: slideUp 0.5s ease-in-out;
-  }
-  
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  .animate-fade-in-down {
-    animation: fadeInDown 0.5s ease-in-out;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes slideInRight {
-    from { transform: translateX(20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  
-  @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-  
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-5px); }
-    100% { transform: translateY(0px); }
-  }
-  
-  @keyframes fadeInDown {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-`;
+      /* Animation classes */
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      
+      .animate-slide-in-right {
+        animation: slideInRight 0.5s ease-in-out;
+      }
+      
+      .animate-slide-up {
+        animation: slideUp 0.5s ease-in-out;
+      }
+      
+      .animate-float {
+        animation: float 3s ease-in-out infinite;
+      }
+      
+      .animate-fade-in-down {
+        animation: fadeInDown 0.5s ease-in-out;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes slideInRight {
+        from { transform: translateX(20px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      @keyframes fadeInDown {
+        from { transform: translateY(-20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+    `;
 
     // Create a style element and add it to the document head
     const styleElement = document.createElement("style");
     styleElement.textContent = css;
     document.head.appendChild(styleElement);
+
     // Configure controls
     const controls = defaultControls().extend([
       // Scale line (distance indicator)
@@ -568,8 +585,6 @@ const Maping: React.FC = () => {
         target: document.getElementById("mouse-position") as HTMLElement,
       }),
 
-      // Overview map (small map in corner)
-
       // Zoom slider
       new ZoomSlider(),
 
@@ -580,7 +595,6 @@ const Maping: React.FC = () => {
       }),
     ]);
 
-    <button>helosasd</button>;
     // Create the map with controls
     const map = new Map({
       target: mapRef.current,
@@ -607,7 +621,24 @@ const Maping: React.FC = () => {
       }
     };
   }, []);
-
+  const createHoverStyle = () => {
+    return new Style({
+      stroke: new Stroke({
+        color: "#ff0000",
+        width: 3,
+      }),
+      image: new Circle({
+        radius: 10,
+        fill: new Fill({
+          color: "#ff0000",
+        }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 2,
+        }),
+      }),
+    });
+  };
   // Load and manage the primary layer
   useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) return;
@@ -690,368 +721,413 @@ const Maping: React.FC = () => {
   }, [geoServerUrl, defaultWorkspace, primaryLayer]);
 
   // Handle the secondary layer
-  useEffect(() => {
-    setLoading(true);
+  // Fixed useEffect for handling the secondary layer
+useEffect(() => {
+  console.log('Secondary layer useEffect triggered:', {
+    secondaryLayer,
+    rasterLayerInfo: !!rasterLayerInfo,
+    mapExists: !!mapInstanceRef.current
+  });
 
-    if (!mapInstanceRef.current || !secondaryLayer) {
-      // Reset secondary layer states
-      setSecondaryFeatureCount(0);
-      setSecondaryLayerLoading(false);
-      // Remove any existing secondary layer
-      if (secondaryLayerRef.current) {
-        mapInstanceRef.current?.removeLayer(secondaryLayerRef.current);
-        secondaryLayerRef.current = null;
-      }
-      updateLoadingState();
-      return;
-    }
-    setLoading(true);
-    setSecondaryLayerLoading(true);
+  if (!mapInstanceRef.current) {
+    console.log('Map not ready, skipping secondary layer setup');
+    return;
+  }
 
-    // Construct WFS URL for secondary layer
-    const secondaryWfsUrl =
-      `/geoserver/api/wfs?` +
-      "service=WFS&" +
-      "version=1.1.0&" +
-      "request=GetFeature&" +
-      `typeName=${defaultWorkspace}:${secondaryLayer}&` +
-      "outputFormat=application/json&" +
-      "srsname=EPSG:3857&" +
-      `CQL_FILTER=${LayerFilter} IN (${
-        Array.isArray(LayerFilterValue)
-          ? LayerFilterValue.map((v) => `'${v}'`).join(",")
-          : `'${LayerFilterValue}'`
-      })`;
+  // Always remove existing secondary layer first
+  if (secondaryLayerRef.current) {
+    console.log('Removing existing secondary layer');
+    mapInstanceRef.current.removeLayer(secondaryLayerRef.current);
+    secondaryLayerRef.current = null;
+  }
 
-    const secondaryVectorStyle = (feature: any, resolution: number) => {
-      const geometry = feature.getGeometry();
-      const geometryType = geometry.getType();
-      const zoom = Math.round(
-        Math.log(156543.03392 / resolution) / Math.log(2)
+  // Reset states when no secondary layer
+  if (!secondaryLayer) {
+    console.log('No secondary layer specified, clearing states');
+    setSecondaryFeatureCount(0);
+    setSecondaryLayerLoading(false);
+    updateLoadingState();
+    return;
+  }
+
+  console.log('Setting up new secondary layer:', secondaryLayer);
+  setSecondaryLayerLoading(true);
+
+  // Construct WFS URL for secondary layer
+  let secondaryWfsUrl =
+    `/geoserver/api/wfs?` +
+    "service=WFS&" +
+    "version=1.1.0&" +
+    "request=GetFeature&" +
+    `typeName=${defaultWorkspace}:${secondaryLayer}&` +
+    "outputFormat=application/json&" +
+    "srsname=EPSG:3857";
+
+  // Add filters if they exist
+  if (LayerFilterValue && LayerFilter) {
+    const values = Array.isArray(LayerFilterValue)
+      ? LayerFilterValue.map((v) => `'${v}'`).join(",")
+      : `'${LayerFilterValue}'`;
+    secondaryWfsUrl += `&CQL_FILTER=${LayerFilter} IN (${values})`;
+  }
+
+  console.log('Secondary layer URL:', secondaryWfsUrl);
+
+  const secondaryVectorStyle = (feature: { getGeometry: () => any; get: (arg0: string) => any; }, resolution: number) => {
+    const geometry = feature.getGeometry();
+    const geometryType = geometry.getType();
+    const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
+    const featureName = feature.get("name") || feature.get("Name");
+
+    const styles = [];
+
+    if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
+      styles.push(
+        new Style({
+          stroke: new Stroke({
+            color: "#5E1520",
+            width: 3,
+          }),
+          fill: new Fill({
+            color: "rgba(94, 21, 32, 0.1)", // Add slight fill for better visibility
+          }),
+        })
       );
-      const featureName = feature.get("name") || feature.get("Name");
+    }
 
-      const styles = [];
+    if (geometryType === "LineString" || geometryType === "MultiLineString") {
+      styles.push(
+        new Style({
+          stroke: new Stroke({
+            color: "#5E1520",
+            width: 5,
+          }),
+        })
+      );
+    }
 
-      if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
-        styles.push(
-          new Style({
+    if (geometryType === "Point" || geometryType === "MultiPoint") {
+      styles.push(
+        new Style({
+          image: new Circle({
+            radius: 8, // Increased radius for better visibility
+            fill: new Fill({
+              color: "rgba(224, 3, 3, 0.7)", // Increased opacity
+            }),
             stroke: new Stroke({
               color: "#5E1520",
               width: 2,
             }),
-            fill: new Fill({
-              color: "rgba(0, 0, 0, 0)", // Fully transparent fill
-            }),
-          })
-        );
-      }
-
-      if (geometryType === "LineString" || geometryType === "MultiLineString") {
-        styles.push(
-          new Style({
-            stroke: new Stroke({
-              color: "#5E1520",
-              width: 5,
-            }),
-          })
-        );
-      }
-
-      if (geometryType === "Point" || geometryType === "MultiPoint") {
-        styles.push(
-          new Style({
-            image: new Circle({
-              radius: 4,
-              fill: new Fill({
-                color: "rgba(224, 3, 3, 0.3)",
-              }),
-              stroke: new Stroke({
-                color: "rgba(43, 1, 142, 0.3)",
-                width: 1,
-              }),
-            }),
-          })
-        );
-      }
-      if (showTitles && zoom > 5 && featureName) {
-        const labelStyle = new Style({
-          text: new Text({
-            text: featureName.toString(),
-            font: "12px Arial, sans-serif",
-            stroke: new Stroke({
-              color: "#ffffff",
-              width: 3,
-            }),
-            offsetY: geometryType === "Point" ? -20 : 0,
-            textAlign: "center",
-            textBaseline: "middle",
-            overflow: true,
-            maxAngle: Math.PI / 4,
-
-            scale: zoom > 15 ? 1.2 : 1,
           }),
-        });
-        styles.push(labelStyle);
-      }
+        })
+      );
+    }
 
-      return styles;
-    };
+    // Add labels if enabled
+    if (showTitles && zoom > 5 && featureName) {
+      const labelStyle = new Style({
+        text: new Text({
+          text: featureName.toString(),
+          font: "12px Arial, sans-serif",
+          fill: new Fill({
+            color: "#5E1520",
+          }),
+          stroke: new Stroke({
+            color: "#ffffff",
+            width: 3,
+          }),
+          offsetY: geometryType === "Point" ? -20 : 0,
+          textAlign: "center",
+          textBaseline: "middle",
+          overflow: true,
+          maxAngle: Math.PI / 4,
+          scale: zoom > 15 ? 1.2 : 1,
+        }),
+      });
+      styles.push(labelStyle);
+    }
 
-    // Vector source loading GeoJSON from WFS
-    const secondaryVectorSource = new VectorSource({
-      url: secondaryWfsUrl,
-      format: new GeoJSON(),
-    });
+    return styles;
+  };
 
-    // Create and style the vector layer
-    const secondaryVectorLayer = new VectorLayer({
-      source: secondaryVectorSource,
-      style: secondaryVectorStyle,
-      zIndex: 4, // Higher zIndex to display above raster layer
-      visible: showSecondaryLayer, // Set initial visibility based on state
-    });
+  // Create vector source
+  const secondaryVectorSource = new VectorSource({
+    url: secondaryWfsUrl,
+    format: new GeoJSON(),
+  });
 
-    // Handle secondary layer loading
-    const handleSecondaryFeaturesError = (err: any) => {
-      console.log("Error loading secondary layer features:", err);
-      setSecondaryLayerLoading(false);
-      updateLoadingState();
-    };
+  // Create vector layer
+  const secondaryVectorLayer = new VectorLayer({
+    source: secondaryVectorSource,
+    style: secondaryVectorStyle,
+    zIndex: 10, // Ensure it's above raster layers
+    visible: showSecondaryLayer,
+  });
 
-    const handleSecondaryFeaturesLoaded = (event: any) => {
-      const numFeatures = event.features ? event.features.length : 0;
+  // Error handler
+  const handleSecondaryFeaturesError = (err: any) => {
+    console.log("Error loading secondary layer features:", err);
+    setSecondaryLayerLoading(false);
+    setError(`Failed to load secondary layer: ${err.message || 'Unknown error'}`);
+    updateLoadingState();
+  };
+
+  // Success handler
+  const handleSecondaryFeaturesLoaded = (event: { target: { getFeatures: () => any; }; }) => {
+    const features = event.target.getFeatures();
+    const numFeatures = features ? features.length : 0;
+    
+    console.log(`Secondary layer loaded: ${numFeatures} features`);
+    
+    setSecondaryFeatureCount(numFeatures);
+    setSecondaryLayerLoading(false);
+    updateLoadingState();
+
+    if (numFeatures > 0) {
+      // Zoom to the extent of the secondary layer
       const secondaryExtent = secondaryVectorSource.getExtent();
-      if (secondaryExtent && secondaryExtent.some((val) => isFinite(val))) {
+      if (secondaryExtent && secondaryExtent.every(val => isFinite(val))) {
+        console.log('Fitting view to secondary layer extent');
         mapInstanceRef.current?.getView().fit(secondaryExtent, {
           padding: [50, 50, 50, 50],
           duration: 1000,
+          maxZoom: 16, // Prevent zooming in too much
         });
       }
-      setSecondaryFeatureCount(numFeatures);
-      setSecondaryLayerLoading(false);
-      updateLoadingState();
-    };
 
-    // Store the source reference for cleanup
-    let sourceCleanedUp = false;
-
-    secondaryVectorSource.on("featuresloaderror", handleSecondaryFeaturesError);
-    secondaryVectorSource.on("featuresloadend", handleSecondaryFeaturesLoaded);
-
-    // Remove any existing secondary layer
-    if (secondaryLayerRef.current) {
-      mapInstanceRef.current.removeLayer(secondaryLayerRef.current);
+      // Store polygon features for other operations
+      const polygonFeatures = features.filter((feature: { getGeometry: () => any; }) => {
+        const geometry = feature.getGeometry();
+        return geometry && geometry.getType().includes("Polygon");
+      });
+      setwtkpoly(polygonFeatures);
+    } else {
+      console.warn('No features found in secondary layer');
     }
+  };
 
-    // Add secondary layer to map
-    mapInstanceRef.current.addLayer(secondaryVectorLayer);
-    secondaryLayerRef.current = secondaryVectorLayer;
+  // Add event listeners
+  secondaryVectorSource.on("featuresloaderror", handleSecondaryFeaturesError);
+  secondaryVectorSource.on("featuresloadend", handleSecondaryFeaturesLoaded);
 
-    secondaryVectorSource.once("change", function () {
-      if (secondaryVectorSource.getState() === "ready") {
-        // Get all features
-        const features = secondaryVectorSource.getFeatures();
+  // Add layer to map immediately (don't wait for raster conditions)
+  console.log('Adding secondary layer to map');
+  mapInstanceRef.current.addLayer(secondaryVectorLayer);
+  secondaryLayerRef.current = secondaryVectorLayer;
 
-        // Filter for polygon features if needed
-        const polygonFeatures = features.filter((feature) => {
-          const geometry = feature.getGeometry();
-          return geometry && geometry.getType().includes("Polygon");
-        });
-        setwtkpoly(polygonFeatures);
-      }
-    });
+  // Force a map refresh
+  setTimeout(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.render();
+    }
+  }, 100);
 
-    // Cleanup function
-    return () => {
-      if (!sourceCleanedUp) {
-        sourceCleanedUp = true;
-        // Remove event listeners
-        secondaryVectorSource.un(
-          "featuresloaderror",
-          handleSecondaryFeaturesError
-        );
-        secondaryVectorSource.un(
-          "featuresloadend",
-          handleSecondaryFeaturesLoaded
-        );
-
-        // Clear the source to prevent further loading
-        secondaryVectorSource.clear();
-
-        // Remove the layer from the map if it exists
-        if (secondaryLayerRef.current && mapInstanceRef.current) {
-          mapInstanceRef.current.removeLayer(secondaryLayerRef.current);
-          secondaryLayerRef.current = null;
-        }
-      }
-    };
-  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
+  // Cleanup function
+  return () => {
+    console.log('Cleaning up secondary layer event listeners');
+    secondaryVectorSource.un("featuresloaderror", handleSecondaryFeaturesError);
+    secondaryVectorSource.un("featuresloadend", handleSecondaryFeaturesLoaded);
+  };
+}, [
+  secondaryLayer, 
+  LayerFilter, 
+  LayerFilterValue, 
+  showTitles, 
+  showSecondaryLayer,
+  defaultWorkspace
+  // Removed rasterLayerInfo from dependencies as it was preventing layer display
+]);
 
   // Combined useEffect for STP operation and raster layer display
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
+  // Fixed useEffect for STP operation and raster layer display
+useEffect(() => {
+  // Don't continue if map isn't initialized
+  if (!mapInstanceRef.current) return;
+  const map = mapInstanceRef.current;
 
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setWmsDebugInfo(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedSubDistricts,
-        place: "sub_district",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch("/api/stp_operation/stp_priority", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyPayload,
-        });
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          // Check if file_name already exists
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            // Update existing entry
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            // Append new entry
-            newData = displayRaster.concat(append_data);
-          }
-
-          setdisplay_raster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [stpOperation, selectedCategories, selectedSubDistricts]);
-
-  useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
-
-    if (!mapInstanceRef.current) return;
-
-    const map = mapInstanceRef.current;
-
-    // Remove all WMS/raster layers
-    Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
-      map.removeLayer(layer);
-      delete layersRef.current[id];
-    });
-
-    if (!rasterLayerInfo) {
-      setRasterLoading(false);
-      setLegendUrl(null);
-      return;
-    }
+  // Part 1: Handle STP operation API call
+  const performSTP = async () => {
+    setRasterLoading(true);
+    setError(null);
+    setWmsDebugInfo(null);
+    console.log("Sending STP request for:", selectedCategory);
+    console.log("selected sub", selectedSubDistricts);
 
     try {
-      const layerUrl = "/geoserver/api//wms";
-      const workspace = rasterLayerInfo.workspace || "raster_work";
-      const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
-      const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
-
-      const wmsSource = new ImageWMS({
-        url: layerUrl,
-        params: {
-          LAYERS: fullLayerName,
-          TILED: true,
-          FORMAT: "image/png",
-          TRANSPARENT: true,
+      const resp = await fetch("/api/stp_operation/stp_sutability", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        ratio: 1,
-        serverType: "geoserver",
+        body: JSON.stringify({
+          data: selectedCategory,
+          clip: selectedTowns,
+        }),
       });
 
-      const legendUrlString = `${layerUrl}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=${fullLayerName}&STYLE=`;
-      setLegendUrl(legendUrlString);
-
-      setTimeout(() => {
-        const newLayer = new ImageLayer({
-          source: wmsSource,
-          visible: true,
-          opacity: layerOpacity / 100,
-          zIndex: 3,
-        });
-
-        const layerId = `raster-${layerName}-${Date.now()}`;
-        layersRef.current[layerId] = newLayer;
-
-        map.addLayer(newLayer);
-        map.renderSync();
-        setRasterLoading(false);
-        console.log(`Raster layer added: ${fullLayerName}`);
-      }, 100);
-    } catch (error: any) {
-      console.log("Error setting up raster layer:", error);
-      setError(`Error setting up raster layer: ${error.message}`);
-      setRasterLoading(false);
-    }
-  }, [rasterLayerInfo, layerOpacity]);
-
-  useEffect(() => {
-    displayRaster.map((item: any) => {
-      if (item.file_name == selectedradioLayer) {
-        console.log("selected items", item);
-        setRasterLayerInfo(item);
+      if (!resp.ok) {
+        throw new Error(`STP operation failed with status: ${resp.status}`);
       }
+
+      const result = await resp.json();
+      // Store the raster layer information from the API response
+      if (result && result.status === "success") {
+        const append_data = {
+          file_name: "STP_Sutability",
+          workspace: result.workspace,
+          layer_name: result.layer_name,
+        };
+        setTableData(result.csv_details);
+        const index = displayRaster.findIndex(
+          (item) => item.file_name === "STP_Sutability"
+        );
+        
+        // Handle vector layer update FIRST, before raster
+        if (result.vector_name && result.vector_name !== "none") {
+          console.log("Setting new secondary layer:", result.vector_name);
+          
+          // Clear any existing filters since this is a new result
+          setLayerFilter(null);
+          
+          // Set the new secondary layer - this will trigger the secondary layer useEffect
+          setSecondaryLayer(result.vector_name);
+        }
+
+        let newData;
+        if (index !== -1) {
+          // Update existing entry
+          newData = [...displayRaster];
+          newData[index] = append_data;
+        } else {
+          // Append new entry
+          newData = displayRaster.concat(append_data);
+        }
+
+        setdisplay_raster(newData);
+        handleLayerSelection(append_data.file_name);
+        
+        // Set raster info AFTER vector layer is set
+        setTimeout(() => {
+          setRasterLayerInfo(result);
+          setShowLegend(true);
+        }, 500); // Small delay to let vector layer load first
+        
+      } else {
+        console.log("STP operation did not return success:", result);
+        setError(`STP operation failed: ${result.status || "Unknown error"}`);
+        setRasterLoading(false);
+      }
+    } catch (error: any) {
+      console.log("Error performing STP operation:", error);
+      setError(`Error communicating with STP service: ${error.message}`);
+      setRasterLoading(false);
+    } finally {
+      setstpOperation(false);
+    }
+  };
+
+  // Execute STP operation if flag is true
+  if (stpOperation) {
+    performSTP();
+    return; // Don't process raster display during STP operation
+  }
+
+  // Part 2: Handle raster layer display
+  // First, remove all existing WMS/raster layers (but keep the base OSM)
+  Object.entries(layersRef.current).forEach(([id, layer]) => {
+    map.removeLayer(layer);
+    delete layersRef.current[id];
+  });
+
+  // If there's no raster layer info, we're done after clearing
+  if (!rasterLayerInfo) {
+    setRasterLoading(false);
+    setLegendUrl(null);
+    return;
+  }
+
+  // Now add the raster layer if we have the necessary information
+  try {
+    console.log("Attempting to display raster:", rasterLayerInfo);
+
+    const layerUrl = "/geoserver/api/wms";
+    const workspace = rasterLayerInfo.workspace || "raster_work";
+    const layerName =
+      rasterLayerInfo.layer_name ||
+      rasterLayerInfo.layerName ||
+      rasterLayerInfo.id ||
+      "Clipped_STP_Priority_Map";
+
+    const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
+
+    console.log("Creating WMS source with:", {
+      url: layerUrl,
+      layers: fullLayerName,
     });
-    console.log("new update data", displayRaster);
-  }, [selectedradioLayer]);
+
+    const wmsSource = new ImageWMS({
+      url: layerUrl,
+      params: {
+        LAYERS: fullLayerName,
+        TILED: true,
+        FORMAT: "image/png",
+        TRANSPARENT: true,
+      },
+      ratio: 1,
+      serverType: "geoserver",
+    });
+
+    const legendUrlString = `${layerUrl}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=${fullLayerName}&STYLE=`;
+    setLegendUrl(legendUrlString);
+
+    // Add small delay before adding layer to map
+    setTimeout(() => {
+      // Create the layer with lower zIndex so vector layers appear on top
+      const newLayer = new ImageLayer({
+        source: wmsSource,
+        visible: true,
+        opacity: layerOpacity / 100,
+        zIndex: 2, // Lower than vector layers (which should be 10+)
+      });
+
+      // Generate a unique ID for the layer
+      const layerId = `raster-${layerName}-${Date.now()}`;
+
+      // Store the layer reference
+      layersRef.current[layerId] = newLayer;
+
+      // Add layer to map
+      map.addLayer(newLayer);
+
+      // Force a map render
+      map.renderSync();
+
+      setRasterLoading(false);
+      console.log(`Raster layer added: ${fullLayerName}`);
+    }, 100);
+  } catch (error: any) {
+    console.log("Error setting up raster layer:", error);
+    setError(`Error setting up raster layer: ${error.message}`);
+    setRasterLoading(false);
+  }
+}, [
+  mapInstanceRef.current,
+  rasterLayerInfo,
+  layerOpacity,
+  stpOperation,
+  selectedCategory,
+]);
 
   // Handle opacity change
   const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newOpacity = parseInt(e.target.value);
     setLayerOpacity(newOpacity);
+
+    // Update opacity of all raster layers
     Object.values(layersRef.current).forEach((layer: any) => {
       layer.setOpacity(newOpacity / 100);
     });
   };
-
-  // Update opacity of all raster layers
 
   // Helper function to update overall loading state
   function updateLoadingState() {
@@ -1062,28 +1138,6 @@ const Maping: React.FC = () => {
   const getLegendPositionClass = () => {
     return "bottom-16 right-16";
   };
-  useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
-
-    if (!mapInstanceRef.current) return;
-
-    const map = mapInstanceRef.current;
-
-    // Remove all WMS/raster layers
-    Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
-      map.removeLayer(layer);
-      delete layersRef.current[id];
-    });
-
-    if (!rasterLayerInfo) {
-      setRasterLoading(false);
-      setLegendUrl(null);
-      setShowLegend(false);
-
-      return;
-    }
-  }, [displayRaster]);
-  // Move legend position
 
   return (
     <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
@@ -1233,7 +1287,6 @@ const Maping: React.FC = () => {
           </div>
         </div>
 
-        {/* Enhanced Layer Selection Panel - Top Right */}
         <div className="absolute right-2 sm:right-4 top-3">
           <button
             aria-label="Toggle panel"
@@ -1249,8 +1302,6 @@ const Maping: React.FC = () => {
             />
           </button>
         </div>
-
-        {/* Enhanced Layer Selection Dropdown */}
         {isPanelOpen && displayRaster.length > 0 && (
           <div className="absolute right-2 sm:right-4 top-16 sm:top-20 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-2xl p-4 sm:p-6 w-72 sm:w-80 z-50 animate-in slide-in-from-top-2 duration-300">
             <div className="flex justify-between items-center mb-4">
@@ -1995,6 +2046,78 @@ const Maping: React.FC = () => {
           </div>
         </div>
 
+        {/* Enhanced Modern Loading Overlay */}
+        {(isMapLoading || stpOperation) && (
+          <div className="fixed inset-0 loading-backdrop z-50 flex items-center justify-center transition-all duration-300">
+            <div className="loading-container bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 animate-slideIn">
+              {/* Animated Loading Spinner */}
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative w-20 h-20">
+                  {/* Outer ring */}
+                  <svg
+                    className="w-20 h-20 transform -rotate-90"
+                    viewBox="0 0 80 80"
+                  >
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="35"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      className="text-gray-200"
+                    />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="35"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="transparent"
+                      strokeDasharray="220"
+                      strokeDashoffset="60"
+                      className="text-blue-500 progress-ring animate-spin"
+                      style={{ animationDuration: "2s" }}
+                    />
+                  </svg>
+
+                  {/* Inner pulsing circle */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+
+                {/* Loading Text */}
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    {stpOperation
+                      ? "Processing River Analysis"
+                      : "Loading Resources"}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {stpOperation
+                      ? "Analyzing catchment priorities and generating results..."
+                      : "Fetching map data and initializing components..."}
+                  </p>
+                </div>
+
+                {/* Progress Dots */}
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.1s" }}
+                  ></div>
+                  <div
+                    className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                    style={{ animationDelay: "0.2s" }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Error Message - Mobile Responsive */}
         {error && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-red-50/95 backdrop-blur-md border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-2xl flex items-center transition-all duration-300 animate-in slide-in-from-bottom-2 max-w-sm mx-2">
@@ -2035,39 +2158,76 @@ const Maping: React.FC = () => {
       </div>
 
       {/* Custom Scrollbar Styles */}
-      <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-
-        @keyframes animate-in {
+      <style jsx global>{`
+        @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(-10px);
+            transform: translateY(10px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
           }
         }
-
-        .animate-in {
-          animation: animate-in 0.3s ease-out;
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        @keyframes pulse {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+        @keyframes bounce {
+          0%,
+          20%,
+          50%,
+          80%,
+          100% {
+            transform: translateY(0);
+          }
+          40% {
+            transform: translateY(-10px);
+          }
+          60% {
+            transform: translateY(-5px);
+          }
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+        .loading-backdrop {
+          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.3);
+        }
+        .loading-container {
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .progress-ring {
+          transition: stroke-dasharray 0.35s;
+          transform-origin: 50% 50%;
         }
       `}</style>
     </div>
   );
 };
 
-export default Maping;
+export default Mapping;

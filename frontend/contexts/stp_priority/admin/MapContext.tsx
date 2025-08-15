@@ -1,7 +1,9 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
-
+import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
+import { api } from '@/services/api';
+import { DataRow } from '@/interface/table';
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {
   INDIA:"STP_State",
@@ -14,6 +16,13 @@ interface clip_rasters{
   file_name:string;
   layer_name:string;
   workspace:string;
+}
+
+interface rasterOutput{
+  workspace:string,                  
+  layer_name:string,
+  csv_path:string,
+  csv_details:DataRow[]
 }
 // Type definitions for the context
 interface MapContextType {
@@ -34,6 +43,21 @@ interface MapContextType {
   loading: boolean;
   setLoading: (loading: boolean) => void;
   setSecondaryLayer: (layer: string | null) => void;
+  rasterLoading: boolean;
+  setRasterLoading: (loading: boolean) => void;
+  error: string | null;
+  setError: (error: string | null) => void;
+  wmsDebugInfo: string | null;
+  setWmsDebugInfo: (info: string | null) => void;
+  selectedradioLayer: string | null;
+  setSelectedradioLayer: (layer: string | null) => void; 
+  showLayer: boolean;
+  setShowLayer: (layer: boolean) => void;
+  rasterLayerInfo: clip_rasters | null;
+  setRasterLayerInfo: (layer: null) => void;
+  setShowLegend: (layer: boolean) => void;
+  showLegend: boolean;
+  handleLayerSelection: (layer: string) => void;
 }
 
 // Props for the MapProvider loading
@@ -50,7 +74,6 @@ const MapContext = createContext<MapContextType>({
   LayerFilter:null,
   LayerFilterValue :null,
   stpOperation: false,
- 
   setstpOperation: () => {},
   setSecondaryLayer: () => {},
   setPrimaryLayer: () => {},
@@ -63,6 +86,21 @@ const MapContext = createContext<MapContextType>({
   LAYER_NAMES,
   loading: false,
   setLoading: () => {},
+  rasterLoading: false,
+  setRasterLoading: () => {},
+  error: null,
+  setError: () => {},
+  wmsDebugInfo: null,
+  setWmsDebugInfo: () => {},
+  selectedradioLayer: "",
+  setSelectedradioLayer: () => {},
+  showLayer: true,
+  setShowLayer: () => {},
+  rasterLayerInfo: null,
+  setRasterLayerInfo: () => {},
+  setShowLegend: () => {},
+  showLegend: true,
+  handleLayerSelection: () => {},
 });
 
 // Create the provider component
@@ -78,25 +116,35 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
- 
-  // Get location context data
+  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<clip_rasters | null>(null);
+  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [showLegend, setShowLegend] = useState<boolean>(true);
+
   const {
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
+    displayRaster,
+    setdisplay_raster,
 
   } = useLocation();
 
-  // Function to reset map view (zoom to default)
+  const { selectedCategories, setStpProcess, setShowTable, setTableData } =
+      useCategory();
+  
   const resetMapView = (): void => {
-    // This is a placeholder - the actual implementation
-    // will happen in the Map component that consumes this context
     console.log("Map view reset requested");
   };
 
-  // Function to zoom to a specific feature
+  const handleLayerSelection = (layerName: string) => {
+    setSelectedradioLayer(layerName);
+    console.log("Selected layer:", layerName);
+  };
   const zoomToFeature = (featureId: string, layerName: string): void => {
-   
+
     console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
 
@@ -145,6 +193,78 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedSubDistricts.length,
   ]);
   
+
+   useEffect(() => {
+    if (!stpOperation) return;
+
+    const performSTP = async () => {
+      setRasterLoading(true);
+      setError(null);
+      setWmsDebugInfo(null);
+      setStpProcess(true);
+
+
+
+      try {
+        const resp = await api.post("/stp_operation/stp_priority", {
+          body:{
+            data: selectedCategories,
+            clip: selectedSubDistricts,
+            place: "sub_district",
+          }
+        }
+      );
+
+        if (resp.status !== 200) {
+          throw new Error(`STP operation failed with status: ${resp.status}`);
+        }
+
+        const result = await resp.message as rasterOutput;
+
+        if (result) {
+          const append_data = {
+            file_name: "STP_Priority",
+            workspace: result.workspace,
+            layer_name: result.layer_name,
+          };
+          setTableData(result.csv_details);
+
+          // Check if file_name already exists
+          const index = displayRaster.findIndex(
+            (item) => item.file_name === "STP_Priority"
+          );
+
+          let newData;
+          if (index !== -1) {
+            // Update existing entry
+            newData = [...displayRaster];
+            newData[index] = append_data;
+          } else {
+            // Append new entry
+            newData = displayRaster.concat(append_data);
+          }
+          setdisplay_raster(newData);
+          setRasterLayerInfo(append_data);
+          setShowTable(true);
+          handleLayerSelection(append_data.file_name);
+          setShowLegend(true);
+        } else {
+          console.log("STP operation did not return success:", result);
+          setRasterLoading(false);
+        }
+      } catch (error: any) {
+        console.log("Error performing STP operation:", error);
+        setError(`Error communicating with STP service: ${error.message}`);
+        setRasterLoading(false);
+        setShowTable(false);
+      } finally {
+        setstpOperation(false);
+        setStpProcess(false);
+      }
+    };
+
+    performSTP();
+  }, [stpOperation, selectedCategories, selectedSubDistricts]);
   // Context value
   const contextValue: MapContextType = {
     primaryLayer,
@@ -163,8 +283,23 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     defaultWorkspace,
     LAYER_NAMES,
     loading: false,
-    
     setLoading: () => {},
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    rasterLoading,
+    setRasterLoading,
+    error,
+    setError,
+    wmsDebugInfo,
+    setWmsDebugInfo: () => {},
+    selectedradioLayer,
+    setSelectedradioLayer: () => {},
+    setShowLayer:()=>{},
+    showLayer: false,
+    setShowLegend: () => {},
+    showLegend: false,
+    handleLayerSelection,
+    
   };
 
   return (

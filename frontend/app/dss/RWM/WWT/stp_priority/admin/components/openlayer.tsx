@@ -34,7 +34,7 @@ interface BaseMapDefinition {
   icon?: string;
 }
 
-// Define baseMaps with appropriate TypeScript typing
+
 const baseMaps: Record<string, BaseMapDefinition> = {
   osm: {
     name: "OpenStreetMap",
@@ -231,23 +231,19 @@ const Maping: React.FC = () => {
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-  const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
-
-  // Set initial loading state to true independent of any selection
-
+  const [showdefault, setshowdefault] = useState<boolean>(false);
   const [primaryLayerLoading, setPrimaryLayerLoading] = useState<boolean>(true);
   const [secondaryLayerLoading, setSecondaryLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
-  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
+
+  
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+
   const [showTitles, setshowTitles] = useState<boolean>(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
@@ -257,7 +253,7 @@ const Maping: React.FC = () => {
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
   const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  
   const { selectedSubDistricts, displayRaster, setdisplay_raster } =
     useLocation();
   useEffect(() => {
@@ -271,15 +267,19 @@ const Maping: React.FC = () => {
     LayerFilterValue,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
+    setShowLegend,
+    handleLayerSelection,
+    rasterLoading,
+    setRasterLoading,
+    setError,
+    error,
+    selectedradioLayer,
     setLoading,
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    showLegend
   } = useMap();
 
-  const { selectedCategories, setStpProcess, setShowTable, setTableData } =
-    useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -312,11 +312,7 @@ const Maping: React.FC = () => {
   const openlayertoggle = () => {
     setIsPanelOpen(!isPanelOpen);
   };
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-    // Add your layer selection logic here
-  };
+  
 
   // Toggle secondary layer visibility
   const toggleSecondaryLayer = () => {
@@ -887,82 +883,7 @@ const Maping: React.FC = () => {
   }, [secondaryLayer, LayerFilter, LayerFilterValue,showTitles]);
 
   // Combined useEffect for STP operation and raster layer display
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setWmsDebugInfo(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedSubDistricts,
-        place: "sub_district",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch("/api/stp_operation/stp_priority", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyPayload,
-        });
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          // Check if file_name already exists
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            // Update existing entry
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            // Append new entry
-            newData = displayRaster.concat(append_data);
-          }
-
-          setdisplay_raster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          handleLayerSelection(append_data.file_name);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [stpOperation, selectedCategories, selectedSubDistricts]);
+ 
 
   useEffect(() => {
     console.log("rasterLayerInfo", rasterLayerInfo);
@@ -985,12 +906,9 @@ const Maping: React.FC = () => {
 
     try {
       const layerUrl = "/geoserver/api//wms";
-      const workspace = rasterLayerInfo.workspace || "raster_work";
+      const workspace = rasterLayerInfo.workspace;
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
+        rasterLayerInfo.layer_name
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({

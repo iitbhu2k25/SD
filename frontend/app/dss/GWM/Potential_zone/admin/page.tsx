@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider } from "@/contexts/stp_gwz/admin/LocationContext";
-import { CategoryProvider } from "@/contexts/stp_gwz/admin/CategoryContext";
-import { MapProvider } from "@/contexts/stp_gwz/admin/MapContext";
+import { LocationProvider } from "@/contexts/groundwaterzone/admin/LocationContext";
+import { CategoryProvider } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import { MapProvider } from "@/contexts/groundwaterzone/admin/MapContext";
 import LocationSelector from "@/app/dss/GWM/Potential_zone/admin/components/locations";
 import CategorySelector from "@/app/dss/GWM/Potential_zone/admin/components/Category";
-import { useLocation } from "@/contexts/stp_gwz/admin/LocationContext";
-import { useCategory } from "@/contexts/stp_gwz/admin/CategoryContext";
+import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
+import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
 import MapView from "@/app/dss/GWM/Potential_zone/admin/components/openlayer";
-import { useMap } from "@/contexts/stp_gwz/admin/MapContext";
+import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";

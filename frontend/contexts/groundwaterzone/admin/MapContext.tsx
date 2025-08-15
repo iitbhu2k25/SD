@@ -1,6 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/stp_gwz/admin/LocationContext';
+import { useLocation } from '@/contexts/groundwaterzone/admin/LocationContext';
 
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {

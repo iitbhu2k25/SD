@@ -112,7 +112,7 @@ const MainContent = () => {
         position: "top-center",
       });
     } else {
-      //here club
+
       setstpOperation(true);
     }
   };

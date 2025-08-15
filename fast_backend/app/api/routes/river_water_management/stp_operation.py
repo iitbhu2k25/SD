@@ -15,17 +15,16 @@ from app.utils.exception import validate
 connection_manager=ConnectionManager()
 router=APIRouter()
 
+@router.get("/get_priority_category",response_model=list[STPPriorityOutput])
+@validate
+async def get_raster_sutability(db:db_dependency,all_data: bool = False):
+    return Stp_service.get_raster_priority(db,all_data)
 
 @router.get("/get_sutability_by_category",response_model=list[STPSutabilityOutput])
 @validate
 async def get_raster_sutability(db:db_dependency,category:str,all_data: bool = False):
     return Stp_service.get_raster_sutability(db,category,all_data)
 
-
-@router.get("/get_priority_category",response_model=list[STPPriorityOutput])
-@validate
-async def get_raster_sutability(db:db_dependency,all_data: bool = False):
-    return Stp_service.get_raster_priority(db,all_data)
 
 @router.post("/stp_priority_visual_display")
 @validate

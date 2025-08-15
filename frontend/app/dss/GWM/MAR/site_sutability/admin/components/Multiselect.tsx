@@ -1,6 +1,9 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import {District, SubDistrict}from '@/contexts/groundwaterzone/admin/LocationContext';
+import {District, SubDistrict,Towns}from '@/contexts/stp_sutability/admin/LocationContext';
+
+
+
 
 interface MultiSelectProps<T> {
   items: T[];
@@ -12,7 +15,7 @@ interface MultiSelectProps<T> {
   displayPattern?: (item: T) => string;
 }
 
-export const MultiSelect = <T extends District|SubDistrict = District|SubDistrict>({
+export const MultiSelect = <T extends District|SubDistrict|Towns = District|SubDistrict|Towns>({
   items,
   selectedItems,
   onSelectionChange,
@@ -23,37 +26,16 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
 }: MultiSelectProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const allItemIds = items.map(item => Number(item.id));
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
   // Filter items based on search query
-  const filteredItems = items.filter(item => 
+   const filteredItems = items.filter(item => 
     displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  // Calculate dropdown position based on available space
-  const calculateDropdownPosition = () => {
-    if (!triggerRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240; // max-h-60 = 15rem = 240px
-    
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-    
-    // If there's not enough space below but there's space above, position on top
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
-    }
-  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -69,19 +51,19 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
     };
   }, []);
 
-  // Focus search input when dropdown opens and calculate position (only once) // Only depend on isOpen, not on selections
-
-  // Reset search and position when dropdown closes
+  // Focus search input when dropdown opens
   useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery('');
-      // Reset position to default when closing
-      setDropdownPosition('bottom');
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
     }
   }, [isOpen]);
 
-  // Recalculate position on window resize (only if dropdown is open)
-  
+  // Reset search when dropdown closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
 
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -101,8 +83,8 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
     }
   };
 
-  // Handle item selection without triggering position recalculation
-  const handleItemSelect = (itemId: number) => {
+  // Handle item selection
+ const handleItemSelect = (itemId: number) => {
     if (selectedItems.includes(itemId)) {
       // Item is already selected, remove it
       onSelectionChange(selectedItems.filter(id => id !== itemId));
@@ -122,23 +104,12 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
       return `All ${label}s`;
     }
     
-    if (selectedItems.length === 1) {
+     if (selectedItems.length === 1) {
       const selected = items.find(item => item.id === selectedItems[0]);
       return selected ? displayPattern(selected) : placeholder;
     }
     
     return `${selectedItems.length} ${label}s selected`;
-  };
-
-  // Get dropdown positioning classes
-  const getDropdownClasses = () => {
-    const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
-    
-    if (dropdownPosition === 'top') {
-      return `${baseClasses} bottom-full mb-1`;
-    } else {
-      return `${baseClasses} top-full mt-1`;
-    }
   };
 
   return (
@@ -147,7 +118,6 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
         {label}:
       </label>
       <div
-        ref={triggerRef}
         className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
           disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
         }`}
@@ -173,7 +143,7 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
       </div>
       
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
           {/* Search box */}
           <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
             <div className="relative">
@@ -230,7 +200,7 @@ export const MultiSelect = <T extends District|SubDistrict = District|SubDistric
             <div
               key={item.id}
               className={`p-2 hover:bg-blue-100 cursor-pointer ${
-                selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
+                  selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
               }`}
               onClick={() => handleItemSelect(Number(item.id))}
             >
