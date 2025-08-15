@@ -1,21 +1,32 @@
-from fastapi import APIRouter
+from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.stp_svc.spt_service import Stp_service
-from fastapi import HTTPException,status
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.stp_svc.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
 from app.api.service.celery.stp_Priority_Admin_document import document_gen
 from app.api.service.celery.stp_Priority_Drain_document import document_gen1
 from app.conf.ws_config import ConnectionManager
 from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
 from celery.result import AsyncResult
-import json
 import asyncio
 from app.conf.celery import app 
 from app.utils.exception import validate
 
 connection_manager=ConnectionManager()
 router=APIRouter()
+
+
+@router.get("/get_sutability_by_category",response_model=list[STPSutabilityOutput])
+@validate
+async def get_raster_sutability(db:db_dependency,category:str,all_data: bool = False):
+    return Stp_service.get_raster_sutability(db,category,all_data)
+
+
+@router.get("/get_priority_category",response_model=list[STPPriorityOutput])
+@validate
+async def get_raster_sutability(db:db_dependency,all_data: bool = False):
+    return Stp_service.get_raster_priority(db,all_data)
+
 @router.post("/stp_priority_visual_display")
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
@@ -27,6 +38,7 @@ async def stp_raster(db:db_dependency,payload: STPCategory):
     raster_path,raster_weights=Stp_service.get_raster(db,payload)
     return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
     
+
 @router.post("/stp_sutability_visual_display")
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
@@ -39,10 +51,10 @@ async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
     return STPSutabilityMapper().create_sutability_map(db,payload)
 
 
-@router.post("/stp_gwz_visual_display")
-@validate
-async def stp_gwz_raster_dislay(db:db_dependency,payload:category_raster):
-    return GWAPriorityMapper().get_visual_raster(db,payload.clip,payload.place)
+# @router.post("/stp_gwz_visual_display")
+# @validate
+# async def stp_gwz_raster_dislay(db:db_dependency,payload:category_raster):
+#     return GWAPriorityMapper().get_visual_raster(db,payload.clip,payload.place)
 
     
 # @router.post("/stp_sutability")
