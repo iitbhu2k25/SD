@@ -1,6 +1,6 @@
 from fastapi import APIRouter,Response,status,BackgroundTasks
 from app.api.schema.auth_schema import signup_input,login_input,OTPVerify, UserOut
-from app.api.service.network_svc.auth_service import AuthService
+from app.api.service.authentication_svc.auth_service import AuthService
 from app.database.config.dependency import db_dependency
 from fastapi import Depends
 from typing import Annotated

@@ -8,7 +8,7 @@ import colorsys
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 from datetime import datetime
-from app.api.service.network_svc.network_conf import GeoConfig
+from app.utils.network_conf import GeoConfig
 import time
 
 input_path=f"{Settings().BASE_DIR}"+"/temp/input"

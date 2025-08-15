@@ -278,7 +278,7 @@ const Maping: React.FC = () => {
     setLoading,
   } = useMap();
 
-  const { selectedCategories, setStpProcess, setShowTable, setTableData } =
+  const { selectedCategories, setgwzProcess, setShowTable, setTableData } =
     useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
@@ -896,7 +896,7 @@ const Maping: React.FC = () => {
       setRasterLoading(true);
       setError(null);
       setWmsDebugInfo(null);
-      setStpProcess(true);
+      setgwzProcess(true);
 
       const bodyPayload = JSON.stringify({
         data: selectedCategories,
@@ -958,7 +958,7 @@ const Maping: React.FC = () => {
         setShowTable(false);
       } finally {
         setstpOperation(false);
-        setStpProcess(false);
+        setgwzProcess(false);
       }
     };
 

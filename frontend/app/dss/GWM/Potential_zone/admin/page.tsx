@@ -25,7 +25,7 @@ const MainContent = () => {
   const {
     selectedCategories,
     selectAllCategories,
-    stpProcess,
+    gwzProcess,
     tableData,
   } = useCategory();
 
@@ -110,13 +110,13 @@ const MainContent = () => {
                       <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={stpProcess}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${stpProcess
+                        disabled={gwzProcess}
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${gwzProcess
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
                           } flex items-center transition duration-200`}
                       >
-                        {!stpProcess && (
+                        {!gwzProcess && (
                           <>
                             <svg
                               xmlns="http://www.w3.org/2000/svg"

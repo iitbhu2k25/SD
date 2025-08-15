@@ -80,8 +80,6 @@ const CategoryContext = createContext<CategoryContextType | undefined>(undefined
 
 export const CategoryProvider = ({ 
   children, 
-  
-  enableAutoSave = true,
   maxCategories = 10
 }: CategoryProviderProps) => {
 
@@ -144,22 +142,6 @@ export const CategoryProvider = ({
       
       setCategories(validatedData);
       
-      // Load saved selections from localStorage if available
-      if (enableAutoSave) {
-        try {
-          const saved = localStorage.getItem('selectedCategories');
-          if (saved) {
-            const savedCategories: SelectRasterLayer[] = JSON.parse(saved);
-            const validSaved = savedCategories.filter(saved => 
-              validatedData.some(cat => cat.file_name === saved.file_name)
-            );
-            setSelectedCategoryItems(validSaved);
-          }
-        } catch (e) {
-          console.warn('Failed to load saved categories:', e);
-        }
-      }
-      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch categories';
       setError(errorMessage);
@@ -167,7 +149,7 @@ export const CategoryProvider = ({
     } finally {
       setIsLoading(false);
     }
-  }, [ enableAutoSave]);
+  }, []);
 
   const refreshCategories = useCallback(async (): Promise<void> => {
     await fetchCategories();
@@ -204,18 +186,11 @@ export const CategoryProvider = ({
         }
       }
       
-      // Auto-save if enabled
-      if (enableAutoSave) {
-        try {
-          localStorage.setItem('selectedCategories', JSON.stringify(newSelection));
-        } catch (e) {
-          console.warn('Failed to save categories:', e);
-        }
-      }
+      
       
       return newSelection;
     });
-  }, [categories, maxCategories, enableAutoSave]);
+  }, [categories, maxCategories]);
 
   const updateCategoryInfluence = useCallback((file_name: string, influence: number): void => {
     // Clamp influence between 0 and 100
@@ -232,14 +207,7 @@ export const CategoryProvider = ({
           Influence: clampedInfluence
         };
         
-        // Auto-save if enabled
-        if (enableAutoSave) {
-          try {
-            localStorage.setItem('selectedCategories', JSON.stringify(updatedCategories));
-          } catch (e) {
-            console.warn('Failed to save categories:', e);
-          }
-        }
+        
         
         return updatedCategories;
       } else {
@@ -253,20 +221,14 @@ export const CategoryProvider = ({
             priority: prev.length + 1
           }];
           
-          if (enableAutoSave) {
-            try {
-              localStorage.setItem('selectedCategories', JSON.stringify(newSelection));
-            } catch (e) {
-              console.warn('Failed to save categories:', e);
-            }
-          }
+  
           
           return newSelection;
         }
         return prev;
       }
     });
-  }, [categories, enableAutoSave]);
+  }, [categories]);
 
   const updateCategoryWeight = useCallback((file_name: string, weight: number): void => {
     const clampedWeight = Math.min(Math.max(weight, 0), 1);
@@ -297,30 +259,16 @@ export const CategoryProvider = ({
     
     setSelectedCategoryItems(allCategories);
     
-    if (enableAutoSave) {
-      try {
-        localStorage.setItem('selectedCategories', JSON.stringify(allCategories));
-      } catch (e) {
-        console.warn('Failed to save categories:', e);
-      }
-    }
     
     if (categories.length > maxCategories) {
       setError(`Only first ${maxCategories} categories selected due to limit`);
     }
-  }, [categories, maxCategories, enableAutoSave]);
+  }, [categories, maxCategories]);
 
   const clearAllCategories = useCallback((): void => {
     setSelectedCategoryItems([]);
     
-    if (enableAutoSave) {
-      try {
-        localStorage.removeItem('selectedCategories');
-      } catch (e) {
-        console.warn('Failed to clear saved categories:', e);
-      }
-    }
-  }, [enableAutoSave]);
+  },[]);
 
 
 
@@ -389,9 +337,6 @@ export const CategoryProvider = ({
         
         setSelectedCategoryItems(validCategories);
         
-        if (enableAutoSave) {
-          localStorage.setItem('selectedCategories', JSON.stringify(validCategories));
-        }
         
         return true;
       }
@@ -400,7 +345,7 @@ export const CategoryProvider = ({
       setError('Failed to import categories: Invalid format');
       return false;
     }
-  }, [categories, enableAutoSave]);
+  }, [categories]);
 
 
   useEffect(() => {

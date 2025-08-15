@@ -7,7 +7,8 @@ import React, {
   ReactNode,
   use,
 } from "react";
-
+import { api } from "@/services/api";
+import { toast } from "react-toastify";
 
 // Define types for the location data
 export interface State {
@@ -25,7 +26,7 @@ export interface SubDistrict {
   id: string | number;
   name: string;
   districtId: string | number;
-  population: number;
+
 }
 
 // Interface for selections return data
@@ -33,10 +34,10 @@ export interface SelectionsData {
   subDistricts: SubDistrict[];
   totalPopulation: number;
 }
-interface clip_rasters{
-  file_name:string;
-  layer_name:string;
-  workspace:string;
+interface clip_rasters {
+  file_name: string;
+  layer_name: string;
+  workspace: string;
 }
 
 // Define the context type
@@ -78,16 +79,16 @@ const LocationContext = createContext<LocationContextType>({
   totalPopulation: 0,
   selectionsLocked: false,
   isLoading: false,
-  displayRaster:[],
+  displayRaster: [],
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
-  setdisplay_raster: () => {},
-  handleStateChange: () => {},
-  setSelectedDistricts: () => {},
-  setSelectedSubDistricts: () => {},
+  setdisplay_raster: () => { },
+  handleStateChange: () => { },
+  setSelectedDistricts: () => { },
+  setSelectedSubDistricts: () => { },
   confirmSelections: () => null,
-  resetSelections: () => {},
+  resetSelections: () => { },
 });
 
 // Create the provider component
@@ -106,7 +107,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     []
   );
 
- 
+
 
   // State for additional information
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
@@ -117,30 +118,27 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectedStateName, setSelectedStateName] = useState<string>("");
   const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
   const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
-  useEffect(()=>{
-      setSelectedStateName(states.find((state) => state.id === selectedState)?.name || "");
-      setSelectedDistrictNames(districts.filter((district) => selectedDistricts.includes(district.id as number)).map((district) => district.name));
-      setSelectedSubDistrictNames(subDistricts.filter((subDistrict) => selectedSubDistricts.includes(subDistrict.id as number)).map((subDistrict) => subDistrict.name));
+  useEffect(() => {
+    setSelectedStateName(states.find((state) => state.id === selectedState)?.name || "");
+    setSelectedDistrictNames(districts.filter((district) => selectedDistricts.includes(district.id as number)).map((district) => district.name));
+    setSelectedSubDistrictNames(subDistricts.filter((subDistrict) => selectedSubDistricts.includes(subDistrict.id as number)).map((subDistrict) => subDistrict.name));
 
-  },[selectionsLocked])
+  }, [selectionsLocked])
 
   useEffect(() => {
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(
-          "/api/stp/get_states?all_data=true"
-        );
-        if (!response.ok) {
+        const response = await api.get("/location/get_states?all_data=true")
+
+        if (response.status != 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-
-        const data = await response.json();
+        const data = await response.message as State[];
         const stateData: State[] = data.map((state: any) => ({
           id: state.id,
           name: state.name,
         }));
-
         setStates(stateData);
       } catch (error) {
         console.log("Error fetching states:", error);
@@ -162,25 +160,16 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     const fetchDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(
-          "/api/stp/get_districts",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              state: selectedState,
-              all_data: true,
-            }),
-          }
-        );
-
-        if (!response.ok) {
+        const response = await api.post("/location/get_districts", {
+          body: {
+            state: selectedState,
+            all_data: true,
+          },
+        });
+        if (response.status != 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-
-        const data = await response.json();
+        const data = await response.message as District[];
 
         const districtData: District[] = data.map((district: any) => ({
           id: district.id,
@@ -215,29 +204,21 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     const fetchSubDistricts = async () => {
       try {
-        const response = await fetch(
-          "/api/stp/get_sub_districts/",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+          const response = await api.post("/location/get_sub_districts", {
+            body: {
               districts: selectedDistricts,
-            }),
+              all_data: true,
+            },
+          });
+
+          if (response.status != 200) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const subDistrictData: SubDistrict[] = data.map((subDistrict: any) => ({
+          const data = await response.message as SubDistrict[];
+          const subDistrictData= data.map((subDistrict: any) => ({
           id: subDistrict.id,
           name: subDistrict.name,
-          districtId: selectedDistricts[0], // This might need adjustment based on your data structure
-          population: subDistrict.population || 0, // Added population to SubDistrict
+          districtId: selectedDistricts[0], 
         }));
 
         setSubDistricts(subDistrictData);
@@ -260,20 +241,14 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       if (selectionsLocked === true) {
         setIsLoading(true);
         try {
-          const response = await fetch(
-            "/api/stp_operation/groundwaterzone_visual_display",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ 
-                clip: selectedSubDistricts,
-                place:"sub_district",}),
-            }
-          );
+          const response = await api.post("/stp_operation/stp_priority_visual_display",{
+            body: {
+              clip: selectedSubDistricts,
+              place: "sub_district",
+            },  
+          }) 
 
-          const data = await response.json();
+          const data = await response.message as clip_rasters[];
           setdisplay_raster(data);
         } catch (error) {
           console.log("Error:", error);
@@ -285,31 +260,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     disp_raster();
   }, [selectionsLocked, selectedSubDistricts]);
 
-  
-
-
-
-
-  
-  // Calculate total population based on selected sub-districts
-  useEffect(() => {
-    if (selectedSubDistricts.length > 0) {
-      // Filter to get only selected sub-districts
-      const selectedSubDistrictObjects = subDistricts.filter((subDistrict) =>
-        selectedSubDistricts.includes(Number(subDistrict.id))
-      );
-
-      // Calculate total population
-      const total = selectedSubDistrictObjects.reduce(
-        (sum, subDistrict) => sum + subDistrict.population,
-        0
-      );
-
-      setTotalPopulation(total);
-    } else {
-      setTotalPopulation(0);
-    }
-  }, [selectedSubDistricts, subDistricts]);
 
   // Handle state selection
   const handleStateChange = (stateId: number): void => {
@@ -345,7 +295,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setTotalPopulation(0);
     setSelectionsLocked(false);
     setdisplay_raster([]);
-    
+
   };
 
   // Context value

@@ -7,11 +7,11 @@ from fastapi import Response,BackgroundTasks
 from app.api.schema.auth_schema import Token
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
-from app.api.service.network_svc.token_service import TokenManager
+from app.api.service.authentication_svc.token_service import TokenManager
 from app.api.exception.exceptions import EmailAlreadyExistsException,InvalidOtp,InternalServerError,UserNotRegistered,SessionServerError,PasswordFail
 from datetime import datetime,timedelta
 from jwt.exceptions import ExpiredSignatureError
-from app.api.service.network_svc.email_otp import EmailService
+from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
 

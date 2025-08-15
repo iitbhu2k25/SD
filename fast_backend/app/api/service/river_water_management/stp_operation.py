@@ -13,11 +13,11 @@ from tqdm import tqdm
 from app.api.service.geoserver import Geoserver
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
-from app.api.service.network_svc.network_conf import GeoConfig
+from app.utils.network_conf import GeoConfig
 import uuid
 from app.database.config.dependency import db_dependency
 from pathlib import Path
-from app.api.service.stp_svc import spt_service
+from app.api.service.river_water_management import spt_service
 from app.database.crud.stp_crud import STP_sutability_crud
 from app.conf.settings import Settings
 from datetime import datetime
@@ -29,7 +29,7 @@ import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from app.database.crud.stp_crud import Stp_towns_crud,Stp_drain_new_crud
+from app.database.crud.location_crud import Stp_towns_crud,Stp_drain_new_crud
 from sqlalchemy.orm import Session
 from rasterio.features import rasterize
 import pandas as pd

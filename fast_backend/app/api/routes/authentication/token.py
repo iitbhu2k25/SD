@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Cookie,Header,Response
 from app.api.schema.auth_schema import Token
-from app.api.service.network_svc.auth_service import AuthService
-from app.api.service.network_svc.token_service import TokenManager
+from app.api.service.authentication_svc.auth_service import AuthService
+from app.api.service.authentication_svc.token_service import TokenManager
 from app.database.config.dependency import db_dependency
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm

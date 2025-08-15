@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session
-from app.database.crud.stp_crud import Stp_State_crud,Stp_drain_new_crud,GWZ_crud,GWA_visualization_crud,Stp_District_crud,Stp_SubDistrict_crud,STP_priority_crud,STP_sutability_crud,STP_visualization_crud,Stp_River_crud,Stp_stretches_crud,Stp_drain_crud,Stp_catchment_crud,Stp_towns_crud,STP_sutability_visualization_crud
+from app.database.crud.location_crud import Stp_State_crud,Stp_drain_new_crud,Stp_District_crud,Stp_SubDistrict_crud,Stp_River_crud,Stp_stretches_crud,Stp_drain_crud,Stp_catchment_crud,Stp_towns_crud
+from app.database.crud.stp_crud import GWZ_crud,GWA_visualization_crud,STP_priority_crud,STP_sutability_crud,STP_visualization_crud,STP_sutability_visualization_crud
 from app.conf.settings import Settings
 from app.api.schema.stp_schema import STPCategory
 import os
 
 
-class Stp_service:
+class Stp_location:
     def get_state(db:Session,all_data: bool = False):
         states=Stp_State_crud(db).get_states(all_data)
         states=[{'id': state.state_code,'name':state.state_name} for state in states]
@@ -43,6 +44,7 @@ class Stp_service:
     def get_drain_class(db:Session,drain_no:list=None):
         return Stp_drain_new_crud(db).get_drains_class(drain_no)
     
+class Stp_service:
     def get_raster(db:Session,payload:STPCategory):
         raster_path=[]
         raster_weights=[]
