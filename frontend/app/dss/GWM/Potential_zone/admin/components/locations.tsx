@@ -1,8 +1,8 @@
 'use client'
 import React from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation, SubDistrict } from '@/contexts/stp_priority/admin/LocationContext';
-
+import { useLocation, SubDistrict } from '@/contexts/stp_gwz/admin/LocationContext';
+import WholeLoading from "@/components/app_layout/newLoading";
 interface LocationSelectorProps {
   onConfirm?: (selectedData: {
     subDistricts: SubDistrict[];
@@ -167,9 +167,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
       
       {/* Loading indicator */}
       {isLoading && (
-        <div className="mt-4 text-center">
-          <p className="text-blue-600">Loading...</p>
-        </div>
+        <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
       )}
     </div>
   );

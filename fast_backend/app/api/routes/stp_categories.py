@@ -24,3 +24,13 @@ async def get_raster_sutability(db:db_dependency,all_data: bool = False):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+
+@router.get("/get_gwz_category",response_model=list[STPPriorityOutput])
+async def get_gwz_sutability(db:db_dependency,all_data: bool = False):
+    try:
+       return Stp_service.get_raster_GWZ(db,all_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

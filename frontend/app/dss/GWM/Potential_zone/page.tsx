@@ -12,7 +12,7 @@ interface ModernSwitchProps {
   onChange: (value: ViewType) => void;
 }
 
-import PriorityAdmin from "./admin/page";
+import GWZAdmin from "./admin/page";
 import SimpleUnderConstruction from "@/app/default/page";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
@@ -96,7 +96,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   );
 };
 
-const PriorityPage: React.FC = () => {
+const Potential_zone: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
 
   const handleViewChange = (newView: ViewType): void => {
@@ -120,11 +120,11 @@ const PriorityPage: React.FC = () => {
       </header>
 
       <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <PriorityAdmin />}
+        {activeView === "admin" && <GWZAdmin/>}
         {activeView === "user" && <SimpleUnderConstruction />}
       </div>
     </div>
   );
 };
 
-export default PriorityPage;
+export default Potential_zone;

@@ -1,4 +1,3 @@
-
 from app.database.models.base import Base
 from sqlalchemy.orm import Mapped,mapped_column, relationship
 from sqlalchemy import Integer, String, Float,ForeignKey
@@ -108,9 +107,6 @@ class STP_Priority_Visual_raster(Base):
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
 
-
-
-
 class STP_sutability_visual_raster(Base):
     __tablename__='stp_sutability_visual_raster'
     file_name:Mapped[str]=mapped_column(String,nullable=False)
@@ -118,18 +114,3 @@ class STP_sutability_visual_raster(Base):
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
-
-class GWA_potential_visual_raster(Base):
-    __tablename__='GWA_potential_visual_raster'
-    file_name:Mapped[str]=mapped_column(String,nullable=False)
-    layer_name:Mapped[str]=mapped_column(String,nullable=False)
-    file_path:Mapped[str]=mapped_column(String,nullable=False)
-    sld_path:Mapped[str]=mapped_column(String,nullable=False)
-   
-class GWA_potential_raster(Base):
-    __tablename__='GWA_potential_raster'
-    file_name:Mapped[str]=mapped_column(String,nullable=False)
-    layer_name:Mapped[str]=mapped_column(String,nullable=False)
-    file_path:Mapped[str]=mapped_column(String,nullable=False)
-    sld_path:Mapped[str]=mapped_column(String,nullable=False)
-

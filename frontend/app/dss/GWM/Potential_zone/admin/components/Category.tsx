@@ -1,6 +1,6 @@
 'use client'
 import React from 'react';
-import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
+import { useCategory } from '@/contexts/stp_gwz/admin/CategoryContext';
 
 const CategorySelector: React.FC = () => {
   const {
