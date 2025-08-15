@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.database.crud.location_crud import Stp_State_crud,Stp_drain_new_crud,Stp_District_crud,Stp_SubDistrict_crud,Stp_River_crud,Stp_stretches_crud,Stp_drain_crud,Stp_catchment_crud,Stp_towns_crud
-from app.database.crud.stp_crud import GWZ_crud,GWA_visualization_crud,STP_priority_crud,STP_sutability_crud,STP_visualization_crud,STP_sutability_visualization_crud
+from app.database.crud.stp_crud import STP_priority_crud,STP_sutability_crud,STP_visualization_crud,STP_sutability_visualization_crud
 from app.conf.settings import Settings
 from app.api.schema.stp_schema import STPCategory
 import os
@@ -63,14 +63,10 @@ class Stp_service:
     def get_raster_priority(db:Session,all_data:bool=False):
         return STP_priority_crud(db).get_raster_category(all_data)
     
-    def get_raster_GWZ(db:Session,all_data:bool=False):
-        return GWZ_crud(db).get_raster_category(all_data)
-
     def get_priority_category(db:Session,all_data:bool=False):
         return STP_visualization_crud(db).get_visual_path()
     
     def get_sutability_category(db:Session,all_data:bool=False):
         return STP_sutability_visualization_crud(db).get_visual_path()
     
-    def get_GWA_Priority_visual(db:Session,all_data:bool=True):
-        return GWA_visualization_crud(db).get_all_visual()
+   

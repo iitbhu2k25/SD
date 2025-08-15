@@ -2,7 +2,7 @@ from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
 from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
-from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper,GWAPriorityMapper
+from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper
 from app.api.service.celery.stp_Priority_Admin_document import document_gen
 from app.api.service.celery.stp_Priority_Drain_document import document_gen1
 from app.conf.ws_config import ConnectionManager

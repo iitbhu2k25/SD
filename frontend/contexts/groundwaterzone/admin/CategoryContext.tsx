@@ -125,7 +125,7 @@ export const CategoryProvider = ({
       setIsLoading(true);
       setError(null);
       
-      const response = await api.get('/stp_operation/get_priority_category?all_data=true'); 
+      const response = await api.get('/gwz_operation/get_gwz_category?all_data=true'); 
       if (response.status !== 200) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

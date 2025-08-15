@@ -241,7 +241,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       if (selectionsLocked === true) {
         setIsLoading(true);
         try {
-          const response = await api.post("/stp_operation/stp_priority_visual_display",{
+          const response = await api.post("/gwz_operation/gwz_visual_display",{
             body: {
               clip: selectedSubDistricts,
               place: "sub_district",

@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Cookie,Header,Response
+from fastapi import APIRouter,Cookie,Response
 from app.api.schema.auth_schema import Token
 from app.api.service.authentication_svc.auth_service import AuthService
 from app.api.service.authentication_svc.token_service import TokenManager
