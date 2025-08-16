@@ -1,8 +1,8 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
-from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper
+from app.api.schema.stp_schema import  STP_sutability_Area,STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper,STP_Area
 from app.api.service.celery.stp_Priority_Admin_document import document_gen
 from app.api.service.celery.stp_Priority_Drain_document import document_gen1
 from app.conf.ws_config import ConnectionManager
@@ -49,7 +49,6 @@ async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
 @validate
 async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
     return STPSutabilityMapper().create_sutability_map(db,payload)
-
 
 
 
@@ -127,3 +126,9 @@ async def report_download(websocket: WebSocket, task_id: str):
             "message": str(e)
         })
         connection_manager.disconnect(websocket)
+
+
+@router.post("/stp_sutability_area")
+@validate
+async def stp_sutability_area(db:db_dependency,payload:STP_sutability_Area):
+    return STP_Area().stp_area_finding(db,payload)

@@ -1,6 +1,7 @@
 'use client'
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
+import { api } from '@/services/api';
 // Define types
 export interface Category {
   id: number;
@@ -69,15 +70,11 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchConditionCategories = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/stp_sutability/get_sutability_by_category?category=condition&all_data=true`,
-          {
-            method: 'GET',
-          }); 
-        if (!response.ok) {
+        const response = await api.get("/stp_operation/get_sutability_by_category?category=condition&all_data=true")
+        if (response.status !== 200) {
           throw new Error('Failed to fetch condition categories');
         }
-      
-        const data = await response.json();
+        const data = await response.message as Category[];
         console.log("Condition Data:", data);
         
         // Enhance the categories with default icons and colors if not provided
@@ -97,16 +94,12 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     // Fetch constraint categories from API
     const fetchConstraintCategories = async () => {
       try {
-        const response = await fetch(`/api/stp_sutability/get_sutability_by_category?category=constraint&all_data=true`,
-          {
-            method: 'GET',
-          }); 
-        if (!response.ok) {
-          throw new Error('Failed to fetch constraint categories');
+        const response = await api.get("/stp_operation/get_sutability_by_category?category=constraint&all_data=true") 
+        if (response.status !== 200) {
+          throw new Error('Failed to fetch condition categories');
         }
-      
-        const data = await response.json();
-        console.log("Constraint Data:", data);
+        const data = await response.message as Category[];
+        console.log("Condition Data:", data);
         
         // Enhance the categories with default icons and colors if not provided
         const enhancedCategories = data.map((category: Category) => ({
