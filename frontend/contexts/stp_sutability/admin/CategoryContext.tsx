@@ -18,6 +18,15 @@ export interface SelectRasterLayer {
   id: number; 
 }
 
+export interface Stp_area{
+  tech_name:string;
+  tech_value:Float16Array;
+  id:number
+}
+export interface RasterLayer{
+  workspace: string;
+  layer_name: string;
+}
 interface CategoryContextType {
   condition_categories: Category[];
   constraint_categories: Category[];
@@ -45,6 +54,11 @@ interface CategoryContextType {
   setShowTable: (value: boolean) => void;
   tableData: DataRow[];
   setTableData: (value: DataRow[]) => void;
+  StpArea:Stp_area[];
+  OptSetStpArea:(Stp_area:Stp_area)=>void
+  setFindArea:(value:boolean)=>void
+  rasterLayerInfo: RasterLayer | null;
+  setRasterLayerInfo: (info: RasterLayer) => void;
 }
 
 interface CategoryProviderProps {
@@ -65,6 +79,11 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
+  const [StpArea,SetStpArea]= useState<Stp_area[]>([])
+  const [OptStpArea,OptSetStpArea]=useState<Stp_area>()
+  const [findArea,setFindArea]=useState<boolean>(false)
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<RasterLayer>();
+
   // Fetch condition categories from API
   useEffect(() => {
     const fetchConditionCategories = async () => {
@@ -111,17 +130,32 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
         console.log('Error fetching constraint categories:', err);
       } finally {
-        // Don't set isLoading to false here, wait for both fetch operations
+
       }
     };
+    const fetchArea = async ()=>{
+      try{
+        const response = await api.get("/stp_operation/get_stp_sutability_area") 
+        if (response.status !== 200) {
+          throw new Error('Failed to fetch condition categories');
+        }
+        const data = await response.message as Stp_area[];
+        SetStpArea(data)
+      }catch(err){}
+    }
 
     // Execute both fetch operations and set loading to false when completed
-    Promise.all([fetchConditionCategories(), fetchConstraintCategories()])
+    Promise.all([fetchConditionCategories(), fetchConstraintCategories(),fetchArea()])
       .finally(() => {
         setIsLoading(false);
       });
   }, []);
 
+
+  useEffect(() => {
+  console.log("lol",OptStpArea)
+}, [findArea])
+  
   // Calculate weights for all selected categories
   const calculateWeights = (categories: SelectRasterLayer[]): SelectRasterLayer[] => {
     if (categories.length === 0) return [];
@@ -368,6 +402,12 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     setShowTable,
     tableData,
     setTableData,
+    StpArea,
+    OptSetStpArea,
+    setFindArea,
+    setRasterLayerInfo,
+    rasterLayerInfo: rasterLayerInfo||null
+
   };
   
   return (

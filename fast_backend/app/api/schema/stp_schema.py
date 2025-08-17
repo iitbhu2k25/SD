@@ -86,6 +86,11 @@ class STPPriorityOutput(BaseModel):
     class Config:
         from_attributes = True
 
+class Stp_Area(BaseModel):
+    id: int
+    tech_name:str
+    tech_value:float
+
 class STPSutabilityOutput(STPPriorityOutput):
     raster_category: str  
 

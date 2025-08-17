@@ -1,4 +1,4 @@
-from app.database.models import STP_raster,STP_sutability_raster,STP_Priority_Visual_raster,STP_sutability_visual_raster
+from app.database.models import STP_raster,STP_sutability_raster,Stp_sutability_Area,STP_Priority_Visual_raster,STP_sutability_visual_raster
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
 
@@ -50,3 +50,11 @@ class STP_sutability_visualization_crud(CrudBase):
         query=self.db.query(self.Model).filter().all()
         return query
 
+class Stp_area_crud(CrudBase):
+    def __init__(self,db:Session,Model=Stp_sutability_Area):
+        super().__init__(db,Model)
+        self.obj = None
+    
+    def get_stp_area(self):
+        query=self.db.query(self.Model).filter().all()
+        return query

@@ -232,7 +232,7 @@ const Mapping: React.FC = () => {
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-  const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
+
 
   // Set initial loading state to true independent of any selection
   const [loading, setLoading] = useState<boolean>(true);
@@ -244,7 +244,7 @@ const Mapping: React.FC = () => {
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+
   const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
@@ -293,7 +293,7 @@ const Mapping: React.FC = () => {
     stpOperation,
   } = useMap();
 
-  const { selectedCategory ,setTableData} = useCategory();
+  const { selectedCategory ,setTableData,setRasterLayerInfo,rasterLayerInfo} = useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -1041,6 +1041,7 @@ useEffect(() => {
 
   // If there's no raster layer info, we're done after clearing
   if (!rasterLayerInfo) {
+    console.log("No raster layer info available");
     setRasterLoading(false);
     setLegendUrl(null);
     return;
@@ -1048,15 +1049,11 @@ useEffect(() => {
 
   // Now add the raster layer if we have the necessary information
   try {
-    console.log("Attempting to display raster:", rasterLayerInfo);
-
+  
     const layerUrl = "/geoserver/api/wms";
     const workspace = rasterLayerInfo.workspace || "raster_work";
-    const layerName =
-      rasterLayerInfo.layer_name ||
-      rasterLayerInfo.layerName ||
-      rasterLayerInfo.id ||
-      "Clipped_STP_Priority_Map";
+    const layerName =rasterLayerInfo.layer_name;
+
 
     const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 

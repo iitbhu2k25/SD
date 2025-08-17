@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.database.crud.location_crud import Stp_State_crud,Stp_drain_new_crud,Stp_District_crud,Stp_SubDistrict_crud,Stp_River_crud,Stp_stretches_crud,Stp_drain_crud,Stp_catchment_crud,Stp_towns_crud
-from app.database.crud.stp_crud import STP_priority_crud,STP_sutability_crud,STP_visualization_crud,STP_sutability_visualization_crud
+from app.database.crud.stp_crud import STP_priority_crud,Stp_area_crud,STP_sutability_crud,STP_visualization_crud,STP_sutability_visualization_crud
 from app.conf.settings import Settings
 from app.api.schema.stp_schema import STPCategory
 import os
@@ -69,4 +69,6 @@ class Stp_service:
     def get_sutability_category(db:Session,all_data:bool=False):
         return STP_sutability_visualization_crud(db).get_visual_path()
     
+    def get_sutability_area(db:Session):
+        return Stp_area_crud(db).get_stp_area()
    

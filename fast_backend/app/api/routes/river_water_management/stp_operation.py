@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_sutability_Area,STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STP_sutability_Area,Stp_Area,STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper,STP_Area
 from app.api.service.celery.stp_Priority_Admin_document import document_gen
 from app.api.service.celery.stp_Priority_Drain_document import document_gen1
@@ -126,6 +126,11 @@ async def report_download(websocket: WebSocket, task_id: str):
             "message": str(e)
         })
         connection_manager.disconnect(websocket)
+
+@router.get("/get_stp_sutability_area",response_model=list[Stp_Area])
+@validate
+async def stp_sutability_area(db:db_dependency):
+    return  Stp_service.get_sutability_area(db)
 
 
 @router.post("/stp_sutability_area")

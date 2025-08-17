@@ -16,6 +16,7 @@ import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
+import {TreatmentForm }from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Stp_area";
 const MainContent = () => {
   // Add submitting state
   const [submitting, setSubmitting] = useState(false);
@@ -92,11 +93,9 @@ const MainContent = () => {
         />
       }
       <main className="px-4 py-8">
-        {/* Changed from grid-cols-2 to grid-cols-3 to create a 2:1 ratio */}
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
-          {/* Main content area - Now spans 8/12 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
-            {/* Selection Components Section */}
+
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
                 <h2 className="text-xl font-semibold text-gray-800">
@@ -209,7 +208,17 @@ const MainContent = () => {
                   />
                 </div>
               )}
-              <div className="flex m-8 justify-center">
+               
+             
+                {tableData.length > 0 && (
+                  <div className="flex justify-start mt-8">
+                 <TreatmentForm />
+                 </div>
+               )
+                }
+          
+       
+                
                 {/* {tableData.length > 0 && (
                   <div className="flex justify-start mt-8">
                     <button
@@ -242,7 +251,7 @@ const MainContent = () => {
                     />
                   </div>
                 )} */}
-              </div>
+ 
             </section>
           </div>
 
@@ -327,6 +336,7 @@ const MainContent = () => {
       </main>
       <ToastContainer />
     </div>
+
   );
 };
 
