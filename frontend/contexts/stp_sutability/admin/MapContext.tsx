@@ -22,6 +22,7 @@ interface MapContextType {
   setPrimaryLayer: (layer: string) => void;
   syncLayersWithLocation: () => void;
   isMapLoading: boolean;
+  setIsMapLoading: (loading: boolean) => void;
   zoomToFeature: (featureId: string, layerName: string) => void;
   resetMapView: () => void;
   geoServerUrl: string;
@@ -52,6 +53,7 @@ const MapContext = createContext<MapContextType>({
   setPrimaryLayer: () => {},
   syncLayersWithLocation: () => {},
   isMapLoading: false,
+  setIsMapLoading: () => {},
   zoomToFeature: () => {},
   resetMapView: () => {},
   geoServerUrl: "/geoserver/api",
@@ -135,9 +137,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setIsMapLoading(false);
   };
 
-  const visual_village=(vector_layer:string)=>{
-    setSecondaryLayer(vector_layer);
-  }
+ 
   // Listen for changes in location selection and update layers accordingly
   useEffect(() => {
     syncLayersWithLocation();
@@ -162,6 +162,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithLocation,
     isMapLoading,
     zoomToFeature,
+    setIsMapLoading,
     resetMapView,
     geoServerUrl,
     defaultWorkspace,

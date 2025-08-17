@@ -58,3 +58,8 @@ class Stp_area_crud(CrudBase):
     def get_stp_area(self):
         query=self.db.query(self.Model).filter().all()
         return query
+    
+    def get_stp_area_value(self,_id:int):
+        query=self.db.query(self.Model.tech_value).filter(
+            self.Model.id==_id).first()
+        return query

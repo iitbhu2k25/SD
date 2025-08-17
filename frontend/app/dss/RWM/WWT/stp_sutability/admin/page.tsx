@@ -43,10 +43,6 @@ const MainContent = () => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
 
-  const handleConfirm = () => {
-    const result = confirmSelections();
-  };
-  // Add this function before the return statement in the MainContent component
   const formatName = (fileName: string): string => {
     return fileName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };

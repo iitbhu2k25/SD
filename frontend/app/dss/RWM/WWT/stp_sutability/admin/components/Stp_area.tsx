@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
 import { api } from "@/services/api";
 import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
+import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
 
 type FormValues = {
   stpAreaId: number;
@@ -11,8 +12,9 @@ type FormValues = {
 };
 
 export const TreatmentForm: React.FC = () => {
-  const { StpArea, OptSetStpArea,setFindArea,rasterLayerInfo,setRasterLayerInfo } = useCategory();
-  const {displayRaster,setdisplay_raster} = useLocation();
+  const { StpArea, OptSetStpArea } = useCategory();
+  const {displayRaster} = useLocation();
+  const {setSecondaryLayer,setIsMapLoading}=useMap();
   const {
     handleSubmit,
     control,
@@ -22,10 +24,11 @@ export const TreatmentForm: React.FC = () => {
   });
 
   const onSubmit = async (data: FormValues) => {
-
+    
     const chosen = StpArea.find((opt) => 
         opt.id == data.stpAreaId);
     if (chosen) {
+      setIsMapLoading(true);
       OptSetStpArea(chosen);
       console.log({
         tech: chosen.id,
@@ -43,7 +46,8 @@ export const TreatmentForm: React.FC = () => {
         layer_name:layer_name
         }
       })
-      console.log(response);
+      setSecondaryLayer(response.message as string)
+      setIsMapLoading(false);
     }
   };
 

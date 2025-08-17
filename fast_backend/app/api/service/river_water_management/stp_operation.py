@@ -37,6 +37,7 @@ import pandas as pd
 from rasterstats import zonal_stats
 from app.api.schema.stp_schema import STP_sutability_Area
 from scipy.ndimage import label
+from app.database.crud.stp_crud import Stp_area_crud
 
 
 
@@ -1346,11 +1347,10 @@ class STP_Area:
         return RasterProcess().save_vector(vector=top_clusters,name=f"area_{uuid.uuid4().hex}")
 
     def stp_area_finding(self,db:db_dependency,payload:STP_sutability_Area):
-        # download raster and give raster path
-        # find the treatmnet plant return tech value 
         raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']
         MLD_CAPACITY=payload.MLD_CAPACITY
-        land_per_mld=payload.CUSTOM_LAND_PER_MLD
+        val=payload.TREATMENT_TECHNOLOGY
+        land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
         required_area_ha = MLD_CAPACITY * land_per_mld
         required_area_m2 = required_area_ha * 10000
 
@@ -1367,4 +1367,3 @@ class STP_Area:
         )
         temp_shape_file=Settings().TEMP_DIR+"/temp.shp"
         return self.save_results(clusters_gdf,temp_shape_file,top_n=3)
-        # pass

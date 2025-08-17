@@ -935,17 +935,14 @@ useEffect(() => {
   showTitles, 
   showSecondaryLayer,
   defaultWorkspace
-  // Removed rasterLayerInfo from dependencies as it was preventing layer display
+
 ]);
 
-  // Combined useEffect for STP operation and raster layer display
-  // Fixed useEffect for STP operation and raster layer display
 useEffect(() => {
-  // Don't continue if map isn't initialized
+
   if (!mapInstanceRef.current) return;
   const map = mapInstanceRef.current;
 
-  // Part 1: Handle STP operation API call
   const performSTP = async () => {
     setRasterLoading(true);
     setError(null);
@@ -1032,8 +1029,7 @@ useEffect(() => {
     return; // Don't process raster display during STP operation
   }
 
-  // Part 2: Handle raster layer display
-  // First, remove all existing WMS/raster layers (but keep the base OSM)
+ 
   Object.entries(layersRef.current).forEach(([id, layer]) => {
     map.removeLayer(layer);
     delete layersRef.current[id];
