@@ -59,6 +59,7 @@ class STP_sutability_Area(BaseModel):
     TREATMENT_TECHNOLOGY:int
     MLD_CAPACITY:float
     CUSTOM_LAND_PER_MLD: float = Field(2.0, le=2) 
+    layer_name:str
     
 class STP_sutability(BaseModel):
     id :int

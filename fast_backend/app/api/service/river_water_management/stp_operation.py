@@ -6,7 +6,8 @@ from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
 from rasterio.mask import mask
-from shapely.geometry import mapping
+from rasterio.features import shapes
+from shapely.geometry import mapping,shape
 from rasterio.plot import show
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -35,6 +36,7 @@ from rasterio.features import rasterize
 import pandas as pd
 from rasterstats import zonal_stats
 from app.api.schema.stp_schema import STP_sutability_Area
+from scipy.ndimage import label
 
 
 
@@ -249,7 +251,7 @@ class RasterProcess:
    
         return output_path
     
-    def clip_to_user_villages(self, raster_path: str,clip:List[int]=None,place:str=None  ) -> str:
+    def clip_to_user_villages(self, raster_path: str,final_name:str,clip:List[int]=None,place:str=None  ) -> str:
         try:
             villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
             villages_vector = gpd.read_file(villages_path)
@@ -269,8 +271,7 @@ class RasterProcess:
                 "width": out_image.shape[2],
                 "transform": out_transform
             })
-            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
-            output_path = os.path.join(self.config.output_path, output_name)
+            output_path = os.path.join(self.config.output_path, final_name)
             with rasterio.open(output_path, "w", **out_meta) as dest:
                 dest.write(out_image)
             return output_path
@@ -391,7 +392,6 @@ class RasterProcess:
         except Exception as e:
             print(e)
         
-
     def _generate_colors(self,num_classes, color_ramp='blue_to_red'):
         colors = []
         if color_ramp == 'blue_to_red':
@@ -607,7 +607,6 @@ class RasterProcess:
         print(f"SLD file created: {output_sld_path}")
         return output_sld_path
     
-    
     def processRaster(self,file_path:str,reverse:bool=False):
         try:
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='viridis')
@@ -621,6 +620,26 @@ class RasterProcess:
         except Exception as e:
             print("exceprion",e)
             return False
+
+    def save_vector(self,vector,name:str):
+       
+        unique_village_zip = f"{name}.zip"
+        output_zip_path = self.config.output_path / unique_village_zip
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_shp = Path(temp_dir) / f"{name}.shp"
+
+            vector.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
+            
+            # Create zip with all shapefile components
+            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+                for file in temp_shp.parent.glob(f"{name}.*"):
+                    zipf.write(file, file.name)
+
+        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+        print("xll")
+        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        return name_only
 
 class STPPriorityMapper:
     def __init__(self, config: GeoConfig = None):
@@ -791,7 +810,7 @@ class STPPriorityMapper:
                             "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
                            } for i in raster_path]
            
-            print("raster path",raster_path)
+
             response=[]
             for i in raster_path:
                 final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place=place)
@@ -1024,15 +1043,14 @@ class STPSutabilityMapper:
         final_name = f"stp_sutability_{uuid.uuid4().hex}_map.tif"
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
 
-    def _cliping_raster(self,final_path:str,payload:List):
-        
+    def _cliping_raster(self,final_path:str,final_name:str,payload:List):
         vector_name=None
         clip=payload.clip
         if payload.place == "Drain":
-            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=payload.place)
+            final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=payload.place)
         else:
             clip,vector_name=self._town_to_villages(clip=clip)
-            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place="Drain")
+            final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place="Drain")
 
         return final_path,vector_name,clip
     
@@ -1084,15 +1102,14 @@ class STPSutabilityMapper:
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         
         constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
-        
-        final_path,vector_name,clip=self._cliping_raster(final_path,payload)
+        final_name = f"STP_Sutability_{uuid.uuid4().hex}.tif"
+        final_path,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place="Admin",logic="sutability")
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
         unique_store_name = f"{self.config.raster_store}_{timestamp}"
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-        print("csv path",csv_path)
-        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)
+        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
         if status:
             os.remove(final_path)
             os.remove(constrained_path)
@@ -1110,7 +1127,15 @@ class STPSutabilityMapper:
         return False
 
 class STP_Area:
-    def read_raster(path:str):
+    def __init__(self):
+        self.N_CLASSES = 5  
+        self.TOP_N_CLUSTERS = 3 
+        self.USE_THRESHOLD_MODE = True 
+        self.SUITABILITY_THRESHOLD = 0.353 
+        self.USE_FAST_CLASSIFICATION = True 
+        self.MAX_SAMPLE_SIZE = 50000
+    
+    def read_raster(self,path:str):
         with rasterio.open(path) as src:
             data = src.read(1, resampling=Resampling.nearest)
             profile = src.profile
@@ -1158,7 +1183,8 @@ class STP_Area:
         print(f"   • CRS: {crs}")
         
         return data, profile, res_x, res_y, transform, crs, bounds
-    def apply_threshold_classification(data, threshold=0.353):    
+    
+    def apply_threshold_classification(self,data, threshold=0.353):    
         valid_mask = ~np.isnan(data) & (data >= 0) & (data <= 1) & np.isfinite(data)
         valid_pixels = data[valid_mask]
         
@@ -1193,15 +1219,15 @@ class STP_Area:
         print(" Threshold classification completed!")
         
         return reclassified, threshold
-
-    def calculate_required_pixels(required_area_m2, res_x, res_y):
+    
+    def calculate_required_pixels(self,required_area_m2, res_x, res_y):
         """Calculate number of pixels needed for required area"""
         pixel_area = res_x * res_y
         pixels_needed = int(np.ceil(required_area_m2 / pixel_area))
         kernel_size = int(np.ceil(np.sqrt(pixels_needed)))
         return kernel_size, pixels_needed, pixel_area
 
-    def find_suitable_areas(reclassified, kernel_size, required_pixels, threshold_mode=True):
+    def find_suitable_areas(self,reclassified, kernel_size, required_pixels, threshold_mode=True):
         """Find areas where all pixels meet suitability criteria"""
         if threshold_mode:
             print(f"🔍 Searching for areas where ALL pixels are above threshold...")
@@ -1236,7 +1262,7 @@ class STP_Area:
         
         return suitable_mask
 
-    def extract_clusters_as_polygons(mask_array, transform, crs, min_area_m2=None):
+    def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None):
         """Extract clusters and convert to polygons"""
         print(" Extracting clusters and converting to polygons...")
         
@@ -1285,7 +1311,7 @@ class STP_Area:
         
         return gdf
 
-    def display_results(clusters_gdf, required_area_ha, top_n=3):
+    def display_results(self,clusters_gdf, required_area_ha, top_n=3):
         """Display analysis results"""
         if clusters_gdf is None or len(clusters_gdf) == 0:
             print("❌ No suitable areas found!")
@@ -1310,36 +1336,35 @@ class STP_Area:
         
         return True
 
-    def save_results(clusters_gdf, output_path, top_n=3):
+    def save_results(self,clusters_gdf, output_path, top_n=3):
         """Save results to shapefile"""
         if clusters_gdf is None or len(clusters_gdf) == 0:
             print(" No data to save")
             return False
         
         top_clusters = clusters_gdf.head(top_n)
-        
-        try:
-            # Ensure output directory exists
-            output_dir = os.path.dirname(output_path)
-            if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            
-            # Save to shapefile
-            top_clusters.to_file(output_path)
-            print(f"✅ Results saved to: {output_path}")
-            print(f"📁 Saved {len(top_clusters)} clusters")
-            
-            # Also save as CSV (without geometry)
-            csv_path = output_path.replace('.shp', '.csv')
-            top_clusters.drop('geometry', axis=1).to_csv(csv_path, index=False)
-            print(f" Summary saved to: {csv_path}")
-            
-            return True
-            
-        except Exception as e:
-            print(f" Error saving results: {str(e)}")
-            return False
+        return RasterProcess().save_vector(vector=top_clusters,name=f"area_{uuid.uuid4().hex}")
 
     def stp_area_finding(self,db:db_dependency,payload:STP_sutability_Area):
+        # download raster and give raster path
+        # find the treatmnet plant return tech value 
+        raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']
+        MLD_CAPACITY=payload.MLD_CAPACITY
+        land_per_mld=payload.CUSTOM_LAND_PER_MLD
+        required_area_ha = MLD_CAPACITY * land_per_mld
+        required_area_m2 = required_area_ha * 10000
+
+        data, profile, res_x, res_y, transform, crs, bounds=self.read_raster(raster_path)
+        reclassified, threshold_info = self.apply_threshold_classification(data, self.SUITABILITY_THRESHOLD)
+        kernel_size, required_pixels, pixel_area = self.calculate_required_pixels(
+            required_area_m2, res_x, res_y
+        )
+        suitable_mask = self.find_suitable_areas(reclassified, kernel_size, required_pixels, self.USE_THRESHOLD_MODE)
         
-        pass
+        # Step 5: Extract clusters
+        clusters_gdf = self.extract_clusters_as_polygons(
+            suitable_mask, transform, crs, min_area_m2=required_area_m2
+        )
+        temp_shape_file=Settings().TEMP_DIR+"/temp.shp"
+        return self.save_results(clusters_gdf,temp_shape_file,top_n=3)
+        # pass
