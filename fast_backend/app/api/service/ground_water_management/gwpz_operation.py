@@ -650,11 +650,11 @@ class GWAPriorityMapper:
             weighted_sum = self.processor.create_weighted_overlay(
                 weights, overlay_name
             )
-            output_name=f"Final_STP_Priority_{uuid.uuid4().hex}_map.tif"
+            output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
             constrained_path, _ = self.processor.apply_constraint(
                 weighted_sum, output_name=output_name
             )
-            final_name = f"STP_Priority_{uuid.uuid4().hex}.tif"
+            final_name = f"Groundwater_potential_{uuid.uuid4().hex}.tif"
             final_path = self.processor.clip_to_basin(
                 raster_path=constrained_path,
                 shapefile_path=self.config.basin_shapefile , output_name=final_name
@@ -662,7 +662,7 @@ class GWAPriorityMapper:
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
             final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
-            final_path=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
+            
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
             unique_store_name = f"{self.config.raster_store}_{timestamp}"
             tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)

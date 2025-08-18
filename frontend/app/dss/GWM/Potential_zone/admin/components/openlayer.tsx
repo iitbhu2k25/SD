@@ -907,7 +907,7 @@ const Maping: React.FC = () => {
       console.log("Sending STP request for:", bodyPayload);
 
       try {
-        const resp = await fetch("/api/stp_operation/stp_priority", {
+        const resp = await fetch("/api/gwz_operation/gwz_operation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: bodyPayload,
@@ -919,9 +919,9 @@ const Maping: React.FC = () => {
 
         const result = await resp.json();
 
-        if (result && result.status === "success") {
+        if (result) {
           const append_data = {
-            file_name: "STP_Priority",
+            file_name: "Groundwater_potential",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
@@ -929,7 +929,7 @@ const Maping: React.FC = () => {
 
           // Check if file_name already exists
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
+            (item) => item.file_name === "Groundwater_potential"
           );
 
           let newData;
