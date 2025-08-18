@@ -8,7 +8,6 @@ import React, {
   use,
 } from "react";
 import { api } from "@/services/api";
-import { toast } from "react-toastify";
 
 // Define types for the location data
 export interface State {

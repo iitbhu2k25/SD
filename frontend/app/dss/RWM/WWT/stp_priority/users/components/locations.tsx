@@ -6,7 +6,7 @@ import {
   Stretch,
   Drain,
   Catchment,
-} from "@/contexts/stp_priority/users/DrainContext";
+} from "@/contexts/groundwaterzone/users/DrainContext";
 import WholeLoading from "@/components/app_layout/newLoading";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {

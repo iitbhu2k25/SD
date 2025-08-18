@@ -7,8 +7,8 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-
+import { useCategory } from "../admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
 // Define layer name constants to ensure consistency
 export const LAYER_NAMES = {
   INDIA: "Boundary",
@@ -25,13 +25,12 @@ interface clip_rasters {
   workspace: string;
 }
 
-// Updated interface with separate filters for each layer
 interface LayerFilter {
   filterField: string | null;
   filterValue: number[] |string[] | null;
 }
 
-// Type definitions for the context
+
 interface MapContextType {
   primaryLayer: string;
   riverLayer: string | null;
@@ -40,13 +39,11 @@ interface MapContextType {
   catchmentLayer: string | null;
   boundarylayer: string | null;
   
-  // Separate filters for each layer
   riverFilter: LayerFilter;
   stretchFilter: LayerFilter;
   drainFilter: LayerFilter;
   catchmentFilter: LayerFilter;
   
-  // Add initial load flags
   shouldLoadAllLayers: boolean;
   hasSelections: boolean;
   
@@ -66,6 +63,21 @@ interface MapContextType {
   LAYER_NAMES: typeof LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  showLayer: boolean;
+  setShowLayer: (layer: boolean) => void;
+  rasterLayerInfo: clip_rasters | null;
+  setRasterLayerInfo: (layer: null) => void;
+  setShowLegend: (layer: boolean) => void;
+  showLegend: boolean;
+  handleLayerSelection: (layer: string) => void;
+  setSelectedradioLayer: (layer: string | null) => void;
+  selectedradioLayer: string | null;
+  error: string | null;
+  setError: (error: string | null) => void;
+  wmsDebugInfo: string | null;
+  setWmsDebugInfo: (info: string | null) => void;
+  setRasterLoading: (loading: boolean) => void;
+  rasterLoading: boolean;
 }
 
 // Props for the MapProvider
@@ -87,10 +99,9 @@ const MapContext = createContext<MapContextType>({
   stretchFilter: { filterField: null, filterValue: null },
   drainFilter: { filterField: null, filterValue: null },
   catchmentFilter: { filterField: null, filterValue: null },
-  
   shouldLoadAllLayers: true,
   hasSelections: false,
-  
+  showLayer: true,
   stpOperation: false,
   setstpOperation: () => {},
   setPrimaryLayer: () => {},
@@ -107,6 +118,20 @@ const MapContext = createContext<MapContextType>({
   LAYER_NAMES,
   loading: false,
   setLoading: () => {},
+  setShowLayer: () => {},
+  rasterLayerInfo: null,
+  setRasterLayerInfo: () => {},
+  setShowLegend: () => {},
+  showLegend: false,
+  handleLayerSelection: () => {},
+  setSelectedradioLayer: () => {},
+  selectedradioLayer: null,
+  error: null,
+  setError: () => {},
+  wmsDebugInfo: null,
+  setWmsDebugInfo: () => {},
+  setRasterLoading: () => {},
+  rasterLoading: false,
 });
 
 // Create the provider component
@@ -122,8 +147,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); // Always load stretch layer
   const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); // Always load drain layer
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); // Always load catchment layer
-  
-  // Separate filter states for each layer
+  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState<boolean>(true);
+    const [rasterLayerInfo, setRasterLayerInfo] = useState<clip_rasters | null>(null);
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({ 
     filterField: null, 
     filterValue: null 
@@ -146,13 +173,18 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
-
+  const [selectedradioLayer, setSelectedradioLayer] = useState("");
   // Get river system context data
   const {
     selectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
+    setDisplayRaster,
+    setShowTable,
+    setTableData,
+    displayRaster,
+    
   } = useRiverSystem();
 
   // Function to reset map view (zoom to default)
@@ -164,7 +196,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const zoomToFeature = (featureId: string, layerName: string): void => {
     console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
-
+  const { selectedCategories, setStpProcess } = useCategory();
   // Synchronize layers based on river system selections with hierarchical filtering
   const syncLayersWithRiverSystem = useCallback((): void => {
     console.log("Syncing layers with river system (hierarchical filtering)...", {
@@ -273,6 +305,95 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   useEffect(() => {
     syncLayersWithRiverSystem();
   }, [syncLayersWithRiverSystem]);
+  const handleLayerSelection = (layerName: string) => {
+    setSelectedradioLayer(layerName);
+    console.log("Selected layer:", layerName);
+  };
+  useEffect(() => {
+    if (!stpOperation) return;
+
+    const performSTP = async () => {
+      setRasterLoading(true);
+      setError(null);
+      setStpProcess(true);
+
+      const bodyPayload = JSON.stringify({
+        data: selectedCategories,
+        clip: selectedCatchments,
+        place: "Drain",
+      });
+
+      console.log("Sending STP request for:", bodyPayload);
+
+      try {
+        const resp = await fetch(
+          "/api/gwz_operation/gwz_operation",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: bodyPayload,
+          }
+        );
+
+        if (!resp.ok) {
+          throw new Error(`STP operation failed with status: ${resp.status}`);
+        }
+
+        const result = await resp.json();
+        console.log("STP operation result:", result);
+
+        if (result) {
+          const append_data = {
+            file_name: "STP_Priority",
+            workspace: result.workspace,
+            layer_name: result.layer_name,
+          };
+          setTableData(result.csv_details);
+
+          const index = displayRaster.findIndex(
+            (item) => item.file_name === "STP_Priority"
+          );
+
+          let newData;
+          if (index !== -1) {
+            newData = [...displayRaster];
+            newData[index] = append_data;
+          } else {
+            newData = displayRaster.concat(append_data);
+          }
+
+          setDisplayRaster(newData);
+          setRasterLayerInfo(result);
+          setShowTable(true);
+          handleLayerSelection(append_data.file_name)
+          setShowLegend(true);
+        } else {
+          console.log("STP operation did not return success:", result);
+          setError(`STP operation failed: ${result.status || "Unknown error"}`);
+          setRasterLoading(false);
+        }
+      } catch (error: any) {
+        console.log("Error performing STP operation:", error);
+        setError(`Error communicating with STP service: ${error.message}`);
+        setRasterLoading(false);
+        setShowTable(false);
+      } finally {
+        setstpOperation(false);
+        setStpProcess(false);
+      }
+    };
+
+    performSTP();
+  }, [
+    stpOperation,
+    selectedCategories,
+    selectedCatchments,
+    selectedDrains,
+    selectedStretches,
+    selectedRiver,
+  ]);
+
+
 
   // Context value
   const contextValue: MapContextType = {
@@ -282,15 +403,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     drainLayer,
     catchmentLayer,
     boundarylayer,
-    
     riverFilter,
     stretchFilter,
     drainFilter,
     catchmentFilter,
-    
     shouldLoadAllLayers,
     hasSelections,
-    
     stpOperation,
     setstpOperation,
     setPrimaryLayer,
@@ -307,6 +425,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     LAYER_NAMES,
     loading,
     setLoading,
+    handleLayerSelection,
+    setRasterLayerInfo,
+    rasterLayerInfo,
+    setShowLayer:()=>{},
+    showLayer: false,
+    setShowLegend: () => {},
+    showLegend: false,
+    selectedradioLayer,
+    setSelectedradioLayer: () => {},
+    error,
+    setError,
+    wmsDebugInfo: null,
+    setWmsDebugInfo: () => {},
+    setRasterLoading,
+    rasterLoading,
   };
 
   return (

@@ -1,7 +1,7 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
-import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
+import { useLocation } from '@/contexts/groundwaterzone/admin/LocationContext';
+import { useCategory } from '@/contexts/groundwaterzone/admin/CategoryContext';
 import { api } from '@/services/api';
 import { DataRow } from '@/interface/table';
 // Define layer name constants to ensure consistency

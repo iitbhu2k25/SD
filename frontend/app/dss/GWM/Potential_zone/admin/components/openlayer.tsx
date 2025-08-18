@@ -10,7 +10,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import GeoJSON from "ol/format/GeoJSON";
 import Image from "next/image";
-
+import { GISCompass } from "@/components/mapcomponents";
 import { fromLonLat, transform } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -19,10 +19,9 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { GISCompass } from "@/components/mapcomponents";
+
 import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
 import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
-import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
 
@@ -34,7 +33,7 @@ interface BaseMapDefinition {
   icon?: string;
 }
 
-// Define baseMaps with appropriate TypeScript typing
+
 const baseMaps: Record<string, BaseMapDefinition> = {
   osm: {
     name: "OpenStreetMap",
@@ -92,48 +91,38 @@ const baseMaps: Record<string, BaseMapDefinition> = {
 
 // GIS Compass component - static version
 
-
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const legendRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-  const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
-
-  // Set initial loading state to true independent of any selection
-
   const [primaryLayerLoading, setPrimaryLayerLoading] = useState<boolean>(true);
   const [secondaryLayerLoading, setSecondaryLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
-  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
+
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+
   const [showTitles, setshowTitles] = useState<boolean>(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
-
-  // Add state for vector layer visibility - only secondary can be toggled
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [isPanelOpen, setIsPanelOpen] = useState(false); 
+  
   const { selectedSubDistricts, displayRaster, setdisplay_raster } =
     useLocation();
   useEffect(() => {
     console.log("selectedSubDistricts", isPanelOpen);
   }, [isPanelOpen]);
-  // Use the map context
+
   const {
     primaryLayer,
     secondaryLayer,
@@ -141,15 +130,19 @@ const Maping: React.FC = () => {
     LayerFilterValue,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
+    setShowLegend,
+    handleLayerSelection,
+    rasterLoading,
+    setRasterLoading,
+    setError,
+    error,
+    selectedradioLayer,
     setLoading,
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    showLegend
   } = useMap();
 
-  const { selectedCategories, setgwzProcess, setShowTable, setTableData } =
-    useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -182,11 +175,7 @@ const Maping: React.FC = () => {
   const openlayertoggle = () => {
     setIsPanelOpen(!isPanelOpen);
   };
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-    // Add your layer selection logic here
-  };
+  
 
   // Toggle secondary layer visibility
   const toggleSecondaryLayer = () => {
@@ -608,10 +597,7 @@ const Maping: React.FC = () => {
           new Style({
             stroke: new Stroke({
               color: "#5E1520",
-              width: 2,
-            }),
-            fill: new Fill({
-              color: "rgba(0, 0, 0, 0)", // Fully transparent fill
+              width: 3,
             }),
           })
         );
@@ -644,6 +630,7 @@ const Maping: React.FC = () => {
           })
         );
       }
+
       if (showTitles && zoom > 5 && featureName) {
         const labelStyle = new Style({
           text: new Text({
@@ -756,84 +743,10 @@ const Maping: React.FC = () => {
         }
       }
     };
-  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
+  }, [secondaryLayer, LayerFilter, LayerFilterValue,showTitles]);
 
   // Combined useEffect for STP operation and raster layer display
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setWmsDebugInfo(null);
-      setgwzProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedSubDistricts,
-        place: "sub_district",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch("/api/gwz_operation/gwz_operation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyPayload,
-        });
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-
-        if (result) {
-          const append_data = {
-            file_name: "Groundwater_potential",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          // Check if file_name already exists
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "Groundwater_potential"
-          );
-
-          let newData;
-          if (index !== -1) {
-            // Update existing entry
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            // Append new entry
-            newData = displayRaster.concat(append_data);
-          }
-
-          setdisplay_raster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setgwzProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [stpOperation, selectedCategories, selectedSubDistricts]);
+ 
 
   useEffect(() => {
     console.log("rasterLayerInfo", rasterLayerInfo);
@@ -856,12 +769,9 @@ const Maping: React.FC = () => {
 
     try {
       const layerUrl = "/geoserver/api//wms";
-      const workspace = rasterLayerInfo.workspace || "raster_work";
+      const workspace = rasterLayerInfo.workspace;
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
+        rasterLayerInfo.layer_name
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({
@@ -1578,6 +1488,7 @@ const Maping: React.FC = () => {
                   Home View
                 </span>
               </button>
+
               <button
                 onClick={() => {
                   setshowTitles(!showTitles);

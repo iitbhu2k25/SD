@@ -362,7 +362,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
         setIsLoading(true);
         try {
           const response = await fetch(
-            "/api/stp_operation/stp_priority_visual_display",
+            "/api/gwz_operation/gwz_visual_display",
             {
               method: "POST",
               headers: {

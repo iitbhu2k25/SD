@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
 // Define layer name constants to ensure consistency
 export const LAYER_NAMES = {
   INDIA: "Boundary",

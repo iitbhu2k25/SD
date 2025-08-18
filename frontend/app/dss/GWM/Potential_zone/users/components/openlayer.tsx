@@ -25,11 +25,10 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Text } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
+import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
 import "ol/ol.css";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
+import { GISCompass } from "@/components/mapcomponents";
 // Define base map type interface
 interface BaseMapDefinition {
   name: string;
@@ -128,6 +127,7 @@ const LAYER_COLORS: LayerColorsType = {
     fill: "rgba(124, 58, 237, 0.3)",
   },
 };
+
 
 const createGeometryBasedStyle = (
   feature: Feature<Geometry>,
@@ -242,27 +242,22 @@ const Maping: React.FC = () => {
   const [drainLayerLoading, setDrainLayerLoading] = useState<boolean>(false);
   const [catchmentLayerLoading, setCatchmentLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
 
-  // Feature counts
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [riverFeatureCount, setRiverFeatureCount] = useState<number>(0);
   const [stretchFeatureCount, setStretchFeatureCount] = useState<number>(0);
   const [drainFeatureCount, setDrainFeatureCount] = useState<number>(0);
   const [catchmentFeatureCount, setCatchmentFeatureCount] = useState<number>(0);
 
-  // UI states
-  const [error, setError] = useState<string | null>(null);
+
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+ 
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
 
   // Layer visibility states
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
@@ -353,14 +348,8 @@ const Maping: React.FC = () => {
 
   // Context hooks
   const {
-    selectedRiver,
-    selectedStretches,
     selectedDrains,
-    selectedCatchments,
     displayRaster,
-    setDisplayRaster,
-    setShowTable,
-    setTableData,
     setShowCatchment,
   } = useRiverSystem();
 
@@ -377,16 +366,21 @@ const Maping: React.FC = () => {
     catchmentFilter,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
     setLoading,
-    shouldLoadAllLayers,
     hasSelections,
+    showLegend,
+    setShowLegend,
+    setRasterLayerInfo,
+    rasterLayerInfo,
+    error,
+    setError,
+    setRasterLoading,
+    rasterLoading,
+    handleLayerSelection,
+    selectedradioLayer,
   } = useMap();
 
-  const { selectedCategories, setStpProcess } = useCategory();
+
 
   // Constants
   const INDIA_CENTER_LON = 78.9629;
@@ -433,10 +427,6 @@ const Maping: React.FC = () => {
     }
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-  };
 
   // Layer toggle functions
   const toggleRiverLayer = () => {
@@ -1034,88 +1024,7 @@ const Maping: React.FC = () => {
   ]);
 
   // Handle STP operation
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedCatchments,
-        place: "Drain",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch(
-          "/api/stp_operation/stp_priority",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
-          }
-        );
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-        console.log("STP operation result:", result);
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            newData = displayRaster.concat(append_data);
-          }
-
-          setDisplayRaster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [
-    stpOperation,
-    selectedCategories,
-    selectedCatchments,
-    selectedDrains,
-    selectedStretches,
-    selectedRiver,
-  ]);
+  
 
   // Handle raster layer display
   useEffect(() => {
@@ -1140,10 +1049,8 @@ const Maping: React.FC = () => {
       const layerUrl = "/geoserver/api//wms";
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
+        rasterLayerInfo.layer_name
+        "Clipped_groundwaterzone_Map";
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({
@@ -2013,36 +1920,6 @@ const Maping: React.FC = () => {
                   Home View
                 </span>
               </button>
-                <button
-                onClick={() => {
-                  setShowLabels(!showLabels);
-                }}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:scale-105 hover:shadow-md"
-                style={{
-                  backgroundColor: showLabels ? "#10b981" : "#f3f4f6",
-                }}
-              >
-                <div className="text-lg font-semibold">
-                  {showLabels ? "ON" : "OFF"}
-                </div>
-                <svg
-                  className="w-8 h-8 mb-2 text-gray-700"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke={showLabels ? "green" : "currentColor"}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2 8a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8zM6 12h12"
-                  />
-                </svg>
-                <span className="text-sm font-medium text-center">
-                  Display Title
-                </span>
-              </button>
             </div>
           </div>
         )}
@@ -2477,36 +2354,6 @@ const Maping: React.FC = () => {
                 </svg>
                 <span className="text-sm font-medium text-center">
                   Home View
-                </span>
-              </button>
-                <button
-                onClick={() => {
-                  setShowLabels(!showLabels);
-                }}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:scale-105 hover:shadow-md"
-                style={{
-                  backgroundColor: showLabels ? "#10b981" : "#f3f4f6",
-                }}
-              >
-                <div className="text-lg font-semibold">
-                  {showLabels ? "ON" : "OFF"}
-                </div>
-                <svg
-                  className="w-8 h-8 mb-2 text-gray-700"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke={showLabels ? "green" : "currentColor"}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2 8a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8zM6 12h12"
-                  />
-                </svg>
-                <span className="text-sm font-medium text-center">
-                  Display Title
                 </span>
               </button>
             </div>

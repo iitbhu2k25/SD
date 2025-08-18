@@ -44,8 +44,8 @@ interface CategoryContextType {
   getSelectedCategoriesWithWeights: () => SelectRasterLayer[];
   
   // Process management
-  gwzProcess: boolean;
-  setgwzProcess: (value: boolean) => void;
+  stpProcess: boolean;
+  setStpProcess: (value: boolean) => void;
   
   // Loading and error states
   isLoading: boolean;
@@ -85,7 +85,7 @@ export const CategoryProvider = ({
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryItems, setSelectedCategoryItems] = useState<SelectRasterLayer[]>([]);
-  const [gwzProcess, setgwzProcess] = useState<boolean>(false);
+  const [stpProcess, setStpProcess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [tableData, setTableData] = useState<DataRow[]>([]);
@@ -381,8 +381,8 @@ export const CategoryProvider = ({
     getSelectedCategoriesWithWeights,
     
     // Process management
-    gwzProcess,
-    setgwzProcess,
+    stpProcess,
+    setStpProcess,
     
     // Loading and error states
     isLoading,

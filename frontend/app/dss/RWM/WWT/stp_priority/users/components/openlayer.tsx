@@ -25,9 +25,9 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Text } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
+import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
 import "ol/ol.css";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
 import { GISCompass } from "@/components/mapcomponents";
 // Define base map type interface
 interface BaseMapDefinition {
