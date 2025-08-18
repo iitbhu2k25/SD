@@ -784,7 +784,7 @@ class STPPriorityMapper:
                 shapefile_path=self.config.basin_shapefile , output_name=final_name
             )
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
+            final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
             final_path=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
@@ -814,7 +814,8 @@ class STPPriorityMapper:
 
             response=[]
             for i in raster_path:
-                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place=place)
+                final_name = f"{i['file_name']}_{uuid.uuid4().hex}.tif"
+                final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
                 unique_store_name = f"{self.config.raster_store}_{timestamp}"
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)

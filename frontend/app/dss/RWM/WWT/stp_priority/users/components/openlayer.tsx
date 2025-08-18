@@ -26,10 +26,9 @@ import {
 
 import { Style, Fill, Stroke, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 import "ol/ol.css";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-
+import { GISCompass } from "@/components/mapcomponents";
 // Define base map type interface
 interface BaseMapDefinition {
   name: string;
@@ -129,118 +128,6 @@ const LAYER_COLORS: LayerColorsType = {
   },
 };
 
-// GIS Compass component
-const GISCompass = () => {
-  return (
-    <div className="absolute left-20 top-4 z-20 p-3 rounded-lg transition-all duration-300 ease-in-out animate-fade-in">
-      <div className="flex flex-col items-center">
-        <svg width="80" height="80" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="white"
-            stroke="#ddd"
-            strokeWidth="1"
-          />
-          <g>
-            <path d="M50 10 L55 50 L50 45 L45 50 Z" fill="#3b82f6" />
-            <path d="M50 90 L45 50 L50 55 L55 50 Z" fill="#606060" />
-            <path d="M90 50 L50 45 L55 50 L50 55 Z" fill="#606060" />
-            <path d="M10 50 L50 55 L45 50 L50 45 Z" fill="#606060" />
-            <text
-              x="50"
-              y="20"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#3b82f6"
-            >
-              N
-            </text>
-            <text
-              x="50"
-              y="85"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              S
-            </text>
-            <text
-              x="85"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              E
-            </text>
-            <text
-              x="15"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              W
-            </text>
-            <text x="32" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NW
-            </text>
-            <text x="68" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NE
-            </text>
-            <text x="68" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SE
-            </text>
-            <text x="32" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SW
-            </text>
-            <line
-              x1="50"
-              y1="10"
-              x2="50"
-              y2="90"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <line
-              x1="10"
-              y1="50"
-              x2="90"
-              y2="50"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="5"
-              fill="#3b82f6"
-              stroke="#fff"
-              strokeWidth="1"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="1.5"
-              strokeOpacity="0.3"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
-  );
-};
 
 const createGeometryBasedStyle = (
   feature: Feature<Geometry>,
@@ -355,27 +242,22 @@ const Maping: React.FC = () => {
   const [drainLayerLoading, setDrainLayerLoading] = useState<boolean>(false);
   const [catchmentLayerLoading, setCatchmentLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
-  const [showTitles, setshowTitles] = useState<boolean>(false);
-  // Feature counts
+
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [riverFeatureCount, setRiverFeatureCount] = useState<number>(0);
   const [stretchFeatureCount, setStretchFeatureCount] = useState<number>(0);
   const [drainFeatureCount, setDrainFeatureCount] = useState<number>(0);
   const [catchmentFeatureCount, setCatchmentFeatureCount] = useState<number>(0);
 
-  // UI states
-  const [error, setError] = useState<string | null>(null);
+
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+ 
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
 
   // Layer visibility states
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
@@ -466,14 +348,8 @@ const Maping: React.FC = () => {
 
   // Context hooks
   const {
-    selectedRiver,
-    selectedStretches,
     selectedDrains,
-    selectedCatchments,
     displayRaster,
-    setDisplayRaster,
-    setShowTable,
-    setTableData,
     setShowCatchment,
   } = useRiverSystem();
 
@@ -490,16 +366,21 @@ const Maping: React.FC = () => {
     catchmentFilter,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
     setLoading,
-    shouldLoadAllLayers,
     hasSelections,
+    showLegend,
+    setShowLegend,
+    setRasterLayerInfo,
+    rasterLayerInfo,
+    error,
+    setError,
+    setRasterLoading,
+    rasterLoading,
+    handleLayerSelection,
+    selectedradioLayer,
   } = useMap();
 
-  const { selectedCategories, setStpProcess } = useCategory();
+
 
   // Constants
   const INDIA_CENTER_LON = 78.9629;
@@ -546,10 +427,6 @@ const Maping: React.FC = () => {
     }
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-  };
 
   // Layer toggle functions
   const toggleRiverLayer = () => {
@@ -1147,89 +1024,7 @@ const Maping: React.FC = () => {
   ]);
 
   // Handle STP operation
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedCatchments,
-        place: "Drain",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch(
-          "/api/stp_operation/stp_priority",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
-          }
-        );
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-        console.log("STP operation result:", result);
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            newData = displayRaster.concat(append_data);
-          }
-
-          setDisplayRaster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          handleLayerSelection(append_data.file_name)
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [
-    stpOperation,
-    selectedCategories,
-    selectedCatchments,
-    selectedDrains,
-    selectedStretches,
-    selectedRiver,
-  ]);
+  
 
   // Handle raster layer display
   useEffect(() => {
@@ -1254,9 +1049,7 @@ const Maping: React.FC = () => {
       const layerUrl = "/geoserver/api//wms";
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
+        rasterLayerInfo.layer_name
         "Clipped_STP_Priority_Map";
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 

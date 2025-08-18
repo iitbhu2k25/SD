@@ -113,7 +113,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/stp/get_states?all_data=true');
+        const response = await fetch('/api/location/get_states?all_data=true');
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
@@ -147,7 +147,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/stp/get_districts', {
+        const response = await fetch('/api/location/get_districts', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -198,7 +198,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchSubDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/stp/get_sub_districts/', {
+        const response = await fetch('/api/location/get_sub_districts/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -274,7 +274,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchTowns = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/stp/get_towns/', {
+        const response = await fetch('/api/location/get_towns/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

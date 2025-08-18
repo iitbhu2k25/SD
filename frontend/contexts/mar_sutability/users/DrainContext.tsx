@@ -146,7 +146,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchRivers = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/stp/get_river");
+        const response = await fetch("/api/location/get_river");
        
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -180,7 +180,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       setIsLoading(true);
       try {
         const response = await fetch(
-          "/api/stp/get_stretch",
+          "/api/location/get_stretch",
           {
             method: "POST",
             headers: {
@@ -236,7 +236,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchDrains = async () => {
       try {
         const response = await fetch(
-          "/api/stp/get_sutability_drain",
+          "/api/location/get_sutability_drain",
           {
             method: "POST",
             headers: {
@@ -290,7 +290,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchCatchments = async () => {
       try {
         const response = await fetch(
-          "/api/stp/get_new_cachement",
+          "/api/location/get_new_cachement",
           {
             method: "POST",
             headers: {

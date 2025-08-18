@@ -299,7 +299,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setShowLegend: () => {},
     showLegend: false,
     handleLayerSelection,
-    
   };
 
   return (
