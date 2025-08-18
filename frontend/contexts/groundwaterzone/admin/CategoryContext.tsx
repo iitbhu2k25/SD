@@ -80,7 +80,7 @@ const CategoryContext = createContext<CategoryContextType | undefined>(undefined
 
 export const CategoryProvider = ({ 
   children, 
-  maxCategories = 10
+  maxCategories = 100
 }: CategoryProviderProps) => {
 
   const [categories, setCategories] = useState<Category[]>([]);

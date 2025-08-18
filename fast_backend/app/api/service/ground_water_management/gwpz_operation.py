@@ -617,7 +617,8 @@ class GWAPriorityMapper:
         try:
             raster_path=Gwzp_service.get_GWA_Priority_visual(db)
             raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                                           
+                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
+                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                           
                            } for i in raster_path]
     
             response=[]
@@ -626,8 +627,8 @@ class GWAPriorityMapper:
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
                 unique_store_name = f"{self.config.raster_store}_{timestamp}"
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_path,sld_name=RasterProcess().processRaster(final_path)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)   
+                sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)   
                 os.remove(final_path)
                 response.append({
                     "workspace": self.config.raster_workspace,
@@ -636,6 +637,44 @@ class GWAPriorityMapper:
                 })
             return response
         
+        except Exception as e:
+            print(e)
+            return False
+        
+    def create_gwpz_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
+        try:
+            if len(raster_paths) != len(weights):
+                raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
+            self.processor.align_rasters(raster_paths)
+            overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
+            weighted_sum = self.processor.create_weighted_overlay(
+                weights, overlay_name
+            )
+            output_name=f"Final_STP_Priority_{uuid.uuid4().hex}_map.tif"
+            constrained_path, _ = self.processor.apply_constraint(
+                weighted_sum, output_name=output_name
+            )
+            final_name = f"STP_Priority_{uuid.uuid4().hex}.tif"
+            final_path = self.processor.clip_to_basin(
+                raster_path=constrained_path,
+                shapefile_path=self.config.basin_shapefile , output_name=final_name
+            )
+            sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
+            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
+            csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
+            final_path=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            unique_store_name = f"{self.config.raster_store}_{timestamp}"
+            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+            status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+            if status:
+                return {
+                    "workspace": self.config.raster_workspace,
+                    "layer_name": layer_name,
+                    "csv_path":csv_path,
+                    "csv_details":csv_details
+                }
+            return False
         except Exception as e:
             print(e)
             return False
