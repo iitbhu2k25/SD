@@ -621,24 +621,7 @@ const Mapping: React.FC = () => {
       }
     };
   }, []);
-  const createHoverStyle = () => {
-    return new Style({
-      stroke: new Stroke({
-        color: "#ff0000",
-        width: 3,
-      }),
-      image: new Circle({
-        radius: 10,
-        fill: new Fill({
-          color: "#ff0000",
-        }),
-        stroke: new Stroke({
-          color: "#ffffff",
-          width: 2,
-        }),
-      }),
-    });
-  };
+ 
   // Load and manage the primary layer
   useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) return;

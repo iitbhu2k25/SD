@@ -1132,7 +1132,7 @@ class STP_Area:
         self.N_CLASSES = 5  
         self.TOP_N_CLUSTERS = 3 
         self.USE_THRESHOLD_MODE = True 
-        self.SUITABILITY_THRESHOLD = 0.353 
+        self.SUITABILITY_THRESHOLD = 0.41
         self.USE_FAST_CLASSIFICATION = True 
         self.MAX_SAMPLE_SIZE = 50000
     
@@ -1264,13 +1264,11 @@ class STP_Area:
         return suitable_mask
 
     def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None):
-        """Extract clusters and convert to polygons"""
-        print(" Extracting clusters and converting to polygons...")
-        
+       
         # Label connected components
         labeled_array, num_features = label(mask_array)
         
-        print(f" Found {num_features} connected components")
+      
         
         if num_features == 0:
             return None
@@ -1279,7 +1277,7 @@ class STP_Area:
         polygons = []
         areas = []
         
-        print(" Converting raster clusters to vector polygons...")
+      
         
         with tqdm(desc="Processing clusters", unit="cluster") as pbar:
             for geom, value in shapes(labeled_array.astype(np.uint8), transform=transform):
@@ -1299,15 +1297,17 @@ class STP_Area:
         
         # Create GeoDataFrame
         gdf = gpd.GeoDataFrame({
-            'cluster_id': range(1, len(polygons) + 1),
             'area_m2': areas,
             'area_ha': [a/10000 for a in areas],
             'geometry': polygons
         }, crs=crs)
-        
+        gdf['cluster_id'] = gdf.index + 1
+
         # Sort by area (largest first)
         gdf = gdf.sort_values('area_m2', ascending=False).reset_index(drop=True)
-        
+        gdf["Name"] = gdf.apply(
+            lambda row: f"Area (ha)   {row.area_ha}", axis=1
+        )
         print(f"✅ Successfully extracted {len(gdf)} suitable clusters")
         
         return gdf
