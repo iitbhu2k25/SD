@@ -13,6 +13,8 @@ const LAYER_NAMES = {
 interface MapContextType {
   primaryLayer: string;
   secondaryLayer: string | null;
+  resultLayer: string | null;
+  setResultLayer: (layer: string | null) => void;
   LayerFilter: string | null;
   setLayerFilter: (layer: string | null) => void;
   LayerFilterValue: number[] | null;
@@ -61,6 +63,8 @@ const MapContext = createContext<MapContextType>({
   LAYER_NAMES,
   loading: false,
   setLoading: () => {},
+  resultLayer: null,
+  setResultLayer: () => {},
 });
 
 // Create the provider component
@@ -72,6 +76,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
+  const [resultLayer, setResultLayer] = useState<string | null>(null);
   const [LayerFilter, setLayerFilter] = useState<string|null>(null);
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
@@ -169,6 +174,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     LAYER_NAMES,
     loading: false,
     setLoading: () => {},
+    resultLayer,
+    setResultLayer
   };
 
   return (

@@ -20,7 +20,7 @@ export interface SelectRasterLayer {
 
 export interface Stp_area{
   tech_name:string;
-  tech_value:Float16Array;
+  tech_value:number;
   id:number
 }
 export interface RasterLayer{

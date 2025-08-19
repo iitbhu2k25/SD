@@ -27,71 +27,7 @@ import "ol/ol.css";
 import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
 import { none } from "ol/centerconstraint";
 
-// Define base map type interface
-interface BaseMapDefinition {
-  name: string;
-  source: () => OSM | XYZ;
-  thumbnail?: string;
-  icon?: string;
-}
-
-// Define baseMaps with appropriate TypeScript typing
-const baseMaps: Record<string, BaseMapDefinition> = {
-  osm: {
-    name: "OpenStreetMap",
-    source: () =>
-      new OSM({
-        crossOrigin: "anonymous",
-      }),
-    icon: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
-  },
-  satellite: {
-    name: "Satellite",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67 3.61 2.35 5.66 2.35 4.1-.79 5.66-2.35S20 15.64 20 13.64 19.22 9.56 17.66 8z",
-  },
-  terrain: {
-    name: "Terrain",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",
-  },
-  dark: {
-    name: "Dark Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z",
-  },
-  light: {
-    name: "Light Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
-  },
-};
-
-// GIS Compass component - static version
+import { baseMaps } from "@/components/mapcomponents";
 
 
 const Mapping: React.FC = () => {
