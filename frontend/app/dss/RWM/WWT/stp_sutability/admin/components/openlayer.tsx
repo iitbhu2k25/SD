@@ -685,10 +685,10 @@ useEffect(() => {
           image: new Circle({
             radius: 8, // Increased radius for better visibility
             fill: new Fill({
-              color: "rgba(224, 3, 3, 0.7)", // Increased opacity
+              color: "rgba(24, 4, 244, 0.7)", // Increased opacity
             }),
             stroke: new Stroke({
-              color: "#5E1520",
+              color: "#2000d7ff",
               width: 2,
             }),
           }),

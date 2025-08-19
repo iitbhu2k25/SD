@@ -1134,7 +1134,7 @@ class STP_Area:
         self.N_CLASSES = 5  
         self.TOP_N_CLUSTERS = 3 
         self.USE_THRESHOLD_MODE = True 
-        self.SUITABILITY_THRESHOLD = 0.41
+        self.SUITABILITY_THRESHOLD = 0.46
         self.USE_FAST_CLASSIFICATION = True 
         self.MAX_SAMPLE_SIZE = 50000
     
@@ -1219,7 +1219,7 @@ class STP_Area:
         
         return suitable_mask
 
-    def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None):
+    def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None,max_area_m2=None):
        
        
         labeled_array, num_features = label(mask_array)
@@ -1234,11 +1234,13 @@ class STP_Area:
         
         with tqdm(desc="Processing clusters", unit="cluster") as pbar:
             for geom, value in shapes(labeled_array.astype(np.uint8), transform=transform):
-                if value > 0: 
+                if value > 0:  # Only process non-zero values
                     poly = shape(geom)
                     area_m2 = poly.area
-                    
-                    if min_area_m2 is None or area_m2 >= min_area_m2:
+                    print("area_m2",area_m2,"min_area_m2",min_area_m2,"max_area_m2",max_area_m2)
+
+                    # Filter by minimum area if specified
+                    if  area_m2 >= min_area_m2 and area_m2 < max_area_m2:
                         polygons.append(poly)
                         areas.append(area_m2)
                         pbar.update(1)
@@ -1278,6 +1280,12 @@ class STP_Area:
         land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
         required_area_ha = MLD_CAPACITY * land_per_mld
         required_area_m2 = required_area_ha * 10000
+        print("payload",payload)
+        max_area_ha = required_area_ha
+        if payload.CUSTOM_LAND_PER_MLD >0:
+            max_area_ha = required_area_ha + 5
+        max_area_m2 = max_area_ha * 10000
+
 
         data, profile, res_x, res_y, transform, crs, bounds=self.read_raster(raster_path)
         reclassified, threshold_info = self.apply_threshold_classification(data, self.SUITABILITY_THRESHOLD)
@@ -1287,7 +1295,7 @@ class STP_Area:
         suitable_mask = self.find_suitable_areas(reclassified, kernel_size, required_pixels, self.USE_THRESHOLD_MODE)
 
         clusters_gdf = self.extract_clusters_as_polygons(
-            suitable_mask, transform, crs, min_area_m2=required_area_m2
+            suitable_mask, transform, crs, min_area_m2=required_area_m2,max_area_m2=max_area_m2
         )
         temp_shape_file=Settings().TEMP_DIR+"/temp.shp"
         return self.save_results(clusters_gdf,temp_shape_file,top_n=3)
