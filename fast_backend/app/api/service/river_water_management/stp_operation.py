@@ -843,7 +843,8 @@ class STPPriorityMapper:
             response=[]
             for i in raster_path:
                 if place == 'Drain':
-                    final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place=place)
+                    final_name = f"{i['file_name']}_{uuid.uuid4().hex}.tif"
+                    final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 else:
                     final_path=self.processor.clip_to_town_buffer(i['path'],clip=clip)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds

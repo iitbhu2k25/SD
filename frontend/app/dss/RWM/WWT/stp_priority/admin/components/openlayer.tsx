@@ -21,10 +21,9 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
-import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
-import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
+import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 
 // Define base map type interface
 interface BaseMapDefinition {
