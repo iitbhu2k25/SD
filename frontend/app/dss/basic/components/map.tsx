@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-// import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import { MapContainer, TileLayer, LayersControl, useMap } from 'react-leaflet';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
+import { FeatureCollection, Feature } from 'geojson';
 
 // Define props interface
 interface MapProps {
@@ -23,9 +22,8 @@ interface MapProps {
     allVillages?: any[];
     totalPopulation?: number;
   }) => void;
-  onLoadingChange?: (isLoading: boolean) => void; // ADD THIS LINE
+  onLoadingChange?: (isLoading: boolean) => void;
 }
-
 
 // Create a separate component to handle map updates
 function MapLayers({
@@ -35,7 +33,7 @@ function MapLayers({
   selectedVillages,
   subDistrictData,
   onLocationSelect,
-  onLoadingChange, // ADD THIS LINE
+  onLoadingChange,
 }: {
   selectedState?: string;
   selectedDistricts?: string[];
@@ -50,7 +48,7 @@ function MapLayers({
     allVillages?: any[];
     totalPopulation?: number;
   }) => void;
-  onLoadingChange?: (isLoading: boolean) => void; // ADD THIS LINE
+  onLoadingChange?: (isLoading: boolean) => void;
 }) {
   const map = useMap();
 
@@ -73,7 +71,7 @@ function MapLayers({
   const prevDistrictsRef = useRef<string[] | undefined>([]);
   const prevSubDistrictsRef = useRef<string[] | undefined>([]);
   const prevVillagesRef = useRef<string[] | undefined>([]);
-  const currentZoomLevelRef = useRef<number | null>(null); // Track current zoom level
+  const currentZoomLevelRef = useRef<number | null>(null);
 
   // Combined loading state
   const isLoading =
@@ -88,8 +86,6 @@ function MapLayers({
       onLoadingChange(isLoading);
     }
   }, [isLoading, onLoadingChange]);
-
-
 
   // Add scale control with both metric and imperial
   useEffect(() => {
@@ -106,59 +102,43 @@ function MapLayers({
     };
   }, [map]);
 
+  // Helper function to create WFS URL
+  const createWFSUrl = (layerName: string, cqlFilter?: string) => {
+    const baseUrl = '/geoserver/api/';
+    const params = new URLSearchParams({
+      service: 'WFS',
+      version: '1.0.0',
+      request: 'GetFeature',
+      typeName: `myworkspace:${layerName}`,
+      outputFormat: 'application/json',
+      srsName: 'EPSG:4326'
+    });
 
-  const calculateRealCoordinates = (
-    mapInstance: L.Map,
-    containerWidth: number,
-    containerHeight: number
-  ) => {
-    const bounds = mapInstance.getBounds();
-    const coords = [];
-
-    // Calculate grid spacing based on zoom level
-    const zoom = mapInstance.getZoom();
-    let gridSpacing = 0.1; // degrees
-    if (zoom < 5) gridSpacing = 5;
-    else if (zoom < 8) gridSpacing = 2;
-    else if (zoom < 10) gridSpacing = 1;
-    else if (zoom < 12) gridSpacing = 0.5;
-    else gridSpacing = 0.25;
-
-    // Calculate latitude lines
-    const minLat = Math.floor(bounds.getSouth() / gridSpacing) * gridSpacing;
-    const maxLat = Math.ceil(bounds.getNorth() / gridSpacing) * gridSpacing;
-
-    for (let lat = minLat; lat <= maxLat; lat += gridSpacing) {
-      if (lat >= bounds.getSouth() && lat <= bounds.getNorth()) {
-        const point = mapInstance.latLngToContainerPoint([lat, bounds.getWest()]);
-        coords.push({
-          lat: `${lat.toFixed(2)}°${lat >= 0 ? 'N' : 'S'}`,
-          lng: '',
-          x: 5,
-          y: point.y
-        });
-      }
+    if (cqlFilter) {
+      params.append('CQL_FILTER', cqlFilter);
     }
 
-    // Calculate longitude lines
-    const minLng = Math.floor(bounds.getWest() / gridSpacing) * gridSpacing;
-    const maxLng = Math.ceil(bounds.getEast() / gridSpacing) * gridSpacing;
-
-    for (let lng = minLng; lng <= maxLng; lng += gridSpacing) {
-      if (lng >= bounds.getWest() && lng <= bounds.getEast()) {
-        const point = mapInstance.latLngToContainerPoint([bounds.getSouth(), lng]);
-        coords.push({
-          lat: '',
-          lng: `${Math.abs(lng).toFixed(2)}°${lng >= 0 ? 'E' : 'W'}`,
-          x: point.x,
-          y: containerHeight - 20
-        });
-      }
-    }
-
-    return coords;
+    return `${baseUrl}?${params.toString()}`;
   };
 
+  // Helper function to zoom to feature bounds
+  const zoomToFeatureBounds = async (layerName: string, cqlFilter?: string) => {
+    try {
+      const url = createWFSUrl(layerName, cqlFilter);
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data && data.features && data.features.length > 0) {
+        const geoJsonLayer = L.geoJSON(data);
+        const bounds = geoJsonLayer.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [20, 20] });
+        }
+      }
+    } catch (error) {
+      console.error('Error zooming to feature bounds:', error);
+    }
+  };
 
   // GeoJSON styles
   const stateGeoJsonStyle = {
@@ -213,7 +193,7 @@ function MapLayers({
         map.removeLayer(districtLayersRef.current);
         districtLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing district layers:', error);
+        console.error('Error removing district layers:', error);
       }
     }
   };
@@ -225,7 +205,7 @@ function MapLayers({
         map.removeLayer(subDistrictLayersRef.current);
         subDistrictLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing sub-district layers:', error);
+        console.error('Error removing sub-district layers:', error);
       }
     }
   };
@@ -237,7 +217,7 @@ function MapLayers({
         map.removeLayer(villageLayersRef.current);
         villageLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing village layers:', error);
+        console.error('Error removing village layers:', error);
       }
     }
   };
@@ -249,7 +229,7 @@ function MapLayers({
         map.removeLayer(stateLayerRef.current);
         stateLayerRef.current = null;
       } catch (error) {
-        console.log('Error removing state layer:', error);
+        console.error('Error removing state layer:', error);
       }
     }
   };
@@ -341,14 +321,20 @@ function MapLayers({
     }
   }, [selectedVillages, map, updateLocationData]);
 
-  // Fetch base map
+  // Fetch base map from GeoServer
   useEffect(() => {
     let isMounted = true;
+
     const fetchBaseMap = async () => {
       try {
         setIsLoadingBase(true);
-        console.log('Fetching base map for India');
-        const response = await fetch('/basics/basemap/', {
+        console.log('Fetching base map for India from GeoServer');
+
+        // GeoServer WFS endpoint for India layer (GeoJSON output)
+        const WFS_URL =
+          '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
+
+        const response = await fetch(WFS_URL, {
           method: 'GET',
         });
 
@@ -357,15 +343,14 @@ function MapLayers({
         }
 
         const data = await response.json();
-        console.log('Base map data received');
-
+        console.log('Base map data received from GeoServer');
+        
         if (
           !data ||
-          !data.type ||
           data.type !== 'FeatureCollection' ||
           !Array.isArray(data.features)
         ) {
-          throw new Error('Invalid GeoJSON: Expected a FeatureCollection with features');
+          throw new Error('Invalid GeoJSON: Expected FeatureCollection');
         }
 
         const validFeatures = data.features.filter((feature: any) => {
@@ -405,18 +390,18 @@ function MapLayers({
               const bounds = newBaseLayer.getBounds();
               if (bounds.isValid()) {
                 map.fitBounds(bounds);
-                currentZoomLevelRef.current = map.getZoom(); // Store initial zoom level
+                currentZoomLevelRef.current = map.getZoom(); // Store initial zoom
               } else {
                 console.warn('Invalid bounds for base map layer');
               }
             } catch (error) {
-              console.log('Error fitting map to base map bounds:', error);
+              console.error('Error fitting map to bounds:', error);
             }
             setIsLoadingBase(false);
           }
         });
       } catch (error) {
-        console.log('Error fetching or rendering base map:', error);
+        console.error('Error fetching or rendering base map:', error);
         if (isMounted) {
           setIsLoadingBase(false);
         }
@@ -424,6 +409,7 @@ function MapLayers({
     };
 
     fetchBaseMap();
+
     return () => {
       isMounted = false;
       if (baseMapLayerRef.current) {
@@ -433,7 +419,8 @@ function MapLayers({
     };
   }, [map]);
 
-  // Fetch state shapefile
+
+  // Fetch state data from GeoServer
   useEffect(() => {
     if (!selectedState) {
       cleanupStateLayer();
@@ -446,14 +433,15 @@ function MapLayers({
     }
 
     setIsLoadingState(true);
-    const fetchStateShapefile = async () => {
+    const fetchStateData = async () => {
       try {
-        console.log('Fetching shapefile for state:', selectedState);
-        const response = await fetch('/basics/state-shapefile/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ state_code: selectedState }),
-        });
+        console.log('Fetching state data for:', selectedState);
+        
+        const formattedStateCode = selectedState.toString().padStart(2, "0");
+        const cqlFilter = `state_code = '${formattedStateCode}'`;
+        const url = createWFSUrl('B_State', cqlFilter);
+        
+        const response = await fetch(url);
 
         if (!response.ok) {
           alert(
@@ -463,7 +451,7 @@ function MapLayers({
         }
 
         const data = await response.json();
-        console.log('State shapefile data received');
+        console.log('State data received from GeoServer');
 
         if (
           !data ||
@@ -509,26 +497,26 @@ function MapLayers({
               const bounds = newStateLayer.getBounds();
               if (bounds.isValid()) {
                 map.fitBounds(bounds);
-                currentZoomLevelRef.current = map.getZoom(); // Update zoom level
+                currentZoomLevelRef.current = map.getZoom();
               } else {
                 console.warn('Invalid bounds for state layer');
               }
             } catch (error) {
-              console.log('Error fitting map to state layer bounds:', error);
+              console.error('Error fitting map to state layer bounds:', error);
             }
           }
           setIsLoadingState(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering state shapefile:', error);
+        console.error('Error fetching or rendering state data:', error);
         setIsLoadingState(false);
       }
     };
 
-    fetchStateShapefile();
+    fetchStateData();
   }, [selectedState, map, isLoadingDistricts, isLoadingSubDistricts, isLoadingVillages, selectedDistricts]);
 
-  // Fetch district shapefiles
+  // Fetch district data from GeoServer
   useEffect(() => {
     if (!selectedDistricts || selectedDistricts.length === 0 || !selectedState) {
       cleanupDistrictLayers();
@@ -536,32 +524,31 @@ function MapLayers({
       return;
     }
 
-    setIsLoadingDistricts(true);
-    const fetchDistrictShapefiles = async () => {
-      try {
-        const districtPayload = {
-          districts: selectedDistricts.map((districtCode) => ({
-            state_code: selectedState,
-            district_c: districtCode,
-          })),
-        };
+    // Remove state layer when districts are selected
+    if (stateLayerRef.current) {
+      map.removeLayer(stateLayerRef.current);
+      stateLayerRef.current = null;
+    }
 
-        console.log('District API request payload:', districtPayload);
-        const response = await fetch('/basics/multiple-districts/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(districtPayload),
-        });
+    setIsLoadingDistricts(true);
+    const fetchDistrictData = async () => {
+      try {
+        const districtCodes = selectedDistricts.map((code) => `'${code}'`).join(",");
+        const cqlFilter = `DISTRICT_C IN (${districtCodes})`;
+        const url = createWFSUrl('B_district', cqlFilter);
+
+        console.log('Fetching district data with filter:', cqlFilter);
+        const response = await fetch(url);
 
         if (!response.ok) {
           alert('We have data only for Uttar Pradesh.');
-          console.log('Failed to fetch district data:', response.status);
+          console.error('Failed to fetch district data:', response.status);
           setIsLoadingDistricts(false);
           return;
         }
 
         const data = await response.json();
-        console.log('District shapefile data received');
+        console.log('District data received from GeoServer');
 
         if (
           !data ||
@@ -606,26 +593,26 @@ function MapLayers({
             const bounds = newDistrictLayers.getBounds();
             if (bounds.isValid()) {
               map.fitBounds(bounds, { padding: [100, 100] });
-              currentZoomLevelRef.current = map.getZoom(); // Update zoom level
+              currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to district layer bounds:', error);
+            console.error('Error fitting map to district layer bounds:', error);
           }
           setIsLoadingDistricts(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering district shapefiles:', error);
+        console.error('Error fetching or rendering district data:', error);
         setIsLoadingDistricts(false);
       }
     };
 
-    fetchDistrictShapefiles();
+    fetchDistrictData();
     return () => {
       cleanupDistrictLayers();
     };
   }, [selectedDistricts, selectedState, map]);
 
-  // Fetch sub-district shapefiles
+  // Fetch sub-district data from GeoServer
   useEffect(() => {
     if (!selectedSubDistricts || selectedSubDistricts.length === 0) {
       cleanupSubDistrictLayers();
@@ -633,30 +620,30 @@ function MapLayers({
       return;
     }
 
-    setIsLoadingSubDistricts(true);
-    const fetchSubDistrictShapefiles = async () => {
-      try {
-        const subDistrictPayload = {
-          subdistricts: selectedSubDistricts.map((subDistrictCode) => ({
-            subdis_cod: subDistrictCode,
-          })),
-        };
+    // Remove district layer when subdistricts are selected
+    if (districtLayersRef.current) {
+      map.removeLayer(districtLayersRef.current);
+      districtLayersRef.current = null;
+    }
 
-        console.log('SubDistrict API request payload:', subDistrictPayload);
-        const response = await fetch('/basics/multiple-subdistricts/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(subDistrictPayload),
-        });
+    setIsLoadingSubDistricts(true);
+    const fetchSubDistrictData = async () => {
+      try {
+        const subdistrictCodes = selectedSubDistricts.map((code) => `'${code}'`).join(",");
+        const cqlFilter = `SUBDIS_COD IN (${subdistrictCodes})`;
+        const url = createWFSUrl('B_subdistrict', cqlFilter);
+
+        console.log('Fetching subdistrict data with filter:', cqlFilter);
+        const response = await fetch(url);
 
         if (!response.ok) {
-          console.log('Failed to fetch subdistrict data:', response.status);
+          console.error('Failed to fetch subdistrict data:', response.status);
           setIsLoadingSubDistricts(false);
           return;
         }
 
         const data = await response.json();
-        console.log('SubDistrict shapefile data received');
+        console.log('SubDistrict data received from GeoServer');
 
         if (!data || !data.features || data.features.length === 0) {
           console.warn('No valid subdistrict data received');
@@ -681,26 +668,26 @@ function MapLayers({
             const bounds = newSubDistrictLayers.getBounds();
             if (bounds.isValid()) {
               map.fitBounds(bounds, { padding: [30, 30] });
-              currentZoomLevelRef.current = map.getZoom(); // Update zoom level
+              currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to sub-district layer bounds:', error);
+            console.error('Error fitting map to sub-district layer bounds:', error);
           }
           setIsLoadingSubDistricts(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering sub-district shapefiles:', error);
+        console.error('Error fetching or rendering sub-district data:', error);
         setIsLoadingSubDistricts(false);
       }
     };
 
-    fetchSubDistrictShapefiles();
+    fetchSubDistrictData();
     return () => {
       cleanupSubDistrictLayers();
     };
   }, [selectedSubDistricts, map]);
 
-  // Fetch village shapefiles and handle click events
+  // Fetch village data from GeoServer
   useEffect(() => {
     if (!selectedVillages || selectedVillages.length === 0) {
       cleanupVillageLayers();
@@ -709,39 +696,35 @@ function MapLayers({
     }
 
     setIsLoadingVillages(true);
-    const fetchVillageShapefiles = async () => {
+    const fetchVillageData = async () => {
       try {
-        const villagePayload = {
-          villages: selectedVillages.map((villageCode) => ({
-            shape_id: villageCode,
-          })),
-        };
+        const villageCodes = selectedVillages.map((code) => `'${code}'`).join(",");
+        const cqlFilter = `vlcode IN (${villageCodes})`;
+        const url = createWFSUrl('Village', cqlFilter);
 
-        console.log('Village API request payload:', villagePayload);
-        const response = await fetch('/basics/multiple-villages/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(villagePayload),
-        });
+        console.log('Fetching village data with filter:', cqlFilter);
+        const response = await fetch(url);
 
         if (!response.ok) {
-          console.log('Failed to fetch village data:', response.status);
+          console.error('Failed to fetch village data:', response.status);
           setIsLoadingVillages(false);
           return;
         }
 
         const data = await response.json();
-        console.log('Village shapefile data received');
+        console.log('Village data received from GeoServer');
 
         if (!data || !data.features || data.features.length === 0) {
           console.warn('No valid village data received');
           setIsLoadingVillages(false);
           return;
         }
+
         const hasGetBounds = (layer: L.Layer): layer is L.Layer & { getBounds(): L.LatLngBounds } => {
           return 'getBounds' in layer && typeof (layer as any).getBounds === 'function';
         };
 
+        // Village Layers with hover popup and click functionality
         const newVillageLayers = L.geoJSON(data, {
           style: villageGeoJsonStyle,
           onEachFeature: (feature, layer) => {
@@ -768,14 +751,21 @@ function MapLayers({
               `;
               layer.bindPopup(popupContent);
 
-              // Handle click event to display village details and zoom
+              // Replace click with hover events for popup
+              layer.on('mouseover', () => {
+                layer.openPopup();
+              });
+              layer.on('mouseout', () => {
+                layer.closePopup();
+              });
+
+              // Keep click event for zooming and data selection
               layer.on('click', () => {
-                // Check if layer has getBounds method before calling it
                 if (hasGetBounds(layer)) {
                   const bounds = layer.getBounds();
                   if (bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
-                    currentZoomLevelRef.current = map.getZoom(); // Update zoom level
+                    currentZoomLevelRef.current = map.getZoom();
                   }
                 }
                 // Update location data with clicked village details
@@ -804,20 +794,20 @@ function MapLayers({
             const bounds = newVillageLayers.getBounds();
             if (bounds.isValid()) {
               map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
-              currentZoomLevelRef.current = map.getZoom(); // Update zoom level
+              currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to village layer bounds:', error);
+            console.error('Error fitting map to village layer bounds:', error);
           }
           setIsLoadingVillages(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering village shapefiles:', error);
+        console.error('Error fetching or rendering village data:', error);
         setIsLoadingVillages(false);
       }
     };
 
-    fetchVillageShapefiles();
+    fetchVillageData();
     return () => {
       cleanupVillageLayers();
     };
@@ -877,7 +867,7 @@ export default function Map({
   subDistrictData,
   className,
   onLocationSelect,
-  onLoadingChange, // ADD THIS LINE
+  onLoadingChange,
 }: MapProps) {
   console.log('Map component rendering with selectedState:', selectedState);
   console.log('Map component rendering with selectedDistricts:', selectedDistricts);
@@ -911,7 +901,7 @@ export default function Map({
   }
 
   function setMapError(arg0: string | null) {
-    console.log('Map error:', arg0);
+    console.error('Map error:', arg0);
   }
 
   return (
@@ -919,7 +909,7 @@ export default function Map({
       <MapContainer
         center={[22.9734, 78.6569]}
         zoom={5}
-        className="admin-map border-4 border-blue-500 z-[100] rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full"
+        className="admin-map z-[100] border-4 border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full "
         worldCopyJump={true}
         maxBoundsViscosity={1.0}
         minZoom={2}
@@ -956,7 +946,6 @@ export default function Map({
           </div>
         </div>
 
-        
         <LayersControl position="topright">
           {/* Base Layers */}
           <LayersControl.BaseLayer checked name="OpenStreetMap">
@@ -995,11 +984,6 @@ export default function Map({
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        {/* <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            noWrap={false}
-            bounds={[[-90, -180], [90, 180]]}
-          /> */}
         <MapLayers
           selectedState={selectedState}
           selectedDistricts={selectedDistricts}
@@ -1007,7 +991,7 @@ export default function Map({
           selectedVillages={selectedVillages}
           subDistrictData={subDistrictData}
           onLocationSelect={onLocationSelect}
-          onLoadingChange={onLoadingChange} // ADD THIS LINE
+          onLoadingChange={onLoadingChange}
         />
       </MapContainer>
     </div>

@@ -9,7 +9,8 @@ import L from 'leaflet';
 import Colorizr from 'colorizr';
 
 type DomesticLoadMethod = 'manual' | 'modeled' | '';
-type PeakFlowSewageSource = 'population_based' | 'drain_based' | 'water_based' | '';
+type PeakFlowSewageSource = 'population_based' | 'drain_based' | 'water_based' | 'floating_sewage' | 'institutional_sewage' | 'firefighting_sewage' | '';
+
 
 export interface PollutionItem {
   name: string;
@@ -51,14 +52,22 @@ interface Village {
   population: number;
 }
 
-
-
 // Add props interface for SewageCalculationForm
 interface SewageCalculationFormProps {
   villages_props?: any[];
   totalPopulation_props?: number;
   sourceMode?: 'admin' | 'drain';
   selectedRiverData?: SelectedRiverData | null; // Add this
+  perCapitaConsumption?: number; // Add this line
+  seasonalMultipliers?: { // Add this
+    summer: number;
+    monsoon: number;
+    postMonsoon: number;
+    winter: number;
+  };
+  waterDemandResults?: any; // Add this
+  floatingSeasonalDemands?: any; // Add this
+  domesticSeasonalDemands?: any; // Add this
 }
 
 interface SubDistrict {
@@ -93,13 +102,22 @@ const defaultPollutionItems: PollutionItem[] = [
 ];
 
 
-
-
 const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
   villages_props = [],
   totalPopulation_props = 0,
   sourceMode, // FIXED: Remove default value since it's now required
-  selectedRiverData = null
+  selectedRiverData = null,
+  perCapitaConsumption = 135,
+  seasonalMultipliers = { // Add this with defaults
+    summer: 1.10,
+    monsoon: 0.95,
+    postMonsoon: 1.00,
+    winter: 0.90
+  },
+  waterDemandResults = null, // Add this with default
+  floatingSeasonalDemands = null
+
+  // Add this with default value
 }) => {
   // --- States for Water Supply Method ---
   const [totalSupplyInput, setTotalSupplyInput] = useState<number | ''>('');///---
@@ -146,6 +164,133 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
     checkboxes.waterDemand &&
     checkboxes.sewageCalculation &&
     checkboxes.rawSewageCharacteristics;
+
+
+  // Add these new state variables
+  const [sewageTreatmentCapacity, setSewageTreatmentCapacity] = useState<number | ''>('');
+  const [selectedTreatmentMethod, setSelectedTreatmentMethod] = useState<'cpheeo' | 'harmon' | 'babbitt' | ''>('');
+  const [treatmentCapacityTable, setTreatmentCapacityTable] = useState<JSX.Element | null>(null);
+
+
+
+  // Storm Water Runoff states (add these to your existing state declarations)
+
+  const [stormWaterData, setStormWaterData] = useState<any>(null);
+  const [selectedLandUseType, setSelectedLandUseType] = useState<string>('');
+  const [selectedTime, setSelectedTime] = useState<string>('');
+  const [stormWaterResult, setStormWaterResult] = useState<any>(null);
+  const [stormWaterLoading, setStormWaterLoading] = useState(false);
+  const [stormWaterError, setStormWaterError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [rainfallIntensity, setRainfallIntensity] = useState<number | ''>('');
+
+  // Reset all storm water values
+  const resetStormWaterValues = () => {
+    setStormWaterData(null);
+    setSelectedLandUseType('');
+    setSelectedTime('');
+    setStormWaterResult(null);
+    setStormWaterError(null);
+    setRainfallIntensity('');
+  };
+
+  // Initialize storm water analysis
+  // Initialize storm water analysis (modified to allow multiple initializations)
+  const initializeStormWater = async () => {
+    // Reset all state values first
+    resetStormWaterValues();
+
+    setIsInitialized(true);
+    setStormWaterError(null);
+    setStormWaterLoading(true);
+
+    try {
+      const villageCodesArray = villages_props?.map(v => v.id) || [];
+      if (villageCodesArray.length === 0) {
+        throw new Error('No village data available');
+      }
+
+      const response = await fetch('http://localhost:9000/basics/swrunoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          village_codes: villageCodesArray
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Failed to fetch storm water data'}`);
+      }
+
+      const data = await response.json();
+      setStormWaterData(data);
+
+      // Set default selections to enable the Calculate button
+      if (data.shape_attributes && data.shape_attributes.length > 0) {
+        setSelectedLandUseType(data.shape_attributes[0]);
+      }
+      if (data.all_duration_values && data.all_duration_values.length > 0) {
+        setSelectedTime(data.all_duration_values[0].toString());
+      }
+
+    } catch (error) {
+      console.error('Error fetching storm water data:', error);
+      setStormWaterError(`Failed to fetch storm water data: ${(error as Error).message}`);
+    }
+    finally {
+      setStormWaterLoading(false);
+    }
+  };
+
+
+  // Calculate storm water runoff (second API call)
+  // Calculate storm water runoff (modified with initialization check)
+  const calculateStormWaterRunoff = async () => {
+    // Check if initialized first
+    if (!isInitialized) {
+      setStormWaterError('Please initialize storm water analysis first!');
+      return;
+    }
+
+    if (!stormWaterData || !selectedLandUseType || !selectedTime || !rainfallIntensity) {
+      setStormWaterError('Please fill in all required fields: land use type, time duration, and rainfall intensity');
+      return;
+    }
+
+    setStormWaterLoading(true);
+    setStormWaterError(null);
+
+    try {
+      const payload = {
+        area: stormWaterData.total_area_hectares,
+        selected_time: parseInt(selectedTime),
+        shape: stormWaterData.overall_shape_type,
+        selected_land_use_type: selectedLandUseType,
+        rainfall_intensity: Number(rainfallIntensity)
+      };
+
+      const response = await fetch('http://localhost:9000/basics/stormwaterrunoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Failed to calculate storm water runoff'}`);
+      }
+
+      const result = await response.json();
+      setStormWaterResult(result);
+    } catch (error) {
+      console.error('Error calculating storm water runoff:', error);
+      setStormWaterError(`Failed to calculate storm water runoff: ${(error as Error).message}`);
+    }
+    finally {
+      setStormWaterLoading(false);
+    }
+  };
 
 
   // --- Initialize and Update Total Water Supply ---
@@ -313,20 +458,26 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       let popBasedValue = 0;
       let drainBasedValue = 0;
       let waterBasedValue = 0;
+      let floatingBasedValue = 0;
+      let institutionalBasedValue = 0;
+      let firefightingBasedValue = 0;
 
       // Calculate population-based sewage value
       if (domesticLoadMethod === 'modeled' && domesticSewageResult && domesticSewageResult[sampleYear]) {
         popBasedValue = domesticSewageResult[sampleYear];
       } else if (domesticLoadMethod === 'manual' && domesticSupplyInput) {
         const referencePopulation = computedPopulation["2025"] || computedPopulation[Object.keys(computedPopulation)[0]];
-        const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+        const multiplier = (perCapitaConsumption + Number(unmeteredSupplyInput)) / 1000000;
         popBasedValue = referencePopulation > 0
           ? ((samplePop / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
           : 0;
       } else if (waterSupplyResult && waterSupplyResult[sampleYear]) {
         popBasedValue = waterSupplyResult[sampleYear];
       }
-
+      console.log('perCapitaConsumption', perCapitaConsumption);
+      console.log('seasonalMultipliers', seasonalMultipliers);
+      console.log('floatingSeasonalDemands', floatingSeasonalDemands);
+      console.log('waterDemandResults', waterDemandResults);
       // Calculate drain-based sewage value
       if (totalDrainDischarge > 0) {
         const referencePopulation = (window as any).population2025 || computedPopulation["2025"] || computedPopulation[Object.keys(computedPopulation)[0]];
@@ -343,32 +494,66 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           : Number(totalSupplyInput) * 0.80;
       }
 
+      // Calculate floating-based sewage value
+      if (waterDemandResults?.floating?.[sampleYear]) {
+        floatingBasedValue = waterDemandResults.floating[sampleYear] * 0.8;
+      } else if ((window as any).floatingWaterDemand?.[sampleYear]) {
+        floatingBasedValue = (window as any).floatingWaterDemand[sampleYear] * 0.8;
+      }
+
+      // Calculate institutional-based sewage value
+      if (waterDemandResults?.institutional?.[sampleYear]) {
+        institutionalBasedValue = waterDemandResults.institutional[sampleYear] * 0.8;
+      } else if ((window as any).institutionalWaterDemand?.[sampleYear]) {
+        institutionalBasedValue = (window as any).institutionalWaterDemand[sampleYear] * 0.8;
+      }
+
+      // Calculate firefighting-based sewage value
+      const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+      if (waterDemandResults?.firefighting?.[method]?.[sampleYear]) {
+        firefightingBasedValue = waterDemandResults.firefighting[method][sampleYear] * 0.8;
+      } else if ((window as any).firefightingWaterDemand?.[method]?.[sampleYear]) {
+        firefightingBasedValue = (window as any).firefightingWaterDemand[method][sampleYear] * 0.8;
+      }
+
       console.log('Auto-selecting peak flow source:', {
         popBasedValue,
         drainBasedValue,
         waterBasedValue,
+        floatingBasedValue,
+        institutionalBasedValue,
+        firefightingBasedValue,
         domesticLoadMethod,
         totalDrainDischarge,
         totalSupplyInput
       });
 
       // Select the method with highest value
-      if (drainBasedValue >= popBasedValue && drainBasedValue >= waterBasedValue && totalDrainDischarge > 0) {
-        setPeakFlowSewageSource('drain_based');
-        console.log('Auto-selected: drain_based');
-      } else if (waterBasedValue >= popBasedValue && Number(totalSupplyInput) > 0) {
-        setPeakFlowSewageSource('water_based');
-        console.log('Auto-selected: water_based');
-      } else {
-        setPeakFlowSewageSource('population_based');
-        console.log('Auto-selected: population_based');
+      // Calculate floating-based sewage value
+
+
+      // Update the selection logic to include all values
+      const allValues = [
+        { type: 'population_based', value: popBasedValue },
+        { type: 'drain_based', value: drainBasedValue },
+        { type: 'water_based', value: waterBasedValue },
+        { type: 'floating_sewage', value: floatingBasedValue },
+        { type: 'institutional_sewage', value: institutionalBasedValue },
+        { type: 'firefighting_sewage', value: firefightingBasedValue }
+      ];
+
+      // Select the method with highest value
+      const maxValue = Math.max(...allValues.map(v => v.value));
+      const selectedSource = allValues.find(v => v.value === maxValue);
+
+      if (selectedSource && selectedSource.value > 0) {
+        setPeakFlowSewageSource(selectedSource.type as PeakFlowSewageSource);
       }
+
     }
   }, [waterSupplyResult, domesticSewageResult, totalDrainDischarge, totalSupplyInput, domesticLoadMethod, domesticSupplyInput, unmeteredSupplyInput, computedPopulation]);
 
   // Auto-select peak flow source based on maximum sewage value
-
-
 
 
   // --- Handlers ---
@@ -506,7 +691,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         setShowPeakFlow(true);
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       setError('Error connecting to backend.');
     }
   };
@@ -655,14 +840,159 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         waterBasedSewFlow = calculatewaterBasedSewFlow(popVal);
       }
 
+      // Calculate the combined domestic sewage (same as in sewage generation table)
+      let combinedDomesticSewage;
+      if (domesticLoadMethod === 'manual') {
+        // Manual case - calculate combined domestic sewage
+        const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+        const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+        const populationBasedSewage = referencePopulation > 0
+          ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
+          : domesticSewageResult;
+
+        // Add floating sewage
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if (waterDemandResults?.floating?.base_demand?.[year]) {
+            return waterDemandResults.floating.base_demand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+            return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add institutional sewage
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add firefighting sewage
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        combinedDomesticSewage = populationBasedSewage + floatingSewage + institutionalSewage;
+      } else {
+        // Modeled case - calculate combined domestic sewage
+        const domesticSewageValue = Number(popBasedSewFlow);
+
+        // Add floating sewage
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if (waterDemandResults?.floating?.base_demand?.[year]) {
+            return waterDemandResults.floating.base_demand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+            return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add institutional sewage
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add firefighting sewage
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        combinedDomesticSewage = domesticSewageValue + floatingSewage + institutionalSewage;
+      }
+
       // Determine average sewage flow based on selected source
       let avgSewFlow;
       if (peakFlowSewageSource === 'drain_based' && totalDrainDischarge > 0) {
         avgSewFlow = drainBasedSewFlow;
       } else if (peakFlowSewageSource === 'water_based' && Number(totalSupplyInput) > 0) {
         avgSewFlow = waterBasedSewFlow;
+      } else if (peakFlowSewageSource === 'floating_sewage') {
+        // Calculate floating sewage flow
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = floatingSewage;
+      } else if (peakFlowSewageSource === 'institutional_sewage') {
+        // Calculate institutional sewage flow
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = institutionalSewage;
+      } else if (peakFlowSewageSource === 'firefighting_sewage') {
+        // Calculate firefighting sewage flow
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = firefightingSewage;
       } else {
-        avgSewFlow = popBasedSewFlow;
+        // Default to combined domestic sewage (same as displayed in sewage generation table)
+        avgSewFlow = combinedDomesticSewage;
       }
 
       const row: any = {
@@ -789,6 +1119,277 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
     setRawSewageTable(tableJSX);
     setShowRawSewage(true);
   };
+
+ const handleCalculateTreatmentCapacity = () => {
+  if (!sewageTreatmentCapacity || sewageTreatmentCapacity <= 0) {
+    alert('Please enter a valid sewage treatment capacity.');
+    return;
+  }
+
+  if (!selectedTreatmentMethod) {
+    alert('Please select a treatment method.');
+    return;
+  }
+
+  // Check if we have computed population data
+  if (!computedPopulation || Object.keys(computedPopulation).length === 0) {
+    alert('Population data not available. Please ensure population forecasting is completed first.');
+    return;
+  }
+
+  // Get sewage result based on method - prioritize domesticSewageResult
+  const sewageResult = domesticSewageResult || waterSupplyResult;
+
+  if (!sewageResult) {
+    alert('Sewage calculation data not available. Please calculate sewage first.');
+    return;
+  }
+
+  console.log('Treatment Capacity Calculation:', {
+    sewageTreatmentCapacity,
+    selectedTreatmentMethod,
+    computedPopulation,
+    sewageResult,
+    domesticLoadMethod
+  });
+
+  const treatmentRows = Object.keys(computedPopulation).map((year) => {
+    const popVal = computedPopulation[year] || 0;
+
+    // Calculate the combined domestic sewage (same as in sewage generation table)
+    let combinedDomesticSewage;
+    if (domesticLoadMethod === 'manual') {
+      // Manual case - calculate combined domestic sewage
+      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+      const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+      const populationBasedSewage = referencePopulation > 0
+        ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
+        : (typeof sewageResult === 'number' ? sewageResult : 0);
+
+      // Add floating sewage
+      const floatingSewage = (() => {
+        if (waterDemandResults?.floating?.[year]) {
+          return waterDemandResults.floating[year] * 0.8;
+        }
+        if (waterDemandResults?.floating?.base_demand?.[year]) {
+          return waterDemandResults.floating.base_demand[year] * 0.8;
+        }
+        if ((window as any).floatingWaterDemand?.[year]) {
+          return (window as any).floatingWaterDemand[year] * 0.8;
+        }
+        if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+          return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      // Add institutional sewage
+      const institutionalSewage = (() => {
+        if (waterDemandResults?.institutional?.[year]) {
+          return waterDemandResults.institutional[year] * 0.8;
+        }
+        if ((window as any).institutionalWaterDemand?.[year]) {
+          return (window as any).institutionalWaterDemand[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      // Add firefighting sewage
+      const firefightingSewage = (() => {
+        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+        if (waterDemandResults?.firefighting?.[method]?.[year]) {
+          return waterDemandResults.firefighting[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+          return (window as any).firefightingWaterDemand[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      combinedDomesticSewage = populationBasedSewage + floatingSewage + institutionalSewage ;
+    } else {
+      // Modeled case - calculate combined domestic sewage
+      const domesticSewageValue = typeof sewageResult === 'number' ? sewageResult : (sewageResult[year] || 0);
+
+      // Add floating sewage
+      const floatingSewage = (() => {
+        if (waterDemandResults?.floating?.[year]) {
+          return waterDemandResults.floating[year] * 0.8;
+        }
+        if (waterDemandResults?.floating?.base_demand?.[year]) {
+          return waterDemandResults.floating.base_demand[year] * 0.8;
+        }
+        if ((window as any).floatingWaterDemand?.[year]) {
+          return (window as any).floatingWaterDemand[year] * 0.8;
+        }
+        if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+          return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      // Add institutional sewage
+      const institutionalSewage = (() => {
+        if (waterDemandResults?.institutional?.[year]) {
+          return waterDemandResults.institutional[year] * 0.8;
+        }
+        if ((window as any).institutionalWaterDemand?.[year]) {
+          return (window as any).institutionalWaterDemand[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      // Add firefighting sewage
+      const firefightingSewage = (() => {
+        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+        if (waterDemandResults?.firefighting?.[method]?.[year]) {
+          return waterDemandResults.firefighting[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+          return (window as any).firefightingWaterDemand[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+        }
+        return 0;
+      })();
+
+      combinedDomesticSewage = domesticSewageValue + floatingSewage + institutionalSewage ;
+    }
+
+    // Get base sewage flow for the year
+    let avgSewFlow = 0;
+
+    // Handle different peak flow sources
+    if (peakFlowSewageSource === 'drain_based' && totalDrainDischarge > 0) {
+      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+      avgSewFlow = referencePopulation > 0
+        ? (popVal / referencePopulation) * totalDrainDischarge
+        : totalDrainDischarge;
+    } else if (peakFlowSewageSource === 'water_based' && Number(totalSupplyInput) > 0) {
+      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+      avgSewFlow = referencePopulation > 0
+        ? (popVal / referencePopulation) * Number(totalSupplyInput) * 0.80
+        : Number(totalSupplyInput) * 0.80;
+    } else if (peakFlowSewageSource === 'floating_sewage') {
+      const floatingSewage = (() => {
+        if (waterDemandResults?.floating?.[year]) {
+          return waterDemandResults.floating[year] * 0.8;
+        }
+        if ((window as any).floatingWaterDemand?.[year]) {
+          return (window as any).floatingWaterDemand[year] * 0.8;
+        }
+        return 0;
+      })();
+      avgSewFlow = floatingSewage;
+    } else if (peakFlowSewageSource === 'institutional_sewage') {
+      const institutionalSewage = (() => {
+        if (waterDemandResults?.institutional?.[year]) {
+          return waterDemandResults.institutional[year] * 0.8;
+        }
+        if ((window as any).institutionalWaterDemand?.[year]) {
+          return (window as any).institutionalWaterDemand[year] * 0.8;
+        }
+        return 0;
+      })();
+      avgSewFlow = institutionalSewage;
+    } else if (peakFlowSewageSource === 'firefighting_sewage') {
+      const firefightingSewage = (() => {
+        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+        if (waterDemandResults?.firefighting?.[method]?.[year]) {
+          return waterDemandResults.firefighting[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+          return (window as any).firefightingWaterDemand[method][year] * 0.8;
+        }
+        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+        }
+        return 0;
+      })();
+      avgSewFlow = firefightingSewage;
+    } else {
+      // Default to combined domestic sewage (same as displayed in sewage generation table)
+      avgSewFlow = combinedDomesticSewage;
+    }
+
+    // Calculate peak flow based on selected treatment method
+    let peakSewageGeneration;
+    if (selectedTreatmentMethod === 'cpheeo') {
+      peakSewageGeneration = avgSewFlow * getCPHEEOFactor(popVal);
+    } else if (selectedTreatmentMethod === 'harmon') {
+      peakSewageGeneration = avgSewFlow * getHarmonFactor(popVal);
+    } else if (selectedTreatmentMethod === 'babbitt') {
+      peakSewageGeneration = avgSewFlow * getBabbittFactor(popVal);
+    } else {
+      peakSewageGeneration = avgSewFlow;
+    }
+
+    // Calculate gap (Treatment Capacity - Sewage Generation)
+    const gap = Number(sewageTreatmentCapacity) - peakSewageGeneration;
+    const status = gap >= 0 ? 'Sufficient' : 'Deficit';
+    const statusColor = gap >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+
+    console.log(`Year ${year}:`, {
+      population: popVal,
+      avgSewFlow,
+      peakSewageGeneration,
+      treatmentCapacity: Number(sewageTreatmentCapacity),
+      gap,
+      status
+    });
+
+    return {
+      year,
+      population: popVal,
+      treatmentCapacity: Number(sewageTreatmentCapacity),
+      sewageGeneration: peakSewageGeneration,
+      gap: gap,
+      status: status,
+      statusColor: statusColor
+    };
+  });
+
+  console.log('All treatment rows:', treatmentRows);
+
+  const tableJSX = (
+    <table className="min-w-full border-collapse border border-gray-300">
+      <thead>
+        <tr>
+          <th className="border px-2 py-1 bg-gray-100">Year</th>
+          <th className="border px-2 py-1 bg-gray-100">Population</th>
+          <th className="border px-2 py-1 bg-gray-100">Sewage Treatment Capacity (MLD)</th>
+          <th className="border px-2 py-1 bg-gray-100">Sewage Generation ({selectedTreatmentMethod.toUpperCase()}) (MLD)</th>
+          <th className="border px-2 py-1 bg-gray-100">Gap (MLD)</th>
+          <th className="border px-2 py-1 bg-gray-100">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {treatmentRows.map((row, idx) => (
+          <tr key={idx}>
+            <td className="border px-2 py-1">{row.year}</td>
+            <td className="border px-2 py-1">{row.population.toLocaleString()}</td>
+            <td className="border px-2 py-1">{row.treatmentCapacity.toFixed(2)}</td>
+            <td className="border px-2 py-1">{row.sewageGeneration.toFixed(2)}</td>
+            <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
+              {row.gap >= 0 ? '+' : ''}{row.gap.toFixed(2)}
+            </td>
+            <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
+              {row.status}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  setTreatmentCapacityTable(tableJSX);
+};
+
+
 
   const rawSewageJSX = useMemo(() => {
     const basePop = computedPopulation["2011"] || 0;
@@ -982,10 +1583,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
   };
 
 
-
   const captureMap = async () => {
-    // let rgbStylesheet: HTMLStyleElement | null = null;
-
     try {
       console.log('Starting map capture process...');
 
@@ -1039,36 +1637,67 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
 
       console.log(`Capturing map - Original: ${mapWidth}x${mapHeight}, Final: ${totalWidth}x${totalHeight}`);
 
-      // COMPREHENSIVE OKLCH HANDLING
-      console.log('Applying comprehensive OKLCH to RGB conversion...');
+      // HIDE UI OVERLAYS BEFORE CAPTURE
+      const overlaysToHide = [
+        '.leaflet-control-container',
+        '.leaflet-control',
+        '.leaflet-control-zoom',
+        '.leaflet-control-attribution',
+        '.leaflet-control-layers',
+        '.leaflet-control-scale',
+        '.absolute.top-2.left-12', // Legend overlay
+        '[class*="absolute"][class*="top-"]', // Any absolute positioned overlays
+      ];
 
-      // Prepare map for capture with force RGB conversion
-      // rgbStylesheet = await prepareMapForCapture(mapContainer as HTMLElement);
+      const hiddenElements: { element: HTMLElement; originalDisplay: string }[] = [];
 
-      // Additional safety: Verify no OKLCH remains in critical elements
-      const criticalElements = mapContainer.querySelectorAll('.leaflet-control, .leaflet-popup, .leaflet-tooltip, svg, path');
-      criticalElements.forEach(element => {
-        const el = element as HTMLElement;
-        el.style.setProperty('color', 'rgb(238, 10, 78)', 'important');
-        el.style.setProperty('fill', 'rgb(123, 235, 18)', 'important');
-        el.style.setProperty('stroke', 'rgb(243, 9, 9)', 'important');
+      // Hide overlays
+      overlaysToHide.forEach(selector => {
+        const elements = mapContainer!.querySelectorAll(selector);
+        elements.forEach(el => {
+          const htmlEl = el as HTMLElement;
+          if (htmlEl.style.display !== 'none') {
+            hiddenElements.push({
+              element: htmlEl,
+              originalDisplay: htmlEl.style.display || ''
+            });
+            htmlEl.style.display = 'none';
+          }
+        });
       });
 
+      // Also hide elements outside the map container but in the map wrapper
+      const mapWrapper = mapContainer.parentElement;
+      if (mapWrapper) {
+        const wrapperOverlays = mapWrapper.querySelectorAll('.absolute, [class*="absolute"]');
+        wrapperOverlays.forEach(el => {
+          const htmlEl = el as HTMLElement;
+          if (htmlEl.style.display !== 'none' && !mapContainer!.contains(htmlEl)) {
+            hiddenElements.push({
+              element: htmlEl,
+              originalDisplay: htmlEl.style.display || ''
+            });
+            htmlEl.style.display = 'none';
+          }
+        });
+      }
 
+      // Convert OKLCH colors for compatibility
       convertOklchToRgb(mapContainer as HTMLElement);
 
-      // Capture the map with maximum compatibility settings
-      // Get a blob using domToImage.toBlob instead
+      // Wait a moment for display changes to take effect
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Capture only the map tiles and vector layers (no UI overlays)
       const blob = await domToImage.toBlob(mapContainer, {
         bgcolor: "#ffffff",
-        // scale: 3,
         width: mapWidth,
         height: mapHeight,
-        quality: 1,
+        quality: 10,
         cacheBust: true,
-        filter: (node: { tagName: string; className: string; }) => {
+        filter: (node: any) => {
           if (!(node instanceof Element)) return false;
-          // Skip elements that might cause issues
+
           const tagName = node.tagName?.toLowerCase();
           const className = node.className || '';
 
@@ -1077,50 +1706,62 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             return false;
           }
 
-          // Skip elements with problematic classes
-          if (className.includes && className.includes('leaflet-control-attribution')) {
+          // Skip all Leaflet control elements
+          if (className.includes && (
+            className.includes('leaflet-control') ||
+            className.includes('leaflet-bar') ||
+            className.includes('leaflet-touch') ||
+            className.includes('absolute')
+          )) {
+            return false;
+          }
+
+          // Skip attribution and other UI elements
+          if (node.getAttribute && (
+            node.getAttribute('class')?.includes('leaflet-control') ||
+            node.getAttribute('class')?.includes('absolute')
+          )) {
             return false;
           }
 
           return true;
         },
-
-
-
-
-        onclone: (clonedDoc: { head: { appendChild: (arg0: HTMLStyleElement) => void; }; }, element: { querySelectorAll: (arg0: string) => any; }) => {
+        onclone: (clonedDoc: any, element: any) => {
           try {
             console.log('Processing cloned document...');
 
-            // Apply RGB stylesheet to cloned document
-            // const clonedRgbStylesheet = createRgbStylesheet();
-            // clonedDoc.head.appendChild(clonedRgbStylesheet);
+            // Remove all control elements from the clone
+            const controlElements = element.querySelectorAll(
+              '.leaflet-control-container, .leaflet-control, .absolute, [class*="absolute"], [class*="leaflet-control"]'
+            );
 
-            // Force RGB colors on all elements in the clone
+            controlElements.forEach((el: any) => {
+              if (el.parentNode) {
+                el.parentNode.removeChild(el);
+              }
+            });
+
+            // Force RGB colors on remaining elements
             const allElements = element.querySelectorAll('*');
             allElements.forEach((el: any) => {
-              const htmlEl = el;
-
-              // Critical overrides
               const colorProps = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'];
               colorProps.forEach(prop => {
-                const currentValue = htmlEl.style.getPropertyValue(prop);
+                const currentValue = el.style.getPropertyValue(prop);
                 if (!currentValue || currentValue.includes('oklch') || currentValue === 'transparent') {
                   let safeColor = 'rgb(128, 128, 128)';
 
                   if (prop === 'backgroundColor') safeColor = 'rgb(255, 255, 255)';
-                  else if (prop === 'color') safeColor = 'rgb(134, 245, 8)';
+                  else if (prop === 'color') safeColor = 'rgb(0, 0, 0)';
                   else if (prop.includes('border')) safeColor = 'rgb(200, 200, 200)';
 
-                  htmlEl.style.setProperty(prop, safeColor, 'important');
+                  el.style.setProperty(prop, safeColor, 'important');
                 }
               });
 
               // Handle SVG elements specifically
-              if (htmlEl.tagName.toLowerCase() === 'svg' || htmlEl.tagName.toLowerCase() === 'path') {
-                htmlEl.style.setProperty('fill', 'rgb(243, 25, 18)', 'important');
-                htmlEl.style.setProperty('fill', 'rgb(0, 0, 0)', 'important');
-                htmlEl.style.setProperty('stroke', 'rgb(188, 206, 24)', 'important');
+              if (el.tagName && (el.tagName.toLowerCase() === 'svg' || el.tagName.toLowerCase() === 'path')) {
+                el.style.setProperty('fill', 'rgb(0, 100, 200)', 'important');
+                el.style.setProperty('stroke', 'rgb(0, 0, 0)', 'important');
               }
             });
 
@@ -1131,33 +1772,34 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         }
       } as any);
 
-      // Create a canvas from the blob
+
+      // RESTORE HIDDEN OVERLAYS
+      hiddenElements.forEach(({ element, originalDisplay }) => {
+        element.style.display = originalDisplay;
+      });
+
       // Create a canvas from the blob
       const blobUrl = URL.createObjectURL(blob);
       const img = new Image();
       const mapCanvas = document.createElement('canvas');
-      const mapCtx = mapCanvas.getContext('2d');  // Changed variable name from ctx to mapCtx
+      const mapCtx = mapCanvas.getContext('2d');
+
       if (!mapCtx) {
         throw new Error("Failed to get 2D context from canvas.");
       }
+
       // Return a promise that resolves when the image is loaded
       await new Promise<void>((resolve, reject) => {
         img.onload = () => {
           mapCanvas.width = img.width;
           mapCanvas.height = img.height;
-          mapCtx.drawImage(img, 0, 0);  // Use mapCtx instead of ctx
+          mapCtx.drawImage(img, 0, 0);
           URL.revokeObjectURL(blobUrl);
           resolve();
         };
         img.onerror = reject;
         img.src = blobUrl;
       });
-
-      // // Clean up the RGB stylesheet
-      // if (rgbStylesheet) {
-      //   cleanupAfterCapture(rgbStylesheet);
-      //   rgbStylesheet = null;
-      // }
 
       // Create final canvas with grid and labels
       const finalCanvas = document.createElement('canvas');
@@ -1177,7 +1819,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2;
       ctx.setLineDash([]);
-      ctx.strokeRect(5, 5, totalWidth - 7, totalHeight - 7);
+      ctx.strokeRect(5, 5, totalWidth - 10, totalHeight - 10);
 
       // Draw the map in the center
       ctx.drawImage(mapCanvas, leftMargin, topMargin, mapWidth, mapHeight);
@@ -1369,13 +2011,8 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       });
 
     } catch (error) {
-      console.log('Failed to capture map:', error);
+      console.error('Failed to capture map:', error);
       return null;
-    } finally {
-      // Ensure cleanup happens even if there's an error
-      // if (rgbStylesheet) {
-      //   cleanupAfterCapture(rgbStylesheet);
-      // }
     }
   };
 
@@ -1394,17 +2031,15 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        console.log(`Map capture attempt ${i + 1} failed:`, error);
+        console.error(`Map capture attempt ${i + 1} failed:`, error);
         if (i === maxRetries - 1) {
-          console.log('All map capture attempts failed');
+          console.error('All map capture attempts failed');
           return null;
         }
       }
     }
     return null;
   };
-
-
 
   const handle1pdfDownload = async () => {
     setIsDownloading(true);
@@ -1424,7 +2059,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         const leftLogoPromise = new Promise((resolve, reject) => {
           iitLogo.onload = () => resolve(true);
           iitLogo.onerror = () => reject(false);
-          iitLogo.src = "/Images/export/logo_iitbhu.png";
+          iitLogo.src = "/images/export/logo_iitbhu.png";
         });
 
         const rightLogo = new Image();
@@ -1432,16 +2067,18 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         const rightLogoPromise = new Promise((resolve, reject) => {
           rightLogo.onload = () => resolve(true);
           rightLogo.onerror = () => reject(false);
-          rightLogo.src = "/Images/export/right1_slcr.png";
+          rightLogo.src = "/images/export/right1_slcr.png";
         });
 
         await Promise.all([leftLogoPromise, rightLogoPromise]);
         doc.addImage(iitLogo, 'PNG', 14, 5, 25, 25);
         doc.addImage(rightLogo, 'PNG', pageWidth - 39, 5, 25, 25);
       } catch (err) {
-        console.log("Failed to load logos:", err);
+        console.error("Failed to load logos:", err);
       }
     };
+
+
 
     const continueWithReport = async () => {
       doc.setFontSize(15);
@@ -1867,8 +2504,6 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           };
 
           // 1.3 Village Table
-
-
           // Add Results and Interpretation section
           addSectionHeading("4. Results and Interpretation", 2);
 
@@ -1942,7 +2577,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
               yPos = (doc as any).lastAutoTable?.finalY + 5;
               // yPos = updateYPosWithPageBreak(doc, yPos, 0);
             } catch (error) {
-              console.log("Error adding village table:", error);
+              console.error("Error adding village table:", error);
               yPos = updateYPosWithPageBreak(doc, yPos, 5);
             }
           }
@@ -2094,7 +2729,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             }
 
           } catch (error) {
-            console.log("Error adding population forecasting data:", error);
+            console.error("Error adding population forecasting data:", error);
             addParagraph("Error occurred while processing population forecasting data.");
             yPos += 10;
           }
@@ -2157,9 +2792,208 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
               addParagraph("Water demand data not available");
             }
           } catch (error) {
-            console.log("Error adding water demand data:", error);
+            console.error("Error adding water demand data:", error);
             yPos += 5;
           }
+
+
+          if (yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          addSectionHeading("4.4.6 Seasonal Analysis Parameters", 2);
+
+          // 6.6.1 Domestic Seasonal Multipliers Table
+          if (seasonalMultipliers) {
+            addSectionHeading("4.4.6.1 Domestic Seasonal Multipliers", 2);
+
+            const multiplierRows = [
+              ["Summer (Apr-Jun)", seasonalMultipliers.summer.toFixed(2), `${(perCapitaConsumption * seasonalMultipliers.summer).toFixed(1)} LPCD`],
+              ["Monsoon (Jul-Sep)", seasonalMultipliers.monsoon.toFixed(2), `${(perCapitaConsumption * seasonalMultipliers.monsoon).toFixed(1)} LPCD`],
+              ["Post-Monsoon (Oct-Nov)", seasonalMultipliers.postMonsoon.toFixed(2), `${(perCapitaConsumption * seasonalMultipliers.postMonsoon).toFixed(1)} LPCD`],
+              ["Winter (Dec-Mar)", seasonalMultipliers.winter.toFixed(2), `${(perCapitaConsumption * seasonalMultipliers.winter).toFixed(1)} LPCD`]
+            ];
+
+            autoTable(doc, {
+              head: [["Season", "Multiplier", "Effective Demand"]],
+              body: multiplierRows,
+              startY: yPos,
+              styles: { font: 'times', fontSize: 11 },
+              headStyles: { fillColor: [34, 139, 34], textColor: [255, 255, 255] },
+              columnStyles: {
+                0: { cellWidth: 60 },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 80 }
+              },
+              margin: { left: 14 }
+            });
+            yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+            addParagraph("Domestic seasonal multipliers account for variations in water consumption patterns throughout the year, affecting both water demand and subsequent sewage generation.");
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.6.2 Floating Seasonal Multipliers Table (if available)
+          if (waterDemandResults?.floating && floatingSeasonalDemands) {
+            addSectionHeading("4.4.6.2 Floating Population Seasonal Analysis", 2);
+
+            const floatingMultipliers = waterDemandResults.floating.seasonal_multipliers || {
+              summer: 1.15,
+              monsoon: 1.25,
+              postMonsoon: 1.10,
+              winter: 0.85
+            };
+
+            const floatingMultiplierRows = [
+              ["Summer (Apr-Jun)", floatingMultipliers.summer.toFixed(2), "Higher tourism/travel activity"],
+              ["Monsoon (Jul-Sep)", floatingMultipliers.monsoon.toFixed(2), "Peak tourist season in some regions"],
+              ["Post-Monsoon (Oct-Nov)", floatingMultipliers.postMonsoon.toFixed(2), "Festival and travel season"],
+              ["Winter (Dec-Mar)", floatingMultipliers.winter.toFixed(2), "Reduced travel activity"]
+            ];
+
+            autoTable(doc, {
+              head: [["Season", "Multiplier", "Description"]],
+              body: floatingMultiplierRows,
+              startY: yPos,
+              styles: { font: 'times', fontSize: 11 },
+              headStyles: { fillColor: [255, 165, 0], textColor: [255, 255, 255] },
+              columnStyles: {
+                0: { cellWidth: 50 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 100 }
+              },
+              margin: { left: 14 }
+            });
+            yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+            addParagraph("Floating population seasonal multipliers reflect variations in temporary population due to tourism, migration, and seasonal work patterns, directly impacting sewage generation volumes.");
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.7 Seasonal Domestic Water Demand Table
+          if (seasonalMultipliers && domesticSewageResult && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (seasonalMultipliers && domesticSewageResult) {
+            addSectionHeading("4.4.7 Seasonal Domestic Water Demand", 2);
+
+            // Get domestic water demand data from window
+            const domesticWaterDemand = (window as any).domesticWaterDemand;
+
+            if (domesticWaterDemand?.seasonal_demands) {
+              const domesticSeasonalRows = Object.keys(computedPopulation).map((year) => {
+                const domesticPop = computedPopulation[year];
+
+                return [
+                  year,
+                  domesticPop.toLocaleString(),
+                  (domesticWaterDemand.seasonal_demands.summer?.[year] || 0).toFixed(2),
+                  (domesticWaterDemand.seasonal_demands.monsoon?.[year] || 0).toFixed(2),
+                  (domesticWaterDemand.seasonal_demands.postMonsoon?.[year] || 0).toFixed(2),
+                  (domesticWaterDemand.seasonal_demands.winter?.[year] || 0).toFixed(2)
+                ];
+              });
+
+              autoTable(doc, {
+                head: [["Year", "Population", "Summer (MLD)", "Monsoon (MLD)", "Post-Monsoon (MLD)", "Winter (MLD)"]],
+                body: domesticSeasonalRows,
+                startY: yPos,
+                styles: { font: 'times', fontSize: 11 },
+                headStyles: { fillColor: [34, 139, 34], textColor: [255, 255, 255] },
+                columnStyles: {
+                  0: { cellWidth: 25 },
+                  1: { cellWidth: 35 },
+                  2: { cellWidth: 25 },
+                  3: { cellWidth: 25 },
+                  4: { cellWidth: 30 },
+                  5: { cellWidth: 25 }
+                },
+                margin: { left: 14 }
+              });
+              yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+              addParagraph(`Seasonal domestic water demand values are calculated using seasonal multipliers - Summer: ${seasonalMultipliers.summer}, Monsoon: ${seasonalMultipliers.monsoon}, Post-Monsoon: ${seasonalMultipliers.postMonsoon}, Winter: ${seasonalMultipliers.winter}. These multipliers account for variations in water consumption patterns throughout the year.`);
+            } else {
+              addParagraph("Seasonal domestic water demand data not available. Please ensure domestic water demand calculation is completed with seasonal analysis enabled.");
+            }
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.8 Seasonal Floating Water Demand Table
+          if (floatingSeasonalDemands && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (floatingSeasonalDemands) {
+            addSectionHeading("4.4.8 Seasonal Floating Water Demand", 2);
+
+            // Get floating water demand data from window
+            const floatingWaterDemand = (window as any).floatingWaterDemand;
+
+            if (floatingWaterDemand?.seasonal_demands) {
+              const floatingSeasonalRows = Object.keys(computedPopulation).map((year) => {
+                const domesticPop = computedPopulation[year];
+
+                return [
+                  year,
+                  domesticPop.toLocaleString(),
+                  (floatingWaterDemand.seasonal_demands.summer?.[year] || 0).toFixed(2),
+                  (floatingWaterDemand.seasonal_demands.monsoon?.[year] || 0).toFixed(2),
+                  (floatingWaterDemand.seasonal_demands.postMonsoon?.[year] || 0).toFixed(2),
+                  (floatingWaterDemand.seasonal_demands.winter?.[year] || 0).toFixed(2)
+                ];
+              });
+
+              autoTable(doc, {
+                head: [["Year", "Population", "Summer (MLD)", "Monsoon (MLD)", "Post-Monsoon (MLD)", "Winter (MLD)"]],
+                body: floatingSeasonalRows,
+                startY: yPos,
+                styles: { font: 'times', fontSize: 11 },
+                headStyles: { fillColor: [255, 165, 0], textColor: [255, 255, 255] },
+                columnStyles: {
+                  0: { cellWidth: 25 },
+                  1: { cellWidth: 35 },
+                  2: { cellWidth: 25 },
+                  3: { cellWidth: 25 },
+                  4: { cellWidth: 30 },
+                  5: { cellWidth: 25 }
+                },
+                margin: { left: 14 }
+              });
+              yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+              // Get floating seasonal multipliers for documentation
+              const floatingMultipliers = floatingWaterDemand.seasonal_multipliers || {
+                summer: 1.15,
+                monsoon: 1.25,
+                postMonsoon: 1.10,
+                winter: 0.85
+              };
+
+              addParagraph(`Seasonal floating water demand values are calculated using floating population seasonal multipliers - Summer: ${floatingMultipliers.summer}, Monsoon: ${floatingMultipliers.monsoon}, Post-Monsoon: ${floatingMultipliers.postMonsoon}, Winter: ${floatingMultipliers.winter}. These multipliers reflect variations in temporary population due to tourism, migration, and seasonal work patterns.`);
+            } else {
+              addParagraph("Seasonal floating water demand data not available. Please ensure floating water demand calculation is completed with seasonal analysis enabled.");
+            }
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
 
           // 5. Water Supply Analysis
           if (yPos > 230) {
@@ -2237,7 +3071,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
               addParagraph("Water supply data not available");
             }
           } catch (error) {
-            console.log("Error adding water supply data:", error);
+            console.error("Error adding water supply data:", error);
             yPos += 5;
           }
 
@@ -2468,97 +3302,162 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           }
 
           // 6.4 Peak Flow Calculation
+          // 6.4 Peak Flow Calculation - FIXED VERSION
           if (peakFlowTable && yPos > 200) {
             doc.addPage();
             yPos = 20;
           }
           if (peakFlowTable) {
             addSectionHeading("4.4.4 Peak Flow Calculation Results", 2);
+
+            // Add peak flow source information
             doc.setFontSize(10);
             doc.setFont('times', 'normal');
             doc.text(`Peak Flow Source: ${peakFlowSewageSource.replace('_', ' ').toUpperCase()}`, 14, yPos);
             yPos += 5;
+
             const selectedMethods = Object.entries(peakFlowMethods)
               .filter(([_, selected]) => selected)
               .map(([method]) => method.toUpperCase());
             doc.text(`Selected Methods: ${selectedMethods.join(', ')}`, 14, yPos);
             yPos += 8;
 
-            const headers = ["Year", "Population", "Avg Sewage Flow (MLD)"];
-            if (selectedMethods.includes('CPHEEO')) headers.push("CPHEEO Peak (MLD)");
-            if (selectedMethods.includes('HARMON')) headers.push("Harmon's Peak (MLD)");
-            if (selectedMethods.includes('BABBITT')) headers.push("Babbit's Peak (MLD)");
-
+            // Get the sewage result for calculations
             const sewageResult = domesticLoadMethod === 'modeled' ? domesticSewageResult : (waterSupplyResult || domesticSewageResult);
-            const peakRows = Object.keys(sewageResult || {}).map((year) => {
-              const popVal = computedPopulation[year] || 0;
-              const popBasedSewFlow = sewageResult[year] || 0;
-              const drainBasedSewFlow = calculateDrainBasedSewFlow(popVal);
-              const waterBasedSewFlow = calculatewaterBasedSewFlow(popVal);
-              const avgSewFlow = peakFlowSewageSource === 'drain_based' && domesticLoadMethod === 'modeled' && totalDrainDischarge > 0
-                ? drainBasedSewFlow
-                : peakFlowSewageSource === 'water_based' && (window as any).totalWaterSupply > 0
-                  ? waterBasedSewFlow
-                  : popBasedSewFlow;
-              const row = [
-                year,
-                popVal.toLocaleString(),
-                avgSewFlow.toFixed(2)
-              ];
-              if (selectedMethods.includes('CPHEEO')) {
-                row.push((avgSewFlow * getCPHEEOFactor(popVal)).toFixed(2));
-              }
-              if (selectedMethods.includes('HARMON')) {
-                row.push((avgSewFlow * getHarmonFactor(popVal)).toFixed(2));
-              }
-              if (selectedMethods.includes('BABBITT')) {
-                row.push((avgSewFlow * getBabbittFactor(popVal)).toFixed(2));
-              }
-              return row;
-            });
 
-            const lastRow = peakRows[peakRows.length - 1];
-            const totalSewageVolume = lastRow ? lastRow[2] : '0.00'; // Fixed incomplete assignment
+            if (sewageResult && computedPopulation) {
+              // Create table headers
+              const headers = ["Year", "Population", "Avg Sewage Flow (MLD)"];
+              if (selectedMethods.includes('CPHEEO')) headers.push("CPHEEO Peak (MLD)");
+              if (selectedMethods.includes('HARMON')) headers.push("Harmon's Peak (MLD)");
+              if (selectedMethods.includes('BABBITT')) headers.push("Babbit's Peak (MLD)");
 
-            autoTable(doc, {
-              head: [headers],
-              body: peakRows,
-              startY: yPos,
-              styles: { font: 'times', fontSize: 12 },
-              headStyles: { fillColor: [66, 139, 202], textColor: [255, 255, 255] },
-              columnStyles: headers.length === 3 ? {
-                0: { cellWidth: 30 },
-                1: { cellWidth: 60 },
-                2: { cellWidth: 90 }
-              } : headers.length === 4 ? {
-                0: { cellWidth: 25 },
-                1: { cellWidth: 45 },
-                2: { cellWidth: 55 },
-                3: { cellWidth: 55 }
-              } : headers.length === 5 ? {
-                0: { cellWidth: 20 },
-                1: { cellWidth: 35 },
-                2: { cellWidth: 35 },
-                3: { cellWidth: 35 },
-                4: { cellWidth: 35 }
-              } : {
-                0: { cellWidth: 20 },
-                1: { cellWidth: 30 },
-                2: { cellWidth: 30 },
-                3: { cellWidth: 30 },
-                4: { cellWidth: 30 },
-                5: { cellWidth: 30 }
-              },
-              margin: { left: 14 }
-            });
-            yPos = (doc as any).lastAutoTable?.finalY + 10;
-            if (yPos > doc.internal.pageSize.height - 20) {
-              doc.addPage();
-              yPos = 20;
+              // Create table rows - FIXED DATA ACCESS
+              const peakRows = Object.keys(computedPopulation).map((year) => {
+                const popVal = computedPopulation[year] || 0;
+
+                // Calculate average sewage flow based on selected peak flow source
+                let avgSewFlow = 0;
+
+                if (peakFlowSewageSource === 'drain_based' && totalDrainDischarge > 0) {
+                  const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+                  avgSewFlow = referencePopulation > 0
+                    ? (popVal / referencePopulation) * totalDrainDischarge
+                    : totalDrainDischarge;
+                } else if (peakFlowSewageSource === 'water_based' && Number(totalSupplyInput) > 0) {
+                  const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+                  avgSewFlow = referencePopulation > 0
+                    ? (popVal / referencePopulation) * Number(totalSupplyInput) * 0.80
+                    : Number(totalSupplyInput) * 0.80;
+                } else if (peakFlowSewageSource === 'floating_sewage') {
+                  // Calculate floating sewage flow
+                  if (waterDemandResults?.floating?.[year]) {
+                    avgSewFlow = waterDemandResults.floating[year] * 0.8;
+                  } else if ((window as any).floatingWaterDemand?.[year]) {
+                    avgSewFlow = (window as any).floatingWaterDemand[year] * 0.8;
+                  }
+                } else if (peakFlowSewageSource === 'institutional_sewage') {
+                  // Calculate institutional sewage flow
+                  if (waterDemandResults?.institutional?.[year]) {
+                    avgSewFlow = waterDemandResults.institutional[year] * 0.8;
+                  } else if ((window as any).institutionalWaterDemand?.[year]) {
+                    avgSewFlow = (window as any).institutionalWaterDemand[year] * 0.8;
+                  }
+                } else if (peakFlowSewageSource === 'firefighting_sewage') {
+                  // Calculate firefighting sewage flow
+                  const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+                  if (waterDemandResults?.firefighting?.[method]?.[year]) {
+                    avgSewFlow = waterDemandResults.firefighting[method][year] * 0.8;
+                  } else if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+                    avgSewFlow = (window as any).firefightingWaterDemand[method][year] * 0.8;
+                  } else if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+                    avgSewFlow = (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+                  }
+                } else {
+                  // Default to population-based sewage
+                  if (typeof sewageResult === 'number') {
+                    if (domesticLoadMethod === 'manual' && domesticSupplyInput) {
+                      const referencePopulation = computedPopulation["2025"] || computedPopulation[Object.keys(computedPopulation)[0]];
+                      const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+                      avgSewFlow = referencePopulation > 0
+                        ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
+                        : sewageResult;
+                    } else {
+                      avgSewFlow = sewageResult;
+                    }
+                  } else {
+                    avgSewFlow = sewageResult[year] || 0;
+                  }
+                }
+
+                // Create the row with basic data
+                const row = [
+                  year,
+                  popVal.toLocaleString(),
+                  avgSewFlow.toFixed(2)
+                ];
+
+                // Add peak flow calculations based on selected methods
+                if (selectedMethods.includes('CPHEEO')) {
+                  row.push((avgSewFlow * getCPHEEOFactor(popVal)).toFixed(2));
+                }
+                if (selectedMethods.includes('HARMON')) {
+                  row.push((avgSewFlow * getHarmonFactor(popVal)).toFixed(2));
+                }
+                if (selectedMethods.includes('BABBITT')) {
+                  row.push((avgSewFlow * getBabbittFactor(popVal)).toFixed(2));
+                }
+
+                return row;
+              });
+
+              // Generate the table
+              autoTable(doc, {
+                head: [headers],
+                body: peakRows,
+                startY: yPos,
+                styles: { font: 'times', fontSize: 11 },
+                headStyles: { fillColor: [128, 0, 128], textColor: [255, 255, 255] },
+                columnStyles: headers.length === 3 ? {
+                  0: { cellWidth: 30 },
+                  1: { cellWidth: 60 },
+                  2: { cellWidth: 90 }
+                } : headers.length === 4 ? {
+                  0: { cellWidth: 25 },
+                  1: { cellWidth: 45 },
+                  2: { cellWidth: 55 },
+                  3: { cellWidth: 55 }
+                } : headers.length === 5 ? {
+                  0: { cellWidth: 20 },
+                  1: { cellWidth: 35 },
+                  2: { cellWidth: 35 },
+                  3: { cellWidth: 35 },
+                  4: { cellWidth: 35 }
+                } : {
+                  0: { cellWidth: 18 },
+                  1: { cellWidth: 30 },
+                  2: { cellWidth: 28 },
+                  3: { cellWidth: 28 },
+                  4: { cellWidth: 28 },
+                  5: { cellWidth: 28 }
+                },
+                margin: { left: 14 }
+              });
+
+              yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+              // Add explanatory text
+              addParagraph(`Peak flow calculations have been performed using ${selectedMethods.join(', ')} method(s) based on ${peakFlowSewageSource.replace('_', ' ')} sewage generation values.`);
+
+              if (yPos > doc.internal.pageSize.height - 20) {
+                doc.addPage();
+                yPos = 20;
+              }
+            } else {
+              addParagraph("Peak flow calculation data not available. Please ensure sewage calculation is completed first.");
             }
-            // Store totalSewageVolume for use in Executive Summary
-            (window as any).totalSewageVolume = totalSewageVolume;
           }
+
 
           // 6.5 Raw Sewage Characteristics
           if (showRawSewage && yPos > 200) {
@@ -2614,37 +3513,354 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             }
           }
 
+          // Add after the existing domestic sewage section
+
+          // 6.6 Floating Seasonal Sewage Generation
+          if (floatingSeasonalDemands && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (floatingSeasonalDemands) {
+            addSectionHeading("4.4.6 Floating Seasonal Sewage Generation", 2);
+
+            const floatingSeasonalRows = Object.keys(computedPopulation).map((year) => {
+              const domesticPop = computedPopulation[year];
+              const summerFloating = floatingSeasonalDemands?.summer?.[year] ? (floatingSeasonalDemands.summer[year] * 0.8) : 0;
+              const monsoonFloating = floatingSeasonalDemands?.monsoon?.[year] ? (floatingSeasonalDemands.monsoon[year] * 0.8) : 0;
+              const postMonsoonFloating = floatingSeasonalDemands?.postMonsoon?.[year] ? (floatingSeasonalDemands.postMonsoon[year] * 0.8) : 0;
+              const winterFloating = floatingSeasonalDemands?.winter?.[year] ? (floatingSeasonalDemands.winter[year] * 0.8) : 0;
+
+              return [
+                year,
+                domesticPop.toLocaleString(),
+                summerFloating.toFixed(2),
+                monsoonFloating.toFixed(2),
+                postMonsoonFloating.toFixed(2),
+                winterFloating.toFixed(2)
+              ];
+            });
+
+            autoTable(doc, {
+              head: [["Year", "Population", "Summer (MLD)", "Monsoon (MLD)", "Post-Monsoon (MLD)", "Winter (MLD)"]],
+              body: floatingSeasonalRows,
+              startY: yPos,
+              styles: { font: 'times', fontSize: 11 },
+              headStyles: { fillColor: [255, 165, 0], textColor: [255, 255, 255] },
+              columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 35 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 25 },
+                4: { cellWidth: 30 },
+                5: { cellWidth: 25 }
+              },
+              margin: { left: 14 }
+            });
+            yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+            addParagraph("Floating seasonal sewage values are calculated by applying seasonal multipliers to base floating water demand and converting to sewage (×0.8).");
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.7 Domestic Seasonal Sewage Generation
+          if (seasonalMultipliers && domesticSewageResult && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (seasonalMultipliers && domesticSewageResult) {
+            addSectionHeading("4.4.7 Domestic Seasonal Sewage Generation", 2);
+
+            const domesticSeasonalRows = typeof domesticSewageResult === 'number'
+              ? Object.keys(computedPopulation).map((year) => {
+                const domesticPop = computedPopulation[year];
+                const k = Number(domesticSupplyInput);
+                const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+                const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+                const baseDomesticSewage = referencePopulation > 0
+                  ? ((domesticPop / referencePopulation) * k) * multiplier * 0.80
+                  : domesticSewageResult;
+
+                return [
+                  year,
+                  domesticPop.toLocaleString(),
+                  (baseDomesticSewage * seasonalMultipliers.summer).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.monsoon).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.postMonsoon).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.winter).toFixed(2)
+                ];
+              })
+              : Object.entries(domesticSewageResult).map(([year, value]) => {
+                const domesticPop = computedPopulation[year];
+                const baseDomesticSewage = Number(value);
+
+                return [
+                  year,
+                  domesticPop?.toLocaleString() || '0',
+                  (baseDomesticSewage * seasonalMultipliers.summer).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.monsoon).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.postMonsoon).toFixed(2),
+                  (baseDomesticSewage * seasonalMultipliers.winter).toFixed(2)
+                ];
+              });
+
+            autoTable(doc, {
+              head: [["Year", "Population", "Summer (MLD)", "Monsoon (MLD)", "Post-Monsoon (MLD)", "Winter (MLD)"]],
+              body: domesticSeasonalRows,
+              startY: yPos,
+              styles: { font: 'times', fontSize: 11 },
+              headStyles: { fillColor: [34, 139, 34], textColor: [255, 255, 255] },
+              columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 35 },
+                2: { cellWidth: 25 },
+                3: { cellWidth: 25 },
+                4: { cellWidth: 30 },
+                5: { cellWidth: 25 }
+              },
+              margin: { left: 14 }
+            });
+            yPos = (doc as any).lastAutoTable?.finalY + 10;
+
+            addParagraph(`Domestic seasonal sewage values use multipliers - Summer: ${seasonalMultipliers.summer}, Monsoon: ${seasonalMultipliers.monsoon}, Post-Monsoon: ${seasonalMultipliers.postMonsoon}, Winter: ${seasonalMultipliers.winter}`);
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.8 Sewage Treatment Capacity Analysis
+          if (treatmentCapacityTable && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (treatmentCapacityTable) {
+            addSectionHeading("4.4.8 Sewage Treatment Capacity Analysis", 2);
+
+            addParagraph(`A comprehensive analysis of sewage treatment capacity versus generation has been conducted. The existing treatment capacity is ${Number(sewageTreatmentCapacity).toFixed(2)} MLD, analyzed against ${selectedTreatmentMethod?.toUpperCase()} peak flow calculations.`);
+
+            // Treatment capacity details
+            doc.setFontSize(12);
+            doc.setFont('times', 'normal');
+            doc.text("Treatment Capacity:", 14, yPos);
+            doc.text(`${Number(sewageTreatmentCapacity).toFixed(2)} MLD`, 80, yPos);
+            yPos += 5;
+            doc.text("Peak Flow Method:", 14, yPos);
+            doc.text(`${selectedTreatmentMethod?.toUpperCase() || 'Not Selected'}`, 80, yPos);
+            yPos += 10;
+
+            // Gap analysis table
+            const sewageResult = domesticLoadMethod === 'modeled' ? domesticSewageResult : (waterSupplyResult || domesticSewageResult);
+            if (sewageResult) {
+              const treatmentRows = Object.keys(computedPopulation).map((year) => {
+                const popVal = computedPopulation[year] || 0;
+                let avgSewFlow = 0;
+
+                if (typeof sewageResult === 'number') {
+                  if (domesticLoadMethod === 'manual' && domesticSupplyInput) {
+                    const referencePopulation = computedPopulation["2025"] || computedPopulation[Object.keys(computedPopulation)[0]];
+                    const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+                    avgSewFlow = referencePopulation > 0
+                      ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
+                      : sewageResult;
+                  } else {
+                    avgSewFlow = sewageResult;
+                  }
+                } else {
+                  avgSewFlow = sewageResult[year] || 0;
+                }
+
+                // Calculate peak flow based on selected treatment method
+                let peakSewageGeneration;
+                if (selectedTreatmentMethod === 'cpheeo') {
+                  peakSewageGeneration = avgSewFlow * getCPHEEOFactor(popVal);
+                } else if (selectedTreatmentMethod === 'harmon') {
+                  peakSewageGeneration = avgSewFlow * getHarmonFactor(popVal);
+                } else if (selectedTreatmentMethod === 'babbitt') {
+                  peakSewageGeneration = avgSewFlow * getBabbittFactor(popVal);
+                } else {
+                  peakSewageGeneration = avgSewFlow;
+                }
+
+                const gap = Number(sewageTreatmentCapacity) - peakSewageGeneration;
+                const status = gap >= 0 ? 'Sufficient' : 'Deficit';
+
+                return [
+                  year,
+                  popVal.toLocaleString(),
+                  Number(sewageTreatmentCapacity).toFixed(2),
+                  peakSewageGeneration.toFixed(2),
+                  (gap >= 0 ? '+' : '') + gap.toFixed(2),
+                  status
+                ];
+              });
+
+              autoTable(doc, {
+                head: [["Year", "Population", "Treatment Capacity (MLD)", "Sewage Generation (MLD)", "Gap (MLD)", "Status"]],
+                body: treatmentRows,
+                startY: yPos,
+                styles: { font: 'times', fontSize: 11 },
+                headStyles: { fillColor: [128, 0, 128], textColor: [255, 255, 255] },
+                columnStyles: {
+                  0: { cellWidth: 25 },
+                  1: { cellWidth: 30 },
+                  2: { cellWidth: 35 },
+                  3: { cellWidth: 35 },
+                  4: { cellWidth: 25 },
+                  5: { cellWidth: 30 }
+                },
+                margin: { left: 14 }
+              });
+              yPos = (doc as any).lastAutoTable?.finalY + 10;
+            }
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+          // 6.9 Storm Water Runoff Analysis
+          if (stormWaterResult && yPos > 200) {
+            doc.addPage();
+            yPos = 20;
+          }
+          if (stormWaterResult) {
+            addSectionHeading("4.4.9 Storm Water Runoff Analysis", 2);
+
+            addParagraph("Storm water runoff analysis has been conducted based on shape detection, land use characteristics, and rainfall intensity parameters.");
+
+            // Storm water parameters
+            doc.setFontSize(12);
+            doc.setFont('times', 'normal');
+            if (stormWaterData) {
+              doc.text("Detected Shape Type:", 14, yPos);
+              doc.text(`${stormWaterData.overall_shape_type || 'N/A'}`, 80, yPos);
+              yPos += 5;
+              doc.text("Total Area:", 14, yPos);
+              doc.text(`${stormWaterData.total_area_hectares?.toLocaleString() || 'N/A'} hectares`, 80, yPos);
+              yPos += 5;
+            }
+            doc.text("Selected Land Use Type:", 14, yPos);
+            doc.text(`${selectedLandUseType.replace(/^(rectangle_|sector_)/, '').replace(/_/g, ' ') || 'N/A'}`, 80, yPos);
+            yPos += 5;
+            doc.text("Duration Time:", 14, yPos);
+            doc.text(`${selectedTime || 'N/A'} minutes`, 80, yPos);
+            yPos += 5;
+            doc.text("Rainfall Intensity:", 14, yPos);
+            doc.text(`${rainfallIntensity || 'N/A'} mm/hr`, 80, yPos);
+            yPos += 10;
+
+            // Storm water result
+            addSectionHeading("Storm Water Runoff Result:", 2);
+            doc.setFontSize(16);
+            doc.setFont('times', 'bold');
+            doc.text(`${stormWaterResult.storm_water_runoff || 'N/A'} ${stormWaterResult.unit || 'MLD'}`, 14, yPos);
+            yPos += 10;
+
+            addParagraph("This storm water runoff value represents the expected surface water flow during the specified rainfall event and should be considered for drainage infrastructure planning.");
+
+            if (yPos > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPos = 20;
+            }
+          }
+
+
           // 7. Results and Discussion
           addSectionHeading("5. Results and Discussion");
           addParagraph("The results of the sewage generation estimation will be discussed in this section, including spatial patterns, high-demand areas, and infrastructure recommendations. [To be expanded based on specific results and analysis.]");
 
+          // 8. Summary and Conclusions
           // 8. Summary and Conclusions
           if (yPos > 230) {
             doc.addPage();
             yPos = 20;
           }
           addSectionHeading("6. Summary and Conclusions");
-          addParagraph("This comprehensive report presents the sewage generation analysis based on:");
-          const summaryPoints = [
-            `• Population-based analysis using ${Object.keys(computedPopulation).length} forecast years`,
-            `• Water supply method with ${totalSupplyInput || 0} MLD total supply`,
-            `• Domestic load estimation using ${domesticLoadMethod || 'selected'} method`,
-            `• Drain-based analysis with ${drainItems.length} drains (${totalDrainDischarge.toFixed(2)} MLD total discharge)`,
-            `• Analysis mode: ${sourceMode === 'drain' ? 'Drain-based system analysis' : 'Administrative area analysis'}`
+
+          // Get data for the summary table
+          const selectedMethod = window.selectedPopulationMethod || window.selectedMethod || 'Not specified';
+          const forecatingYears = Object.keys(computedPopulation).length > 0
+            ? `${Math.min(...Object.keys(computedPopulation).map(Number))} - ${Math.max(...Object.keys(computedPopulation).map(Number))}`
+            : 'Not available';
+
+          const waterDemandData = (window as any).totalWaterDemand || {};
+          const domesticWaterDemand = (window as any).domesticWaterDemand || {};
+          const floatingWaterDemand = (window as any).floatingWaterDemand || {};
+          const firefightingDemand = (window as any).firefightingWaterDemand || {};
+
+          // Calculate water gap status
+          const waterSupply = Number(totalSupplyInput) || 0;
+          let waterGapStatus = 'Not calculated';
+          if (waterSupply > 0 && Object.keys(waterDemandData).length > 0) {
+            const lastYear = Object.keys(waterDemandData).sort().pop();
+            const lastDemand = lastYear ? waterDemandData[lastYear] : 0;
+            const gap = waterSupply - lastDemand;
+            waterGapStatus = gap >= 0 ? `Sufficient (Gap: +${gap.toFixed(2)} MLD)` : `Deficit (Gap: ${gap.toFixed(2)} MLD)`;
+          }
+
+          // Get peak flow methods
+          const selectedPeakMethods = Object.entries(peakFlowMethods)
+            .filter(([_, selected]) => selected)
+            .map(([method]) => method.toUpperCase())
+            .join(', ') || 'Not selected';
+
+          // Create summary table data
+          const summaryTableData = [
+            ['1', 'Forecasting Years', forecatingYears],
+            ['2', 'Forecasting Method', selectedMethod],
+            ['3', 'Methods for Water Demand & Sewage', `Water Demand: Population-based, Sewage: ${domesticLoadMethod || 'Not selected'}`],
+            ['4', 'Demand Rate', `Domestic: 135 LPCD, Total: ${Object.keys(waterDemandData).length > 0 ? 'Calculated' : 'Not calculated'}`],
+            ['5', 'Floating Demand Rate', Object.keys(floatingWaterDemand).length > 0 ? 'As per CPHEEO guidelines' : 'Not calculated'],
+            ['6', 'Fire Fighting Method', Object.keys(firefightingDemand).length > 0 ? 'Kuchling Method' : 'Not calculated'],
+            ['7', 'Water Sufficiency', waterGapStatus],
+            ['8', 'Drain Tapping Information', `${drainItems.length} drains, Total discharge: ${totalDrainDischarge.toFixed(2)} MLD`],
+            ['9', 'NRW/UFW', `${unmeteredSupplyInput || 15}% (Unaccounted for Water)`],
+            ['10', 'Peak Flow Method', selectedPeakMethods]
           ];
-          doc.setFontSize(12);
-          doc.setFont('times', 'normal');
-          summaryPoints.forEach(point => {
-            const lines = doc.splitTextToSize(point, 180);
-            doc.text(lines, 14, yPos);
-            yPos += (lines.length * 5) + 3;
-            if (yPos > doc.internal.pageSize.height - 20) {
-              doc.addPage();
-              yPos = 20;
-            }
+
+          addParagraph("This comprehensive report presents the sewage generation analysis with the following key parameters and findings:");
+
+          // Add the summary table
+          autoTable(doc, {
+            head: [['S.No.', 'Parameter', 'Details']],
+            body: summaryTableData,
+            startY: yPos,
+            styles: {
+              font: 'times',
+              fontSize: 11,
+              cellPadding: 3
+            },
+            headStyles: {
+              fillColor: [66, 139, 202],
+              textColor: [255, 255, 255],
+              fontStyle: 'bold'
+            },
+            columnStyles: {
+              0: { cellWidth: 20, halign: 'center' },
+              1: { cellWidth: 60 },
+              2: { cellWidth: 100 }
+            },
+            margin: { left: 14 },
+            theme: 'striped',
+            alternateRowStyles: { fillColor: [245, 245, 245] }
           });
 
-          yPos += 10;
+          yPos = (doc as any).lastAutoTable?.finalY + 15;
+
+          if (yPos > pageHeight - bottomMargin) {
+            doc.addPage();
+            yPos = 20;
+          }
+
+          // Add concluding paragraph
+          addParagraph(`The analysis indicates a total sewage generation of ${totalSewageVolume} MLD for the study area. The methodology follows CPHEEO guidelines and incorporates multiple forecasting approaches to ensure robust planning estimates. This comprehensive assessment provides the foundation for sewage treatment infrastructure planning and environmental management decisions.`);
+
 
           // 9. References
           // doc.addPage();
@@ -2684,10 +3900,61 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             // d            oc.text(today, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, { align: 'center' });
           }
 
+          try {
+            console.log('Starting PDF upload process...');
+
+            // Generate PDF as blob for upload
+            const pdfBlob = doc.output('blob');
+            const fileName = `Comprehensive_Sewage_Generation_Report_${Date.now()}.pdf`;
+
+            console.log('PDF blob created:', pdfBlob.size, 'bytes');
+
+            // Create FormData for upload
+            const formData = new FormData();
+            formData.append('pdf_file', pdfBlob, fileName);
+
+            console.log('FormData created, uploading to API...');
+
+            // Upload to your API
+            const uploadResponse = await fetch('http://localhost:9000/basics/pdf', {
+              method: 'POST',
+              body: formData,
+            });
+
+            console.log('Upload response status:', uploadResponse.status);
+
+            if (uploadResponse.ok) {
+              const uploadResult = await uploadResponse.json();
+              console.log('PDF uploaded successfully:', uploadResult);
+
+              // Show success message
+              setTimeout(() => {
+                //alert(`PDF uploaded successfully!\nUnique filename: ${uploadResult.unique_filename || 'Generated'}`);
+              }, 100);
+            } else {
+              const errorText = await uploadResponse.text();
+              console.error('Upload failed:', uploadResponse.status, errorText);
+              setTimeout(() => {
+                // alert('PDF generated successfully, but upload to server failed. Check console for details.');
+              }, 100);
+            }
+          } catch (uploadError) {
+            console.error('Upload error:', uploadError);
+            setTimeout(() => {
+              //alert('PDF generated successfully, but upload to server failed. Check console for details.');
+            }, 100);
+          }
+
+          // Keep the original download functionality
+          console.log('Starting PDF download...');
+          doc.save("Comprehensive_Sewage_Generation_Report.pdf");
+          console.log('PDF download initiated');
+
+
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");
         } // End of try block
       } catch (error) {
-        console.log("Error generating report:", error);
+        console.error("Error generating report:", error);
       }
       finally {
         setIsDownloading(false);
@@ -2704,7 +3971,6 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       [key]: !prev[key],
     }));
   };
-
 
   return (
     <div className="p-6 border rounded-lg bg-gradient-to-br from-white to-gray-50 shadow-lg">
@@ -2822,7 +4088,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         {drainCount && drainCount > 0 && drainItemsTableJSX}
       </div>
 
-      {/* Domestic Sewage Load Estimation Container */}
+
       {/* Domestic Sewage Load Estimation Container */}
       <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
         <h4 className="font-semibold text-lg text-blue-700 mb-3">Domestic Sewage Load Estimation</h4>
@@ -2839,7 +4105,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             <option value="">-- Choose Option --</option>
             <option value="manual">Manual</option>
             <option value="modeled">Modeled</option>
-            
+
           </select>
           {domesticLoadMethod === 'manual' && (
             <div className="mt-4 space-y-4">
@@ -2898,11 +4164,9 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             <div className="mt-4 space-y-4">
               <div>
                 <div className="flex items-center space-x-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Population:
-                  </label>
+
                   <div className="relative group">
-                    <span className="flex items-center justify-center h-5 w-5 text-sm bg-blue-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
+
                     <div className="absolute z-10 hidden group-hover:block w-64 text-gray-700 text-xs rounded-lg p-3 bg-white shadow-xl mt-2 left-full ml-2 border border-gray-200">
                       Population forecasted by algorithm
                     </div>
@@ -2973,6 +4237,16 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                       {totalDrainDischarge > 0 && (
                         <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Drains Based Sewage Generation (MLD)</th>
                       )}
+                      {/* KEEP THESE SEPARATE COLUMNS FOR DISPLAY */}
+                      {/* {(waterDemandResults?.floating || (window as any).floatingWaterDemand) && (
+                        <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Floating Sewage Generation (MLD)</th>
+                      )}
+                      {(waterDemandResults?.institutional || (window as any).institutionalWaterDemand) && (
+                        <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Institutional Sewage Generation (MLD)</th>
+                      )}
+                      {(waterDemandResults?.firefighting || (window as any).firefightingWaterDemand) && (
+                        <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Firefighting Sewage Generation (MLD)</th>
+                      )} */}
                     </tr>
                   </thead>
                   <tbody>
@@ -2995,6 +4269,52 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                         ? ((domesticPop / referencePopulation) * totalDrainDischarge)
                         : 0;
 
+                      // Calculate floating sewage
+                      const floatingSewage = (() => {
+                        if (waterDemandResults?.floating?.[year]) {
+                          return waterDemandResults.floating[year] * 0.8;
+                        }
+                        if (waterDemandResults?.floating?.base_demand?.[year]) {
+                          return waterDemandResults.floating.base_demand[year] * 0.8;
+                        }
+                        if ((window as any).floatingWaterDemand?.[year]) {
+                          return (window as any).floatingWaterDemand[year] * 0.8;
+                        }
+                        if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+                          return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+                        }
+                        return 0;
+                      })();
+
+                      // Calculate institutional sewage
+                      const institutionalSewage = (() => {
+                        if (waterDemandResults?.institutional?.[year]) {
+                          return waterDemandResults.institutional[year] * 0.8;
+                        }
+                        if ((window as any).institutionalWaterDemand?.[year]) {
+                          return (window as any).institutionalWaterDemand[year] * 0.8;
+                        }
+                        return 0;
+                      })();
+
+                      // Calculate firefighting sewage
+                      const firefightingSewage = (() => {
+                        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+                        if (waterDemandResults?.firefighting?.[method]?.[year]) {
+                          return waterDemandResults.firefighting[method][year] * 0.8;
+                        }
+                        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+                          return (window as any).firefightingWaterDemand[method][year] * 0.8;
+                        }
+                        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+                          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+                        }
+                        return 0;
+                      })();
+
+                      // Combine all sewage types for domestic column
+                      const combinedDomesticSewage = populationBasedSewage + floatingSewage + institutionalSewage;
+
                       return (
                         <tr
                           key={year}
@@ -3008,13 +4328,23 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                             </td>
                           )}
                           <td className="border-b border-gray-200 px-4 py-3 text-gray-700">
-                            {populationBasedSewage.toFixed(2)}
+                            {combinedDomesticSewage.toFixed(2)}
                           </td>
                           {totalDrainDischarge > 0 && (
                             <td className="border-b border-gray-200 px-4 py-3 text-gray-700">
                               {drainBasedSewage.toFixed(2)}
                             </td>
                           )}
+                          {/* KEEP THESE SEPARATE CELLS FOR DISPLAY */}
+                          {/* {(waterDemandResults?.floating || (window as any).floatingWaterDemand) && (
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{floatingSewage.toFixed(2)}</td>
+                          )}
+                          {(waterDemandResults?.institutional || (window as any).institutionalWaterDemand) && (
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{institutionalSewage.toFixed(2)}</td>
+                          )}
+                          {(waterDemandResults?.firefighting || (window as any).firefightingWaterDemand) && (
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{firefightingSewage.toFixed(2)}</td>
+                          )} */}
                         </tr>
                       );
                     })}
@@ -3039,6 +4369,16 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                     {domesticLoadMethod === 'modeled' && totalDrainDischarge > 0 && (
                       <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Drains Based Sewage Generation (MLD)</th>
                     )}
+                    {/* KEEP THESE SEPARATE COLUMNS FOR DISPLAY */}
+                    {/* {(waterDemandResults?.floating || (window as any).floatingWaterDemand) && (
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Floating Sewage Generation (MLD)</th>
+                    )}
+                    {(waterDemandResults?.institutional || (window as any).institutionalWaterDemand) && (
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Institutional Sewage Generation (MLD)</th>
+                    )}
+                    {(waterDemandResults?.firefighting || (window as any).firefightingWaterDemand) && (
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Firefighting Sewage Generation (MLD)</th>
+                    )} */}
                   </tr>
                 </thead>
                 <tbody>
@@ -3047,6 +4387,53 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                     const domesticPop = forecastData[year] ?? "";
                     const drainsSewage = calculateDrainBasedSewFlow(domesticPop);
                     const waterSewage = calculatewaterBasedSewFlow(domesticPop);
+
+                    // Calculate floating sewage
+                    const floatingSewage = (() => {
+                      if (waterDemandResults?.floating?.[year]) {
+                        return waterDemandResults.floating[year] * 0.8;
+                      }
+                      if (waterDemandResults?.floating?.base_demand?.[year]) {
+                        return waterDemandResults.floating.base_demand[year] * 0.8;
+                      }
+                      if ((window as any).floatingWaterDemand?.[year]) {
+                        return (window as any).floatingWaterDemand[year] * 0.8;
+                      }
+                      if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+                        return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+                      }
+                      return 0;
+                    })();
+
+                    // Calculate institutional sewage
+                    const institutionalSewage = (() => {
+                      if (waterDemandResults?.institutional?.[year]) {
+                        return waterDemandResults.institutional[year] * 0.8;
+                      }
+                      if ((window as any).institutionalWaterDemand?.[year]) {
+                        return (window as any).institutionalWaterDemand[year] * 0.8;
+                      }
+                      return 0;
+                    })();
+
+                    // Calculate firefighting sewage
+                    const firefightingSewage = (() => {
+                      const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+                      if (waterDemandResults?.firefighting?.[method]?.[year]) {
+                        return waterDemandResults.firefighting[method][year] * 0.8;
+                      }
+                      if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+                        return (window as any).firefightingWaterDemand[method][year] * 0.8;
+                      }
+                      if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+                        return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+                      }
+                      return 0;
+                    })();
+
+                    // Combine domestic sewage with floating, institutional, and firefighting
+                    const combinedDomesticSewage = Number(value) + floatingSewage + institutionalSewage;
+
                     return (
                       <tr
                         key={year}
@@ -3056,19 +4443,162 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                         <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{domesticPop.toLocaleString()}</td>
                         {((window as any).totalWaterSupply > 0 || Number(totalSupplyInput) > 0) && (
                           <td className="border-b border-gray-200 px-4 py-3 text-gray-700">
-                            {Number(waterSewage) > 0 ? Number(waterSewage).toFixed(2) : "0.000000"}
+                            {Number(waterSewage) > 0 ? Number(waterSewage).toFixed(2) : "0.00"}
                           </td>
                         )}
-
-                        <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{Number(value).toFixed(2)}</td>
+                        <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{combinedDomesticSewage.toFixed(2)}</td>
                         {domesticLoadMethod === 'modeled' && totalDrainDischarge > 0 && (
-                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{drainsSewage > 0 ? drainsSewage.toFixed(2) : "0.000000"}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{drainsSewage > 0 ? drainsSewage.toFixed(2) : "0.00"}</td>
                         )}
+                        {/* KEEP THESE SEPARATE CELLS FOR DISPLAY */}
+                        {/* {(waterDemandResults?.floating || (window as any).floatingWaterDemand) && (
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{floatingSewage.toFixed(2)}</td>
+                        )}
+                        {(waterDemandResults?.institutional || (window as any).institutionalWaterDemand) && (
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{institutionalSewage.toFixed(2)}</td>
+                        )}
+                        {(waterDemandResults?.firefighting || (window as any).firefightingWaterDemand) && (
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{firefightingSewage.toFixed(2)}</td>
+                        )} */}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+          {/* ADD THIS NEW SECTION RIGHT AFTER THE SEWAGE GENERATION TABLE */}
+          {floatingSeasonalDemands && (
+            <div className="mt-8 p-4 border rounded-lg bg-orange-50/50 shadow-sm">
+              <h4 className="font-semibold text-lg text-orange-700 mb-4">Floating Seasonal Sewage Generation:</h4>
+              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-500 scrollbar-track-gray-100">
+                <table className="table-auto w-full min-w-[800px] bg-white border border-gray-300 rounded-lg shadow-md">
+                  <thead className="bg-gradient-to-r from-orange-100 to-orange-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Year</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Forecasted Population</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Summer Floating Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Monsoon Floating Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Post-Monsoon Floating Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Winter Floating Sewage (MLD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(computedPopulation).map((year, index) => {
+                      const domesticPop = computedPopulation[year];
+
+                      // Calculate seasonal floating sewage values (multiply by 0.8)
+                      const summerFloatingSewage = floatingSeasonalDemands?.summer?.[year] ? (floatingSeasonalDemands.summer[year] * 0.8) : 0;
+                      const monsoonFloatingSewage = floatingSeasonalDemands?.monsoon?.[year] ? (floatingSeasonalDemands.monsoon[year] * 0.8) : 0;
+                      const postMonsoonFloatingSewage = floatingSeasonalDemands?.postMonsoon?.[year] ? (floatingSeasonalDemands.postMonsoon[year] * 0.8) : 0;
+                      const winterFloatingSewage = floatingSeasonalDemands?.winter?.[year] ? (floatingSeasonalDemands.winter[year] * 0.8) : 0;
+
+                      return (
+                        <tr
+                          key={year}
+                          className={`hover:bg-orange-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}
+                        >
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{year}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{domesticPop.toLocaleString()}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{summerFloatingSewage.toFixed(2)}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{monsoonFloatingSewage.toFixed(2)}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{postMonsoonFloatingSewage.toFixed(2)}</td>
+                          <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{winterFloatingSewage.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 text-sm text-orange-600">
+                <p><strong>Note:</strong> All floating seasonal demand values have been multiplied by 0.8 to convert from water demand to sewage generation as per standard practice.</p>
+              </div>
+            </div>
+          )}
+          {/* ADD THIS RIGHT AFTER THE FLOATING SEASONAL SEWAGE TABLE */}
+          {/* Domestic Seasonal Sewage Generation Table */}
+          {/* Domestic Seasonal Sewage Generation Table */}
+          {seasonalMultipliers && domesticSewageResult && (
+            <div className="mt-8 p-4 border rounded-lg bg-green-50/50 shadow-sm">
+              <h4 className="font-semibold text-lg text-green-700 mb-4">Domestic Seasonal Sewage Generation:</h4>
+              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-gray-100">
+                <table className="table-auto w-full min-w-[800px] bg-white border border-gray-300 rounded-lg shadow-md">
+                  <thead className="bg-gradient-to-r from-green-100 to-green-200 sticky top-0 z-10">
+                    <tr>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Year</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Forecasted Population</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Summer Domestic Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Monsoon Domestic Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Post-Monsoon Domestic Sewage (MLD)</th>
+                      <th className="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-800">Winter Domestic Sewage (MLD)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {typeof domesticSewageResult === 'number' ? (
+                      // Manual case - calculate for each year
+                      Object.keys(computedPopulation).map((year, index) => {
+                        const domesticPop = computedPopulation[year];
+                        const k = Number(domesticSupplyInput);
+                        const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+                        const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+
+                        const baseDomesticSewage = referencePopulation > 0
+                          ? ((domesticPop / referencePopulation) * k) * multiplier * 0.80
+                          : domesticSewageResult;
+
+                        // Calculate seasonal domestic sewage values using seasonal multipliers
+                        const summerDomesticSewage = baseDomesticSewage * seasonalMultipliers.summer;
+                        const monsoonDomesticSewage = baseDomesticSewage * seasonalMultipliers.monsoon;
+                        const postMonsoonDomesticSewage = baseDomesticSewage * seasonalMultipliers.postMonsoon;
+                        const winterDomesticSewage = baseDomesticSewage * seasonalMultipliers.winter;
+
+                        return (
+                          <tr
+                            key={year}
+                            className={`hover:bg-green-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}
+                          >
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{year}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{domesticPop?.toLocaleString() || '0'}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{summerDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{monsoonDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{postMonsoonDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{winterDomesticSewage.toFixed(2)}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      // Modeled case - use the object values
+                      Object.entries(domesticSewageResult).map(([year, value], index) => {
+                        const domesticPop = computedPopulation[year];
+                        const baseDomesticSewage = Number(value);
+
+                        // Calculate seasonal domestic sewage values using seasonal multipliers
+                        const summerDomesticSewage = baseDomesticSewage * seasonalMultipliers.summer;
+                        const monsoonDomesticSewage = baseDomesticSewage * seasonalMultipliers.monsoon;
+                        const postMonsoonDomesticSewage = baseDomesticSewage * seasonalMultipliers.postMonsoon;
+                        const winterDomesticSewage = baseDomesticSewage * seasonalMultipliers.winter;
+
+                        return (
+                          <tr
+                            key={year}
+                            className={`hover:bg-green-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}
+                          >
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{year}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{domesticPop?.toLocaleString() || '0'}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{summerDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{monsoonDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{postMonsoonDomesticSewage.toFixed(2)}</td>
+                            <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{winterDomesticSewage.toFixed(2)}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-3 text-sm text-green-600">
+                <p><strong>Note:</strong> Domestic sewage values have been multiplied by seasonal multipliers - Summer: {seasonalMultipliers.summer}, Monsoon: {seasonalMultipliers.monsoon}, Post-Monsoon: {seasonalMultipliers.postMonsoon}, Winter: {seasonalMultipliers.winter}</p>
+              </div>
             </div>
           )}
         </div>
@@ -3119,6 +4649,42 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                     Water Based Sewage Generation
                   </label>
                 )}
+                {/* {(waterDemandResults?.floating || (window as any).floatingWaterDemand) && (
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="peakFlowSewageSource"
+                      checked={peakFlowSewageSource === 'floating_sewage'}
+                      onChange={() => handlePeakFlowSewageSourceChange('floating_sewage')}
+                      className="mr-2"
+                    />
+                    Floating Sewage Generation (MLD)
+                  </label>
+                )} */}
+                {/* {(waterDemandResults?.institutional || (window as any).institutionalWaterDemand) && (
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="peakFlowSewageSource"
+                      checked={peakFlowSewageSource === 'institutional_sewage'}
+                      onChange={() => handlePeakFlowSewageSourceChange('institutional_sewage')}
+                      className="mr-2"
+                    />
+                    Institutional Sewage Generation (MLD)
+                  </label>
+                )} */}
+                {/* {(waterDemandResults?.firefighting || (window as any).firefightingWaterDemand) && (
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="peakFlowSewageSource"
+                      checked={peakFlowSewageSource === 'firefighting_sewage'}
+                      onChange={() => handlePeakFlowSewageSourceChange('firefighting_sewage')}
+                      className="mr-2"
+                    />
+                    Firefighting Sewage Generation (MLD)
+                  </label>
+                )} */}
               </div>
             </div>
           ) : null}
@@ -3170,6 +4736,271 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           )}
         </div>
       )}
+
+      {/* Sewage Treatment Capacity Section */}
+      {showPeakFlow && (
+        <div className="mt-6 p-4 border rounded-lg bg-purple-50/50 shadow-sm">
+          <h5 className="font-semibold text-lg text-purple-700 mb-3">Sewage Treatment Capacity Analysis</h5>
+
+          <div className="mb-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Enter Sewage Treatment Capacity (MLD):
+              </label>
+              <input
+                type="number"
+                value={sewageTreatmentCapacity}
+                onChange={(e) => setSewageTreatmentCapacity(e.target.value === '' ? '' : Number(e.target.value))}
+                className="block w-1/3 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                placeholder="Enter treatment capacity"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Peak Flow Method for Comparison:
+              </label>
+              <select
+                value={selectedTreatmentMethod}
+                onChange={(e) => setSelectedTreatmentMethod(e.target.value as 'cpheeo' | 'harmon' | 'babbitt' | '')}
+                className="block w-1/3 border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              >
+                <option value="">-- Select Method --</option>
+                <option value="cpheeo">CPHEEO Method</option>
+                <option value="harmon">Harmon's Method</option>
+                <option value="babbitt">Babbit's Method</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+            onClick={handleCalculateTreatmentCapacity}
+          >
+            Calculate Treatment Capacity Gap
+          </button>
+
+          {treatmentCapacityTable && (
+            <div className="mt-6">
+              <h6 className="font-medium text-gray-800 mb-3">Treatment Capacity vs Sewage Generation Gap Analysis</h6>
+              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-500 scrollbar-track-gray-100">
+                {treatmentCapacityTable}
+              </div>
+              <div className="mt-3 text-sm text-gray-600">
+                <p><span className="text-green-600 font-medium">Green</span> = Sufficient capacity, <span className="text-red-600 font-medium">Red</span> = Deficit in capacity</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Storm Water Runoff Section */}
+      <div className="mt-6 p-4 border rounded-lg bg-cyan-50/50 shadow-sm">
+        <h5 className="font-semibold text-lg text-cyan-700 mb-3">Storm Water Runoff Analysis</h5>
+
+        {/* Always show initialize/re-initialize button */}
+        <div className="mb-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Generate storm water runoff analysis based on shape detection and land use characteristics.
+          </p>
+          <button
+            className="bg-cyan-600 text-white px-6 py-2 rounded-lg hover:bg-cyan-700 transition-colors disabled:bg-gray-400"
+            onClick={initializeStormWater}
+            disabled={stormWaterLoading}
+          >
+            {isInitialized ? 'Re-initialize Storm Water Analysis' : 'Initialize Storm Water Analysis'}
+          </button>
+        </div>
+
+        {/* Show content only if initialized */}
+        {isInitialized && (
+          <div className="space-y-4">
+            {/* Loading State */}
+            {stormWaterLoading && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700">
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading storm water data...
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {stormWaterError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                <strong>Error:</strong> {stormWaterError}
+                <button
+                  onClick={() => {
+                    setStormWaterError(null);
+                    if (selectedLandUseType && selectedTime && rainfallIntensity) {
+                      initializeStormWater();
+                    }
+                  }}
+                  className="ml-3 text-red-600 underline hover:text-red-800"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Shape Information Box */}
+            {stormWaterData && (
+              <div className="p-4 bg-gray-100 border rounded-md flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-center md:text-left">
+                  <p className="text-sm text-gray-500">Detected Shape Type</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {stormWaterData.overall_shape_type || 'Loading...'}
+                  </p>
+                </div>
+                <div className="text-center md:text">
+                  <p className="text-sm text-gray-500">Total Area (Hectares)</p>
+                  <p className="text-lg font-semibold text-gray-800">
+                    {stormWaterData.total_area_hectares?.toLocaleString() || 'N/A'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+
+            {/* Selection Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Land Use Type Dropdown - Dynamically populated from API */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Land Use Type
+                  <div className="relative ml-1 inline-block group">
+                    <span className="flex items-center justify-center h-5 w-5 text-sm bg-cyan-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
+                    <div className="absolute z-10 hidden group-hover:block w-64 text-gray-700 text-xs rounded-lg p-3 bg-white shadow-xl -mt-12 ml-6 border border-gray-200">
+                      Select the land use type based on the detected shape characteristics for runoff calculation.
+                    </div>
+                  </div>
+                </label>
+                <select
+                  value={selectedLandUseType}
+                  onChange={(e) => setSelectedLandUseType(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+                  disabled={stormWaterLoading || !stormWaterData}
+                >
+                  <option value="">-- Select Land Use Type --</option>
+                  {Array.isArray(stormWaterData?.shape_attributes)
+                    ? stormWaterData.shape_attributes.map((attribute: string, index: number) => (
+                      <option key={index} value={attribute}>
+                        {attribute
+                          .replace(/^(rectangle_|sector_)/, '')
+                          .replace(/_/g, ' ')
+                          .replace(/\b\w/g, (l) => l.toUpperCase())
+                        }
+                      </option>
+                    ))
+                    : (
+                      <option disabled>Loading options...</option>
+                    )}
+
+                </select>
+              </div>
+
+              {/* Time Dropdown - Populated from API */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duration Time (minutes)
+                  <div className="relative ml-1 inline-block group">
+                    <span className="flex items-center justify-center h-5 w-5 text-sm bg-cyan-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
+                    <div className="absolute z-10 hidden group-hover:block w-64 text-gray-700 text-xs rounded-lg p-3 bg-white shadow-xl -mt-12 ml-6 border border-gray-200">
+                      Select the time duration for storm water runoff calculation from available options.
+                    </div>
+                  </div>
+                </label>
+                <select
+                  value={selectedTime}
+                  onChange={(e) => setSelectedTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+                  disabled={stormWaterLoading || !stormWaterData}
+                >
+                  <option value="">-- Select Time Duration --</option>
+                  {Array.isArray(stormWaterData?.all_duration_values)
+                    ? stormWaterData.all_duration_values.map((duration: number, index: number) => (
+                      <option key={index} value={duration.toString()}>
+                        {duration} minutes
+                      </option>
+                    ))
+                    : (
+                      <option disabled>Loading options...</option>
+                    )}
+
+                </select>
+              </div>
+
+              {/* Rainfall Intensity Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rainfall Intensity (mm/hr)
+                  <div className="relative ml-1 inline-block group">
+                    <span className="flex items-center justify-center h-5 w-5 text-sm bg-cyan-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
+                    <div className="absolute z-10 hidden group-hover:block w-64 text-gray-700 text-xs rounded-lg p-3 bg-white shadow-xl -mt-12 ml-6 border border-gray-200">
+                      Enter the rainfall intensity in millimeters per hour for the storm water runoff calculation.
+                    </div>
+                  </div>
+                </label>
+                <input
+                  type="number"
+                  value={rainfallIntensity}
+                  onChange={(e) => setRainfallIntensity(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
+                  placeholder="Enter intensity"
+                  min="0"
+                  step="0.1"
+                  disabled={stormWaterLoading}
+                />
+              </div>
+            </div>
+
+            {/* Calculate Button */}
+            <div className="flex justify-center">
+              <button
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${selectedLandUseType && selectedTime && rainfallIntensity && stormWaterData && !stormWaterLoading
+                  ? 'bg-cyan-600 text-white hover:bg-cyan-700'
+                  : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  }`}
+                onClick={calculateStormWaterRunoff}
+                disabled={!selectedLandUseType || !selectedTime || !rainfallIntensity || !stormWaterData || stormWaterLoading}
+              >
+                {stormWaterLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Calculating...
+                  </>
+                ) : (
+                  'Calculate Storm Water Runoff'
+                )}
+              </button>
+            </div>
+
+            {/* Results Display */}
+            {stormWaterResult && (
+              <div className="mt-6 p-4 border rounded-lg bg-green-50/50 shadow-sm">
+                <h6 className="font-semibold text-lg text-green-700 mb-3">Storm Water Runoff Result</h6>
+                <div className="text-sm text-gray-600 mb-1">
+                  <div className="text-3xl font-bold text-green-600">
+                    {stormWaterResult.storm_water_runoff || 'N/A'}{" "}
+                    <span className="text-lg text-green-800 font-italic">
+                      {stormWaterResult.unit || 'MLD'}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="mt-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
         <h5 className="font-semibold text-lg text-blue-700 mb-3">Raw Sewage Characteristics</h5>

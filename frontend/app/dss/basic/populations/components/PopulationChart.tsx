@@ -182,10 +182,10 @@ const PopulationChart = ({ results, intermediateYear }: PopulationChartProps) =>
 
   return (
     <div className="mt-6 w-full">
-      <h2 className="text-lg font-semibold mb-4">
+      <h2 className="text-lg font-semibold mb-1">
         Population {hasOnlyTwoYears ? "Comparison" : "Projection"}
       </h2>
-      <div style={{ height: "400px", width: "80%" }}>
+      <div style={{ height: "440px", width: "100%" }}>
         {hasOnlyTwoYears ? (
           <Bar data={chartData} options={options} />
         ) : (
