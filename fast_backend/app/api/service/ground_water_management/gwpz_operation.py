@@ -131,40 +131,23 @@ class RasterProcess:
         
         return weighted_sum
     
-    def apply_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
-                        output_name: str = "constrained_overlay.tif") -> str:
-       
-        constraint_path = constraint_path or self.config.constraint_raster_path
-        
-        
-        # Initialize constraint array
-        constraint_aligned = np.zeros_like(weighted_sum, dtype=np.float32)
-        
-        with rasterio.open(constraint_path) as src:
-            reproject(
-                source=rasterio.band(src, 1),
-                destination=constraint_aligned,
-                src_transform=src.transform,
-                src_crs=src.crs,
-                dst_transform=self.reference_profile['transform'],
-                dst_crs=self.reference_profile['crs'],
-                resampling=Resampling.nearest
-            )
-        
-
-        constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
-        
-        
-        final_priority = weighted_sum * constraint_mask
-        
-        # Save constrained overlay
+    def make_raster_output(self, weighted_sum: np.ndarray, 
+                     output_name: str = "constrained_overlay.tif") -> str:
+        if weighted_sum.ndim == 2:
+            final_priority = weighted_sum[np.newaxis, :, :]
+        else:
+            final_priority = weighted_sum
+        profile = self.reference_profile.copy()
+        profile.update(
+            dtype=rasterio.float32,
+            count=1
+        )
         output_path = os.path.join(self.config.output_path, output_name)
-        with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
-            dst.write(final_priority, 1)
-        
-       
+        with rasterio.open(output_path, 'w', **profile) as dst:
+            dst.write(final_priority.astype(np.float32))
+
         return output_path, final_priority
-    
+
     def apply_constraints_new(self, weighted_sum: np.ndarray, constraint_paths: List[str] = None,
                         output_name: str = "constrained_overlay.tif") -> str:
        
@@ -651,7 +634,7 @@ class GWAPriorityMapper:
                 weights, overlay_name
             )
             output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
-            constrained_path, _ = self.processor.apply_constraint(
+            constrained_path, _ = self.processor.make_raster_output(
                 weighted_sum, output_name=output_name
             )
             final_name = f"Groundwater_potential_{uuid.uuid4().hex}.tif"

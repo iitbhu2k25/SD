@@ -75,11 +75,11 @@ async def report_download(websocket: WebSocket, task_id: str):
             if not parent_result.ready():
                 await asyncio.sleep(2)
                 continue
-
             try:
                 result_data = parent_result.get(timeout=5)
                 chord_id = result_data['chord_id']
             except Exception as e:
+                print("xxx",str(e))
                 await websocket.send_json({
                     "status": "ERROR",
                     "message": f"Failed to get chord_id: {str(e)}"

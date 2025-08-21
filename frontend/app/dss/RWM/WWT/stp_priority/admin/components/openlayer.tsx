@@ -87,7 +87,7 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Context hooks
-  const { displayRaster,setSelectedState } = useLocation();
+  const { displayRaster,setSelectedState ,setSelectedDistricts, setSelectedSubDistricts} = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -263,7 +263,17 @@ const Maping: React.FC = () => {
         if (geometry && geometry.getType().includes('Polygon')) {
           // Try to get state code from different possible property names
           const stateCode = feature.get("State_Code")
-          if (stateCode) {
+          const districtCode= feature.get("district_c")
+          const subdistrictCode= feature.get("subdis_cod")
+          console.log("Selected state code:", stateCode,"Selected district code:", districtCode,"Selected subdistrict code:", subdistrictCode);
+
+          if (subdistrictCode as number){
+            setSelectedSubDistricts([subdistrictCode]);
+          }
+          else if (districtCode as number){
+            setSelectedDistricts([districtCode]);
+          }                                                   
+          else if (stateCode) {
             setSelectedState(stateCode);
           } else {
             console.log("No state code found in polygon properties:", feature.getProperties());
@@ -475,7 +485,7 @@ const Maping: React.FC = () => {
         serverType: "geoserver",
       });
 
-      const legendUrlString = `${layerUrl}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=${fullLayerName}&STYLE=`;
+      const legendUrlString = `${layerUrl}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=${fullLayerName}&LEGEND_OPTIONS=fontAntiAliasing:true;fontSize:12;fontColor:0x000000;bgColor:0xFFFFFF;dpi:96`;
       setLegendUrl(legendUrlString);
 
       setTimeout(() => {
@@ -716,12 +726,7 @@ const Maping: React.FC = () => {
                       <div className="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-purple-800">Raster Layer</span>
                     </div>
-                    <button
-                      onClick={() => setShowLegend(!showLegend)}
-                      className={`text-xs px-3 py-2 rounded-full transition-all duration-200 ${showLegend ? "bg-purple-200/80 text-purple-800" : "bg-white/80 text-purple-700"}`}
-                    >
-                      {showLegend ? "Hide Legend" : "Show Legend"}
-                    </button>
+                  
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-gray-700 mb-2">
@@ -805,7 +810,7 @@ const Maping: React.FC = () => {
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setShowLegend(false)} className="text-gray-400 hover:text-gray-600">×</button>
+              <button onClick={() => setShowLegend(!showLegend)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>

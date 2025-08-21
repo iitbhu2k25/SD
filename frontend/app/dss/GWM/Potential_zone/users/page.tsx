@@ -114,7 +114,7 @@ const MainContent = () => {
         "/stp_operation/stp_priority_drain_report",
         { body: data }
       );
-      if (response.status != 201) {
+      if (response.status != 200) {
         console.log("report false");
         setReportLoading(false);
         toast.error("Report failed", {
