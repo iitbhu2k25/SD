@@ -1,3 +1,4 @@
+// Handle secondary layer visibility and primary layer toggle
 import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
@@ -10,7 +11,7 @@ import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
 import { doubleClick, pointerMove } from "ol/events/condition";
 import Image from "next/image";
-import { baseMaps,GISCompass } from "@/components/mapcomponents";
+
 import { fromLonLat } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -24,14 +25,11 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import "ol/ol.css";
-
+import { baseMaps,GISCompass } from "@/components/mapcomponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
-
-
-// Feature Info Panel Component
 
 
 // Hover Tooltip Component
@@ -83,7 +81,6 @@ const Maping: React.FC = () => {
   const [showTitles, setShowTitles] = useState(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [showLayerList, setShowLayerList] = useState(false);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
@@ -119,7 +116,13 @@ const Maping: React.FC = () => {
       document.exitFullscreen?.();
     }
   };
-
+  useEffect(() => {
+    if (primaryLayerRef.current && featureCounts.secondary > 0) {
+      primaryLayerRef.current.setVisible(!showSecondaryLayer);
+    } else if (primaryLayerRef.current) {
+      primaryLayerRef.current.setVisible(true);
+    }
+  }, [showSecondaryLayer, featureCounts.secondary]);
   const togglePanel = (panelName: string) => {
     setActivePanel(activePanel === panelName ? null : panelName);
   };
@@ -260,9 +263,7 @@ const Maping: React.FC = () => {
         if (geometry && geometry.getType().includes('Polygon')) {
           // Try to get state code from different possible property names
           const stateCode = feature.get("State_Code")
-          
           if (stateCode) {
-            console.log("Double-clicked polygon, adding state code:", stateCode);
             setSelectedState(stateCode);
           } else {
             console.log("No state code found in polygon properties:", feature.getProperties());
@@ -378,7 +379,7 @@ const Maping: React.FC = () => {
     };
   }, [primaryLayer, defaultWorkspace]);
 
-  // Handle secondary layer
+
   useEffect(() => {
     if (!mapInstanceRef.current || !secondaryLayer) {
       setFeatureCounts(prev => ({ ...prev, secondary: 0 }));
@@ -652,13 +653,28 @@ const Maping: React.FC = () => {
             </div>
             <div className="space-y-3">
               {featureCounts.primary > 0 && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
+                <div className={`p-4 rounded-xl border ${
+                  featureCounts.secondary > 0 && showSecondaryLayer 
+                    ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200" 
+                    : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
+                }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
-                      <span className="font-semibold text-blue-800">Primary Layer</span>
+                      <div className={`w-4 h-4 ${
+                        featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
+                      } rounded-full mr-3`}></div>
+                      <span className={`font-semibold ${
+                        featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
+                      }`}>Primary Layer</span>
+                      {featureCounts.secondary > 0 && showSecondaryLayer && (
+                        <span className="text-xs text-gray-500 ml-2">(Hidden when secondary shown)</span>
+                      )}
                     </div>
-                    <span className="text-xs bg-blue-200/80 text-blue-800 px-3 py-1 rounded-full">
+                    <span className={`text-xs px-3 py-1 rounded-full ${
+                      featureCounts.secondary > 0 && showSecondaryLayer 
+                        ? "bg-gray-200/80 text-gray-700" 
+                        : "bg-blue-200/80 text-blue-800"
+                    }`}>
                       {featureCounts.primary} features
                     </span>
                   </div>
@@ -684,6 +700,7 @@ const Maping: React.FC = () => {
                           }
                         }}
                         className={`w-12 h-6 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}
+                        title={showSecondaryLayer ? "Hide secondary layer (show primary)" : "Show secondary layer (hide primary)"}
                       >
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showSecondaryLayer ? "translate-x-6" : ""}`} />
                       </button>
@@ -777,23 +794,12 @@ const Maping: React.FC = () => {
                 <span className="text-sm font-medium">Home View</span>
               </button>
 
-              <button
-                onClick={() => setShowLayerList(!showLayerList)}
-                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${
-                  showLayerList
-                    ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 text-blue-700"
-                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
-                }`}
-              >
-                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span className="text-sm font-medium">Layer List</span>
-              </button>
+             
             </div>
           </div>
         )}
-
+        
+        
         {/* Legend */}
         {showLegend && legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
