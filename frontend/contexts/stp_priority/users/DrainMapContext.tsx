@@ -431,7 +431,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setShowLayer:()=>{},
     showLayer: false,
     setShowLegend: () => {},
-    showLegend: false,
+    showLegend,
     selectedradioLayer,
     setSelectedradioLayer: () => {},
     error,

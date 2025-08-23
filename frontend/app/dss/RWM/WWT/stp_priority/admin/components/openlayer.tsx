@@ -259,9 +259,8 @@ const Maping: React.FC = () => {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
         
-        // Only process polygon features
+
         if (geometry && geometry.getType().includes('Polygon')) {
-          // Try to get state code from different possible property names
           const stateCode = feature.get("State_Code")
           const districtCode= feature.get("district_c")
           const subdistrictCode= feature.get("subdis_cod")

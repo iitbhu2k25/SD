@@ -1130,7 +1130,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
         tasks = []
         for item in file_paths:
             file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
-            file_path = os.path.join(unique_folder_path, "image", file_name)  
+            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ","_"))  
             tasks.append(
             celery_currency_image1.s(
             file_path=file_path,

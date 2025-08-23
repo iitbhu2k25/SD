@@ -58,6 +58,7 @@ interface RiverSystemContextType {
   drains: Drain[];
   catchments: Catchment[];
   selectedRiver: number | null;
+  setSelectedRiver: (riverCode: number) => void;
   selectedStretches: number[];
   selectedDrains: number[];
   selectedCatchments: number[];
@@ -97,8 +98,11 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   drains: [],
   catchments: [],
   selectedRiver: null,
+  setSelectedRiver: () => {},
   selectedStretches: [],
+  setSelectedStretches: () => {},
   selectedDrains: [],
+  setSelectedDrains: () => {},
   selectedCatchments: [],
   selectedRiverName: null,
   selectedStreachNames: [],
@@ -113,8 +117,7 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   isLoading: false,
   showCatchment: false,
   handleRiverChange: () => {},
-  setSelectedStretches: () => {},
-  setSelectedDrains: () => {},
+
   setSelectedCatchments: () => {},
   confirmSelections: () => null,
   resetSelections: () => {},
@@ -460,6 +463,9 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     setTotalCatchments(0);
     setSelectionsLocked(false);
     setDisplayRaster([]);
+    setCatchments([]);
+    
+
   };
 
   // Context value
@@ -469,6 +475,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     drains,
     catchments,
     selectedRiver,
+    setSelectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,

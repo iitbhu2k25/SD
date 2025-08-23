@@ -1,18 +1,18 @@
 
 services:
-  frontend:
-    build:
-      context: ./frontend/
-      dockerfile: dockerfile.frontend 
-    image: frontend:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/home/app:z
-    depends_on:
-      - fast_backend
-      - geoserver
-    command: npm start
+  # frontend:
+  #   build:
+  #     context: ./frontend/
+  #     dockerfile: dockerfile.frontend 
+  #   image: frontend:latest
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/home/app:z
+  #   depends_on:
+  #     - fast_backend
+  #     - geoserver
+  #   command: npm start
 
   docker-staticmaps:
     image: mxdcodes/docker-staticmaps:latest

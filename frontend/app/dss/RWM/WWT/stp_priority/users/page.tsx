@@ -18,6 +18,7 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import { useWebSocket } from "@/services/websocket";
+import { LAYER_NAMES } from "@/contexts/stp_priority/users/DrainMapContext";
 
 const MainContent = () => {
   const { selectedCategories, stpProcess } = useCategory();
@@ -42,7 +43,7 @@ const MainContent = () => {
     tableData,
   } = useRiverSystem();
 
-  const { setstpOperation, loading, isMapLoading, stpOperation } = useMap();
+  const { setstpOperation, loading, isMapLoading, stpOperation ,setCatchmentLayer} = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,8 @@ const MainContent = () => {
 
   const handleReset = () => {
     resetSelections();
+    setCatchmentLayer(null);
+    LAYER_NAMES.CATCHMENT=null;
     setShowCategories(false);
   };
 
