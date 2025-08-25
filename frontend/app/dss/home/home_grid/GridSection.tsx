@@ -6,7 +6,7 @@ import { useState } from "react";
 
 const gridItems = [
   {
-    href: "/dss/home/component/home_grid/home_card/gwm",
+    href: "dss/home/home_grid/home_card/gwm",
     imgSrc: "/Images/GridSection/gwm.webp",
     alt: "Ground Water Management",
     title: "Ground Water Management",
@@ -15,7 +15,7 @@ const gridItems = [
     color: "from-blue-400/30 to-blue-600/40"
   },
   {
-    href: "/dss/home/component/home_grid/home_card/rwm",
+    href: "dss/home/home_grid/home_card/rwm",
     imgSrc: "/Images/GridSection/rwm.jpeg",
     alt: "River Water Management",
     title: "River Water Management",
@@ -24,7 +24,7 @@ const gridItems = [
     color: "from-blue-400/30 to-blue-600/40"
   },
   {
-    href: "/dss/home/component/home_grid/home_card/wrm",
+    href: "dss/home/home_grid/home_card/wrm",
     imgSrc: "/Images/GridSection/wrm.jpg",
     alt: "Water Resource Management",
     title: "Water Resource Management",
@@ -33,7 +33,7 @@ const gridItems = [
     color: "from-blue-400/30 to-blue-600/40"
   },
   {
-    href: "/dss/home/component/home_grid/home_card/shsd",
+    href: "dss/home/home_grid/home_card/shsd",
     imgSrc: "/Images/GridSection/shs.jpeg",
     alt: "Socio-Hydrological System",
     title: "Socio-Hydrological System",
@@ -42,7 +42,7 @@ const gridItems = [
     color: "from-blue-400/30 to-blue-600/40"
   },
   {
-    href: "/dss/home/component/home_grid/home_card/basic_module",
+    href: "dss/home/home_grid/home_card/basic_module",
     imgSrc: "/Images/GridSection/basicmodule.jpg",
     alt: "Basic Module",
     title: "Basic Module",
