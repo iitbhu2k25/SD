@@ -104,7 +104,7 @@ function MapLayers({
 
   // Helper function to create WFS URL
   const createWFSUrl = (layerName: string, cqlFilter?: string) => {
-    const baseUrl = '/geoserver/api/';
+    const baseUrl = '/geoserver/api/myworkspace/wfs';
     const params = new URLSearchParams({
       service: 'WFS',
       version: '1.0.0',
@@ -344,7 +344,7 @@ function MapLayers({
 
         const data = await response.json();
         console.log('Base map data received from GeoServer');
-        
+
         if (
           !data ||
           data.type !== 'FeatureCollection' ||

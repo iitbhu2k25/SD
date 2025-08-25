@@ -106,33 +106,45 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
   // Register the reset functions in the global window object
   useEffect(() => {
-    // Function to reset district selections
-    window.resetDistrictSelectionsInLocationSelector = () => {
-      if (!selectionsLocked) {
-        console.log('Location selector resetting district selections');
-        setSelectedDistricts([]);
-        setSelectedSubDistricts([]);
-        setSelectedVillages([]);
-        setTotalPopulation(0);
+  window.resetDistrictSelectionsInLocationSelector = () => {
+    if (!selectionsLocked) {
+      setSelectedDistricts([]);
+      setSelectedSubDistricts([]);
+      setSelectedVillages([]);
+      setTotalPopulation(0);
+      onDistrictsChange?.([]);
+      onSubDistrictsChange?.([]);
+      onVillagesChange?.([]);
+      if (window.selectedLocations) {
+        window.selectedLocations.villages = [];
+        window.selectedLocations.subDistricts = [];
+        window.selectedLocations.districts = [];
+        window.selectedLocations.totalPopulation = 0;
       }
-    };
+    }
+  };
 
-    // Function to reset subdistrict selections
-    window.resetSubDistrictSelectionsInLocationSelector = () => {
-      if (!selectionsLocked) {
-        console.log('Location selector resetting subdistrict selections');
-        setSelectedSubDistricts([]);
-        setSelectedVillages([]);
-        setTotalPopulation(0);
+  window.resetSubDistrictSelectionsInLocationSelector = () => {
+    if (!selectionsLocked) {
+      setSelectedSubDistricts([]);
+      setSelectedVillages([]);
+      setTotalPopulation(0);
+      onSubDistrictsChange?.([]);
+      onVillagesChange?.([]);
+      if (window.selectedLocations) {
+        window.selectedLocations.villages = [];
+        window.selectedLocations.subDistricts = [];
+        window.selectedLocations.totalPopulation = 0;
       }
-    };
+    }
+  };
 
-    // Cleanup function to remove the handlers when component unmounts
-    return () => {
-      window.resetDistrictSelectionsInLocationSelector = undefined;
-      window.resetSubDistrictSelectionsInLocationSelector = undefined;
-    };
-  }, [selectionsLocked]);
+  return () => {
+    window.resetDistrictSelectionsInLocationSelector = undefined;
+    window.resetSubDistrictSelectionsInLocationSelector = undefined;
+  };
+}, [selectionsLocked, onDistrictsChange, onSubDistrictsChange, onVillagesChange]);
+
 
   // Fetch states on component mount
   useEffect(() => {
@@ -386,22 +398,48 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
   // In the handleDistrictsChange function (you'll need to create this)
   const handleDistrictsChange = (newSelectedDistricts: string[]) => {
-    setSelectedDistricts(newSelectedDistricts);
+  setSelectedDistricts(newSelectedDistricts);
 
-    // Call the callback to notify parent component
-    if (onDistrictsChange) {
-      onDistrictsChange(newSelectedDistricts);
-    }
-  };
+  // Immediately clear subdistricts and villages upward to parent (Map)
+  onSubDistrictsChange?.([]);           // notify cleared subdistricts
+  onVillagesChange?.([]);               // notify cleared villages
+
+  // Clear local selections
+  setSelectedSubDistricts([]);
+  setSelectedVillages([]);
+  setTotalPopulation(0);
+
+  // Clear any global stale selection that might re-inject villages
+  if (window.selectedLocations) {
+    window.selectedLocations.villages = [];
+    window.selectedLocations.allVillages = [];
+    window.selectedLocations.totalPopulation = 0;
+  }
+
+  onDistrictsChange?.(newSelectedDistricts);
+};
+
 
   const handleSubDistrictsChange = (newSelectedSubDistricts: string[]) => {
-    setSelectedSubDistricts(newSelectedSubDistricts);
+  setSelectedSubDistricts(newSelectedSubDistricts);
 
-    // Call the callback to notify parent component
-    if (onSubDistrictsChange) {
-      onSubDistrictsChange(newSelectedSubDistricts);
-    }
-  };
+  // Clear villages upward immediately
+  onVillagesChange?.([]);
+
+  // Clear local
+  setSelectedVillages([]);
+  setTotalPopulation(0);
+
+  // Clear global
+  if (window.selectedLocations) {
+    window.selectedLocations.villages = [];
+    window.selectedLocations.allVillages = [];
+    window.selectedLocations.totalPopulation = 0;
+  }
+
+  onSubDistrictsChange?.(newSelectedSubDistricts);
+};
+
 
   // Handle form reset
   const handleReset = (): void => {

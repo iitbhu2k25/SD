@@ -15,16 +15,11 @@ drain_buffer_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Dr
 boundry_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Boundary', 'Boundary.zip')
 town_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Town', 'Town.zip')
 
-ZIP_DIR = Path(BASE_DIR) / "media" / "anas_data" / "shp_zip"
 
 
 try:
     create_workspace("vector_work")
-    create_workspace("myworkspace")
-
     create_vector_stores("vector_work","stp_vector_store")
-    create_vector_stores("myworkspace","basic_vector_store")
-
     upload_shapefile("vector_work","stp_vector_store",state_zip,"STP_state_layers")
     upload_shapefile("vector_work","stp_vector_store",district_zip,"STP_district_layers")
     upload_shapefile("vector_work","stp_vector_store",subdistrict_zip,"STP_subdistrict_layers")
@@ -35,9 +30,6 @@ try:
     upload_shapefile("vector_work","stp_vector_store",boundry_zip,"Boundary")
     upload_shapefile("vector_work","stp_vector_store",town_zip,"Town")
     upload_shapefile("vector_work","stp_vector_store",drain_buffer_zip,"Drain_Suitability")
-    for zip_file in ZIP_DIR.glob("*.zip"):
-            upload_shapefile("myworkspace","basic_vector_store",zip_file,os.path.basename(zip_file))
-
 
 except Exception as e:
     print(e)
