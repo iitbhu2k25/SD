@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useCategory } from "@/contexts/stp_gwz/admin/CategoryContext";
+import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
 
 export const CategorySlider = () => {
   const {

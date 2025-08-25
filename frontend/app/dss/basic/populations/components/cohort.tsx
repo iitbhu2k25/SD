@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -9,8 +8,6 @@ import {
   Title,
   Tooltip,
   Legend,
-  ChartOptions,
-  BarControllerChartOptions,
 } from 'chart.js';
 
 // Register Chart.js components
@@ -101,7 +98,6 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
 
   // Chart.js data configuration for the pyramid
   const pyramidChartData = {
-    type: 'bar',
     labels: pyramidAgeGroups,
     datasets: [
       {
@@ -121,170 +117,172 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
     ],
   };
 
-  
-   // Chart.js options for the pyramid
-   const pyramidChartOptions = {
-  indexAxis: 'y' as const,
-  scales: {
-    x: {
-      stacked: true,
+  // Chart.js options for the pyramid - Fixed TypeScript types
+  const pyramidChartOptions = {
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Population',
+          color: '#374151',
+        },
+        ticks: {
+          callback: function(value: any) {
+            return Math.abs(Number(value)).toLocaleString();
+          },
+          color: '#374151',
+        },
+        grid: {
+          color: '#e5e7eb',
+        },
+      },
+      y: {
+        stacked: true,
+        title: {
+          display: true,
+          text: 'Age Group',
+          color: '#374151',
+        },
+        ticks: {
+          color: '#374151',
+        },
+        grid: {
+          display: false,
+        },
+        reverse: false,
+      },
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: '#374151',
+        },
+      },
       title: {
         display: true,
-        text: 'Population',
-        color: '#374151',
+        text: `Age-Sex Pyramid (${selectedYear || ''})`,
+        color: '#1e40af',
+        font: {
+          size: 16,
+        },
       },
-      ticks: {
-        callback: (value: string | number) => Math.abs(Number(value)).toLocaleString(),
-        color: '#374151',
-      },
-      grid: {
-        color: '#e5e7eb',
-      },
-    },
-    y: {
-      stacked: true,
-      title: {
-        display: true,
-        text: 'Age Group',
-        color: '#374151',
-      },
-      ticks: {
-        color: '#374151',
-      },
-      grid: {
-        display: false,
-      },
-      reverse: false,
-    },
-  },
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        color: '#374151',
-      },
-    },
-    title: {
-      display: true,
-      text: `Age-Sex Pyramid (${selectedYear || ''})`,
-      color: '#1e40af',
-      font: {
-        size: 16,
-      },
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          const value = Math.abs(context.raw).toLocaleString();
-          return `${context.dataset.label}: ${value}`;
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const value = Math.abs(context.raw).toLocaleString();
+            return `${context.dataset.label}: ${value}`;
+          },
         },
       },
     },
-  },
-  responsive: true,
-  maintainAspectRatio: false,
-} as ChartOptions<'bar'>;
-
+  };
 
   return (
-    <div className="mt-8 max-w-7xl">
-      <h2 className="text-3xl font-bold text-blue-800 mb-6">
+    <div className="w-full">
+      <h2 className="text-2xl lg:text-3xl font-bold text-blue-800 mb-6">
         Cohort Analysis {sortedCohortData.length === 1 ? `(${sortedCohortData[0].year})` : ''}
       </h2>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="w-full flex flex-col xl:flex-row gap-6">
         {/* Table Container */}
-        <div className="flex-1 overflow-x-auto border border-gray-200 rounded-xl shadow-lg bg-white">
-          <div className="max-h-96 overflow-y-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 sticky top-0 z-20">
-                <tr>
-                  <th className="border-b px-6 py-4 text-left font-semibold text-sm sticky left-0 bg-gray-100 z-30">
-                    Age Group
-                  </th>
-                  {sortedCohortData.map((data, index) => (
-                    <th
-                      key={data.year}
-                      colSpan={3}
-                      className={`border-b px-6 py-4 text-center font-semibold text-sm ${
-                        index < sortedCohortData.length - 1 ? 'border-r border-gray-300' : ''
-                      }`}
-                    >
-                      {data.year}
+        <div className="flex-1 min-w-0 overflow-hidden border border-gray-200 rounded-xl shadow-lg bg-white">
+          <div className="w-full overflow-x-auto">
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full min-w-max border-collapse">
+                <thead className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 sticky top-0 z-20">
+                  <tr>
+                    <th className="border-b px-3 lg:px-6 py-4 text-left font-semibold text-sm sticky left-0 bg-gray-100 z-30 min-w-[120px]">
+                      Age Group
                     </th>
-                  ))}
-                </tr>
-                <tr>
-                  <th className="border-b px-6 py-4 text-left font-semibold text-sm sticky left-0 bg-gray-100 z-30"></th>
-                  {sortedCohortData.map((data, index) => (
-                    <React.Fragment key={`headers-${data.year}`}>
-                      <th className="border-b px-6 py-4 text-center font-semibold text-sm text-blue-600">
-                        Male
-                      </th>
-                      <th className="border-b px-6 py-4 text-center font-semibold text-sm text-pink-600">
-                        Female
-                      </th>
+                    {sortedCohortData.map((data, index) => (
                       <th
-                        className={`border-b px-6 py-4 text-center font-semibold text-sm text-gray-700 ${
+                        key={data.year}
+                        colSpan={3}
+                        className={`border-b px-3 lg:px-6 py-4 text-center font-semibold text-sm whitespace-nowrap ${
                           index < sortedCohortData.length - 1 ? 'border-r border-gray-300' : ''
                         }`}
                       >
-                        Total
+                        {data.year}
                       </th>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedAgeGroups.map((ageGroup, index) => (
-                  <tr
-                    key={ageGroup}
-                    className={`border-b hover:bg-gray-50 transition-colors ${
-                      index % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'
-                    } ${ageGroup === 'total' ? 'bg-blue-50 font-semibold border-t-2 border-blue-200' : ''}`}
-                  >
-                    <td
-                      className={`border-b px-6 py-4 font-medium text-gray-800 sticky left-0 z-10 ${
-                        ageGroup === 'total' ? 'bg-blue-50 font-bold text-blue-800' : 'bg-inherit'
-                      }`}
-                    >
-                      {ageGroup === 'total' ? 'TOTAL' : ageGroup}
-                    </td>
-                    {sortedCohortData.map((data, dataIndex) => (
-                      <React.Fragment key={`data-${data.year}-${ageGroup}`}>
-                        <td
-                          className={`border-b px-6 py-4 text-center font-medium ${
-                            ageGroup === 'total' ? 'text-blue-700 font-bold' : 'text-blue-600'
+                    ))}
+                  </tr>
+                  <tr>
+                    <th className="border-b px-3 lg:px-6 py-4 text-left font-semibold text-sm sticky left-0 bg-gray-100 z-30"></th>
+                    {sortedCohortData.map((data, index) => (
+                      <React.Fragment key={`headers-${data.year}`}>
+                        <th className="border-b px-3 lg:px-6 py-4 text-center font-semibold text-sm text-blue-600 whitespace-nowrap min-w-[80px]">
+                          Male
+                        </th>
+                        <th className="border-b px-3 lg:px-6 py-4 text-center font-semibold text-sm text-pink-600 whitespace-nowrap min-w-[80px]">
+                          Female
+                        </th>
+                        <th
+                          className={`border-b px-3 lg:px-6 py-4 text-center font-semibold text-sm text-gray-700 whitespace-nowrap min-w-[80px] ${
+                            index < sortedCohortData.length - 1 ? 'border-r border-gray-300' : ''
                           }`}
                         >
-                          {data.data[ageGroup]?.male?.toLocaleString() ?? '-'}
-                        </td>
-                        <td
-                          className={`border-b px-6 py-4 text-center font-medium ${
-                            ageGroup === 'total' ? 'text-pink-700 font-bold' : 'text-pink-600'
-                          }`}
-                        >
-                          {data.data[ageGroup]?.female?.toLocaleString() ?? '-'}
-                        </td>
-                        <td
-                          className={`border-b px-6 py-4 text-center font-semibold ${
-                            ageGroup === 'total' ? 'text-gray-800 font-bold' : 'text-gray-700'
-                          } ${dataIndex < sortedCohortData.length - 1 ? 'border-r border-gray-300' : ''}`}
-                        >
-                          {data.data[ageGroup]?.total?.toLocaleString() ?? '-'}
-                        </td>
+                          Total
+                        </th>
                       </React.Fragment>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {sortedAgeGroups.map((ageGroup, index) => (
+                    <tr
+                      key={ageGroup}
+                      className={`border-b hover:bg-gray-50 transition-colors ${
+                        index % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'
+                      } ${ageGroup === 'total' ? 'bg-blue-50 font-semibold border-t-2 border-blue-200' : ''}`}
+                    >
+                      <td
+                        className={`border-b px-3 lg:px-6 py-4 font-medium text-gray-800 sticky left-0 z-10 whitespace-nowrap ${
+                          ageGroup === 'total' ? 'bg-blue-50 font-bold text-blue-800' : 'bg-inherit'
+                        }`}
+                      >
+                        {ageGroup === 'total' ? 'TOTAL' : ageGroup}
+                      </td>
+                      {sortedCohortData.map((data, dataIndex) => (
+                        <React.Fragment key={`data-${data.year}-${ageGroup}`}>
+                          <td
+                            className={`border-b px-3 lg:px-6 py-4 text-center font-medium whitespace-nowrap ${
+                              ageGroup === 'total' ? 'text-blue-700 font-bold' : 'text-blue-600'
+                            }`}
+                          >
+                            {data.data[ageGroup]?.male?.toLocaleString() ?? '-'}
+                          </td>
+                          <td
+                            className={`border-b px-3 lg:px-6 py-4 text-center font-medium whitespace-nowrap ${
+                              ageGroup === 'total' ? 'text-pink-700 font-bold' : 'text-pink-600'
+                            }`}
+                          >
+                            {data.data[ageGroup]?.female?.toLocaleString() ?? '-'}
+                          </td>
+                          <td
+                            className={`border-b px-3 lg:px-6 py-4 text-center font-semibold whitespace-nowrap ${
+                              ageGroup === 'total' ? 'text-gray-800 font-bold' : 'text-gray-700'
+                            } ${dataIndex < sortedCohortData.length - 1 ? 'border-r border-gray-300' : ''}`}
+                          >
+                            {data.data[ageGroup]?.total?.toLocaleString() ?? '-'}
+                          </td>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
         {/* Pyramid Chart Container */}
-        <div className="lg:w-1/2 border border-gray-200 -mr-24 rounded-xl shadow-lg bg-white p-1">
-          <div className="relative">
+        <div className="w-full xl:w-1/2 xl:max-w-lg border border-gray-200 rounded-xl shadow-lg bg-white p-4">
+          <div className="relative w-full">
             {/* Year Selection Dropdown */}
             <div className="absolute top-0 right-0 z-10">
               <select
@@ -299,7 +297,7 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
                 ))}
               </select>
             </div>
-            <div style={{ height: '400px' }}>
+            <div className="w-full" style={{ height: '400px' }}>
               <Bar data={pyramidChartData} options={pyramidChartOptions} />
             </div>
           </div>
@@ -310,9 +308,9 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
       {sortedCohortData.length === 1 && (
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-blue-800 mb-2">Summary</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-xl lg:text-2xl font-bold text-blue-600">
                 {sortedCohortData[0].data.total?.male?.toLocaleString() ||
                   Object.values(sortedCohortData[0].data)
                     .filter((group) => group && typeof group.male === 'number')
@@ -322,7 +320,7 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
               <div className="text-sm text-gray-600">Total Male</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-pink-600">
+              <div className="text-xl lg:text-2xl font-bold text-pink-600">
                 {sortedCohortData[0].data.total?.female?.toLocaleString() ||
                   Object.values(sortedCohortData[0].data)
                     .filter((group) => group && typeof group.female === 'number')
@@ -332,7 +330,7 @@ const Cohort: React.FC<CohortProps> = ({ cohortData }) => {
               <div className="text-sm text-gray-600">Total Female</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-gray-700">
+              <div className="text-xl lg:text-2xl font-bold text-gray-700">
                 {sortedCohortData[0].data.total?.total?.toLocaleString() ||
                   Object.values(sortedCohortData[0].data)
                     .filter((group) => group && typeof group.total === 'number')

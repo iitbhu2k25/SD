@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 import math
+import tempfile
 from .service import *
 from django.db.models import Sum, Q
 from .models import PopulationCohort
@@ -16,7 +17,12 @@ import pandas as pd
 from django.conf import settings
 import traceback
 import logging
+import uuid
+from .swrunoff import swrunoffView
 from rest_framework.permissions import AllowAny 
+import tempfile
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 logger = logging.getLogger(__name__)
 
@@ -266,6 +272,7 @@ class DomesticWaterDemandCalculationAPIView(APIView):
     def post(self, request, format=None):
         forecast_data = request.data.get("forecast_data")
         per_capita_consumption = request.data.get("per_capita_consumption")
+        seasonal_multipliers = request.data.get("seasonal_multipliers", {})
         
         if forecast_data is None or per_capita_consumption is None:
             return Response(
@@ -281,18 +288,40 @@ class DomesticWaterDemandCalculationAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Calculate the effective per capita consumption
-        effective_consumption = 135 + per_capita
-        
-        result = {}
+        # Calculate base demand (original calculation)
+        base_demand = {}
         for year, population in forecast_data.items():
             try:
                 pop = float(population)
             except (ValueError, TypeError):
                 continue
-            result[year] = pop * (effective_consumption / 1000000)
+            base_demand[year] = pop * (per_capita / 1000000)
         
-        return Response(result, status=status.HTTP_200_OK)
+        # Default seasonal multipliers
+        default_multipliers = {
+            "summer": 1.10,
+            "monsoon": 0.95,
+            "postMonsoon": 1.00,
+            "winter": 0.90
+        }
+        
+        # Use provided multipliers or defaults
+        multipliers = {**default_multipliers, **seasonal_multipliers}
+        
+        # Calculate seasonal demands
+        seasonal_demands = {}
+        for season, multiplier in multipliers.items():
+            seasonal_demands[season] = {}
+            for year, base_value in base_demand.items():
+                seasonal_demands[season][year] = base_value * multiplier
+        
+        # Return both base and seasonal calculations
+        return Response({
+            "base_demand": base_demand,
+            "seasonal_demands": seasonal_demands,
+            "seasonal_multipliers": multipliers,
+            "base_per_capita": per_capita
+        }, status=status.HTTP_200_OK)
     
 class FloatingWaterDemandCalculationAPIView(APIView):
     
@@ -302,13 +331,19 @@ class FloatingWaterDemandCalculationAPIView(APIView):
     
     Expected JSON payload:
     {
-      "floating_population": <number>,          # Base floating population for 2011
-      "facility_type": <string>,                  # One of "provided", "notprovided", "onlypublic"
-      "domestic_forecast": {                      # Domestic forecast population for multiple years
+      "floating_population_percentage": <number>,   # Percentage of population (e.g., 15 for 15%)
+      "facility_type": <string>,                    # One of "provided", "notprovided", "onlypublic"
+      "domestic_forecast": {                        # Domestic forecast population for multiple years
           "2011": <number>,
           "2025": <number>,
           "2026": <number>,
           ...
+      },
+      "seasonal_multipliers": {                     # Optional seasonal multipliers
+          "summer": <number>,
+          "monsoon": <number>,
+          "postMonsoon": <number>,
+          "winter": <number>
       }
     }
     
@@ -318,34 +353,27 @@ class FloatingWaterDemandCalculationAPIView(APIView):
           - "notprovided": 25
           - "onlypublic": 15
       2. For each year, compute:
-          growth_ratio = domestic_forecast[year] / domestic_forecast["2011"]
-          projected_floating_population = floating_population * growth_ratio
+          projected_floating_population = domestic_forecast[year] * (floating_population_percentage / 100)
           demand = projected_floating_population * (facility_multiplier / 1000000)
+      3. If seasonal_multipliers provided, calculate seasonal demands
     """
     def post(self, request, format=None):
         data = request.data
-        floating_population = data.get("floating_population")
+        floating_population_percentage = data.get("floating_population_percentage", 15)  # Default to 15
         facility_type = data.get("facility_type")
         domestic_forecast = data.get("domestic_forecast")
+        seasonal_multipliers = data.get("seasonal_multipliers", {})
         
-        if floating_population is None or facility_type is None or domestic_forecast is None:
+        if facility_type is None or domestic_forecast is None:
             return Response(
-                {"error": "floating_population, facility_type, and domestic_forecast are required."},
+                {"error": "facility_type and domestic_forecast are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         try:
-            floating_population = float(floating_population)
+            floating_population_percentage = float(floating_population_percentage)
         except (TypeError, ValueError):
-            return Response({"error": "Invalid floating_population value."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if "2011" not in domestic_forecast:
-            return Response({"error": "domestic_forecast must include a value for 2011."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        try:
-            base_population = float(domestic_forecast["2011"])
-        except (TypeError, ValueError):
-            return Response({"error": "Invalid domestic_forecast value for 2011."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid floating_population_percentage value."}, status=status.HTTP_400_BAD_REQUEST)
         
         # Determine facility multiplier
         if facility_type == "provided":
@@ -360,21 +388,50 @@ class FloatingWaterDemandCalculationAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        result = {}
+        # Calculate base demand
+        base_demand = {}
         # For each year in the domestic forecast, calculate the projected floating demand.
-        for year, dom_value in domestic_forecast.items():
+        for year, population in domestic_forecast.items():
             try:
-                dom_value = float(dom_value)
+                population = float(population)
             except (TypeError, ValueError):
                 continue
-            # Calculate growth ratio relative to 2011
-            growth_ratio = dom_value / base_population if base_population != 0 else 1
-            projected_floating_population = floating_population * growth_ratio
+            
+            # Calculate floating population as percentage of total population
+            projected_floating_population = population * (floating_population_percentage / 100)
             demand = projected_floating_population * (facility_multiplier / 1000000)
-            result[year] = demand
+            base_demand[year] = demand
         
-        return Response(result, status=status.HTTP_200_OK)
-
+        # Always calculate seasonal demands
+        seasonal_demands = {}
+        
+        # Default multipliers
+        default_multipliers = {
+            "summer": 1.15,
+            "monsoon": 1.25,
+            "postMonsoon": 1.10,
+            "winter": 0.85
+        }
+        
+        # Use provided multipliers or defaults
+        multipliers = {**default_multipliers, **seasonal_multipliers}
+        
+        for season, multiplier in multipliers.items():
+            seasonal_demands[season] = {}
+            for year, base_value in base_demand.items():
+                seasonal_demands[season][year] = base_value * multiplier
+        
+        print(f"Floating population percentage: {floating_population_percentage}%")
+        print(f"Projected floating populations: {[(year, pop * (floating_population_percentage / 100)) for year, pop in domestic_forecast.items()]}")
+        
+        # Return both base and seasonal calculations
+        return Response({
+            "base_demand": base_demand,
+            "seasonal_demands": seasonal_demands,
+            "seasonal_multipliers": multipliers,
+            "facility_type": facility_type,
+            "floating_population_percentage": floating_population_percentage
+        }, status=status.HTTP_200_OK)
 class InstitutionalWaterDemandCalculationAPIView(APIView):
     
     permission_classes = [AllowAny]
@@ -521,11 +578,11 @@ class FirefightingWaterDemandCalculationAPIView(APIView):
     Expected JSON payload:
     {
       "firefighting_methods": {
-         "kuchling": true/false,
-         "freeman": true/false,
-         "buston": true/false,
-         "american_insurance": true/false,
-         "ministry_urban": true/false
+         "Kuchling": true/false,
+         "Freeman": true/false,
+         "Buston": true/false,
+         "American_insurance": true/false,
+         "Ministry_urban": true/false
       },
       "domestic_forecast": {
          "2011": <number>,
@@ -537,19 +594,19 @@ class FirefightingWaterDemandCalculationAPIView(APIView):
     
     For each checked method, the demand is calculated as follows:
     
-    - kuchling:  
+    - Kuchling:  
       demand = (4.582 / 100) * sqrt(popVal / 1000)
     
-    - freeman:  
+    - Freeman:  
       demand = (1.635 / 100) * ((popVal / 5000) + 10)
     
-    - buston:  
+    - Buston:  
       demand = (8.155 / 100) * sqrt(popVal / 1000)
     
-    - american_insurance:  
+    - American_insurance:  
       demand = (6.677 / 100) * sqrt(popVal / 1000) * (1 - 0.01 * sqrt(popVal / 1000))
     
-    - ministry_urban:  
+    - Ministry_urban:  
       demand = sqrt(popVal) / 1000
     
     where popVal is the forecasted population for that year.
@@ -581,15 +638,15 @@ class FirefightingWaterDemandCalculationAPIView(APIView):
                         popVal = float(value)
                     except (TypeError, ValueError):
                         continue
-                    if method == "kuchling":
+                    if method == "Kuchling":
                         demand = (4.582 / 100) * math.sqrt(popVal / 1000)
-                    elif method == "freeman":
+                    elif method == "Freeman":
                         demand = (1.635 / 100) * ((popVal / 5000) + 10)
-                    elif method == "buston":
+                    elif method == "Buston":
                         demand = (8.155 / 100) * math.sqrt(popVal / 1000)
-                    elif method == "american_insurance":
+                    elif method == "American_insurance":
                         demand = (6.677 / 100) * math.sqrt(popVal / 1000) * (1 - 0.01 * math.sqrt(popVal / 1000))
-                    elif method == "ministry_urban":
+                    elif method == "Ministry_urban":
                         demand = math.sqrt(popVal) / 1000
                     else:
                         demand = 0.0
@@ -1214,7 +1271,7 @@ class MultipleVillagesAPI(APIView):
         
         try:
             # Read the shapefile using geopandas
-            shapefile_full_path = os.path.join(shapefile_path, 'Village.shp')
+            shapefile_full_path = os.path.join(shapefile_path, 'Edited2.shp')
             print(f"Attempting to read shapefile from: {shapefile_full_path}")
             
             gdf = gpd.read_file(shapefile_full_path)
@@ -1499,7 +1556,7 @@ class VillagesCatchmentIntersection(APIView):
             
             # Construct paths to shapefiles
             catchment_path = os.path.join(settings.MEDIA_ROOT, 'Drain_shp', 'Catchments', 'Catchment.shp')
-            village_path = os.path.join(settings.MEDIA_ROOT, 'Drain_shp', 'Final_Village', 'Village.shp')
+            village_path = os.path.join(settings.MEDIA_ROOT, 'Drain_shp', 'Final_Village', 'Village_survey_of_ind.shp')
             
             if not os.path.exists(catchment_path) or not os.path.exists(village_path):
                 return Response(
@@ -1721,4 +1778,395 @@ class VillagePopulationRawSQL(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
+
+
+
+class StormwaterRunoffView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            # Extract data from request
+            area = request.data.get('area')
+            selected_time = request.data.get('selected_time')
+            shape = request.data.get('shape')
+            selected_land_use_type = request.data.get('selected_land_use_type')
+            rainfall_intensity = request.data.get('rainfall_intensity')  # New input
+            
+            # Validate required parameters
+            if not all([area, selected_time, shape, selected_land_use_type, rainfall_intensity]):
+                return Response({
+                    'error': 'Missing required parameters: area, selected_time, shape, selected_land_use_type, rainfall_intensity'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Convert to appropriate types
+            try:
+                area = float(area)
+                selected_time = int(selected_time)
+                rainfall_intensity = float(rainfall_intensity)
+            except (ValueError, TypeError):
+                return Response({
+                    'error': 'Invalid parameter types. Area and rainfall_intensity must be numbers, selected_time must be integer'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Fetch coefficient from database based on time duration
+            try:
+                coefficient_record = BasicRunoffCoefficient.objects.get(duration_t_minutes=selected_time)
+            except BasicRunoffCoefficient.DoesNotExist:
+                return Response({
+                    'error': f'No coefficient data found for duration {selected_time} minutes'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Get the coefficient C from the selected land use type field
+            if not hasattr(coefficient_record, selected_land_use_type):
+                return Response({
+                    'error': f'Land use type "{selected_land_use_type}" not found in coefficient data'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            C = getattr(coefficient_record, selected_land_use_type)
+            
+            if C is None:
+                return Response({
+                    'error': f'Coefficient value is null for land use type "{selected_land_use_type}"'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Calculate runoff using formula: Q = 10 * C * i * A
+            Q = (10 * float(C) * rainfall_intensity * area)/1000000
+            
+            # Return the result
+            return Response({
+                'storm_water_runoff': round(Q, 4),
+                'coefficient_C': float(C),
+                'rainfall_intensity': rainfall_intensity,
+                'area': area,
+                'duration_minutes': selected_time,
+                'land_use_type': selected_land_use_type,
+                'shape': shape,
+                'unit': 'MLD',
+                'formula_used': 'Q = (10 × C × i × A) / 1000000'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'An unexpected error occurred: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+####################
+
+
+class pdftotemp(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def post(self, request):
+        try:
+            if 'pdf_file' not in request.FILES:
+                return Response(
+                    {'error': 'No PDF file provided'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            pdf_file = request.FILES['pdf_file']
+            
+            if not pdf_file.name.lower().endswith('.pdf'):
+                return Response(
+                    {'error': 'Only PDF files are allowed'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create unique filename
+            name, ext = os.path.splitext(pdf_file.name)
+            unique_id = uuid.uuid4().hex
+            unique_filename = f"{name}_{unique_id}{ext}"
+            
+            # Create temp directory
+            temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Full path with unique filename
+            temp_file_path = os.path.join(temp_dir, unique_filename)
+            
+            # Save file
+            with open(temp_file_path, 'wb+') as destination:
+                for chunk in pdf_file.chunks():
+                    destination.write(chunk)
+            
+            return Response({
+                'message': 'PDF uploaded with unique filename',
+                'original_filename': pdf_file.name,
+                'unique_filename': unique_filename,
+                'unique_id': unique_id,
+                'temp_file_path': temp_file_path,
+                'file_size': pdf_file.size,
+                'relative_path': f'temp/{unique_filename}'
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Upload failed: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+####################
+
+
+#############################################
+from django.http import JsonResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+import geopandas as gpd
+import os
+import logging
+from django.conf import settings
+from rest_framework.permissions import AllowAny
+from shapely.ops import unary_union
+
+logger = logging.getLogger(__name__)
+
+# Set GDAL configuration
+os.environ['SHAPE_RESTORE_SHX'] = 'YES'
+
+class ShapefileDataAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, format=None):
+        try:
+            category = request.GET.get('category', '')
+            subcategory = request.GET.get('subcategory', '')
+            
+            logger.info(f"Requested category: {category}, subcategory: {subcategory}")
+
+            shapefile_paths = {
+                'india': {
+                    'all': os.path.join('shapefile', 'india', 'india.shp')
+                },
+                'administrative': {
+                    'district': os.path.join('shapefile', 'Administrative', 'District', 'Districts.shp'),
+                    'villages': os.path.join('shapefile', 'Administrative', 'Villages', 'Villages_PCS.shp')
+                },
+                'watershed': {
+                    'varuna': os.path.join('shapefile', 'Watershed', 'Varuna', 'Varuna_Watershed.shp'),
+                    'basuhi': os.path.join('shapefile', 'Watershed', 'Basuhi', 'Basuhi_Watershed.shp'),
+                    'morwa': os.path.join('shapefile', 'Watershed', 'Morwa', 'Morwa_Watershed.shp'),
+                    'all': os.path.join('shapefile', 'Watershed', 'All', 'Watershed.shp')
+                },
+                'drains': {
+                    'varuna': os.path.join('shapefile', 'DrainsOutlet', 'Varuna_Drain', 'Varuna_Drain.shp'),
+                    'basuhi': os.path.join('shapefile', 'DrainsOutlet', 'Basuhi_Drain', 'Basuhi_Drain.shp'),
+                    'morwa': os.path.join('shapefile', 'DrainsOutlet', 'Morwa_Drain', 'Morwa_Drain.shp')
+                },
+                'canals': {
+                    'all': os.path.join('shapefile', 'Canals', 'Canals.shp')
+                },
+                'household': {
+                    'All': os.path.join('shapefile', 'Households', 'All', 'Households.shp'),
+                    'Bhadohi': os.path.join('shapefile', 'Households', 'Bhadohi', 'Bhadohi', 'Households_Bhadohi.shp'),
+                    'Jaunpur': os.path.join('shapefile', 'Households', 'Jaunpur', 'Jaunpur', 'Households_Jaunpur.shp'),
+                    'Pratapgarh': os.path.join('shapefile', 'Households', 'Pratapgarh', 'Pratapgarh', 'Households_Pratapgarh.shp'),
+                    'Prayajraj': os.path.join('shapefile', 'Households', 'Prayajraj', 'Prayajraj', 'Households_Prayagraj.shp'),
+                    'Varanasi': os.path.join('shapefile', 'Households', 'Varanasi', 'Varanasi', 'Households_varanasi.shp')
+                },
+                'railways': {
+                    'all': os.path.join('shapefile', 'Railways', 'Railways.shp')
+                },
+                'industries': {
+                    'all': os.path.join('shapefile', 'Industries', 'Industries.shp')
+                },
+                'rivers': {
+                    'varuna': os.path.join('shapefile', 'Rivers', 'Varuna', 'Varuna_River.shp'),
+                    'basuhi': os.path.join('shapefile', 'Rivers', 'Basuhi', 'Basuhi_River.shp'),
+                    'morwa': os.path.join('shapefile', 'Rivers', 'Morwa', 'Morwa_River.shp')
+                },
+                'roads': {
+                    'all': os.path.join('shapefile', 'Roads', 'Roads.shp')
+                },
+                'stps': {
+                    'all': os.path.join('shapefile', 'STPs', 'STP.shp')
+                }
+            }
+
+            # Set default values if category or subcategory is empty
+            if not category or not subcategory:
+                default_category = 'india'
+                default_subcategory = 'all'
+                logger.info(f"Using default shapefile: {default_category}/{default_subcategory}")
+                category = category or default_category
+                subcategory = subcategory or default_subcategory
+
+            if category in shapefile_paths and subcategory in shapefile_paths[category]:
+                shapefile_path = os.path.join(settings.MEDIA_ROOT, shapefile_paths[category][subcategory])
+
+                # Check if file exists
+                if not os.path.exists(shapefile_path):
+                    logger.error(f"Shapefile not found at path: {shapefile_path}")
+                    return Response({
+                        'error': f'Shapefile not found: {shapefile_paths[category][subcategory]}'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+                logger.info(f"Reading shapefile from: {shapefile_path}")
+
+                # Read the shapefile
+                gdf = gpd.read_file(shapefile_path)
+
+                # Convert to WGS84 if needed
+                if gdf.crs and gdf.crs != 'EPSG:4326':
+                    logger.info("Converting CRS to EPSG:4326")
+                    gdf = gdf.to_crs('EPSG:4326')
+
+                features = []
+                for idx, row in gdf.iterrows():
+                    try:
+                        geometry = row.geometry
+                        if geometry is None or geometry.is_empty:
+                            continue
+
+                        properties = row.drop('geometry').to_dict()
+
+                        # Process different geometry types
+                        if geometry.geom_type == 'Polygon':
+                            coords = []
+                            exterior_coords = geometry.exterior.coords.xy
+                            for x, y in zip(exterior_coords[0], exterior_coords[1]):
+                                coords.append([float(x), float(y)])
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'Polygon',
+                                    'coordinates': [coords]
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'MultiPolygon':
+                            multi_coords = []
+                            for polygon in geometry.geoms:
+                                coords = []
+                                exterior_coords = polygon.exterior.coords.xy
+                                for x, y in zip(exterior_coords[0], exterior_coords[1]):
+                                    coords.append([float(x), float(y)])
+                                multi_coords.append(coords)
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'MultiPolygon',
+                                    'coordinates': [multi_coords]
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'LineString':
+                            coords = []
+                            line_coords = geometry.coords.xy
+                            for x, y in zip(line_coords[0], line_coords[1]):
+                                coords.append([float(x), float(y)])
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'LineString',
+                                    'coordinates': coords
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'MultiLineString':
+                            multi_coords = []
+                            for line in geometry.geoms:
+                                coords = []
+                                line_coords = line.coords.xy
+                                for x, y in zip(line_coords[0], line_coords[1]):
+                                    coords.append([float(x), float(y)])
+                                multi_coords.append(coords)
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'MultiLineString',
+                                    'coordinates': multi_coords
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'Point':
+                            x, y = geometry.x, geometry.y
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'Point',
+                                    'coordinates': [float(x), float(y)]
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'MultiPoint':
+                            multi_coords = []
+                            for point in geometry.geoms:
+                                x, y = point.x, point.y
+                                multi_coords.append([float(x), float(y)])
+                            features.append({
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'MultiPoint',
+                                    'coordinates': multi_coords
+                                },
+                                'properties': properties
+                            })
+
+                        elif geometry.geom_type == 'GeometryCollection':
+                            for subgeom in geometry.geoms:
+                                if subgeom.geom_type == 'Polygon':
+                                    coords = []
+                                    exterior_coords = subgeom.exterior.coords.xy
+                                    for x, y in zip(exterior_coords[0], exterior_coords[1]):
+                                        coords.append([float(x), float(y)])
+                                    features.append({
+                                        'type': 'Feature',
+                                        'geometry': {
+                                            'type': 'Polygon',
+                                            'coordinates': [coords]
+                                        },
+                                        'properties': properties
+                                    })
+                                elif subgeom.geom_type == 'Point':
+                                    x, y = subgeom.x, subgeom.y
+                                    features.append({
+                                        'type': 'Feature',
+                                        'geometry': {
+                                            'type': 'Point',
+                                            'coordinates': [float(x), float(y)]
+                                        },
+                                        'properties': properties
+                                    })
+
+                        logger.info(f"Successfully processed feature {idx}")
+
+                    except Exception as e:
+                        logger.error(f"Error processing feature {idx}: {str(e)}")
+                        continue
+
+                if not features:
+                    logger.error("No valid features were processed")
+                    return Response({'error': 'No valid features found in shapefile'}, status=status.HTTP_400_BAD_REQUEST)
+
+                logger.info(f"Successfully processed {len(features)} features")
+
+                geojson = {
+                    'type': 'FeatureCollection',
+                    'features': features
+                }
+
+                return Response(geojson, status=status.HTTP_200_OK)
+
+            else:
+                logger.error(f"Invalid category ({category}) or subcategory ({subcategory})")
+                return Response({'error': 'Invalid category or subcategory'}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}", exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+        
+
+
+
+
 

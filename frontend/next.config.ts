@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/basics/:path*",
-        destination: "http://backend:9000/basics/:path*",
+        destination: "http://localhost:9000/basics/:path*",
       },
     ]
   },

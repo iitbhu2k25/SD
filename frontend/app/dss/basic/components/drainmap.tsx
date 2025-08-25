@@ -154,11 +154,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     metric: true
                 }).addTo(mapRef.current);
 
-                
+
 
                 fetchAllData();
             } catch (err) {
-                console.log("Error initializing map:", err);
+                console.error("Error initializing map:", err);
                 setError("Failed to initialize map");
             }
         }
@@ -506,7 +506,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 console.warn(`No valid bounds found for ${featureType}: ${featureId}`);
             }
         } catch (error) {
-            console.log(`Error zooming to ${featureType}:`, error);
+            console.error(`Error zooming to ${featureType}:`, error);
         }
     };
 
@@ -606,7 +606,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             });
             console.log("Highlighted river:", riverId);
         } catch (err) {
-            console.log("Error highlighting river:", err);
+            console.error("Error highlighting river:", err);
         }
     };
 
@@ -663,7 +663,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
             console.log("Highlighted stretch:", stretchId);
         } catch (err) {
-            console.log("Error highlighting stretch:", err);
+            console.error("Error highlighting stretch:", err);
         }
     };
 
@@ -694,7 +694,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             }
 
         } catch (err) {
-            console.log("Error resetting stretch styles:", err);
+            console.error("Error resetting stretch styles:", err);
         }
     };
 
@@ -715,7 +715,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 await fetchStretchesByRiver(selectedRiver);
             }
         } catch (err) {
-            console.log("Error fetching data:", err);
+            console.error("Error fetching data:", err);
             setError("Failed to load map data");
         } finally {
             setLoading(false);
@@ -743,7 +743,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateBasinLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching basin:", error);
+            console.error("Error fetching basin:", error);
             setError(`Basin: ${error.message}`);
         }
     };
@@ -768,7 +768,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateRiversLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching rivers:", error);
+            console.error("Error fetching rivers:", error);
             setError(`Rivers: ${error.message}`);
         }
     };
@@ -844,7 +844,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (err) {
-            console.log("Error highlighting river stretches:", err);
+            console.error("Error highlighting river stretches:", err);
         }
     };
 
@@ -886,7 +886,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching stretches:", error);
+            console.error("Error fetching stretches:", error);
             setError(`Stretches: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -917,7 +917,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateDrainsLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching drains:", error);
+            console.error("Error fetching drains:", error);
             setError(`Drains: ${error.message}`);
         }
     };
@@ -945,12 +945,12 @@ const DrainMap: React.FC<DrainMapProps> = ({
                         createStretchLabels(data);
                     }
                 } catch (labelError) {
-                    console.log("Error creating stretch labels:", labelError);
+                    console.error("Error creating stretch labels:", labelError);
                     // Don't let label errors prevent the map from loading
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching all stretches:", error);
+            console.error("Error fetching all stretches:", error);
             setError(`Stretches: ${error.message}`);
         }
     };
@@ -1051,7 +1051,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching catchments and villages:", error);
+            console.error("Error fetching catchments and villages:", error);
             setError(`Catchments and Villages: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -1102,7 +1102,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 villageLayerRef.current.bringToFront();
             }
         } catch (error) {
-            console.log("Error updating catchment layer:", error);
+            console.error("Error updating catchment layer:", error);
             setError("Failed to display catchments");
         }
     };
@@ -1151,7 +1151,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating basin layer:", error);
+            console.error("Error updating basin layer:", error);
             setError("Failed to display basin");
         }
     };
@@ -1202,7 +1202,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating rivers layer:", error);
+            console.error("Error updating rivers layer:", error);
             setError("Failed to display rivers");
         }
     };
@@ -1221,7 +1221,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         try {
             clearLabelLayers();
         } catch (error) {
-            console.log("Error clearing label layers:", error);
+            console.error("Error clearing label layers:", error);
         }
 
         if (!data?.features?.length) {
@@ -1260,7 +1260,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 },
                 onEachFeature: (feature, layer) => {
                     const stretchId = feature.properties.Stretch_ID || 'N/A';
-                    const riverName = feature.properties.River_Name || 'Unknown River';
+                    const riverName = feature.properties.River_Code || 'Unknown River';
                     layer.bindPopup(`Stretch: ${stretchId}<br>River: ${riverName}`);
                 },
             }).addTo(mapRef.current);
@@ -1272,7 +1272,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     createStretchLabels(data);
                 }
             } catch (labelError) {
-                console.log("Error creating stretch labels:", labelError);
+                console.error("Error creating stretch labels:", labelError);
             }
 
             // If a specific stretch is already selected, highlight it
@@ -1291,7 +1291,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating stretches layer:", error);
+            console.error("Error updating stretches layer:", error);
             setError("Failed to display stretches");
         }
     };
@@ -1340,7 +1340,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
             console.log(`Created ${labelLayersRef.current.length} stretch labels`);
         } catch (error) {
-            console.log("Error creating stretch labels:", error);
+            console.error("Error creating stretch labels:", error);
         }
     };
 
@@ -1483,15 +1483,67 @@ const DrainMap: React.FC<DrainMapProps> = ({
                         })
                     };
                 },
+                // In the updateVillageLayer function (around line 580), replace the onEachFeature section:
+
                 onEachFeature: (feature, layer) => {
                     const villageName = feature.properties.shapeName || 'Unknown';
                     const shapeID = feature.properties.shapeID || 'N/A';
                     const lockStatus = selectionsLocked ? '<br><i style="color: red;">(Selection locked)</i>' : '';
 
-                    // Add popup
+                    // Bind popup content
                     layer.bindPopup(`Village: ${villageName}<br>ID: ${shapeID}${lockStatus}`);
 
-                    // Add click handler for selection toggle only if not locked
+                    // Add hover events for popup display
+                    layer.on('mouseover', function (e) {
+                        layer.openPopup();
+
+                        // Handle cursor styling
+                        try {
+                            const target = e.target;
+                            if (!selectionsLocked) {
+                                if (target && target._path) {
+                                    target._path.style.cursor = 'pointer';
+                                } else if (target && target.getElement && target.getElement()) {
+                                    target.getElement().style.cursor = 'pointer';
+                                }
+                                if (mapRef.current) {
+                                    mapRef.current.getContainer().style.cursor = 'pointer';
+                                }
+                            } else {
+                                if (target && target._path) {
+                                    target._path.style.cursor = 'not-allowed';
+                                } else if (target && target.getElement && target.getElement()) {
+                                    target.getElement().style.cursor = 'not-allowed';
+                                }
+                                if (mapRef.current) {
+                                    mapRef.current.getContainer().style.cursor = 'not-allowed';
+                                }
+                            }
+                        } catch (error) {
+                            console.warn('Error setting cursor on village mouseover:', error);
+                        }
+                    });
+
+                    layer.on('mouseout', function (e) {
+                        layer.closePopup();
+
+                        // Reset cursor
+                        try {
+                            const target = e.target;
+                            if (target && target._path) {
+                                target._path.style.cursor = '';
+                            } else if (target && target.getElement && target.getElement()) {
+                                target.getElement().style.cursor = '';
+                            }
+                            if (mapRef.current) {
+                                mapRef.current.getContainer().style.cursor = '';
+                            }
+                        } catch (error) {
+                            console.warn('Error resetting cursor on village mouseout:', error);
+                        }
+                    });
+
+                    // Keep click handler for selection toggle only if not locked
                     if (!selectionsLocked) {
                         layer.on('click', function (e) {
                             // Stop the click from propagating to the map and other layers
@@ -1503,6 +1555,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                 toggleVillageSelection(villageId);
                             }
                         });
+
 
                         // Normal cursor for clickable villages - more robust approach
                         layer.on('mouseover', function (e) {
@@ -1591,7 +1644,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating village layer:", error);
+            console.error("Error updating village layer:", error);
             setError("Failed to display villages");
         }
     };
@@ -1646,7 +1699,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 highlightSelectedDrains();
             }
         } catch (error) {
-            console.log("Error updating drains layer:", error);
+            console.error("Error updating drains layer:", error);
             setError("Failed to display drains");
         }
     };
@@ -1696,7 +1749,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             });
             console.log("Highlighted drains:", selectedDrains);
         } catch (err) {
-            console.log("Error highlighting drains:", err);
+            console.error("Error highlighting drains:", err);
         }
     };
 
@@ -1725,165 +1778,165 @@ const DrainMap: React.FC<DrainMapProps> = ({
         setTimeout(() => setCatchmentLoading(false), 500); // Adjust delay as needed
     };;
 
- return (
-  <div className={`map-container ${className || ''} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
-    <div
-      ref={mapContainerRef}
-      className="drain-map border-4 z-[100] border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full relative"
-      style={{ background: 'rgb(255, 255, 255)' }}
-    >
-      {/* Legend moved inside map as overlay */}
-      <div className="absolute top-2 left-15 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
-        <div className="flex flex-wrap gap-2 text-xs">
-          <div className="flex items-center">
-            <span className="w-3 h-3 inline-block mr-1 border border-red-400"
-              style={{ backgroundColor: '#c493d6', borderColor: 'red' }}></span>
-            <span>Basin</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 bg-orange-600 inline-block mr-1 border border-gray-600"></span>
-            <span>Rivers</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 bg-green-600 inline-block mr-1 border"
-              style={{ opacity: 0.4 }}></span>
-            <span>Stretches</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 inline-block mr-1 border"
-              style={{ backgroundColor: '#0066FF', borderColor: '#0033CC' }}></span>
-            <span>R.Stretches</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 inline-block mr-1 border"
-              style={{ backgroundColor: '#FF0066', borderColor: '#CC0033' }}></span>
-            <span>Sel.Stretch</span>
-          </div>
-          <div className="flex items-center">
-            <span className="w-3 h-3 bg-blue-900 inline-block mr-1 border border-blue-700"></span>
-            <span>Drains</span>
-          </div>
-          <button
-            className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-1 rounded"
-            onClick={toggleLabels}
-          >
-            {showLabels ? "Hide" : "Show"} Labels
-          </button>
-        </div>
-      </div>
-
-      {/* Controls moved to top-right inside map */}
-      {selectedDrains.length > 0 && (
-        <div className="absolute top-2 right-2 flex flex-col gap-1 z-[1000]">
-          <div className="flex items-center bg-white bg-opacity-90 p-2 rounded border border-gray-300 shadow-lg">
-            <input
-              type="checkbox"
-              id="catchment-toggle"
-              checked={showCatchment}
-              onChange={toggleCatchment}
-              className="mr-1"
-              disabled={catchmentLoading || selectionsLocked}
-            />
-            <label htmlFor="catchment-toggle" className="flex items-center cursor-pointer text-xs">
-              <span
-                className="w-3 h-3 inline-block mr-1 border"
-                style={{ backgroundColor: '#E6E6FA', borderColor: 'black' }}
-              ></span>
-              Delineate Catchments
-            </label>
-          </div>
-          <div className="flex items-center bg-white bg-opacity-90 p-2 rounded border border-gray-300 shadow-lg">
-            <input
-              type="checkbox"
-              id="village-toggle"
-              checked={showVillage}
-              onChange={toggleVillage}
-              className="mr-1"
-              disabled={!showCatchment || catchmentLoading || selectionsLocked}
-            />
-            <label htmlFor="village-toggle" className="flex items-center cursor-pointer text-xs">
-              <span
-                className="w-3 h-3 inline-block mr-1 border"
-                style={{ backgroundColor: 'skyblue', borderColor: 'skyblue' }}
-              ></span>
-              Show Villages in Catchments
-              {selectionsLocked && <span className="ml-1 text-xs text-gray-500">(Locked)</span>}
-            </label>
-          </div>
-          {showVillage && !selectionsLocked && (
-            <div className="bg-white bg-opacity-90 p-2 text-xs rounded border border-gray-300 shadow-lg">
-              Click villages to toggle selection
-            </div>
-          )}
-          {showVillage && selectionsLocked && (
-            <div className="bg-yellow-50 bg-opacity-90 p-2 text-xs rounded border border-yellow-300 shadow-lg">
-              Village selection locked
-            </div>
-          )}
-        </div>
-      )}
-                    {loading && (
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
-                            <div className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
-                                <svg
-                                    className="animate-spin h-5 w-5 mr-2 text-white"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    ></circle>
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    ></path>
-                                </svg>
-                                Loading Map...
-                            </div>
+    return (
+        <div className={`map-container ${className || ''} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
+            <div
+                ref={mapContainerRef}
+                className="drain-map border-4 z-[100] border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full relative"
+                style={{ background: 'rgb(255, 255, 255)' }}
+            >
+                {/* Legend moved inside map as overlay */}
+                <div className="absolute top-2 left-15 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
+                    <div className="flex flex-wrap gap-2 text-xs">
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 inline-block mr-1 border border-red-400"
+                                style={{ backgroundColor: '#c493d6', borderColor: 'red' }}></span>
+                            <span>Basin</span>
                         </div>
-                    )}
-                    {error && (
-                        <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center text-sm py-1 z-[1000]">
-                            Error: {error}
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 bg-orange-600 inline-block mr-1 border border-gray-600"></span>
+                            <span>Rivers</span>
                         </div>
-                    )}
-                    {catchmentLoading && (
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
-                            <div className="flex items-center bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
-                                <svg
-                                    className="animate-spin h-5 w-5 mr-2 text-white"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                    ></circle>
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    ></path>
-                                </svg>
-                                Loading .......
-                                Please be patient
-                            </div>
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 bg-green-600 inline-block mr-1 border"
+                                style={{ opacity: 0.4 }}></span>
+                            <span>Stretches</span>
                         </div>
-                    )}
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 inline-block mr-1 border"
+                                style={{ backgroundColor: '#0066FF', borderColor: '#0033CC' }}></span>
+                            <span>R.Stretches</span>
+                        </div>
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 inline-block mr-1 border"
+                                style={{ backgroundColor: '#FF0066', borderColor: '#CC0033' }}></span>
+                            <span>Sel.Stretch</span>
+                        </div>
+                        <div className="flex items-center">
+                            <span className="w-3 h-3 bg-blue-900 inline-block mr-1 border border-blue-700"></span>
+                            <span>Drains</span>
+                        </div>
+                        <button
+                            className="text-xs bg-gray-200 hover:bg-gray-300 py-1 px-1 rounded"
+                            onClick={toggleLabels}
+                        >
+                            {showLabels ? "Hide" : "Show"} Labels
+                        </button>
+                    </div>
                 </div>
+
+                {/* Controls moved to top-right inside map */}
+                {selectedDrains.length > 0 && (
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 z-[1000]">
+                        <div className="flex items-center bg-white bg-opacity-90 p-2 rounded border border-gray-300 shadow-lg">
+                            <input
+                                type="checkbox"
+                                id="catchment-toggle"
+                                checked={showCatchment}
+                                onChange={toggleCatchment}
+                                className="mr-1"
+                                disabled={catchmentLoading || selectionsLocked}
+                            />
+                            <label htmlFor="catchment-toggle" className="flex items-center cursor-pointer text-xs">
+                                <span
+                                    className="w-3 h-3 inline-block mr-1 border"
+                                    style={{ backgroundColor: '#E6E6FA', borderColor: 'black' }}
+                                ></span>
+                                Delineate Catchments
+                            </label>
+                        </div>
+                        <div className="flex items-center bg-white bg-opacity-90 p-2 rounded border border-gray-300 shadow-lg">
+                            <input
+                                type="checkbox"
+                                id="village-toggle"
+                                checked={showVillage}
+                                onChange={toggleVillage}
+                                className="mr-1"
+                                disabled={!showCatchment || catchmentLoading || selectionsLocked}
+                            />
+                            <label htmlFor="village-toggle" className="flex items-center cursor-pointer text-xs">
+                                <span
+                                    className="w-3 h-3 inline-block mr-1 border"
+                                    style={{ backgroundColor: 'skyblue', borderColor: 'skyblue' }}
+                                ></span>
+                                Show Villages in Catchments
+                                {selectionsLocked && <span className="ml-1 text-xs text-gray-500">(Locked)</span>}
+                            </label>
+                        </div>
+                        {showVillage && !selectionsLocked && (
+                            <div className="bg-white bg-opacity-90 p-2 text-xs rounded border border-gray-300 shadow-lg">
+                                Click villages to toggle selection
+                            </div>
+                        )}
+                        {showVillage && selectionsLocked && (
+                            <div className="bg-yellow-50 bg-opacity-90 p-2 text-xs rounded border border-yellow-300 shadow-lg">
+                                Village selection locked
+                            </div>
+                        )}
+                    </div>
+                )}
+                {loading && (
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
+                        <div className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+                            <svg
+                                className="animate-spin h-5 w-5 mr-2 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                ></circle>
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                            </svg>
+                            Loading Map...
+                        </div>
+                    </div>
+                )}
+                {error && (
+                    <div className="absolute top-0 left-0 right-0 bg-red-500 text-white text-center text-sm py-1 z-[1000]">
+                        Error: {error}
+                    </div>
+                )}
+                {catchmentLoading && (
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
+                        <div className="flex items-center bg-yellow-600 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
+                            <svg
+                                className="animate-spin h-5 w-5 mr-2 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                ></circle>
+                                <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                            </svg>
+                            Loading .......
+                            Please be patient
+                        </div>
+                    </div>
+                )}
             </div>
+        </div>
     );
 };
 

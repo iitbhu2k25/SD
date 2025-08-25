@@ -12,6 +12,7 @@ from app.database.models.model_stp import(
     Towns,
     STP_sutability_visual_raster,
     STP_Drain_sutability,
+    Stp_sutability_Area
 )
 from app.database.models.model_gwz import(
     Groundwater_Zone_raster,

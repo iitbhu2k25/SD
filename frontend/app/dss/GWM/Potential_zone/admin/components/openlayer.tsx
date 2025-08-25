@@ -10,7 +10,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import GeoJSON from "ol/format/GeoJSON";
 import Image from "next/image";
-
+import { GISCompass } from "@/components/mapcomponents";
 import { fromLonLat, transform } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -21,249 +21,44 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text, Icon } from "ol/style";
-import { useMap } from "@/contexts/stp_gwz/admin/MapContext";
-import { useCategory } from "@/contexts/stp_gwz/admin/CategoryContext";
+import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/stp_gwz/admin/LocationContext";
+import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
 
-// Define base map type interface
-interface BaseMapDefinition {
-  name: string;
-  source: () => OSM | XYZ;
-  thumbnail?: string;
-  icon?: string;
-}
-
-// Define baseMaps with appropriate TypeScript typing
-const baseMaps: Record<string, BaseMapDefinition> = {
-  osm: {
-    name: "OpenStreetMap",
-    source: () =>
-      new OSM({
-        crossOrigin: "anonymous",
-      }),
-    icon: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
-  },
-  satellite: {
-    name: "Satellite",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67 3.61 2.35 5.66 2.35 4.1-.79 5.66-2.35S20 15.64 20 13.64 19.22 9.56 17.66 8z",
-  },
-  terrain: {
-    name: "Terrain",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",
-  },
-  dark: {
-    name: "Dark Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z",
-  },
-  light: {
-    name: "Light Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
-  },
-};
-
-// GIS Compass component - static version
-const GISCompass = () => {
-  return (
-    <div className="absolute left-20 top-4 z-20   p-3 rounded-lg  transition-all duration-300 ease-in-out animate-fade-in">
-      <div className="flex flex-col items-center">
-        <svg width="80" height="80" viewBox="0 0 100 100">
-          {/* Outer circle */}
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="white"
-            stroke="#ddd"
-            strokeWidth="1"
-          />
-
-          {/* Compass rose */}
-          <g>
-            {/* North pointer (blue) */}
-            <path d="M50 10 L55 50 L50 45 L45 50 Z" fill="#3b82f6" />
-
-            {/* South pointer */}
-            <path d="M50 90 L45 50 L50 55 L55 50 Z" fill="#606060" />
-
-            {/* East pointer */}
-            <path d="M90 50 L50 45 L55 50 L50 55 Z" fill="#606060" />
-
-            {/* West pointer */}
-            <path d="M10 50 L50 55 L45 50 L50 45 Z" fill="#606060" />
-
-            {/* Direction markers - cardinal */}
-            <text
-              x="50"
-              y="20"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#3b82f6"
-            >
-              N
-            </text>
-            <text
-              x="50"
-              y="85"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              S
-            </text>
-            <text
-              x="85"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              E
-            </text>
-            <text
-              x="15"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              W
-            </text>
-
-            {/* Direction markers - ordinal */}
-            <text x="32" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NW
-            </text>
-            <text x="68" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NE
-            </text>
-            <text x="68" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SE
-            </text>
-            <text x="32" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SW
-            </text>
-
-            {/* Crosshairs */}
-            <line
-              x1="50"
-              y1="10"
-              x2="50"
-              y2="90"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <line
-              x1="10"
-              y1="50"
-              x2="90"
-              y2="50"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-
-            {/* Inner circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="5"
-              fill="#3b82f6"
-              stroke="#fff"
-              strokeWidth="1"
-            />
-
-            {/* Outer ring */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="1.5"
-              strokeOpacity="0.3"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
-  );
-};
+import { baseMaps } from "@/components/mapcomponents";
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const legendRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-  const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
-
-  // Set initial loading state to true independent of any selection
-
   const [primaryLayerLoading, setPrimaryLayerLoading] = useState<boolean>(true);
   const [secondaryLayerLoading, setSecondaryLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
-  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
+
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+
   const [showTitles, setshowTitles] = useState<boolean>(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
-
-  // Add state for vector layer visibility - only secondary can be toggled
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [isPanelOpen, setIsPanelOpen] = useState(false); 
+  
   const { selectedSubDistricts, displayRaster, setdisplay_raster } =
     useLocation();
   useEffect(() => {
     console.log("selectedSubDistricts", isPanelOpen);
   }, [isPanelOpen]);
-  // Use the map context
+
   const {
     primaryLayer,
     secondaryLayer,
@@ -271,15 +66,19 @@ const Maping: React.FC = () => {
     LayerFilterValue,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
+    setShowLegend,
+    handleLayerSelection,
+    rasterLoading,
+    setRasterLoading,
+    setError,
+    error,
+    selectedradioLayer,
     setLoading,
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    showLegend
   } = useMap();
 
-  const { selectedCategories, setStpProcess, setShowTable, setTableData } =
-    useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -312,11 +111,7 @@ const Maping: React.FC = () => {
   const openlayertoggle = () => {
     setIsPanelOpen(!isPanelOpen);
   };
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-    // Add your layer selection logic here
-  };
+  
 
   // Toggle secondary layer visibility
   const toggleSecondaryLayer = () => {
@@ -738,10 +533,7 @@ const Maping: React.FC = () => {
           new Style({
             stroke: new Stroke({
               color: "#5E1520",
-              width: 2,
-            }),
-            fill: new Fill({
-              color: "rgba(0, 0, 0, 0)", // Fully transparent fill
+              width: 3,
             }),
           })
         );
@@ -774,6 +566,7 @@ const Maping: React.FC = () => {
           })
         );
       }
+
       if (showTitles && zoom > 5 && featureName) {
         const labelStyle = new Style({
           text: new Text({
@@ -886,84 +679,10 @@ const Maping: React.FC = () => {
         }
       }
     };
-  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
+  }, [secondaryLayer, LayerFilter, LayerFilterValue,showTitles]);
 
   // Combined useEffect for STP operation and raster layer display
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setWmsDebugInfo(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedSubDistricts,
-        place: "sub_district",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch("/api/stp_operation/stp_priority", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: bodyPayload,
-        });
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          // Check if file_name already exists
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            // Update existing entry
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            // Append new entry
-            newData = displayRaster.concat(append_data);
-          }
-
-          setdisplay_raster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [stpOperation, selectedCategories, selectedSubDistricts]);
+ 
 
   useEffect(() => {
     console.log("rasterLayerInfo", rasterLayerInfo);
@@ -986,12 +705,9 @@ const Maping: React.FC = () => {
 
     try {
       const layerUrl = "/geoserver/api//wms";
-      const workspace = rasterLayerInfo.workspace || "raster_work";
+      const workspace = rasterLayerInfo.workspace;
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
+        rasterLayerInfo.layer_name
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({
@@ -1708,6 +1424,7 @@ const Maping: React.FC = () => {
                   Home View
                 </span>
               </button>
+
               <button
                 onClick={() => {
                   setshowTitles(!showTitles);

@@ -66,6 +66,29 @@ class PopulationCohort(models.Model):
 
 
 
+class BasicRunoffCoefficient(models.Model):
+    # Duration
+    duration_t_minutes = models.IntegerField()
+
+    # Sector coefficients
+    sector_impervious = models.FloatField()
+    sector_60percent_impervious = models.FloatField()
+    sector_40percent_impervious = models.FloatField()
+    sector_pervious = models.FloatField()
+
+    # Rectangle coefficients
+    rectangle_impervious = models.FloatField()
+    rectangle_50percent_impervious = models.FloatField()
+    rectangle_30percent_impervious = models.FloatField()
+    rectangle_pervious = models.FloatField()
+
+    class Meta:
+        db_table = "basic_runoffcoefficient"  # PostgreSQL table name
+        ordering = ["duration_t_minutes"]
+
+    def __str__(self):
+        return f"Runoff Coefficient ({self.duration_t_minutes} min)"
+
 
 #Below model for boundary of state , district, subdistrict, villages
 

@@ -480,7 +480,6 @@ class MapGenerator:
                 edgecolor='none'
             )
             return file_path
-            logger.info(f"Plot saved to file: {file_path}")
         except Exception as e:
             logger.error(f"Failed to save plot: {e}")
             raise ResourceError(f"Plot saving failed: {e}")
@@ -1119,8 +1118,8 @@ def document_gen(self,payload: StpPriorityAdminReport):
         file_paths=StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
         tasks = []
         for item in file_paths:
-            file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
-            file_path = os.path.join(unique_folder_path, "image", file_name)  
+            file_name = os.path.basename(item["raster_path"])
+            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ","_"))  
             tasks.append(
             celery_currency_image.s(
             file_path=file_path,

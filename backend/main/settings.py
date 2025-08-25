@@ -28,11 +28,9 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "Basic",
-    "raster_visual",
     "mapplot",
-    "gwa",
-    "stp_suitability",
     "authapp",
+    "gwa",
 ]
 
 MIDDLEWARE = [
@@ -129,7 +127,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://192.168.1.2:3000",
-    "http://127.0.0.1:3000",  # Add this
+    "http://127.0.0.1:3000",
+    "http://172.16.32.67:3000", 
     # Add your frontend domain here
 ]
 CORS_ALLOW_CREDENTIALS = True
@@ -167,10 +166,7 @@ ALLOWED_HOSTS = [
     '0.0.0.0',
     '172.16.32.94',
     '172.22.176.1',
-    '192.168.1.3',
-    '172.20.111.185',
-    'backend',
-    # Add this for broader access
+    '172.16.32.67',
     # Add any other IPs you need
 ]
 # Media files (User uploaded files)

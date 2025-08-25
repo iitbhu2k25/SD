@@ -48,3 +48,5 @@ reportlab
 celery 
 redis
 websockets
+scipy
+jenkspy

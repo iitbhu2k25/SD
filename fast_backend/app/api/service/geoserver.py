@@ -8,7 +8,7 @@ import colorsys
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 from datetime import datetime
-from app.api.service.network_svc.network_conf import GeoConfig
+from app.utils.network_conf import GeoConfig
 import time
 
 input_path=f"{Settings().BASE_DIR}"+"/temp/input"
@@ -50,7 +50,7 @@ class Geoserver:
 
         sld_url = f"{self.geoserver_url}/rest/workspaces/raster_work/styles/{layer_name}"
         sld_response = requests.get(sld_url, auth=HTTPBasicAuth(self.username, self.password),headers={"Accept": "application/vnd.ogc.sld+xml"})
-
+        print("sld resp",sld_response)
         if sld_response.status_code == 200:
             name_part = "_".join(layer_name.split("_")[:-1])
             sld_file_path = os.path.join(temp_path, name_part + ".sld")

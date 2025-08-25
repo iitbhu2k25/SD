@@ -114,3 +114,8 @@ class STP_sutability_visual_raster(Base):
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
+
+class Stp_sutability_Area(Base):
+    __tablename__='stp_sutability_area'
+    tech_name:Mapped[str]=mapped_column(String,nullable=False)
+    tech_value:Mapped[float]=mapped_column(Float,nullable=False)

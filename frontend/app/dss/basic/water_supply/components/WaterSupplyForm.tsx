@@ -89,7 +89,7 @@ useEffect(() => {
     const totalWaterDemand = (window as any).totalWaterDemand || {};
     
     if (!forecastData) {
-      console.log("Forecast data not available. Water gap cannot be calculated.");
+      console.error("Forecast data not available. Water gap cannot be calculated.");
       setWaterGapData(null);
       return;
     }
@@ -156,7 +156,7 @@ useEffect(() => {
       // Mark that initial calculation has been done
       setHasCalculated(true);
     } catch (err) {
-      console.log(err);
+      console.error(err);
       setError('Error connecting to backend.');
     }
   };

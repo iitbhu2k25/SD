@@ -20,219 +20,27 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-
+import { GISCompass } from "@/components/mapcomponents";
 import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
 import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
 import { none } from "ol/centerconstraint";
+import { baseMaps } from "@/components/mapcomponents";
 
 // Define base map type interface
-interface BaseMapDefinition {
-  name: string;
-  source: () => OSM | XYZ;
-  thumbnail?: string;
-  icon?: string;
-}
 
-// Define baseMaps with appropriate TypeScript typing
-const baseMaps: Record<string, BaseMapDefinition> = {
-  osm: {
-    name: "OpenStreetMap",
-    source: () =>
-      new OSM({
-        crossOrigin: "anonymous",
-      }),
-    icon: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
-  },
-  satellite: {
-    name: "Satellite",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67 3.61 2.35 5.66 2.35 4.1-.79 5.66-2.35S20 15.64 20 13.64 19.22 9.56 17.66 8z",
-  },
-  terrain: {
-    name: "Terrain",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",
-  },
-  dark: {
-    name: "Dark Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z",
-  },
-  light: {
-    name: "Light Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: "anonymous",
-      }),
-    icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
-  },
-};
-
-// GIS Compass component - static version
-const GISCompass = () => {
-  return (
-    <div className="absolute left-20 top-4 z-20   p-3 rounded-lg  transition-all duration-300 ease-in-out animate-fade-in">
-      <div className="flex flex-col items-center">
-        <svg width="80" height="80" viewBox="0 0 100 100">
-          {/* Outer circle */}
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="white"
-            stroke="#ddd"
-            strokeWidth="1"
-          />
-
-          {/* Compass rose */}
-          <g>
-            {/* North pointer (blue) */}
-            <path d="M50 10 L55 50 L50 45 L45 50 Z" fill="#3b82f6" />
-
-            {/* South pointer */}
-            <path d="M50 90 L45 50 L50 55 L55 50 Z" fill="#606060" />
-
-            {/* East pointer */}
-            <path d="M90 50 L50 45 L55 50 L50 55 Z" fill="#606060" />
-
-            {/* West pointer */}
-            <path d="M10 50 L50 55 L45 50 L50 45 Z" fill="#606060" />
-
-            {/* Direction markers - cardinal */}
-            <text
-              x="50"
-              y="20"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#3b82f6"
-            >
-              N
-            </text>
-            <text
-              x="50"
-              y="85"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              S
-            </text>
-            <text
-              x="85"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              E
-            </text>
-            <text
-              x="15"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              W
-            </text>
-
-            {/* Direction markers - ordinal */}
-            <text x="32" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NW
-            </text>
-            <text x="68" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NE
-            </text>
-            <text x="68" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SE
-            </text>
-            <text x="32" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SW
-            </text>
-
-            {/* Crosshairs */}
-            <line
-              x1="50"
-              y1="10"
-              x2="50"
-              y2="90"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <line
-              x1="10"
-              y1="50"
-              x2="90"
-              y2="50"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-
-            {/* Inner circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="5"
-              fill="#3b82f6"
-              stroke="#fff"
-              strokeWidth="1"
-            />
-
-            {/* Outer ring */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="1.5"
-              strokeOpacity="0.3"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
-  );
-};
 
 const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const legendRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-  const [showdefault, setshowdefault] = useState<boolean>(false); // default raster layer
+
 
   // Set initial loading state to true independent of any selection
   const [loading, setLoading] = useState<boolean>(true);
@@ -242,9 +50,10 @@ const Mapping: React.FC = () => {
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
+  const [resultFeatureCount, setresultFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+
   const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
@@ -256,7 +65,7 @@ const Mapping: React.FC = () => {
 
   // Add state for vector layer visibility - only secondary can be toggled
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
-
+  const [showresultLayer, setShowresultLayer] = useState<boolean>(true);
   const [isPanelOpen, setIsPanelOpen] = useState(true); //default raster layer
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const {
@@ -291,9 +100,12 @@ const Mapping: React.FC = () => {
     isMapLoading,
     setstpOperation,
     stpOperation,
+    resultLayer,
+    setResultLayer,
+
   } = useMap();
 
-  const { selectedCategory ,setTableData} = useCategory();
+  const { selectedCategory ,setTableData,setRasterLayerInfo,rasterLayerInfo} = useCategory();
 
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 20.5937;
@@ -333,20 +145,26 @@ const Mapping: React.FC = () => {
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
     console.log("Selected layer:", layerName);
-    // Add your layer selection logic here
   };
 
-  // Toggle secondary layer visibility
+
   const toggleSecondaryLayer = () => {
     if (secondaryLayerRef.current) {
       const newVisibility = !showSecondaryLayer;
       secondaryLayerRef.current.setVisible(newVisibility);
       setShowSecondaryLayer(newVisibility);
     }
-    
   };
 
-  // Listen for fullscreen changes
+    const toggleresultLayer = () => {
+    if (resultLayerRef.current) {
+      const newVisibility = !showresultLayer;
+      resultLayerRef.current.setVisible(newVisibility);
+      setShowresultLayer(newVisibility);
+    }
+  };
+
+
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -360,11 +178,9 @@ const Mapping: React.FC = () => {
 
   const changeBaseMap = (baseMapKey: string) => {
     if (!mapInstanceRef.current || !baseLayerRef.current) return;
-
-    // Remove current base layer
     mapInstanceRef.current.removeLayer(baseLayerRef.current);
 
-    // Create and add new base layer
+
     const baseMapConfig = baseMaps[baseMapKey];
     const newBaseLayer = new TileLayer({
       source: baseMapConfig.source(),
@@ -373,12 +189,8 @@ const Mapping: React.FC = () => {
         type: "base",
       },
     });
-
-    // Update reference and add to map
     baseLayerRef.current = newBaseLayer;
     mapInstanceRef.current.getLayers().insertAt(0, newBaseLayer);
-
-    // Update state
     setSelectedBaseMap(baseMapKey);
   };
 
@@ -621,24 +433,7 @@ const Mapping: React.FC = () => {
       }
     };
   }, []);
-  const createHoverStyle = () => {
-    return new Style({
-      stroke: new Stroke({
-        color: "#ff0000",
-        width: 3,
-      }),
-      image: new Circle({
-        radius: 10,
-        fill: new Fill({
-          color: "#ff0000",
-        }),
-        stroke: new Stroke({
-          color: "#ffffff",
-          width: 2,
-        }),
-      }),
-    });
-  };
+
   // Load and manage the primary layer
   useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) return;
@@ -720,8 +515,86 @@ const Mapping: React.FC = () => {
     };
   }, [geoServerUrl, defaultWorkspace, primaryLayer]);
 
-  // Handle the secondary layer
-  // Fixed useEffect for handling the secondary layer
+
+      // Load and manage the result layer
+  useEffect(() => {
+    if (!mapInstanceRef.current || !resultLayer) return;
+
+    setError(null);
+
+    // Construct WFS URL for primary layer with filters_value
+    let resultWfsUrl =
+      `/geoserver/api/wfs?` +
+      "service=WFS&" +
+      "version=1.1.0&" +
+      "request=GetFeature&" +
+      `typeName=${defaultWorkspace}:${resultLayer}&` +
+      "outputFormat=application/json&" +
+      "srsname=EPSG:3857";
+
+    // Define primary vector style (blue)
+    const resultVectorStyle = new Style({
+      stroke: new Stroke({
+        color: "#3b82f6",
+        width: 2,
+      }),
+    });
+
+    // Create primary vector source and layer
+    const resultVectorSource = new VectorSource({
+      format: new GeoJSON(),
+      url: resultWfsUrl,
+    });
+
+    const resultVectorLayer = new VectorLayer({
+      source: resultVectorSource,
+      style: resultVectorStyle,
+      zIndex: 10,
+      visible: true, 
+    });
+
+    // Handle primary layer loading
+    const handleFeaturesError = (err: any) => {
+      console.log("Error loading primary features:", err);
+      setError("Failed to load primary features");
+      updateLoadingState();
+    };
+
+    const handleFeaturesLoaded = (event: any) => {
+      const numFeatures = event.features ? event.features.length : 0;
+      setresultFeatureCount(numFeatures);
+
+      updateLoadingState();
+
+      // Zoom to the extent of the primary layer
+      const resultExtent = resultVectorSource.getExtent();
+      if (resultExtent && resultExtent.some((val) => isFinite(val))) {
+        mapInstanceRef.current?.getView().fit(resultExtent, {
+          padding: [50, 50, 50, 50],
+          duration: 1000,
+        });
+      }
+    };
+
+    resultVectorSource.on("featuresloaderror", handleFeaturesError);
+    resultVectorSource.on("featuresloadend", handleFeaturesLoaded);
+
+    // Remove previous primary layer if it exists
+    if (resultLayerRef.current) {
+      mapInstanceRef.current.removeLayer(resultLayerRef.current);
+    }
+
+    // Add the new primary layer to the map
+    mapInstanceRef.current.addLayer(resultVectorLayer);
+    resultLayerRef.current = resultVectorLayer;
+
+    return () => {
+      resultVectorSource.un("featuresloaderror", handleFeaturesError);
+      resultVectorSource.un("featuresloadend", handleFeaturesLoaded);
+    };
+  }, [geoServerUrl, defaultWorkspace, resultLayer]);
+
+
 useEffect(() => {
   console.log('Secondary layer useEffect triggered:', {
     secondaryLayer,
@@ -812,10 +685,10 @@ useEffect(() => {
           image: new Circle({
             radius: 8, // Increased radius for better visibility
             fill: new Fill({
-              color: "rgba(224, 3, 3, 0.7)", // Increased opacity
+              color: "rgba(24, 4, 244, 0.7)", // Increased opacity
             }),
             stroke: new Stroke({
-              color: "#5E1520",
+              color: "#2000d7ff",
               width: 2,
             }),
           }),
@@ -935,23 +808,18 @@ useEffect(() => {
   showTitles, 
   showSecondaryLayer,
   defaultWorkspace
-  // Removed rasterLayerInfo from dependencies as it was preventing layer display
+
 ]);
 
-  // Combined useEffect for STP operation and raster layer display
-  // Fixed useEffect for STP operation and raster layer display
 useEffect(() => {
-  // Don't continue if map isn't initialized
+
   if (!mapInstanceRef.current) return;
   const map = mapInstanceRef.current;
 
-  // Part 1: Handle STP operation API call
   const performSTP = async () => {
     setRasterLoading(true);
     setError(null);
     setWmsDebugInfo(null);
-    console.log("Sending STP request for:", selectedCategory);
-    console.log("selected sub", selectedSubDistricts);
 
     try {
       const resp = await fetch("/api/stp_operation/stp_sutability", {
@@ -985,12 +853,8 @@ useEffect(() => {
         // Handle vector layer update FIRST, before raster
         if (result.vector_name && result.vector_name !== "none") {
           console.log("Setting new secondary layer:", result.vector_name);
-          
-          // Clear any existing filters since this is a new result
-          setLayerFilter(null);
-          
-          // Set the new secondary layer - this will trigger the secondary layer useEffect
-          setSecondaryLayer(result.vector_name);
+
+          setResultLayer(result.vector_name);
         }
 
         let newData;
@@ -1032,8 +896,7 @@ useEffect(() => {
     return; // Don't process raster display during STP operation
   }
 
-  // Part 2: Handle raster layer display
-  // First, remove all existing WMS/raster layers (but keep the base OSM)
+ 
   Object.entries(layersRef.current).forEach(([id, layer]) => {
     map.removeLayer(layer);
     delete layersRef.current[id];
@@ -1041,6 +904,7 @@ useEffect(() => {
 
   // If there's no raster layer info, we're done after clearing
   if (!rasterLayerInfo) {
+    console.log("No raster layer info available");
     setRasterLoading(false);
     setLegendUrl(null);
     return;
@@ -1048,15 +912,11 @@ useEffect(() => {
 
   // Now add the raster layer if we have the necessary information
   try {
-    console.log("Attempting to display raster:", rasterLayerInfo);
-
+  
     const layerUrl = "/geoserver/api/wms";
-    const workspace = rasterLayerInfo.workspace || "raster_work";
-    const layerName =
-      rasterLayerInfo.layer_name ||
-      rasterLayerInfo.layerName ||
-      rasterLayerInfo.id ||
-      "Clipped_STP_Priority_Map";
+    const workspace = rasterLayerInfo.workspace;
+    const layerName =rasterLayerInfo.layer_name;
+
 
     const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
@@ -1562,6 +1422,59 @@ useEffect(() => {
                   </div>
                 </div>
               )}
+
+              {resultFeatureCount > 0 && (
+                <div
+                  className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${
+                    showresultLayer
+                      ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+                      : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div
+                        className={`w-4 h-4 ${
+                          showresultLayer ? "bg-green-500" : "bg-gray-400"
+                        } rounded-full mr-3 shadow-sm transition-colors duration-300`}
+                      ></div>
+                      <span
+                        className={`font-semibold ${
+                          showresultLayer
+                            ? "text-green-800"
+                            : "text-gray-600"
+                        }`}
+                      >
+                        Result Layer
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span
+                        className={`text-xs px-3 py-1 rounded-full font-medium ${
+                          showresultLayer
+                            ? "bg-green-200/80 text-green-800"
+                            : "bg-gray-200/80 text-gray-700"
+                        }`}
+                      >
+                        {resultFeatureCount} features
+                      </span>
+                      <button
+                        onClick={toggleresultLayer}
+                        className={`w-12 h-6 rounded-full ${
+                          showresultLayer ? "bg-green-500" : "bg-gray-300"
+                        } relative transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 hover:scale-105`}
+                      >
+                        <span
+                          className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
+                            showresultLayer ? "translate-x-6" : ""
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
 
               {/* Enhanced Raster Layer with Opacity Control */}
               {rasterLayerInfo && (

@@ -2,9 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {District, SubDistrict,Towns}from '@/contexts/stp_sutability/admin/LocationContext';
 
-
-
-
 interface MultiSelectProps<T> {
   items: T[];
   selectedItems: number[];

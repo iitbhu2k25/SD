@@ -12,8 +12,8 @@ interface ModernSwitchProps {
   onChange: (value: ViewType) => void;
 }
 
-import GWZAdmin from "./admin/page";
-import SimpleUnderConstruction from "@/app/default/page";
+import GWPZAdmin from "./admin/page";
+import GWPZDrain from "./users/page";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -96,7 +96,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   );
 };
 
-const Potential_zone: React.FC = () => {
+const GWPZPage: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
 
   const handleViewChange = (newView: ViewType): void => {
@@ -107,7 +107,7 @@ const Potential_zone: React.FC = () => {
     <div className=" flex flex-col min-h-screen">
       <header className=" grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
-          <h1 className="text-5xl font-bold">Ground Water Potential Zonation</h1>
+          <h1 className="text-5xl font-bold">Groundwater Potential Zone</h1>
         </div>
         <div className="flex justify-center w-full items-center font-medium ">
           <ModernSwitch
@@ -120,11 +120,11 @@ const Potential_zone: React.FC = () => {
       </header>
 
       <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <GWZAdmin/>}
-        {activeView === "user" && <SimpleUnderConstruction />}
+        {activeView === "admin" && <GWPZAdmin />}
+        {activeView === "user" && <GWPZDrain />}
       </div>
     </div>
   );
 };
 
-export default Potential_zone;
+export default GWPZPage;

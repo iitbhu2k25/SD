@@ -152,7 +152,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
         setStates(stateData);
       } catch (error) {
-        console.log('Error fetching states:', error);
+        console.error('Error fetching states:', error);
       }
     };
     fetchStates();
@@ -192,7 +192,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setDistricts(sortedDistricts);
           setSelectedDistricts([]);
         } catch (error) {
-          console.log('Error fetching districts:', error);
+          console.error('Error fetching districts:', error);
         }
       };
       fetchDistricts();
@@ -254,7 +254,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setSubDistricts(sortedSubDistricts);
           setSelectedSubDistricts([]);
         } catch (error) {
-          console.log('Error fetching sub-districts:', error);
+          console.error('Error fetching sub-districts:', error);
         }
       };
       fetchSubDistricts();
@@ -327,7 +327,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setVillages(sortedVillages);
           setSelectedVillages([]);
         } catch (error) {
-          console.log('Error fetching villages:', error);
+          console.error('Error fetching villages:', error);
           setVillages([]);
         }
       };

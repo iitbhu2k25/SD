@@ -43,14 +43,26 @@ interface InstitutionalFields {
 }
 
 interface FirefightingMethods {
-  kuchling: boolean;
-  freeman: boolean;
-  buston: boolean;
-  american_insurance: boolean;
-  ministry_urban: boolean;
+  Kuchling: boolean;
+  Freeman: boolean;
+  Buston: boolean;
+  American_insurance: boolean;
+  Ministry_urban: boolean;
 }
-
-const WaterDemandForm: React.FC = () => {
+// Add this interface at the top with other interfaces
+interface WaterDemandFormProps {
+  onPerCapitaConsumptionChange?: (value: number) => void;
+  onSeasonalMultipliersChange?: (multipliers: any) => void; // Add this line
+  onWaterDemandResultsChange?: (results: any) => void; // Add this line
+  onFloatingSeasonalDemandsChange?: (seasonalDemands: any) => void; // Add this line
+   onDomesticSeasonalDemandsChange?: (seasonalDemands: any) => void; // Add this
+}
+const WaterDemandForm: React.FC<WaterDemandFormProps> = ({ 
+  onPerCapitaConsumptionChange ,
+  onSeasonalMultipliersChange,
+  onWaterDemandResultsChange, // Add this
+  onFloatingSeasonalDemandsChange // Add this
+}) =>  {
   // State for overall checkboxes
   const [domesticChecked, setDomesticChecked] = useState(false);
   const [floatingChecked, setFloatingChecked] = useState(false);
@@ -59,11 +71,28 @@ const WaterDemandForm: React.FC = () => {
 
   // Domestic per capita consumption (default 135)
   const [perCapitaConsumption, setPerCapitaConsumption] = useState(135);
+ // Add after perCapitaConsumption state
+  const [seasonalMultipliers, setSeasonalMultipliers] = useState({
+    summer: 1.10,
+    monsoon: 0.95,
+    postMonsoon: 1.00,
+    winter: 0.90
+  });
 
+// Add state to show/hide seasonal breakdown table
+const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
   // Floating fields
-  const [floatingPopulation2011, setFloatingPopulation2011] = useState<number | null>(null);
+  const [floatingPopulationPercentage, setFloatingPopulationPercentage] = useState<number>(15);
+  // Add after domestic seasonalMultipliers state
+  const [floatingSeasonalMultipliers, setFloatingSeasonalMultipliers] = useState({
+    summer: 1.15,    // Higher in summer due to tourism/travel
+    monsoon: 1.25,   // Lower in monsoon due to reduced travel
+    postMonsoon: 1.10,
+    winter: 0.85
+  });
   const [facilityType, setFacilityType] = useState('provided');
-
+ // Add after showSeasonalBreakdown state
+  const [showFloatingSeasonalBreakdown, setShowFloatingSeasonalBreakdown] = useState(false);
   // New state for institutional input mode (manual or total)
   const [institutionalInputMode, setInstitutionalInputMode] = useState<'manual' | 'total'>('manual');
   const [totalInstitutionalDemand, setTotalInstitutionalDemand] = useState<string>("0");
@@ -109,16 +138,16 @@ const WaterDemandForm: React.FC = () => {
 
   // Firefighting methods selection
   const [firefightingMethods, setFirefightingMethods] = useState<FirefightingMethods>({
-    kuchling: false,
-    freeman: false,
-    buston: false,
-    american_insurance: false,
-    ministry_urban: false,
+    Kuchling: false,
+    Freeman: false,
+    Buston: false,
+    American_insurance: false,
+    Ministry_urban: false,
   });
 
-  // New state to store domestic water demand results
-  const [domesticDemand, setDomesticDemand] = useState<{ [year: string]: number } | null>(null);
-  const [floatingDemand, setFloatingDemand] = useState<{ [year: string]: number } | null>(null);
+ 
+  const [domesticDemand, setDomesticDemand] = useState<any>(null);
+  const [floatingDemand, setFloatingDemand] = useState<any>(null);
   const [institutionalDemand, setInstitutionalDemand] = useState<{ [year: string]: number } | null>(null);
   const [firefightingDemand, setFirefightingDemand] = useState<{ [method: string]: { [year: string]: number } } | null>(null);
   const [selectedFirefightingMethod, setSelectedFirefightingMethod] = useState<string>("");
@@ -150,8 +179,36 @@ const WaterDemandForm: React.FC = () => {
   };
 
   const handlePerCapitaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPerCapitaConsumption(Number(e.target.value));
+    const newValue = Number(e.target.value);
+    setPerCapitaConsumption(newValue);
     setDomesticInputChanged(true);
+    
+    // Call the callback to pass value to parent
+    if (onPerCapitaConsumptionChange) {
+      onPerCapitaConsumptionChange(newValue);
+    }
+  };
+ // Update the handleSeasonalMultiplierChange function
+  const handleSeasonalMultiplierChange = (season: string, value: number) => {
+    const newMultipliers = {
+      ...seasonalMultipliers,
+      [season]: value
+    };
+    setSeasonalMultipliers(newMultipliers);
+    setDomesticInputChanged(true);
+    
+    // Call the callback to pass value to parent
+    if (onSeasonalMultipliersChange) {
+      onSeasonalMultipliersChange(newMultipliers);
+    }
+  };
+  // Add after handleSeasonalMultiplierChange
+  const handleFloatingSeasonalMultiplierChange = (season: string, value: number) => {
+    setFloatingSeasonalMultipliers({
+      ...floatingSeasonalMultipliers,
+      [season]: value
+    });
+    setFloatingInputChanged(true);
   };
 
   const handleFloatingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,9 +216,9 @@ const WaterDemandForm: React.FC = () => {
     setFloatingInputChanged(true);
   };
 
-  const handleFloatingPopulationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFloatingPopulation2011(Number(e.target.value));
-    setFloatingInputChanged(true);
+  const handleFloatingPopulationPercentageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setFloatingPopulationPercentage(Number(e.target.value));
+  setFloatingInputChanged(true);
   };
 
   const handleFacilityTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -206,22 +263,30 @@ const WaterDemandForm: React.FC = () => {
     });
     setFirefightingInputChanged(true);
   };
-
+ 
+    // Also add useEffect to pass initial values when component mounts
+  useEffect(() => {
+    if (onSeasonalMultipliersChange) {
+      onSeasonalMultipliersChange(seasonalMultipliers);
+    }
+  }, []); // Empty dependency array to run only on mount
   // Setup useEffect to auto-calculate when relevant inputs change
   // These will only run if initialCalculationDone is true
+// Update this useEffect:
   useEffect(() => {
     if (initialCalculationDone && domesticInputChanged && domesticChecked) {
       calculateDomesticDemand();
       setDomesticInputChanged(false);
     }
-  }, [domesticChecked, perCapitaConsumption, domesticInputChanged, initialCalculationDone]);
+  }, [domesticChecked, perCapitaConsumption, seasonalMultipliers, domesticInputChanged, initialCalculationDone]);
 
+  // Update this floatinguseEffect:
   useEffect(() => {
-    if (initialCalculationDone && floatingInputChanged && floatingChecked) {
-      calculateFloatingDemand();
-      setFloatingInputChanged(false);
+  if (initialCalculationDone && floatingInputChanged && floatingChecked) {
+    calculateFloatingDemand();
+    setFloatingInputChanged(false);
     }
-  }, [floatingChecked, floatingPopulation2011, facilityType, floatingInputChanged, initialCalculationDone]);
+  }, [floatingChecked, floatingPopulationPercentage, facilityType, floatingSeasonalMultipliers, floatingInputChanged, initialCalculationDone]);
 
   useEffect(() => {
     if (initialCalculationDone && institutionalInputChanged && institutionalChecked) {
@@ -249,45 +314,55 @@ const WaterDemandForm: React.FC = () => {
     updateTotalDemand();
   }, [domesticDemand, floatingDemand, institutionalDemand, firefightingDemand, selectedFirefightingMethod]);
 
+  // Also add useEffect to pass initial floating seasonal data when available
+  useEffect(() => {
+    if (onFloatingSeasonalDemandsChange && floatingDemand?.seasonal_demands) {
+      onFloatingSeasonalDemandsChange(floatingDemand.seasonal_demands);
+    }
+  }, [floatingDemand?.seasonal_demands, onFloatingSeasonalDemandsChange]);
 
-    // New useEffect to detect changes in forecastData------------------------h
-    useEffect(() => {
-      // Only run if initialCalculationDone is true to avoid unnecessary calculations on mount
-      if (initialCalculationDone && forecastData !== lastForecastData) {
-        // Update lastForecastData
-        setLastForecastData(forecastData);
-  
-        // Trigger calculations for enabled components
-        if (domesticChecked) {
-          calculateDomesticDemand();
-        }
-        if (floatingChecked) {
-          calculateFloatingDemand();
-        }
-        if (institutionalChecked) {
-          calculateInstitutionalDemand();
-        }
-        if (firefightingChecked) {
-          calculateFirefightingDemand();
-        }
+  // New useEffect to detect changes in forecastData------------------------h
+  useEffect(() => {
+    // Only run if initialCalculationDone is true to avoid unnecessary calculations on mount
+    if (initialCalculationDone && forecastData !== lastForecastData) {
+      // Update lastForecastData
+      setLastForecastData(forecastData);
+
+      // Trigger calculations for enabled components
+      if (domesticChecked) {
+        calculateDomesticDemand();
       }
-    }, [forecastData, initialCalculationDone]);
+      if (floatingChecked) {
+        calculateFloatingDemand();
+      }
+      if (institutionalChecked) {
+        calculateInstitutionalDemand();
+      }
+      if (firefightingChecked) {
+        calculateFirefightingDemand();
+      }
+    }
+  }, [forecastData, initialCalculationDone]);
   
 
   // Function to calculate domestic water demand
  // Function to calculate domestic water demand
+    // Replace the body content of calculateDomesticDemand with:
     const calculateDomesticDemand = async () => {
       if (!forecastData || isCalculating || !domesticChecked) return;
 
       setIsCalculating(true);
       try {
+        const requestBody = {
+          forecast_data: forecastData,
+          per_capita_consumption: perCapitaConsumption,
+          seasonal_multipliers: seasonalMultipliers
+        };
+
         const response = await fetch('/basics/domestic_water_demand/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            forecast_data: forecastData,
-            per_capita_consumption: perCapitaConsumption,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -299,26 +374,30 @@ const WaterDemandForm: React.FC = () => {
         // Store result globally
         (window as any).domesticWaterDemand = domesticDemandResult;
       } catch (error) {
-        console.log("Error calculating domestic water demand:", error);
+        console.error("Error calculating domestic water demand:", error);
       } finally {
         setIsCalculating(false);
       }
     };
 
     // Function to calculate floating water demand
+    // Replace the entire calculateFloatingDemand function:
     const calculateFloatingDemand = async () => {
-      if (!forecastData || isCalculating || !floatingChecked || floatingPopulation2011 === null) return;
+      if (!forecastData || isCalculating || !floatingChecked) return;
 
       setIsCalculating(true);
       try {
+        const requestBody = {
+          floating_population_percentage: floatingPopulationPercentage,
+          facility_type: facilityType,
+          domestic_forecast: forecastData,
+          seasonal_multipliers: floatingSeasonalMultipliers
+        };
+
         const floatingResponse = await fetch('/basics/floating_water_demand/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            floating_population: floatingPopulation2011,
-            facility_type: facilityType,
-            domestic_forecast: forecastData,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!floatingResponse.ok) {
@@ -331,7 +410,7 @@ const WaterDemandForm: React.FC = () => {
         // Store result globally
         (window as any).floatingWaterDemand = floatingDemandResult;
       } catch (error) {
-        console.log("Error calculating floating water demand:", error);
+        console.error("Error calculating floating water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -366,7 +445,7 @@ const WaterDemandForm: React.FC = () => {
           const totalDemand = parseFloat(totalInstitutionalDemand);
 
           if (isNaN(totalDemand)) {
-            console.log("Invalid total institutional demand value");
+            console.error("Invalid total institutional demand value");
             return;
           }
 
@@ -383,7 +462,7 @@ const WaterDemandForm: React.FC = () => {
         // Store result globally
         (window as any).institutionalWaterDemand = institutionalResult;
       } catch (error) {
-        console.log("Error calculating institutional water demand:", error);
+        console.error("Error calculating institutional water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -419,33 +498,70 @@ const WaterDemandForm: React.FC = () => {
           setSelectedFirefightingMethod(Object.keys(result)[0]);
         }
       } catch (error) {
-        console.log("Error calculating firefighting water demand:", error);
+        console.error("Error calculating firefighting water demand:", error);
       } finally {
         setIsCalculating(false);
       }
     };
 
     // Function to update the total demand
-    const updateTotalDemand = () => {
-      if (!forecastData) return;
+   const updateTotalDemand = () => {
+  if (!forecastData) return;
 
-      const totalDemand: { [year: string]: number } = {};
+  const totalDemand: { [year: string]: number } = {};
+  const waterDemandResults = {
+    domestic: domesticDemand,
+    floating: floatingDemand,
+    institutional: institutionalDemand,
+    firefighting: firefightingDemand,
+    selectedFirefightingMethod: selectedFirefightingMethod
+  };
 
-      Object.keys(forecastData).sort().forEach(year => {
-        const domesticVal = domesticChecked && domesticDemand?.[year] ? domesticDemand[year] : 0;
-        const floatingVal = floatingChecked && floatingDemand?.[year] ? floatingDemand[year] : 0;
-        const institutionalVal = institutionalChecked && institutionalDemand?.[year] ? institutionalDemand[year] : 0;
-        const firefightingVal =
-          firefightingChecked && selectedFirefightingMethod && firefightingDemand?.[selectedFirefightingMethod]?.[year]
-            ? firefightingDemand[selectedFirefightingMethod][year]
-            : 0;
+  Object.keys(forecastData).sort().forEach(year => {
+    // FIXED: Domestic demand access
+    const domesticVal = domesticChecked && domesticDemand 
+      ? (domesticDemand.base_demand?.[year] || 0)
+      : 0;
+     
+    // FIXED: Floating demand access  
+    const floatingVal = floatingChecked && floatingDemand 
+      ? (floatingDemand.base_demand?.[year] || 0)
+      : 0;
+      
+    // Institutional demand (direct access)
+    const institutionalVal = institutionalChecked && institutionalDemand?.[year] ? institutionalDemand[year] : 0;
+    
+    // Firefighting demand (nested access)
+    const firefightingVal =
+      firefightingChecked && selectedFirefightingMethod && firefightingDemand?.[selectedFirefightingMethod]?.[year]
+        ? firefightingDemand[selectedFirefightingMethod][year]
+        : 0;
 
-        totalDemand[year] = domesticVal + floatingVal + institutionalVal + firefightingVal;
-      });
+    totalDemand[year] = domesticVal + floatingVal + institutionalVal + firefightingVal;
+    
+    // DEBUG: Add console.log to check values
+    console.log(`Year ${year}:`, {
+      domestic: domesticVal,
+      floating: floatingVal,
+      institutional: institutionalVal,
+      firefighting: firefightingVal,
+      total: totalDemand[year]
+    });
+  });
 
-      // Store in window object for other components to access
-      (window as any).totalWaterDemand = totalDemand;
-    };
+  // Store in window object for other components to access
+  (window as any).totalWaterDemand = totalDemand;
+
+  // Pass water demand results to parent
+  if (onWaterDemandResultsChange) {
+    onWaterDemandResultsChange(waterDemandResults);
+  }
+
+  // Pass floating seasonal demands to parent if available
+  if (onFloatingSeasonalDemandsChange && floatingDemand?.seasonal_demands) {
+    onFloatingSeasonalDemandsChange(floatingDemand.seasonal_demands);
+  }
+};
 
   // Manual calculation handler for button
     const handleCalculate = () => {
@@ -505,103 +621,282 @@ const WaterDemandForm: React.FC = () => {
         </div>
         
         {/* Domestic Fields */}
-        {domesticChecked && (
-          <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
-            <h4 className="font-semibold text-lg text-blue-700 mb-3">Domestic Water Demand</h4>
-            <div className="flex items-center">
-              <label className="block text-sm font-medium text-gray-700 mr-3">
-                Per Capita Consumption (LPCD):
-              </label>
-              <div className="flex items-center">
+          {/* Domestic Fields */}
+  {domesticChecked && (
+    <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
+      <h4 className="font-semibold text-lg text-blue-700 mb-3">Domestic Water Demand</h4>
+      
+      {/* Base Per Capita Consumption */}
+      <div className="mb-4">
+        <div className="flex items-center">
+          <label className="block text-sm font-medium text-gray-700 mr-3">
+            Per Capita Consumption (LPCD):
+          </label>
+          <div className="flex items-center">
+            <input
+              type="number"
+              value={perCapitaConsumption}
+              onChange={handlePerCapitaChange}
+              className="border border-gray-300 rounded-lg px-3 py-2 w-24 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              min="0"
+            />
+            
+            {/* Info icon with hover table */}
+            <div className="relative inline-block ml-2 group z-50">
+              <span className="flex items-center justify-center h-5 w-5 text-sm bg-blue-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
+              
+              {/* Hover table positioned above the icon */}
+              <div className="absolute z-5000 hidden group-hover:block w-106 text-xs rounded bottom-6 left-0 mr-100 transform translate-x-1/2 mt-5">
+                <table className="table-fixed border-collapse border border-black w-full text-center text-xs p-0 bg-white mt-4 z-5000 shadow-xl">
+                  <caption className="caption-top font-serif font-bold text-base mb-2">
+                    Recommended Per Capita Water Supply Levels for Designing Schemes
+                  </caption>
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="border border-black p-1 w-1/12">S. No.</th>
+                      <th className="border border-black p-1 w-7/12">Classification of towns / cities</th>
+                      <th className="border border-black p-1 w-4/12">Recommended Maximum Water Supply Levels (lpcd)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="border border-black p-1">1.</td>
+                      <td className="border border-black p-1 text-left">
+                        Towns provided with piped water supply but without sewerage system
+                      </td>
+                      <td className="border border-black p-1">70</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black p-1">2.</td>
+                      <td className="border border-black p-1 text-left">
+                        Cities provided with piped water supply where sewerage system is existing/contemplated
+                      </td>
+                      <td className="border border-black p-1">135</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black p-1">3.</td>
+                      <td className="border border-black p-1 text-left">
+                        Metropolitan and Mega cities provided with piped water supply where sewerage system is existing/contemplated
+                      </td>
+                      <td className="border border-black p-1">150</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Seasonal Multipliers Table */}
+      <div className="p-3 bg-white rounded-lg border">
+        <h5 className="font-semibold text-gray-700 mb-3">Seasonal Multipliers:</h5>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-300 rounded-lg">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Season</th>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Multiplier</th>
+                <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Effective Demand (LPCD)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="border border-gray-300 px-4 py-2">Summer (Apr-Jun)</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  <input
+                    type="number"
+                    value={seasonalMultipliers.summer}
+                    onChange={(e) => handleSeasonalMultiplierChange('summer', Number(e.target.value))}
+                    className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </td>
+                <td className="border border-gray-300 px-4 py-2 font-medium">
+                  {(perCapitaConsumption * seasonalMultipliers.summer).toFixed(1)}
+                </td>
+              </tr>
+              <tr className="bg-gray-50">
+                <td className="border border-gray-300 px-4 py-2">Monsoon (Jul-Sep)</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  <input
+                    type="number"
+                    value={seasonalMultipliers.monsoon}
+                    onChange={(e) => handleSeasonalMultiplierChange('monsoon', Number(e.target.value))}
+                    className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </td>
+                <td className="border border-gray-300 px-4 py-2 font-medium">
+                  {(perCapitaConsumption * seasonalMultipliers.monsoon).toFixed(1)}
+                </td>
+              </tr>
+              <tr>
+                <td className="border border-gray-300 px-4 py-2">Post-Monsoon (Oct-Nov)</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  <input
+                    type="number"
+                    value={seasonalMultipliers.postMonsoon}
+                    onChange={(e) => handleSeasonalMultiplierChange('postMonsoon', Number(e.target.value))}
+                    className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </td>
+                <td className="border border-gray-300 px-4 py-2 font-medium">
+                  {(perCapitaConsumption * seasonalMultipliers.postMonsoon).toFixed(1)}
+                </td>
+              </tr>
+              <tr className="bg-gray-50">
+                <td className="border border-gray-300 px-4 py-2">Winter (Dec-Mar)</td>
+                <td className="border border-gray-300 px-4 py-2">
+                  <input
+                    type="number"
+                    value={seasonalMultipliers.winter}
+                    onChange={(e) => handleSeasonalMultiplierChange('winter', Number(e.target.value))}
+                    className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="0"
+                    step="0.01"
+                  />
+                </td>
+                <td className="border border-gray-300 px-4 py-2 font-medium">
+                  {(perCapitaConsumption * seasonalMultipliers.winter).toFixed(1)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+   
+
+      
+    </div>
+  )}
+ {/* Floating Fields */}
+{floatingChecked && (
+  <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
+    <h4 className="font-semibold text-lg text-blue-700 mb-3">Floating Water Demand</h4>
+    
+    {/* Floating Population Percentage Input */}
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mr-3">
+        Floating Population Percentage (%):
+      </label>
+      <input
+        type="number"
+        value={floatingPopulationPercentage}
+        onChange={handleFloatingPopulationPercentageChange}
+        className="border border-gray-300 rounded-lg px-3 py-2 w-24 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+        min="0"
+        max="100"
+      />
+    </div>
+
+    {/* Facility Type Selection */}
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-700 mr-3">
+        Facility Type:
+      </label>
+      <select
+        value={facilityType}
+        onChange={handleFacilityTypeChange}
+        className="border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+      >
+        <option value="provided">Bathing Facilities Provided</option>
+        <option value="notprovided">Bathing Facilities Not Provided</option>
+        <option value="onlypublic">Floating Population using only public facilities</option>
+      </select>
+    </div>
+
+    {/* Floating Seasonal Multipliers Table */}
+    <div className="mt-4 p-3 bg-white rounded-lg border">
+      <h5 className="font-semibold text-gray-700 mb-3">Floating Population Seasonal Multipliers:</h5>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border border-gray-300 rounded-lg">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Season</th>
+              <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Multiplier</th>
+              <th className="border border-gray-300 px-4 py-2 text-left font-semibold">Effective Floating %</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-gray-300 px-4 py-2">Summer (Apr-Jun)</td>
+              <td className="border border-gray-300 px-4 py-2">
                 <input
                   type="number"
-                  value={perCapitaConsumption}
-                  onChange={handlePerCapitaChange}
-                  className="border border-gray-300 rounded-lg px-3 py-2 w-24 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  value={floatingSeasonalMultipliers.summer}
+                  onChange={(e) => handleFloatingSeasonalMultiplierChange('summer', Number(e.target.value))}
+                  className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   min="0"
+                  step="0.01"
                 />
-                
-                {/* Info icon with hover table */}
-                <div className="relative inline-block ml-2 group z-50">
-                  <span className="flex items-center justify-center h-5 w-5 text-sm bg-blue-600 text-white rounded-full cursor-help transition-transform hover:scale-110">i</span>
-                  
-                  {/* Hover table positioned above the icon */}
-                  <div className="absolute z-5000 hidden group-hover:block w-106 text-xs rounded bottom-6 left-0 mr-100 transform translate-x-1/2 mt-5">
-                    <table className="table-fixed border-collapse border border-black w-full text-center text-xs p-0 bg-white mt-4 z-5000 shadow-xl">
-                      <caption className="caption-top font-serif font-bold text-base mb-2">
-                        Recommended Per Capita Water Supply Levels for Designing Schemes
-                      </caption>
-                      <thead>
-                        <tr className="bg-gray-100">
-                          <th className="border border-black p-1 w-1/12">S. No.</th>
-                          <th className="border border-black p-1 w-7/12">Classification of towns / cities</th>
-                          <th className="border border-black p-1 w-4/12">Recommended Maximum Water Supply Levels (lpcd)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="border border-black p-1">1.</td>
-                          <td className="border border-black p-1 text-left">
-                            Towns provided with piped water supply but without sewerage system
-                          </td>
-                          <td className="border border-black p-1">70</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-black p-1">2.</td>
-                          <td className="border border-black p-1 text-left">
-                            Cities provided with piped water supply where sewerage system is existing/contemplated
-                          </td>
-                          <td className="border border-black p-1">135</td>
-                        </tr>
-                        <tr>
-                          <td className="border border-black p-1">3.</td>
-                          <td className="border border-black p-1 text-left">
-                            Metropolitan and Mega cities provided with piped water supply where sewerage system is existing/contemplated
-                          </td>
-                          <td className="border border-black p-1">150</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Floating Fields */}
-        {floatingChecked && (
-          <div className="mb-6 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
-            <h4 className="font-semibold text-lg text-blue-700 mb-3">Floating Population Water Demand</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Floating Population (2011):
-                </label>
-                <input 
-                  type="number" 
-                  value={floatingPopulation2011 ?? ''}
-                  onChange={handleFloatingPopulationChange}
-                  className="mt-2 block w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder='Enter number'
+              </td>
+              <td className="border border-gray-300 px-4 py-2 font-medium">
+                {(floatingPopulationPercentage * floatingSeasonalMultipliers.summer).toFixed(1)}%
+              </td>
+            </tr>
+            <tr className="bg-gray-50">
+              <td className="border border-gray-300 px-4 py-2">Monsoon (Jul-Sep)</td>
+              <td className="border border-gray-300 px-4 py-2">
+                <input
+                  type="number"
+                  value={floatingSeasonalMultipliers.monsoon}
+                  onChange={(e) => handleFloatingSeasonalMultiplierChange('monsoon', Number(e.target.value))}
+                  className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   min="0"
+                  step="0.01"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Facility Type:</label>
-                <select 
-                  value={facilityType}
-                  onChange={handleFacilityTypeChange}
-                  className="mt-2 block w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="provided">Bathing facilities provided</option>
-                  <option value="notprovided">Bathing facilities not provided</option>
-                  <option value="onlypublic">Floating population using only public facilities</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
+              </td>
+              <td className="border border-gray-300 px-4 py-2 font-medium">
+                {(floatingPopulationPercentage * floatingSeasonalMultipliers.monsoon).toFixed(1)}%
+              </td>
+            </tr>
+            <tr>
+              <td className="border border-gray-300 px-4 py-2">Post-Monsoon (Oct-Nov)</td>
+              <td className="border border-gray-300 px-4 py-2">
+                <input
+                  type="number"
+                  value={floatingSeasonalMultipliers.postMonsoon}
+                  onChange={(e) => handleFloatingSeasonalMultiplierChange('postMonsoon', Number(e.target.value))}
+                  className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
+                  step="0.01"
+                />
+              </td>
+              <td className="border border-gray-300 px-4 py-2 font-medium">
+                {(floatingPopulationPercentage * floatingSeasonalMultipliers.postMonsoon).toFixed(1)}%
+              </td>
+            </tr>
+            <tr className="bg-gray-50">
+              <td className="border border-gray-300 px-4 py-2">Winter (Dec-Mar)</td>
+              <td className="border border-gray-300 px-4 py-2">
+                <input
+                  type="number"
+                  value={floatingSeasonalMultipliers.winter}
+                  onChange={(e) => handleFloatingSeasonalMultiplierChange('winter', Number(e.target.value))}
+                  className="w-20 border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
+                  step="0.01"
+                />
+              </td>
+              <td className="border border-gray-300 px-4 py-2 font-medium">
+                {(floatingPopulationPercentage * floatingSeasonalMultipliers.winter).toFixed(1)}%
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="text-sm text-gray-500 mt-2">
+        Seasonal multipliers affect the floating population percentage based on tourism, migration, and seasonal work patterns.
+      </p>
+    </div>
+  </div>
+)}
 
         {/* Institutional Fields */}
         {institutionalChecked && (
@@ -1149,8 +1444,8 @@ const WaterDemandForm: React.FC = () => {
                 <label className="flex items-center p-2 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={firefightingMethods.kuchling}
-                    onChange={(e) => handleFirefightingMethodChange('kuchling', e.target.checked)}
+                    checked={firefightingMethods.Kuchling}
+                    onChange={(e) => handleFirefightingMethodChange('Kuchling', e.target.checked)}
                     className="mr-2"
                   />
                   <span className="font-medium">Kuchling</span>
@@ -1158,8 +1453,8 @@ const WaterDemandForm: React.FC = () => {
                 <label className="flex items-center p-2 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={firefightingMethods.freeman}
-                    onChange={(e) => handleFirefightingMethodChange('freeman', e.target.checked)}
+                    checked={firefightingMethods.Freeman}
+                    onChange={(e) => handleFirefightingMethodChange('Freeman', e.target.checked)}
                     className="mr-2"
                   />
                   <span className="font-medium">Freeman</span>
@@ -1167,8 +1462,8 @@ const WaterDemandForm: React.FC = () => {
                 <label className="flex items-center p-2 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={firefightingMethods.buston}
-                    onChange={(e) => handleFirefightingMethodChange('buston', e.target.checked)}
+                    checked={firefightingMethods.Buston}
+                    onChange={(e) => handleFirefightingMethodChange('Buston', e.target.checked)}
                     className="mr-2"
                   />
                   <span className="font-medium">Buston</span>
@@ -1176,8 +1471,8 @@ const WaterDemandForm: React.FC = () => {
                 <label className="flex items-center p-2 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={firefightingMethods.american_insurance}
-                    onChange={(e) => handleFirefightingMethodChange('american_insurance', e.target.checked)}
+                    checked={firefightingMethods.American_insurance}
+                    onChange={(e) => handleFirefightingMethodChange('American_insurance', e.target.checked)}
                     className="mr-2"
                   />
                   <span className="font-medium">American Insurance</span>
@@ -1185,8 +1480,8 @@ const WaterDemandForm: React.FC = () => {
                 <label className="flex items-center p-2 border rounded-lg hover:bg-blue-50 transition-colors cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={firefightingMethods.ministry_urban}
-                    onChange={(e) => handleFirefightingMethodChange('ministry_urban', e.target.checked)}
+                    checked={firefightingMethods.Ministry_urban}
+                    onChange={(e) => handleFirefightingMethodChange('Ministry_urban', e.target.checked)}
                     className="mr-2"
                   />
                   <span className="font-medium">Ministry Urban</span>
@@ -1295,61 +1590,168 @@ const WaterDemandForm: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.keys(forecastData)
-                    .sort()
-                    .map((year, index) => {
-                    // For domestic, retrieve the forecasted population from the global variable
-                    const domesticPop = forecastData[year] ?? "";
-                    const domesticVal = domesticChecked && domesticDemand?.[year] ? domesticDemand[year] : 0;
-                    const floatingVal = floatingChecked && floatingDemand?.[year] ? floatingDemand[year] : 0;
-                    const institutionalVal = institutionalChecked && institutionalDemand?.[year] ? institutionalDemand[year] : 0;
-                    const firefightingVal =
-                    firefightingChecked && selectedFirefightingMethod && firefightingDemand?.[selectedFirefightingMethod]?.[year]
-                      ? firefightingDemand[selectedFirefightingMethod][year]
-                      : 0;
-                    const totalDemand = domesticVal + floatingVal + institutionalVal + firefightingVal;
-                    return (
-                      <tr key={year} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                        <td className="border-b border-gray-200 px-6 py-3 text-gray-700">{year}</td>
-                        {domesticChecked && (
-                          <>
-                            <td className="border-b border-gray-200 px-6 py-3 text-gray-700">{domesticPop}</td>
-                            <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
-                              {domesticDemand?.[year]
-                                ? domesticDemand[year].toFixed(2)
-                                : ""}
-                            </td>
-                          </>
-                        )}
-                        {floatingChecked && (
-                          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
-                            {floatingDemand?.[year]
-                              ? floatingDemand[year].toFixed(2)
-                              : ""}
-                          </td>
-                        )}
-                        {institutionalChecked && (
-                          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
-                            {institutionalDemand?.[year]
-                              ? institutionalDemand[year].toFixed(2)
-                              : ""}
-                          </td>
-                        )}
-                        {firefightingChecked && selectedFirefightingMethod && (
-                          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
-                            {firefightingDemand?.[selectedFirefightingMethod]?.[year]
-                              ? firefightingDemand[selectedFirefightingMethod][year].toFixed(2)
-                              : ""}
-                          </td>
-                        )}
-                        <td className="border-b border-gray-200 px-6 py-3 font-medium text-gray-800">{totalDemand.toFixed(2)}</td>
-                      </tr>
-                    );
-                  })}
+  {Object.keys(forecastData)
+    .sort()
+    .map((year, index) => {
+    // For domestic, retrieve the forecasted population from the global variable
+    const domesticPop = forecastData[year] ?? "";
+    
+    // FIXED: Consistent access to demand values
+    const domesticVal = domesticChecked && domesticDemand && domesticDemand.base_demand
+      ? (domesticDemand.base_demand[year] || 0)
+      : 0;
+      
+    const floatingVal = floatingChecked && floatingDemand && floatingDemand.base_demand
+      ? (floatingDemand.base_demand[year] || 0)
+      : 0;
+      
+    const institutionalVal = institutionalChecked && institutionalDemand?.[year] ? institutionalDemand[year] : 0;
+    
+    const firefightingVal =
+      firefightingChecked && selectedFirefightingMethod && firefightingDemand?.[selectedFirefightingMethod]?.[year]
+        ? firefightingDemand[selectedFirefightingMethod][year]
+        : 0;
+        
+    const totalDemand = domesticVal + floatingVal + institutionalVal + firefightingVal;
+    
+    return (
+      <tr key={year} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+        <td className="border-b border-gray-200 px-6 py-3 text-gray-700">{year}</td>
+        {domesticChecked && (
+          <>
+            <td className="border-b border-gray-200 px-6 py-3 text-gray-700">{domesticPop}</td>
+            <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
+              {domesticVal.toFixed(2)}
+            </td>
+          </>
+        )}
+        
+        {floatingChecked && (
+          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
+            {floatingVal.toFixed(2)}
+          </td>
+        )}
+        
+        {institutionalChecked && (
+          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
+            {institutionalVal.toFixed(2)}
+          </td>
+        )}
+        
+        {firefightingChecked && selectedFirefightingMethod && (
+          <td className="border-b border-gray-200 px-6 py-3 text-gray-700">
+            {firefightingVal.toFixed(2)}
+          </td>
+        )}
+        
+        <td className="border-b border-gray-200 px-6 py-3 font-medium text-gray-800 bg-blue-50">
+          {totalDemand.toFixed(2)}
+        </td>
+      </tr>
+    );
+  })}
                 </tbody>
               </table>
             </div>
+            {/* Show Seasonal Breakdown Button */}
+            {domesticDemand && domesticDemand.seasonal_demands && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowSeasonalBreakdown(!showSeasonalBreakdown)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  {showSeasonalBreakdown ? 'Hide' : 'Show'} Seasonal Domestic Water Demand
+                </button>
+              </div>
+            )}
+            {/* Seasonal Breakdown Table */}
+            {showSeasonalBreakdown && domesticDemand?.seasonal_demands && forecastData && (
+              <div className="mt-4 p-3 bg-white rounded-lg border">
+                <h5 className="font-semibold text-green-700 mb-3">Seasonal Domestic Water Demand </h5>
+                <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-gray-100">
+                  <table className="table-auto w-full bg-white border border-gray-300 rounded-lg shadow-md">
+                    <thead className="bg-gradient-to-r from-green-100 to-green-200 sticky top-0 z-10">
+                      <tr>
+                        <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Year</th>
+                        <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Summer (MLD)</th>
+                        <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Monsoon (MLD)</th>
+                        <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Post-Monsoon (MLD)</th>
+                        <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Winter (MLD)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.keys(forecastData).sort().map((year, index) => (
+                        <tr key={year} className={`hover:bg-green-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                          <td className="border-b border-gray-200 px-4 py-2 text-gray-700">{year}</td>
+                          <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                            {domesticDemand.seasonal_demands.summer?.[year]?.toFixed(2) || "0.00"}
+                          </td>
+                          <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                            {domesticDemand.seasonal_demands.monsoon?.[year]?.toFixed(2) || "0.00"}
+                          </td>
+                          <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                            {domesticDemand.seasonal_demands.postMonsoon?.[year]?.toFixed(2) || "0.00"}
+                          </td>
+                          <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                            {domesticDemand.seasonal_demands.winter?.[year]?.toFixed(2) || "0.00"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+             {/* Show Floating Seasonal Breakdown Button */}
+              {floatingDemand && floatingDemand.seasonal_demands && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowFloatingSeasonalBreakdown(!showFloatingSeasonalBreakdown)}
+                    className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    {showFloatingSeasonalBreakdown ? 'Hide' : 'Show'} Seasonal Floating Water Demand
+                  </button>
+                </div>
+              )}
 
+              {/* Floating Seasonal Breakdown Table */}
+              {showFloatingSeasonalBreakdown && floatingDemand?.seasonal_demands && forecastData && (
+                <div className="mt-4 p-3 bg-white rounded-lg border">
+                  <h5 className="font-semibold text-orange-700 mb-3">Seasonal Floating Water Demand</h5>
+                  <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-orange-500 scrollbar-track-gray-100">
+                    <table className="table-auto w-full bg-white border border-gray-300 rounded-lg shadow-md">
+                      <thead className="bg-gradient-to-r from-orange-100 to-orange-200 sticky top-0 z-10">
+                        <tr>
+                          <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Year</th>
+                          <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Summer (MLD)</th>
+                          <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Monsoon (MLD)</th>
+                          <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Post-Monsoon (MLD)</th>
+                          <th className="border-b border-gray-300 px-4 py-2 text-left text-sm font-semibold text-gray-800">Winter (MLD)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.keys(forecastData).sort().map((year, index) => (
+                          <tr key={year} className={`hover:bg-orange-50 transition-colors ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                            <td className="border-b border-gray-200 px-4 py-2 text-gray-700">{year}</td>
+                            <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                              {floatingDemand.seasonal_demands.summer?.[year]?.toFixed(2) || "0.00"}
+                            </td>
+                            <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                              {floatingDemand.seasonal_demands.monsoon?.[year]?.toFixed(2) || "0.00"}
+                            </td>
+                            <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                              {floatingDemand.seasonal_demands.postMonsoon?.[year]?.toFixed(2) || "0.00"}
+                            </td>
+                            <td className="border-b border-gray-200 px-4 py-2 text-gray-700">
+                              {floatingDemand.seasonal_demands.winter?.[year]?.toFixed(2) || "0.00"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             {/* Add a summary message below the table */}
             <div className="mt-4 p-4 border rounded-lg bg-blue-50/50 shadow-sm">
               <h5 className="font-semibold text-lg text-blue-700 mb-2">Water Demand Summary:</h5>

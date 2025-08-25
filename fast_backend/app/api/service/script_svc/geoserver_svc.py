@@ -141,7 +141,7 @@ def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
         if check_response.status_code != 200:
             print(f"Store '{store_name}' does not exist in workspace '{workspace_name}'")
             return False
-        
+
         
         delete_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}/featuretypes/{layer_name}?recurse=true"
         delete_response = requests.delete(

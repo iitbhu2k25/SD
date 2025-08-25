@@ -18,7 +18,7 @@ import WaterDemandForm from "./water_demand/components/WaterDemandForm";
 const Map = dynamic(() => import("./components/map"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-[48vh] border-4 border-gray-300  rounded-xl">
+    <div className="flex items-center justify-center h-full border-4 border-gray-300 rounded-xl">
       <div className="text-gray-500">Loading map...</div>
     </div>
   )
@@ -28,7 +28,7 @@ const Map = dynamic(() => import("./components/map"), {
 const DrainMap = dynamic(() => import("./components/drainmap"), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-[48vh] border border-gray-900">
+    <div className="flex items-center justify-center h-full border border-gray-900">
       <div className="text-gray-500">Loading drain map...</div>
     </div>
   )
@@ -121,7 +121,6 @@ const Basic: React.FC = () => {
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
   const [skippedSteps, setSkippedSteps] = useState<number[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'admin' | 'drain'>('admin'); // State for view toggle
   const [isMapLoading, setIsMapLoading] = useState<boolean>(true);
   // ADD THIS STATE FOR DRAIN MAP LOADING
@@ -153,6 +152,20 @@ const Basic: React.FC = () => {
   const [villageChangeSource, setVillageChangeSource] = useState<'map' | 'dropdown' | null>(null);
   const [drainVillagePopulations, setDrainVillagePopulations] = useState<VillagePopulation[]>([]);
   const [drainSelectionsLocked, setDrainSelectionsLocked] = useState<boolean>(false);
+  // water demand state
+  // Add this state variable with your other state declarations
+  const [perCapitaConsumption, setPerCapitaConsumption] = useState<number>(135);
+  // Add this state variable with your other state declarations
+  const [seasonalMultipliers, setSeasonalMultipliers] = useState({
+    summer: 1.10,
+    monsoon: 0.95,
+    postMonsoon: 1.00,
+    winter: 0.90
+  });
+  // Add these state variables with your other state declarations
+const [waterDemandResults, setWaterDemandResults] = useState<any>(null);
+const [floatingSeasonalDemands, setFloatingSeasonalDemands] = useState<any>(null);
+const [domesticSeasonalDemands, setDomesticSeasonalDemands] = useState<any>(null);
 
   // Refs for LocationSelector
   const stateRef = useRef<string>('');
@@ -222,7 +235,36 @@ const Basic: React.FC = () => {
       setSkippedSteps(drainSkippedSteps);
     }
   }, [viewMode, adminCurrentStep, drainCurrentStep, adminCompletedSteps, drainCompletedSteps, adminSkippedSteps, drainSkippedSteps]);
+   // water demand handle 
+   // Add this handler function
+   const handleWaterDemandResultsChange = (results: any) => {
+  setWaterDemandResults(results);
+  // Store globally if needed by other components
+  (window as any).waterDemandResults = results;
+};
+const handleFloatingSeasonalDemandsChange = (seasonalDemands: any) => {
+  setFloatingSeasonalDemands(seasonalDemands);
+  // Store globally if needed by other components
+  (window as any).floatingSeasonalDemands = seasonalDemands;
+};
 
+const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
+  setDomesticSeasonalDemands(seasonalDemands);
+  // Store globally if needed by other components
+  (window as any).domesticSeasonalDemands = seasonalDemands;
+};
+
+    const handlePerCapitaConsumptionChange = (value: number) => {
+      setPerCapitaConsumption(value);
+      // Store globally if needed by other components
+      (window as any).perCapitaConsumption = value;
+    };
+        // Add this handler function
+    const handleSeasonalMultipliersChange = (multipliers: any) => {
+      setSeasonalMultipliers(multipliers);
+      // Store globally if needed by other components
+      (window as any).seasonalMultipliers = multipliers;
+    };
   // Handle confirm for LocationSelector
   const handleLocationConfirm = (data: SelectedLocationData): void => {
     console.log('Received confirmed location data:', data);
@@ -418,9 +460,9 @@ const Basic: React.FC = () => {
 
 
 
-  // Navigation handlers with view mode awareness
+  // Navigation handlers with view mode awareness - Updated for 5 steps (0-4)
   const handleNext = () => {
-    if (currentStep < 3) {
+    if (currentStep < 4) { // Changed from 3 to 4
       if (viewMode === 'admin') {
         setAdminCompletedSteps(prev => [...prev.filter(step => step !== currentStep), currentStep]);
         setAdminSkippedSteps(prev => prev.filter(step => step !== currentStep));
@@ -448,7 +490,7 @@ const Basic: React.FC = () => {
   };
 
   const handleSkip = () => {
-    if (currentStep > 0 && currentStep < 3) {
+    if (currentStep > 0 && currentStep < 4) { // Changed from 3 to 4
       if (viewMode === 'admin') {
         setAdminSkippedSteps(prev => [...prev.filter(step => step !== currentStep), currentStep]);
         setAdminCompletedSteps(prev => prev.filter(step => step !== currentStep));
@@ -524,19 +566,6 @@ const Basic: React.FC = () => {
     }, 500);
   };
 
-  const handleFinish = () => {
-    if (viewMode === 'admin') {
-      setAdminCompletedSteps(prev => [...prev.filter(step => step !== 3), 3]);
-    } else {
-      setDrainCompletedSteps(prev => [...prev.filter(step => step !== 3), 3]);
-    }
-    setCompletedSteps(prev => [...prev.filter(step => step !== 3), 3]);
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-    }, 2000);
-  };
-
 //added for perfect reset 
 // Add this useEffect to handle view mode changes and reset all data
 useEffect(() => {
@@ -544,7 +573,6 @@ useEffect(() => {
   setCurrentStep(0);
   setSkippedSteps([]);
   setCompletedSteps([]);
-  setShowSuccess(false);
   
   // Reset location data (admin mode)
   setSelectedLocationData(null);
@@ -642,150 +670,356 @@ useEffect(() => {
       setCompletedSteps([]);
       setAdminCompletedSteps([]);
       setDrainCompletedSteps([]);
-      setShowSuccess(false);
     }
   }, [selectedLocationData, selectedRiverData]);
 
-
+  // Check if we have selected data to show map and content
+  const hasSelectedData = (selectedLocationData && viewMode === 'admin') || (selectedRiverData && viewMode === 'drain');
 
   return (
-    <div className="flex flex-col md:flex-row w-full min-h-0">
-      <div className="w-full md:w-64 border-b md:border-b-0 md:border-r border-gray-200">
-        <StatusBar
-          currentStep={currentStep}
-          onStepChange={handleStepChange}
-          skippedSteps={skippedSteps}
-          completedSteps={completedSteps}
-          viewMode={viewMode}
-        />
-      </div>
-
+    <div className="flex flex-col w-full min-h-0">
       <div className="w-full relative flex flex-col">
-        {/* Toggle Buttons - Moved Above Location Selectors */}
-        <div className="flex justify-center mt-6 mb-8 px-6 z-10">
-          <div className="flex items-center space-x-6">
-            <span
-              className={`text-2xl font-semibold transition-colors duration-300 ${viewMode === "admin" ? "text-blue-600 drop-shadow-md" : "text-gray-500"
-                }`}
-            >
-              Admin
-            </span>
+        <div className="w-full bg-gradient-to-r from-blue-500 to-blue-200 py-6 px-2">
+          <div className="w-full px-8 flex items-center justify-between">
+            {/* Heading on the left */}
+            <h2 className="text-white text-4xl font-bold select-none">
+              Basic Module
+            </h2>
 
-            <div
-              className="relative w-24 h-12 bg-gray-200 rounded-full cursor-pointer transition-all duration-300 hover:bg-gray-300"
-              onClick={() => handleViewModeChange(viewMode === "admin" ? "drain" : "admin")}
-              role="switch"
-              aria-checked={viewMode === "drain"}
-              tabIndex={0}
-              onKeyDown={(e: React.KeyboardEvent) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleViewModeChange(viewMode === "admin" ? "drain" : "admin");
-                }
-              }}
-            >
-              <div
-                className={`absolute top-1 left-1 w-10 h-10 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${viewMode === "drain" ? "translate-x-12 bg-green-500" : "bg-blue-500"
-                  } flex items-center justify-center`}
+            {/* Toggle controls */}
+            <div className="flex items-center space-x-6 mr-100">
+              <span
+                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${
+                  viewMode === "admin" ? "text-white drop-shadow-lg" : "text-white/80"
+                }`}
+                onClick={() => {
+                  if (viewMode !== "admin") handleViewModeChange("admin")
+                }}
               >
-                <div className="flex items-center justify-center  w-full h-full">
-                  {viewMode === "admin" ? (
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-6 h-6 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
+                Admin
+              </span>
+
+              <div
+                className="relative w-24 h-12 bg-gray-200 rounded-full cursor-pointer transition-all duration-300 hover:bg-gray-300"
+                onClick={() => handleViewModeChange(viewMode === "admin" ? "drain" : "admin")}
+                role="switch"
+                aria-checked={viewMode === "drain"}
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    handleViewModeChange(viewMode === "admin" ? "drain" : "admin")
+                  }
+                }}
+              >
+                <div
+                  className={`absolute top-1 left-1 w-10 h-10 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
+                    viewMode === "drain" ? "translate-x-12 bg-green-500" : "bg-blue-500"
+                  } flex items-center justify-center`}
+                >
+                  <div className="flex items-center justify-center w-full h-full">
+                    {viewMode === "admin" ? (
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zM12 14a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <span
-              className={`text-2xl font-semibold transition-colors duration-300 ${viewMode === "drain" ? "text-green-600 drop-shadow-md" : "text-gray-500"
+              <span
+                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${
+                  viewMode === "drain" ? "text-white drop-shadow-lg" : "text-white/80"
                 }`}
-            >
-              Drain
-            </span>
+                onClick={() => {
+                  if (viewMode !== "drain") handleViewModeChange("drain")
+                }}
+              >
+                Drain
+              </span>
+            </div>
           </div>
         </div>
+
+        <div className="w-full border-b border-gray-200">
+          <StatusBar
+            currentStep={currentStep}
+            onStepChange={handleStepChange}
+            skippedSteps={skippedSteps}
+            completedSteps={completedSteps}
+            viewMode={viewMode}
+          />
+        </div>
+
         <div className="relative overflow-hidden w-full h-6 mb-4">
           <div className="animate-marquee whitespace-nowrap text-blue-700 font-semibold text-sm">
             This module contains data only for the Varuna River Basin, so it works for only five districts within the basin.
           </div>
           <style jsx>{`
-        @keyframes marquee {
-          0% {
-            transform: translateX(100%);
-          }
-          100% {
-            transform: translateX(-100%);
-          }
-        }
-        .animate-marquee {
-          display: inline-block;
-          white-space: nowrap;
-          animation: marquee 30s linear infinite;
-        }
+            @keyframes marquee {
+              0% {
+                transform: translateX(100%);
+              }
+              100% {
+                transform: translateX(-100%);
+              }
+            }
+            .animate-marquee {
+              display: inline-block;
+              white-space: nowrap;
+              animation: marquee 30s linear infinite;
+            }
+            
+            /* Custom scrollbar styles */
+            .scrollbar-thin::-webkit-scrollbar {
+              width: 6px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-track {
+              background: #f1f5f9;
+              border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb {
+              background: #94a3b8;
+              border-radius: 3px;
+            }
+            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+              background: #64748b;
+            }
           `}</style>
         </div>
 
+        {/* Main Content Layout with Persistent Map - UPDATED HEIGHTS */}
+        <div className="flex flex-col lg:flex-row w-full gap-4 px-4">
+          
+          {/* Left Side - Content based on current step - INCREASED HEIGHT */}
+          <div className="w-full lg:w-[60%] order-2 lg:order-1">
+            <div className="transition-all duration-300 transform h-[75vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
+              
+              {/* STEP 0: Location/Drain Selection - INCREASED HEIGHT */}
+              <div className={currentStep === 0 ? 'block' : 'hidden'}>
+                <div className="h-[75vh]">
+                  {viewMode === 'admin' ? (
+                    <LocationSelector
+                      onConfirm={handleLocationConfirm}
+                      onReset={handleReset}
+                      onStateChange={handleStateChange}
+                      onDistrictsChange={handleDistrictsChange}
+                      onSubDistrictsChange={handleSubDistrictsChange}
+                      onVillagesChange={handleVillagesChangeAdmin}
+                      isMapLoading={isMapLoading}
+                    />
+                  ) : (
+                    <DrainLocationSelector
+                      onConfirm={handleRiverConfirm}
+                      onReset={handleReset}
+                      onRiverChange={handleRiverChange}
+                      onStretchChange={handleStretchChange}
+                      onDrainsChange={handleDrainsChange}
+                      onVillagesChange={(villages) => handleVillagesChange(villages, 'dropdown')}
+                      villages={intersectedVillages}
+                      villageChangeSource={villageChangeSource}
+                      onVillagePopulationUpdate={handleVillagePopulationUpdate}
+                      selectionsLocked={drainSelectionsLocked}
+                      onLockChange={setDrainSelectionsLocked}
+                      isDrainMapLoading={isDrainMapLoading}
+                    />
+                  )}
+                </div>
+              </div>
 
+              {/* STEP 1: Population */}
+              <div className={`${currentStep === 1 ? 'block' : 'hidden'} p-4`}>
+                {selectedLocationData && viewMode === 'admin' && (
+                  <Population
+                    villages_props={selectedLocationData.villages}
+                    subDistricts_props={selectedLocationData.subDistricts}
+                    totalPopulation_props={selectedLocationData.totalPopulation}
+                    sourceMode="admin"
+                  />
+                )}
+                {viewMode === 'drain' && selectedRiverData && drainVillagePopulations.length > 0 && (
+                  <>
+                    {/* Debug info for drain mode */}
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-semibold text-yellow-800 mb-2">Total Population:</h4>
+                      <div className="text-sm text-yellow-700 space-y-1">
+                        <div>Total Population: {drainTotalPopulation.toLocaleString()}</div>
+                        <div>Valid Villages: {villageProps.filter(v => v.population > 0).length}</div>
+                      </div>
+                    </div>
 
-        {/* Selector and Map Layout */}
-        <div className="flex flex-col lg:flex-row w-full px-4 gap-4">
-          <div className="w-full lg:w-1/2 order-2 lg:order-1">
-            <div className="h-[60vh]">
-              {viewMode === 'admin' ? (
-                <LocationSelector
-                  onConfirm={handleLocationConfirm}
-                  onReset={handleReset}
-                  onStateChange={handleStateChange}
-                  onDistrictsChange={handleDistrictsChange}
-                  onSubDistrictsChange={handleSubDistrictsChange}
-                  onVillagesChange={handleVillagesChangeAdmin} // Add this line
-                  isMapLoading={isMapLoading} // ADD THIS LINE
-                />
-              ) : (
-                <DrainLocationSelector
-                  onConfirm={handleRiverConfirm}
-                  onReset={handleReset}
-                  onRiverChange={handleRiverChange}
-                  onStretchChange={handleStretchChange}
-                  onDrainsChange={handleDrainsChange}
-                  onVillagesChange={(villages) => handleVillagesChange(villages, 'dropdown')}
-                  villages={intersectedVillages}
-                  villageChangeSource={villageChangeSource}
-                  onVillagePopulationUpdate={handleVillagePopulationUpdate}
-                  selectionsLocked={drainSelectionsLocked}
-                  onLockChange={setDrainSelectionsLocked}
-                  isDrainMapLoading={isDrainMapLoading}
-                />
-              )}
+                    <Population
+                      villages_props={villageProps}
+                      subDistricts_props={
+                        Array.from(
+                          new Set(
+                            drainVillagePopulations
+                              ?.filter(vp => vp.subdistrict_code)
+                              .map(vp => vp.subdistrict_code)
+                          ) || []
+                        ).map(subId => ({
+                          id: parseInt(subId) || 0,
+                          name: `Sub-district ${subId}`,
+                          districtId: 0
+                        })) || []
+                      }
+                      totalPopulation_props={drainTotalPopulation || 0}
+                      sourceMode="drain"
+                      state_props={
+                        drainVillagePopulations.length > 0 ? {
+                          id: drainVillagePopulations[0].state_code,
+                          name: `State ${drainVillagePopulations[0].state_code}`
+                        } : undefined
+                      }
+                      district_props={
+                        drainVillagePopulations.length > 0 ? {
+                          id: drainVillagePopulations[0].district_code,
+                          name: `District ${drainVillagePopulations[0].district_code}`
+                        } : undefined
+                      }
+                    />
+                  </>
+                )}
+
+                {viewMode === 'drain' && selectedRiverData && drainVillagePopulations.length === 0 && (
+                  <div className="p-6 bg-orange-50 border border-orange-200 rounded-lg text-center">
+                    <div className="text-orange-800 mb-2">
+                      <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <h3 className="text-lg font-semibold">No Village Data Available</h3>
+                      <p className="text-sm mt-1">
+                        Please ensure villages are properly selected in the drain location selector.
+                        Population calculations require village data to proceed.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* STEP 2: Water Demand */}
+              <div className={`${currentStep === 2 ? 'block' : 'hidden'} p-4`}>
+                {hasSelectedData && (
+                     <>
+                {viewMode === 'admin' && (
+                  <WaterDemandForm 
+                    onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
+                    onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
+                    onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
+                    onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
+                    onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
+                    />
+                )}
+                {viewMode === 'drain' && (
+                  <WaterDemandForm 
+                    onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
+                    onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
+                    onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
+                    onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
+                    onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
+                  />
+                )}
+              </>
+                )}
+              </div>
+
+              {/* STEP 3: Water Supply */}
+              <div className={`${currentStep === 3 ? 'block' : 'hidden'} p-4`}>
+                {hasSelectedData && (
+                  <>
+                    {viewMode === 'admin' && <Water_Supply />}
+                    {viewMode === 'drain' && <Water_Supply />}
+                  </>
+                )}
+              </div>
+
+              {/* STEP 4: Sewage */}
+              <div className={`${currentStep === 4 ? 'block' : 'hidden'} p-4`}>
+                {hasSelectedData && (
+                  <>
+                    {selectedLocationData && viewMode === 'admin' && (
+                      <SewageCalculationForm
+                        sourceMode="admin"
+                        villages_props={selectedLocationData.villages}
+                        totalPopulation_props={selectedLocationData.totalPopulation}
+                        perCapitaConsumption={perCapitaConsumption} // Add this prop
+                        seasonalMultipliers={seasonalMultipliers} // Add this
+                        waterDemandResults={waterDemandResults} // Add this prop
+                        floatingSeasonalDemands={floatingSeasonalDemands} // Add this prop
+                        domesticSeasonalDemands={domesticSeasonalDemands} // Add this
+                      />
+                    )}
+                    {viewMode === 'drain' && (
+                      <SewageCalculationForm
+                        villages_props={drainVillagePopulations.map(vp => ({
+                          id: vp.village_code,
+                          name: intersectedVillages.find(v => v.shapeID === vp.village_code)?.shapeName || 'Unknown',
+                          subDistrictId: vp.subdistrict_code,
+                          population: vp.total_population
+                        }))}
+                        totalPopulation_props={drainTotalPopulation}
+                        sourceMode="drain"
+                        selectedRiverData={selectedRiverData}
+                        perCapitaConsumption={perCapitaConsumption} // Add this prop
+                        seasonalMultipliers={seasonalMultipliers} // Add this prop
+                        waterDemandResults={waterDemandResults} // Add this prop
+                        floatingSeasonalDemands={floatingSeasonalDemands} // Add this prop
+                         domesticSeasonalDemands={domesticSeasonalDemands}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
             </div>
+            
+            {/* Navigation buttons - Now inside left section */}
+            {hasSelectedData && (
+              <div className="mt-6 mx-4 border border-gray-300 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow duration-300">
+                <div className="flex justify-between items-center">
+                  <div className="flex space-x-4">
+                    <button
+                      className={`${currentStep === 0 || currentStep === 4
+                        ? 'bg-gray-600 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                        } text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+                      disabled={currentStep === 0 || currentStep === 4}
+                      onClick={handleSkip}
+                    >
+                      Skip
+                    </button>
+
+                    {currentStep > 0 && (
+                      <button
+                        className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+                        onClick={handlePrevious}
+                      >
+                        Previous
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Show Next button only if not on the last step */}
+                  {currentStep < 4 && (
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                      onClick={handleNext}
+                    >
+                      Save and Next
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="w-full lg:w-1/2 order-1 lg:order-2">
-            <div className="h-[60vh] relative">
-              {/* Add loading overlay for map container */}
+
+          {/* Right Side - Persistent Map - INCREASED HEIGHT */}
+          <div className="w-full lg:w-[40%] order-1 lg:order-2">
+            <div className="h-[75vh] relative">
+              {/* Show map loading overlay */}
               {((viewMode === 'admin' && isMapLoading) || (viewMode === 'drain' && isDrainMapLoading)) && (
                 <div className="absolute inset-0 bg-gray-100 border-4 border-blue-500 rounded-xl flex items-center justify-center z-10">
                   <div className="flex flex-col items-center">
@@ -814,6 +1048,7 @@ useEffect(() => {
                 </div>
               )}
 
+              {/* Always show the map based on current view mode */}
               {viewMode === 'admin' ? (
                 <Map
                   selectedState={selectedStateCode}
@@ -838,191 +1073,6 @@ useEffect(() => {
             </div>
           </div>
         </div>
-
-        {showSuccess && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-black/30 animate-fade-in-out">
-            <div className="bg-green-100 text-green-800 px-6 py-4 rounded-2xl shadow-xl border border-green-300 flex items-center space-x-3 max-w-sm w-full mx-4">
-              <svg
-                className="w-6 h-6 text-green-600 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm font-medium">
-                All Calculation has been completed now you can download the report
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Step Content with view mode awareness */}
-        <div className="transition-all duration-300 transform px-4">
-          <div className={currentStep === 0 ? 'block' : 'hidden'}>
-            {selectedLocationData && viewMode === 'admin' && (
-              <Population
-                villages_props={selectedLocationData.villages}
-                subDistricts_props={selectedLocationData.subDistricts}
-                totalPopulation_props={selectedLocationData.totalPopulation}
-                sourceMode="admin"
-              />
-            )}
-            {viewMode === 'drain' && selectedRiverData && drainVillagePopulations.length > 0 && (
-              <>
-                {/* Debug info for drain mode */}
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-yellow-800 mb-2">Total Population:</h4>
-                  <div className="text-sm text-yellow-700 space-y-1">
-
-                    <div>Total Population: {drainTotalPopulation.toLocaleString()}</div>
-                    <div>Valid Villages: {villageProps.filter(v => v.population > 0).length}</div>
-
-                  </div>
-                </div>
-
-                <Population
-                  villages_props={villageProps}
-                  subDistricts_props={
-                    Array.from(
-                      new Set(
-                        drainVillagePopulations
-                          ?.filter(vp => vp.subdistrict_code)
-                          .map(vp => vp.subdistrict_code)
-                      ) || []
-                    ).map(subId => ({
-                      id: parseInt(subId) || 0,
-                      name: `Sub-district ${subId}`,
-                      districtId: 0
-                    })) || []
-                  }
-                  totalPopulation_props={drainTotalPopulation || 0}
-                  sourceMode="drain"
-                  state_props={
-                    drainVillagePopulations.length > 0 ? {
-                      id: drainVillagePopulations[0].state_code,
-                      name: `State ${drainVillagePopulations[0].state_code}`
-                    } : undefined
-                  }
-                  district_props={
-                    drainVillagePopulations.length > 0 ? {
-                      id: drainVillagePopulations[0].district_code,
-                      name: `District ${drainVillagePopulations[0].district_code}`
-                    } : undefined
-                  }
-                />
-              </>
-            )}
-
-            {viewMode === 'drain' && selectedRiverData && drainVillagePopulations.length === 0 && (
-              <div className="p-6 bg-orange-50 border border-orange-200 rounded-lg text-center">
-                <div className="text-orange-800 mb-2">
-                  <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold">No Village Data Available</h3>
-                  <p className="text-sm mt-1">
-                    Please ensure villages are properly selected in the drain location selector.
-                    Population calculations require village data to proceed.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={currentStep === 1 ? 'block' : 'hidden'}>
-            {viewMode === 'admin' && <Water_Demand />}
-            {viewMode === 'drain' && (
-              <Water_Demand
-              // villages_props={drainVillagePopulations.map(vp => ({
-              //   id: vp.village_code,
-              //   name: intersectedVillages.find(v => v.shapeID === vp.village_code)?.shapeName || 'Unknown',
-              //   subDistrictId: vp.subdistrict_code,
-              //   population: vp.total_population
-              // }))}
-              // totalPopulation_props={drainTotalPopulation}
-              />
-            )}
-          </div>
-
-          <div className={currentStep === 2 ? 'block' : 'hidden'}>
-            {viewMode === 'admin' && <Water_Supply />}
-            {viewMode === 'drain' && (
-              <Water_Supply
-              // villages_props={drainVillagePopulations.map(vp => ({
-              //   id: vp.village_code,
-              //   name: intersectedVillages.find(v => v.shapeID === vp.village_code)?.shapeName || 'Unknown',
-              //   subDistrictId: vp.subdistrict_code,
-              //   population: vp.total_population
-              // }))}
-              // totalPopulation_props={drainTotalPopulation}
-              />
-            )}
-          </div>
-
-          <div className={currentStep === 3 ? 'block' : 'hidden'}>
-            {selectedLocationData && viewMode === 'admin' && (
-              <SewageCalculationForm
-                sourceMode="admin"
-                villages_props={selectedLocationData.villages}
-
-                totalPopulation_props={selectedLocationData.totalPopulation}
-
-              />
-            )}
-            {viewMode === 'drain' && (
-              <SewageCalculationForm
-                villages_props={drainVillagePopulations.map(vp => ({
-                  id: vp.village_code,
-                  name: intersectedVillages.find(v => v.shapeID === vp.village_code)?.shapeName || 'Unknown',
-                  subDistrictId: vp.subdistrict_code,
-                  population: vp.total_population
-                }))}
-                totalPopulation_props={drainTotalPopulation}
-                sourceMode="drain" // FIXED: Explicitly set sourceMode to "drain"
-                selectedRiverData={selectedRiverData} // Pass the selectedRiverData prop
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Navigation buttons */}
-        {((selectedLocationData && viewMode === 'admin') || (selectedRiverData && viewMode === 'drain')) && (
-          <div className="mt-6 mb-6 mx-4 border border-gray-300 mr-85 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow duration-300">
-            <div className="flex justify-between items-center">
-              <div className="flex space-x-4">
-                <button
-                  className={`${currentStep === 0 || currentStep === 3
-                    ? 'bg-gray-600 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                    } text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
-                  disabled={currentStep === 0 || currentStep === 3}
-                  onClick={handleSkip}
-                >
-                  Skip
-                </button>
-
-                {currentStep > 0 && (
-                  <button
-                    className="bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
-                    onClick={handlePrevious}
-                  >
-                    Previous
-                  </button>
-                )}
-              </div>
-
-              <button
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-                onClick={currentStep === 3 ? handleFinish : handleNext}
-                disabled={currentStep === 3 && completedSteps.includes(3)}
-              >
-                {currentStep === 3 ? 'Finish' : 'Save and Next'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

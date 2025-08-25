@@ -6,8 +6,8 @@ import {
   Stretch,
   Drain,
   Catchment,
-} from "@/contexts/stp_priority/users/DrainContext";
-
+} from "@/contexts/groundwaterzone/users/DrainContext";
+import WholeLoading from "@/components/app_layout/newLoading";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];
@@ -119,11 +119,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-md relative">
-      {" "}
-      {/* relative added here */}
-      {/* Dim and disable interactions on content when loading */}
-      <div className={isLoading ? "pointer-events-none opacity-50" : ""}>
+    <div className="p-4 bg-white rounded-lg shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* River Dropdown */}
           <div>
@@ -276,22 +272,10 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
             Reset
           </button>
         </div>
-      </div>
-      <div
-        className={`absolute inset-0 flex flex-col items-center justify-center z-50
-        transition-opacity duration-300
-        ${
-          isLoading
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none"
-        }`}
-        style={{ backgroundColor: "transparent" }}
-      >
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-blue-600 font-semibold">
-          Loading river system data...
-        </p>
-      </div>
+
+      {isLoading && (
+        <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
+      )}
     </div>
   );
 };

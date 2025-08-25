@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from typing import Annotated,List
 
 
@@ -55,7 +55,12 @@ class STPClassification(BaseModel):
     class Config:
         from_attributes = True
 
-
+class STP_sutability_Area(BaseModel):
+    TREATMENT_TECHNOLOGY:int
+    MLD_CAPACITY:float
+    CUSTOM_LAND_PER_MLD: float = Field(2.0, le=2) 
+    layer_name:str
+    
 class STP_sutability(BaseModel):
     id :int
     file_name: str
@@ -80,6 +85,11 @@ class STPPriorityOutput(BaseModel):
 
     class Config:
         from_attributes = True
+
+class Stp_Area(BaseModel):
+    id: int
+    tech_name:str
+    tech_value:float
 
 class STPSutabilityOutput(STPPriorityOutput):
     raster_category: str  

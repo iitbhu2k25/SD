@@ -25,18 +25,11 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Text } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
+import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
 import "ol/ol.css";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
+import { GISCompass } from "@/components/mapcomponents";
 // Define base map type interface
-interface BaseMapDefinition {
-  name: string;
-  source: () => OSM | XYZ;
-  thumbnail?: string;
-  icon?: string;
-}
 
 interface LayerColorConfig {
   color: string;
@@ -48,60 +41,7 @@ interface LayerColorsType {
   [key: string]: LayerColorConfig;
 }
 
-// Define baseMaps with appropriate TypeScript typing
-const baseMaps: Record<string, BaseMapDefinition> = {
-  osm: {
-    name: "OpenStreetMap",
-    source: () => new OSM({
-      crossOrigin: 'anonymous' // Add this
-    }),
-    icon: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
-  },
-  satellite: {
-    name: "Satellite",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: 'anonymous' // Add this
-      }),
-    icon: "M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67 3.61 2.35 5.66 2.35 4.1-.79 5.66-2.35S20 15.64 20 13.64 19.22 9.56 17.66 8z",
-  },
-  terrain: {
-    name: "Terrain",
-    source: () =>
-      new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        maxZoom: 19,
-        attributions: "Tiles © Esri",
-        crossOrigin: 'anonymous' // Add this
-      }),
-    icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",
-  },
-  dark: {
-    name: "Dark Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: 'anonymous' // Add this
-      }),
-    icon: "M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z",
-  },
-  light: {
-    name: "Light Mode",
-    source: () =>
-      new XYZ({
-        url: "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        maxZoom: 19,
-        attributions: "© CARTO",
-        crossOrigin: 'anonymous' // Add this
-      }),
-    icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
-  },
-};
+import { baseMaps } from "@/components/mapcomponents";
 
 
 const LAYER_COLORS: LayerColorsType = {
@@ -129,118 +69,6 @@ const LAYER_COLORS: LayerColorsType = {
   },
 };
 
-// GIS Compass component
-const GISCompass = () => {
-  return (
-    <div className="absolute left-20 top-4 z-20 p-3 rounded-lg transition-all duration-300 ease-in-out animate-fade-in">
-      <div className="flex flex-col items-center">
-        <svg width="80" height="80" viewBox="0 0 100 100">
-          <circle
-            cx="50"
-            cy="50"
-            r="48"
-            fill="white"
-            stroke="#ddd"
-            strokeWidth="1"
-          />
-          <g>
-            <path d="M50 10 L55 50 L50 45 L45 50 Z" fill="#3b82f6" />
-            <path d="M50 90 L45 50 L50 55 L55 50 Z" fill="#606060" />
-            <path d="M90 50 L50 45 L55 50 L50 55 Z" fill="#606060" />
-            <path d="M10 50 L50 55 L45 50 L50 45 Z" fill="#606060" />
-            <text
-              x="50"
-              y="20"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#3b82f6"
-            >
-              N
-            </text>
-            <text
-              x="50"
-              y="85"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              S
-            </text>
-            <text
-              x="85"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              E
-            </text>
-            <text
-              x="15"
-              y="52"
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="bold"
-              fill="#606060"
-            >
-              W
-            </text>
-            <text x="32" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NW
-            </text>
-            <text x="68" y="32" textAnchor="middle" fontSize="10" fill="#888">
-              NE
-            </text>
-            <text x="68" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SE
-            </text>
-            <text x="32" y="72" textAnchor="middle" fontSize="10" fill="#888">
-              SW
-            </text>
-            <line
-              x1="50"
-              y1="10"
-              x2="50"
-              y2="90"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <line
-              x1="10"
-              y1="50"
-              x2="90"
-              y2="50"
-              stroke="#ddd"
-              strokeWidth="1"
-              strokeDasharray="2 2"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="5"
-              fill="#3b82f6"
-              stroke="#fff"
-              strokeWidth="1"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="1.5"
-              strokeOpacity="0.3"
-            />
-          </g>
-        </svg>
-      </div>
-    </div>
-  );
-};
 
 const createGeometryBasedStyle = (
   feature: Feature<Geometry>,
@@ -355,27 +183,22 @@ const Maping: React.FC = () => {
   const [drainLayerLoading, setDrainLayerLoading] = useState<boolean>(false);
   const [catchmentLayerLoading, setCatchmentLayerLoading] =
     useState<boolean>(false);
-  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
 
-  // Feature counts
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [riverFeatureCount, setRiverFeatureCount] = useState<number>(0);
   const [stretchFeatureCount, setStretchFeatureCount] = useState<number>(0);
   const [drainFeatureCount, setDrainFeatureCount] = useState<number>(0);
   const [catchmentFeatureCount, setCatchmentFeatureCount] = useState<number>(0);
 
-  // UI states
-  const [error, setError] = useState<string | null>(null);
+
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+ 
   const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
 
   // Layer visibility states
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
@@ -466,14 +289,8 @@ const Maping: React.FC = () => {
 
   // Context hooks
   const {
-    selectedRiver,
-    selectedStretches,
     selectedDrains,
-    selectedCatchments,
     displayRaster,
-    setDisplayRaster,
-    setShowTable,
-    setTableData,
     setShowCatchment,
   } = useRiverSystem();
 
@@ -490,16 +307,21 @@ const Maping: React.FC = () => {
     catchmentFilter,
     geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
-    setstpOperation,
-    stpOperation,
-    loading,
     setLoading,
-    shouldLoadAllLayers,
     hasSelections,
+    showLegend,
+    setShowLegend,
+    setRasterLayerInfo,
+    rasterLayerInfo,
+    error,
+    setError,
+    setRasterLoading,
+    rasterLoading,
+    handleLayerSelection,
+    selectedradioLayer,
   } = useMap();
 
-  const { selectedCategories, setStpProcess } = useCategory();
+
 
   // Constants
   const INDIA_CENTER_LON = 78.9629;
@@ -546,10 +368,6 @@ const Maping: React.FC = () => {
     }
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
-  };
 
   // Layer toggle functions
   const toggleRiverLayer = () => {
@@ -1147,88 +965,7 @@ const Maping: React.FC = () => {
   ]);
 
   // Handle STP operation
-  useEffect(() => {
-    if (!mapInstanceRef.current || !stpOperation) return;
-
-    const performSTP = async () => {
-      setRasterLoading(true);
-      setError(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedCatchments,
-        place: "Drain",
-      });
-
-      console.log("Sending STP request for:", bodyPayload);
-
-      try {
-        const resp = await fetch(
-          "/api/stp_operation/stp_priority",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
-          }
-        );
-
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-
-        const result = await resp.json();
-        console.log("STP operation result:", result);
-
-        if (result && result.status === "success") {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            newData = displayRaster.concat(append_data);
-          }
-
-          setDisplayRaster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          setShowLegend(true);
-        } else {
-          console.log("STP operation did not return success:", result);
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
-      } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
-        setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
-      }
-    };
-
-    performSTP();
-  }, [
-    stpOperation,
-    selectedCategories,
-    selectedCatchments,
-    selectedDrains,
-    selectedStretches,
-    selectedRiver,
-  ]);
+  
 
   // Handle raster layer display
   useEffect(() => {
@@ -1253,10 +990,8 @@ const Maping: React.FC = () => {
       const layerUrl = "/geoserver/api//wms";
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
-        rasterLayerInfo.layer_name ||
-        rasterLayerInfo.layerName ||
-        rasterLayerInfo.id ||
-        "Clipped_STP_Priority_Map";
+        rasterLayerInfo.layer_name
+        "Clipped_groundwaterzone_Map";
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({
@@ -2126,36 +1861,6 @@ const Maping: React.FC = () => {
                   Home View
                 </span>
               </button>
-                <button
-                onClick={() => {
-                  setShowLabels(!showLabels);
-                }}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:scale-105 hover:shadow-md"
-                style={{
-                  backgroundColor: showLabels ? "#10b981" : "#f3f4f6",
-                }}
-              >
-                <div className="text-lg font-semibold">
-                  {showLabels ? "ON" : "OFF"}
-                </div>
-                <svg
-                  className="w-8 h-8 mb-2 text-gray-700"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke={showLabels ? "green" : "currentColor"}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2 8a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8zM6 12h12"
-                  />
-                </svg>
-                <span className="text-sm font-medium text-center">
-                  Display Title
-                </span>
-              </button>
             </div>
           </div>
         )}
@@ -2590,36 +2295,6 @@ const Maping: React.FC = () => {
                 </svg>
                 <span className="text-sm font-medium text-center">
                   Home View
-                </span>
-              </button>
-                <button
-                onClick={() => {
-                  setShowLabels(!showLabels);
-                }}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 transition-all duration-200 border border-gray-200 hover:border-gray-300 hover:scale-105 hover:shadow-md"
-                style={{
-                  backgroundColor: showLabels ? "#10b981" : "#f3f4f6",
-                }}
-              >
-                <div className="text-lg font-semibold">
-                  {showLabels ? "ON" : "OFF"}
-                </div>
-                <svg
-                  className="w-8 h-8 mb-2 text-gray-700"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke={showLabels ? "green" : "currentColor"}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2 8a2 2 0 012-2h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8zM6 12h12"
-                  />
-                </svg>
-                <span className="text-sm font-medium text-center">
-                  Display Title
                 </span>
               </button>
             </div>
