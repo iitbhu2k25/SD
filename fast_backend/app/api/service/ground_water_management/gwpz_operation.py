@@ -551,7 +551,7 @@ class RasterProcess:
             if len(valid_data) == 0:
                 raise ValueError("Raster contains no valid data")
             min_val = float(np.min(valid_data))
-            max_val = max(float(np.max(valid_data)), 1.0)
+            max_val = float(np.max(valid_data)+0.0001)
             print("min valuye ",min_val)
             print("max valuye ",max_val)
     

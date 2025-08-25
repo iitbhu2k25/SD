@@ -223,7 +223,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
         if (result) {
           const append_data = {
-            file_name: "STP_Priority",
+            file_name: "GroundWaterZone",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
@@ -231,7 +231,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
           // Check if file_name already exists
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
+            (item) => item.file_name === "GroundWaterZone"
           );
 
           let newData;
@@ -297,7 +297,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setShowLayer:()=>{},
     showLayer: false,
     setShowLegend: () => {},
-    showLegend: false,
+    showLegend,
     handleLayerSelection,
   };
 

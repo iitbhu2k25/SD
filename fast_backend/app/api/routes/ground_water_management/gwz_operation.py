@@ -22,17 +22,3 @@ async def gwz_raster_dislay(db:db_dependency,payload:category_raster):
 async def gwz_raster_operation(db:db_dependency,payload: STPCategory):
     raster_path,raster_weights=Gwzp_service.get_raster(db,payload)
     return GWAPriorityMapper().create_gwpz_map(raster_path,raster_weights,payload.clip,payload.place)
-
-
-@router.post("/mar_visual_display", status_code=status.HTTP_200_OK)
-@validate
-async def mar_raster_dislay(db:db_dependency,payload:category_raster):
-    pass
-
-@router.post("/mar_visual_operation", status_code=status.HTTP_200_OK)
-@validate
-async def mar_raster_operation(db:db_dependency):
-    pass
-
-
-    
