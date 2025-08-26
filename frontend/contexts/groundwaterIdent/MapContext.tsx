@@ -13,6 +13,8 @@ const LAYER_NAMES = {
 interface MapContextType {
   primaryLayer: string;
   secondaryLayer: string | null;
+  resultLayer: string | null;
+  setResultLayer: (layer: string | null) => void;
   LayerFilter: string | null;
   setLayerFilter: (layer: string | null) => void;
   LayerFilterValue: number[] | null;
@@ -22,6 +24,7 @@ interface MapContextType {
   setPrimaryLayer: (layer: string) => void;
   syncLayersWithLocation: () => void;
   isMapLoading: boolean;
+  setIsMapLoading: (loading: boolean) => void;
   zoomToFeature: (featureId: string, layerName: string) => void;
   resetMapView: () => void;
   geoServerUrl: string;
@@ -52,6 +55,7 @@ const MapContext = createContext<MapContextType>({
   setPrimaryLayer: () => {},
   syncLayersWithLocation: () => {},
   isMapLoading: false,
+  setIsMapLoading: () => {},
   zoomToFeature: () => {},
   resetMapView: () => {},
   geoServerUrl: "/geoserver/api",
@@ -59,6 +63,8 @@ const MapContext = createContext<MapContextType>({
   LAYER_NAMES,
   loading: false,
   setLoading: () => {},
+  resultLayer: null,
+  setResultLayer: () => {},
 });
 
 // Create the provider component
@@ -70,6 +76,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
+  const [resultLayer, setResultLayer] = useState<string | null>(null);
   const [LayerFilter, setLayerFilter] = useState<string|null>(null);
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
@@ -135,9 +142,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setIsMapLoading(false);
   };
 
-  const visual_village=(vector_layer:string)=>{
-    setSecondaryLayer(vector_layer);
-  }
+ 
   // Listen for changes in location selection and update layers accordingly
   useEffect(() => {
     syncLayersWithLocation();
@@ -162,12 +167,15 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithLocation,
     isMapLoading,
     zoomToFeature,
+    setIsMapLoading,
     resetMapView,
     geoServerUrl,
     defaultWorkspace,
     LAYER_NAMES,
     loading: false,
     setLoading: () => {},
+    resultLayer,
+    setResultLayer
   };
 
   return (

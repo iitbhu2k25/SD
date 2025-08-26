@@ -1,4 +1,4 @@
-from app.database.models import State,District,STP_Drain_sutability,SubDistrict,Towns,STP_River,STP_Drain,STP_Stretches,STP_Catchment
+from app.database.models import State,District,STP_Drain_sutability,SubDistrict,STP_villages,Towns,STP_River,STP_Drain,STP_Stretches,STP_Catchment
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
 import sqlalchemy as sq
@@ -31,6 +31,16 @@ class Stp_SubDistrict_crud(CrudBase):
     def get_subdistrict(self,district:list,all_data:bool=False):
         query=self.db.query(self.Model).filter(
             self.Model.district_code.in_(district)).order_by(sq.asc(self.Model.subdistrict_name))
+        return self._pagination(query,all_data)
+
+class Stp_Villages_crud(CrudBase):
+    def __init__(self,db:Session,Model=STP_villages):
+        super().__init__(db,Model)
+        self.obj = None
+
+    def get_villages(self,sub_district:list,all_data:bool=False):
+        query=self.db.query(self.Model).filter(
+            self.Model.subdistrict_code.in_(sub_district)).order_by(sq.asc(self.Model.village_name))
         return self._pagination(query,all_data)
 
 class Stp_towns_crud(CrudBase):

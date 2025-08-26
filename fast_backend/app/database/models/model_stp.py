@@ -28,7 +28,15 @@ class SubDistrict(Base):
     district_code: Mapped[int] = mapped_column(ForeignKey("stp_district.district_code"), nullable=False)
     district: Mapped["District"] = relationship(back_populates="subdistricts")
     towns:Mapped[List["Towns"]]= relationship(back_populates='subdistrict')
-    
+    villages:Mapped[List["STP_villages"]]= relationship(back_populates='Subdistrict_Vill')
+
+class STP_villages(Base):
+    __tablename__="stp_villages"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, unique=True, nullable=False)
+    village_name:Mapped[str] = mapped_column(String, nullable=False)
+    subdistrict_code: Mapped[int] = mapped_column(ForeignKey("stp_subdistrict.subdistrict_code"), nullable=False)
+    Subdistrict_Vill: Mapped["SubDistrict"] = relationship(back_populates="villages")
+
 class Towns(Base):
     __tablename__ = "stp_towns"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, unique=True, nullable=False)

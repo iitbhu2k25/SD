@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_location
-from app.api.schema.stp_schema import Stp_response,Stp_town_respons,STPDrainNewOutput,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
+from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper
 from app.utils.exception import validate
 router=APIRouter()
@@ -26,6 +26,10 @@ async def get_districts(db:db_dependency,payload:District_request):
 async def get_sub_districts(db:db_dependency,payload:Sub_district_request):
     return Stp_location.get_sub_district(db,payload)
 
+@router.post("/get_villages")
+@validate
+async def get_villages(db:db_dependency,payload:Village_request):
+    return Stp_location.get_villages(db,payload)
 
 @router.post("/get_towns",response_model=list[Stp_town_respons])
 @validate

@@ -179,7 +179,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/dss/default"
+                        href="/dss/GWM/Pumping_location"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Pumping Location Identification

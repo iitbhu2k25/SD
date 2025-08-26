@@ -1,5 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { api } from '@/services/api';
 
 // Define types for the location data
 export interface State {
@@ -113,13 +114,14 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/location/get_states?all_data=true');
-        if (!response.ok) {
+        const response = await api.get('/location/get_states?all_data=true');
+
+        if (response.status != 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.json();
-        const stateData: State[] = data.map((state: any) => ({
+        const data = await response.message as State[];
+        const stateData= data.map((state: State) => ({
           id: state.id,
           name: state.name
         }));
@@ -147,24 +149,20 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/location/get_districts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
+        const response = await api.post('/location/get_districts', {
+          body: {
             state: selectedState,
-            all_data: true, 
-          }),
-        });
-        
-        if (!response.ok) {
+            all_data: true,
+          },
+        })
+    
+        if (response.status != 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.json();
+        const data = await response.message as District[];
         
-        const districtData: District[] = data.map((district: any) => ({
+        const districtData = data.map((district: District) => ({
           id: district.id,
           name: district.name,
           stateId: selectedState
@@ -198,25 +196,23 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchSubDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/location/get_sub_districts/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await api.post("/location/get_sub_districts/", {
+          body:{
+            districts: selectedDistricts,
+            all_data: true,
           },
-          body: JSON.stringify({ 
-            districts: selectedDistricts 
-          }),
         });
         
-        if (!response.ok) {
+        if (response.status != 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.json();
-        const subDistrictData: SubDistrict[] = data.map((subDistrict: any) => ({
+        const data = await response.message as SubDistrict[];
+        console.log("data",data)
+        const subDistrictData = data.map((subDistrict: SubDistrict) => ({
           id: subDistrict.id,
           name: subDistrict.name,
-          districtId: subDistrict.district_id || selectedDistricts[0],
+          districtId: subDistrict.districtId
         }));
         
         setSubDistricts(subDistrictData);
@@ -240,20 +236,13 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         if (selectionsLocked === true) {
           setIsLoading(true);
           try {
-            const response = await fetch(
-              "/api/stp_operation/stp_sutability_visual_display",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ 
-                  clip: selectedTowns,
-                  place:"sub_district",}),
-              }
-            );
-  
-            const data = await response.json();
+            const response = await api.post("/stp_operation/stp_sutability_visual_display",{
+              body: {
+                clip: selectedTowns,
+                place:"sub_district",
+              },
+            })  
+            const data = await response.message as clip_rasters[];
             setdisplay_raster(data);
           } catch (error) {
             console.log("Error:", error);
@@ -274,27 +263,24 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchTowns = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/location/get_towns/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
+        const response = await api.post("/location/get_towns/", {
+          body: {
             subdis_code: selectedSubDistricts,
             all_data: true
-          }),
+          },  
         });
         
-        if (!response.ok) {
+        if (response.status !== 200) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.json();
+        const data = await response.message as Towns[];
         console.log("nerw data ",data)
-        const townData: Towns[] = data.map((town: any) => ({
+        const townData = data.map((town: Towns) => ({
           id: town.id,
           name: town.name,
           population: town.population || 0,
+          subdistrictId: selectedSubDistricts[0]
         }));
         
         setTowns(townData);

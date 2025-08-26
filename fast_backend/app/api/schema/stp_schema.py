@@ -147,6 +147,10 @@ class STPCatchmentInput(BaseModel):
 class Town_request(BaseModel):
     subdis_code:Annotated[List[int],None] = None
     all_data : bool  = False
+
+class Village_request(BaseModel):
+    subdis_code:Annotated[List[int],None] = None
+    all_data : bool  = False
     
 
 #----------------------------------------------------------------------------------------
