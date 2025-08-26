@@ -74,6 +74,9 @@ const Navbar = (): JSX.Element => {
     }));
   };
 
+  // Common navbar link classes with single row fix
+  const navLinkClasses = "text-white font-semibold text-lg lg:text-base xl:text-lg px-3 lg:px-4 xl:px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300 whitespace-nowrap";
+
   return (
     <nav
       ref={navRef}
@@ -110,49 +113,40 @@ const Navbar = (): JSX.Element => {
 
         {/* Navbar items */}
         <div className={`${isMobileMenuOpen ? "block" : "hidden"} lg:block`}>
-          <ul className="flex flex-col lg:flex-row lg:justify-center space-y-2 lg:space-y-0 lg:space-x-2">
+          <ul className="flex flex-col lg:flex-row lg:justify-center lg:items-center space-y-2 lg:space-y-0 lg:space-x-1 xl:space-x-2 overflow-x-auto lg:overflow-visible">
             {/* Home */}
-            <li className="relative group">
-              <Link
-                href="/dss"
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
-              >
+            <li className="relative group flex-shrink-0">
+              <Link href="/dss" className={navLinkClasses}>
                 Home
               </Link>
             </li>
 
             {/* About */}
-            <li className="relative group">
-              <Link
-                href="/dss/about"
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
-              >
+            <li className="relative group flex-shrink-0">
+              <Link href="/dss/about" className={navLinkClasses}>
                 About
               </Link>
             </li>
 
             {/* Basic Modules */}
-            <li className="relative group">
-              <Link
-                href="/dss/basic"
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
-              >
+            <li className="relative group flex-shrink-0">
+              <Link href="/dss/basic" className={navLinkClasses}>
                 Basic module
               </Link>
             </li>
 
             {/* GWM */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("gwm", true)}
               onMouseLeave={() => toggleDropdown("gwm", false)}
             >
               <button
                 onClick={() => toggleDropdown("gwm", !openDropdowns.gwm)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 GWM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent">
+                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   Ground Water Management
                 </span>
               </button>
@@ -185,7 +179,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Pumping Location Identification
@@ -226,7 +220,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Regional Scale Quantification
@@ -234,7 +228,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Quality Assessment
@@ -242,7 +236,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Identification Of Vulnerable zones
@@ -275,7 +269,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/dss/MAR/gwa"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Ground Water Assessment
@@ -283,7 +277,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Surface Water Assessment
@@ -291,7 +285,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Climate Change
@@ -299,7 +293,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/GWM/MAR/site_sutability"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Site suitability For MAR
@@ -307,7 +301,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Optimized Solution
@@ -340,7 +334,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Baseflow Estimation
@@ -348,7 +342,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Climate Change and Mitigation
@@ -361,16 +355,16 @@ const Navbar = (): JSX.Element => {
 
             {/* RWM */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("rwm", true)}
               onMouseLeave={() => toggleDropdown("rwm", false)}
             >
               <button
                 onClick={() => toggleDropdown("rwm", !openDropdowns.rwm)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 RWM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent">
+                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   River Water Management
                 </span>
               </button>
@@ -403,7 +397,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Availability
@@ -411,7 +405,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Flow and Storage Estimation
@@ -419,7 +413,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Quality Assessment
@@ -427,7 +421,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Vulnerability Assessment
@@ -435,7 +429,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Contamination Risk Assessment
@@ -468,7 +462,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Flood Simulation
@@ -476,7 +470,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         River Routing
@@ -484,7 +478,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Contamination Transport Modelling
@@ -517,7 +511,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Storage and Forecasting
@@ -525,7 +519,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Climate Change
@@ -533,7 +527,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Reservoir Operation
@@ -541,7 +535,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Quality and Monitoring
@@ -574,7 +568,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Pollution and Inventory
@@ -598,7 +592,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Treatment Technology
@@ -611,16 +605,16 @@ const Navbar = (): JSX.Element => {
 
             {/* WRM */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("wrm", true)}
               onMouseLeave={() => toggleDropdown("wrm", false)}
             >
               <button
                 onClick={() => toggleDropdown("wrm", !openDropdowns.wrm)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 WRM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent">
+                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   Water Resource Management
                 </span>
               </button>
@@ -653,7 +647,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Current Consumption Pattern
@@ -661,7 +655,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Future Demand Projection
@@ -694,7 +688,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Source Sustainability
@@ -702,7 +696,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Source Demarcation
@@ -713,18 +707,19 @@ const Navbar = (): JSX.Element => {
               </ul>
             </li>
 
-            {/* SHSD */}
+            {/* System Dynamics */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("shsd", true)}
               onMouseLeave={() => toggleDropdown("shsd", false)}
             >
               <button
                 onClick={() => toggleDropdown("shsd", !openDropdowns.shsd)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
-                System Dynamics
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent">
+                <span className="hidden xl:inline">System Dynamics</span>
+           
+                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   Hydrological System Dynamics
                 </span>
               </button>
@@ -757,7 +752,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Optimum and Sustainable Management
@@ -765,7 +760,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Sensitive Socio-Economic Factors
@@ -773,7 +768,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         System Dynamics Modelling
@@ -805,7 +800,7 @@ const Navbar = (): JSX.Element => {
                   >
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Plant Solutions
@@ -813,7 +808,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/default"
+                        href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Optimization Framework
@@ -826,13 +821,13 @@ const Navbar = (): JSX.Element => {
 
             {/* Activities */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("activities", true)}
               onMouseLeave={() => toggleDropdown("activities", false)}
             >
               <button
                 onClick={() => toggleDropdown("activities", !openDropdowns.activities)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 Activities
               </button>
@@ -843,7 +838,7 @@ const Navbar = (): JSX.Element => {
               >
                 <li>
                   <Link
-                    href="/default"
+                    href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Training and Workshop
@@ -851,7 +846,7 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/default"
+                    href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Gallery
@@ -862,15 +857,16 @@ const Navbar = (): JSX.Element => {
 
             {/* Report and Publication */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("reportandpublication", true)}
               onMouseLeave={() => toggleDropdown("reportandpublication", false)}
             >
               <button
                 onClick={() => toggleDropdown("reportandpublication", !openDropdowns.reportandpublication)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
-                Report and Publication
+                <span className="hidden xl:inline">Report & Publication</span>
+                <span className="xl:hidden">Reports</span>
               </button>
               <ul
                 className={`${
@@ -879,7 +875,7 @@ const Navbar = (): JSX.Element => {
               >
                 <li>
                   <Link
-                    href="/default"
+                    href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Newsletter
@@ -887,7 +883,7 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/default"
+                    href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Brochure
@@ -898,13 +894,13 @@ const Navbar = (): JSX.Element => {
 
             {/* Visualization */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("visualization", true)}
               onMouseLeave={() => toggleDropdown("visualization", false)}
             >
               <button
                 onClick={() => toggleDropdown("visualization", !openDropdowns.visualization)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 Visualization
               </button>
@@ -941,24 +937,21 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Dashboard */}
-            <li className="relative group">
-              <Link
-                href="/dss/dashboard"
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
-              >
+            <li className="relative group flex-shrink-0">
+              <Link href="/dss/dashboard" className={navLinkClasses}>
                 Dashboard
               </Link>
             </li>
 
-            {/* Logout */}
+            {/* User */}
             <li
-              className="relative group"
+              className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("user", true)}
               onMouseLeave={() => toggleDropdown("user", false)}
             >
               <button
                 onClick={() => toggleDropdown("user", !openDropdowns.user)}
-                className="text-white font-semibold text-lg px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300"
+                className={navLinkClasses}
               >
                 User
               </button>

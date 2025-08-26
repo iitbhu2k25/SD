@@ -16,6 +16,8 @@ from app.database.models.model_stp import(
 )
 from app.database.models.model_gwz import(
     Groundwater_Zone_raster,
-    Groundwater_Zone_Visual_raster
+    Groundwater_Zone_Visual_raster,
+    Groundwater_Identification,
+    Groundwater_Identification_visual_raster
 )
 from app.database.models.auth_model import User,Report

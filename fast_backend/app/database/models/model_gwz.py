@@ -17,3 +17,19 @@ class Groundwater_Zone_raster(Base):
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     weight:Mapped[float]=mapped_column(Float,nullable=False)
+
+class Groundwater_Identification(Base):
+    __tablename__='groundwater_identification_raster'
+    file_name:Mapped[str]=mapped_column(String,nullable=False)
+    layer_name:Mapped[str]=mapped_column(String,nullable=False)
+    weight:Mapped[float]=mapped_column(Float,nullable=False)
+    file_path:Mapped[str]=mapped_column(String,nullable=False)
+    raster_category:Mapped[str]=mapped_column(String,nullable=False)
+
+class Groundwater_Identification_visual_raster(Base):
+    __tablename__='groundwater_Identification_visual'
+    file_name:Mapped[str]=mapped_column(String,nullable=False)
+    layer_name:Mapped[str]=mapped_column(String,nullable=False)
+    file_path:Mapped[str]=mapped_column(String,nullable=False)
+    sld_path:Mapped[str]=mapped_column(String,nullable=False)
+    raster_category:Mapped[str]=mapped_column(String,nullable=False)

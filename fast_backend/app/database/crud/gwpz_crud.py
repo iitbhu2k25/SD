@@ -1,6 +1,6 @@
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
-from app.database.models import Groundwater_Zone_Visual_raster,Groundwater_Zone_raster
+from app.database.models import Groundwater_Zone_Visual_raster,Groundwater_Zone_raster,Groundwater_Identification,Groundwater_Identification_visual_raster
 class GWZ_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Zone_raster):
         super().__init__(db,Model)
@@ -17,6 +17,28 @@ class GWZ_crud(CrudBase):
     
 class GWA_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Zone_Visual_raster):
+        super().__init__(db,Model)
+        self.obj = None
+    
+    def get_all_visual(self):
+        query=self.db.query(self.Model).filter().all()
+        return query
+
+class GWLI_crud(CrudBase):
+    def __init__(self,db:Session,Model=Groundwater_Identification):
+        super().__init__(db,Model)
+        self.obj = None
+    def get_raster_category(self,category:str,all_data:bool=False):
+        query=self.db.query(self.Model).filter(
+            self.Model.raster_category==category)
+        return self._pagination(query,all_data)
+    def get_all(self,all_data:bool=False):
+        query=self.db.query(self.Model).filter()
+        return self._pagination(query,all_data)
+
+    
+class GWLI_visualization_crud(CrudBase):
+    def __init__(self,db:Session,Model=Groundwater_Identification_visual_raster):
         super().__init__(db,Model)
         self.obj = None
     

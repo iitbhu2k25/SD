@@ -1,9 +1,8 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
-from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import category_raster,STPPriorityOutput
+from app.api.schema.stp_schema import category_raster,STPPriorityOutput, STPSutabilityOutput
 from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper
-from app.api.service.ground_water_management.gwpz_svc import Gwzp_service
+from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service
 from app.utils.exception import validate
 from app.api.schema.stp_schema import STPCategory
 router=APIRouter()
@@ -22,3 +21,18 @@ async def gwz_raster_dislay(db:db_dependency,payload:category_raster):
 async def gwz_raster_operation(db:db_dependency,payload: STPCategory):
     raster_path,raster_weights=Gwzp_service.get_raster(db,payload)
     return GWAPriorityMapper().create_gwpz_map(raster_path,raster_weights,payload.clip,payload.place)
+
+@router.get("/get_gwli_category",response_model=list[STPSutabilityOutput])
+@validate
+async def get_raster_gwli(db:db_dependency,category:str,all_data: bool = False):
+    return GWLI_service.get_raster_GWLI(db,category,all_data)
+
+@router.post("/gwli_visual_display", status_code=status.HTTP_200_OK)
+@validate
+async def gwli_raster_dislay(db:db_dependency,payload:category_raster):
+    pass
+
+@router.post("/gwli_operation", status_code=status.HTTP_200_OK)
+@validate
+async def gwli_raster_operation(db:db_dependency,payload: STPCategory):
+    pass
