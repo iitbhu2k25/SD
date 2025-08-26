@@ -129,33 +129,26 @@ class RasterProcess:
         
         if len(weights) != len(self.aligned_arrays):
             raise ValueError(f"Number of weights ({len(weights)}) must match number of rasters ({len(self.aligned_arrays)})")
-        
 
-        
-        # Initialize weighted sum array
-        weighted_sum = np.zeros_like(self.aligned_arrays[0], dtype=np.float32)
+        weighted_sum = self.aligned_arrays[0] * weights[0]
  
-        for i, array in enumerate(self.aligned_arrays):
-            weighted_sum += array * weights[i]
-        
-        # Replace NaN values with 0
+        for i in range(1, len(self.aligned_arrays)):
+            weighted_sum += self.aligned_arrays[i] * weights[i]
+    
+
         weighted_sum = np.nan_to_num(weighted_sum, nan=-9999.0)
+        
         output_profile = self.reference_profile.copy()
         output_profile.update({
             'nodata': -9999,
             'dtype': 'float32'
         })
         
-        
         return weighted_sum
     
     def apply_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
                         output_name: str = "constrained_overlay.tif") -> str:
-       
         constraint_path = constraint_path or self.config.constraint_raster_path
-        
-        
-        # Initialize constraint array
         constraint_aligned = np.zeros_like(weighted_sum, dtype=np.float32)
         
         with rasterio.open(constraint_path) as src:
@@ -171,10 +164,7 @@ class RasterProcess:
         
 
         constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
-        
-        
         final_priority = weighted_sum * constraint_mask
-        
         # Save constrained overlay
         output_path = os.path.join(self.config.output_path, output_name)
         with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
@@ -770,11 +760,10 @@ class STPPriorityMapper:
             if len(raster_paths) != len(weights):
                 raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
             self.processor.align_rasters(raster_paths)
-            overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
             weighted_sum = self.processor.create_weighted_overlay(
-                weights, overlay_name
+                weights
             )
-            output_name=f"Final_STP_Priority_{uuid.uuid4().hex}_map.tif"
+            output_name=f"constrained_STP_Priority_{uuid.uuid4().hex}_map.tif"
             constrained_path, _ = self.processor.apply_constraint(
                 weighted_sum, output_name=output_name
             )
@@ -786,12 +775,17 @@ class STPPriorityMapper:
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
             final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
-            final_path=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
+            final_path1=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
             unique_store_name = f"{self.config.raster_store}_{timestamp}"
-            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
+                os.remove(final_path)
+                os.remove(final_path1)
+                os.remove(constrained_path)
+                os.remove(sld_path)
+                os.remove(csv_path)
                 return {
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -1101,22 +1095,21 @@ class STPSutabilityMapper:
         return raster_path,raster_weights,constraintion_raster
     
     def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
-        
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
-        
         constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
         final_name = f"STP_Sutability_{uuid.uuid4().hex}.tif"
-        final_path,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
-        sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
-        csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place="Admin",logic="sutability")
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+        final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
+        sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
         unique_store_name = f"{self.config.raster_store}_{timestamp}"
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
         if status:
             os.remove(final_path)
             os.remove(constrained_path)
             os.remove(sld_path)
+            os.remove(csv_path)
             return {
                 "status": "success",
                 "workspace": self.config.raster_workspace,

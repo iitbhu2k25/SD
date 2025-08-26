@@ -111,26 +111,23 @@ class RasterProcess:
         
         if len(weights) != len(self.aligned_arrays):
             raise ValueError(f"Number of weights ({len(weights)}) must match number of rasters ({len(self.aligned_arrays)})")
-        
-
-        
-        # Initialize weighted sum array
-        weighted_sum = np.zeros_like(self.aligned_arrays[0], dtype=np.float32)
+       
+        weighted_sum = self.aligned_arrays[0] * weights[0]
  
-        for i, array in enumerate(self.aligned_arrays):
-            weighted_sum += array * weights[i]
-        
-        # Replace NaN values with 0
+        for i in range(1, len(self.aligned_arrays)):
+            weighted_sum += self.aligned_arrays[i] * weights[i]
+    
         weighted_sum = np.nan_to_num(weighted_sum, nan=-9999.0)
+        
         output_profile = self.reference_profile.copy()
         output_profile.update({
             'nodata': -9999,
             'dtype': 'float32'
         })
-        
-        
+        valid_data = weighted_sum[weighted_sum != -9999]
+        print("min_value:", np.min(valid_data), "max_value:", np.max(valid_data))
+        print("shape:", weighted_sum.shape, "valid_pixels:", len(valid_data))
         return weighted_sum
-    
     def make_raster_output(self, weighted_sum: np.ndarray, 
                      output_name: str = "constrained_overlay.tif") -> str:
         if weighted_sum.ndim == 2:
@@ -629,9 +626,8 @@ class GWAPriorityMapper:
             if len(raster_paths) != len(weights):
                 raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
             self.processor.align_rasters(raster_paths)
-            overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
             weighted_sum = self.processor.create_weighted_overlay(
-                weights, overlay_name
+                weights
             )
             output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
             constrained_path, _ = self.processor.make_raster_output(
@@ -643,14 +639,18 @@ class GWAPriorityMapper:
                 shapefile_path=self.config.basin_shapefile , output_name=final_name
             )
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-            final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
-            csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
-            
+            final_path1=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
+            csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
             unique_store_name = f"{self.config.raster_store}_{timestamp}"
-            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
+                os.remove(final_path)
+                os.remove(sld_path)
+                os.remove(csv_path)
+                os.remove(constrained_path)
+                os.remove(final_path1)
                 return {
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
