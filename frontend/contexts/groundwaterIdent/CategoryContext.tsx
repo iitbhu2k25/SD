@@ -89,7 +89,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchConditionCategories = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get("/stp_operation/get_sutability_by_category?category=condition&all_data=true")
+        const response = await api.get("/gwz_operation/get_gwli_category?category=condition&all_data=true")
         if (response.status !== 200) {
           throw new Error('Failed to fetch condition categories');
         }
@@ -113,7 +113,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     // Fetch constraint categories from API
     const fetchConstraintCategories = async () => {
       try {
-        const response = await api.get("/stp_operation/get_sutability_by_category?category=constraint&all_data=true") 
+        const response = await api.get("/gwz_operation/get_gwli_category?category=constraint&all_data=true") 
         if (response.status !== 200) {
           throw new Error('Failed to fetch condition categories');
         }

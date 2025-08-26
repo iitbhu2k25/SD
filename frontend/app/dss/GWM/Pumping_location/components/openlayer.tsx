@@ -21,10 +21,10 @@ import {
   ZoomToExtent,
 } from "ol/control";
 import { GISCompass } from "@/components/mapcomponents";
-import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
-import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
+import { useMap } from "@/contexts/groundwaterIdent/MapContext";
+import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
+import { useLocation } from "@/contexts/groundwaterIdent/LocationContext";
 import { none } from "ol/centerconstraint";
 import { baseMaps } from "@/components/mapcomponents";
 
@@ -71,7 +71,7 @@ const Mapping: React.FC = () => {
   const {
     selectedSubDistricts,
     displayRaster,
-    selectedTowns,
+    selectedvillages,
     setdisplay_raster,
   } = useLocation();
 
@@ -829,7 +829,7 @@ useEffect(() => {
         },
         body: JSON.stringify({
           data: selectedCategory,
-          clip: selectedTowns,
+          clip: selectedvillages,
         }),
       });
 

@@ -20,18 +20,15 @@ export interface SubDistrict {
   districtId: string | number;
 }
 
-export interface Towns {
+export interface villages {
   id: string | number;
   name: string;
-  population: number;
-  subdistrictId: string | number;
 }
 
 // Interface for selections return data
 export interface SelectionsData {
   subDistricts: SubDistrict[];
-  towns: Towns[];
-  totalPopulation: number;
+  villages: villages[];
 }
 
 interface clip_rasters{
@@ -44,20 +41,19 @@ interface LocationContextType {
   states: State[];
   districts: District[];
   subDistricts: SubDistrict[];
-  towns: Towns[];
+  villages: villages[];
   selectedState: number | null;
-  selectedDistricts: number[];
-  selectedSubDistricts: number[];
-  selectedTowns: number[];
-  totalPopulation: number;
+  selectedDistricts: number| null;
+  selectedSubDistricts: number| null;
+  selectedvillages: number[];
   selectionsLocked: boolean;
   displayRaster: clip_rasters[];
   setdisplay_raster: (layer: clip_rasters[]) => void;
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
-  setSelectedDistricts: (districtIds: number[]) => void;
-  setSelectedSubDistricts: (subDistrictIds: number[]) => void;
-  setSelectedTowns: (townIds: number[]) => void;
+  setSelectedDistricts: (districtIds: number) => void;
+  setSelectedSubDistricts: (subDistrictIds: number) => void;
+  setSelectedvillages: (townIds: number[]) => void;
   confirmSelections: () => SelectionsData | null;
   resetSelections: () => void;
 }
@@ -72,12 +68,11 @@ const LocationContext = createContext<LocationContextType>({
   states: [],
   districts: [],
   subDistricts: [],
-  towns: [],
+  villages: [],
   selectedState: null,
-  selectedDistricts: [],
-  selectedSubDistricts: [],
-  selectedTowns: [],
-  totalPopulation: 0,
+  selectedDistricts: null,
+  selectedSubDistricts: null,
+  selectedvillages: [],
   selectionsLocked: false,
   isLoading: false,
   displayRaster:[],
@@ -85,7 +80,7 @@ const LocationContext = createContext<LocationContextType>({
   handleStateChange: () => {},
   setSelectedDistricts: () => {},
   setSelectedSubDistricts: () => {},
-  setSelectedTowns: () => {},
+  setSelectedvillages: () => {},
   confirmSelections: () => null,
   resetSelections: () => {},
 });
@@ -96,16 +91,15 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [subDistricts, setSubDistricts] = useState<SubDistrict[]>([]);
-  const [towns, setTowns] = useState<Towns[]>([]);
+  const [villages, setvillages] = useState<villages[]>([]);
   
   // State for selected locations
   const [selectedState, setSelectedState] = useState<number | null>(null);
-  const [selectedDistricts, setSelectedDistricts] = useState<number[]>([]);
-  const [selectedSubDistricts, setSelectedSubDistricts] = useState<number[]>([]);
-  const [selectedTowns, setSelectedTowns] = useState<number[]>([]);
+  const [selectedDistricts, setSelectedDistricts] = useState<number | null>(null);
+  const [selectedSubDistricts, setSelectedSubDistricts] = useState<number | null>(null);
+  const [selectedvillages, setSelectedvillages] = useState<number[]>([]);
   
-  // State for additional information
-  const [totalPopulation, setTotalPopulation] = useState<number>(0);
+
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
@@ -142,7 +136,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     if (!selectedState) {
       setDistricts([]);
       setSubDistricts([]);
-      setTowns([]);
+      setvillages([]);
       return;
     }
     
@@ -179,17 +173,16 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     fetchDistricts();
     
     // Reset dependent selections when state changes
-    setSelectedDistricts([]);
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
-    setTotalPopulation(0);
+    setSelectedDistricts(null);
+    setSelectedSubDistricts(null);
+    setSelectedvillages([]);
   }, [selectedState]);
   
-  // Load sub-districts when districts are selected
+
   useEffect(() => {
-    if (selectedDistricts.length === 0) {
+    if (selectedDistricts == null) {
       setSubDistricts([]);
-      setTowns([]);
+      setvillages([]);
       return;
     }
     
@@ -198,7 +191,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       try {
         const response = await api.post("/location/get_sub_districts/", {
           body:{
-            districts: selectedDistricts,
+            districts: [selectedDistricts],
             all_data: true,
           },
         });
@@ -208,7 +201,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         }
         
         const data = await response.message as SubDistrict[];
-        console.log("data",data)
+
         const subDistrictData = data.map((subDistrict: SubDistrict) => ({
           id: subDistrict.id,
           name: subDistrict.name,
@@ -226,9 +219,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     fetchSubDistricts();
     
     // Reset dependent selections when districts change
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
-    setTotalPopulation(0);
+    setSelectedSubDistricts(null);
+    setSelectedvillages([]);
   }, [selectedDistricts]);
   
   useEffect(() => {
@@ -236,10 +228,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         if (selectionsLocked === true) {
           setIsLoading(true);
           try {
-            const response = await api.post("/stp_operation/stp_sutability_visual_display",{
+            const response = await api.post("/gwz_operation/gwli_visual_display",{
               body: {
-                clip: selectedTowns,
-                place:"sub_district",
+                clip: selectedvillages,
+                place:"District",
               },
             })  
             const data = await response.message as clip_rasters[];
@@ -253,19 +245,19 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   
       disp_raster();
     }, [selectionsLocked, selectedSubDistricts]);
-  // Load towns when sub-districts are selected
+  // Load villages when sub-districts are selected
   useEffect(() => {
-    if (selectedSubDistricts.length === 0) {
-      setTowns([]);
+    if (selectedSubDistricts == null) {
+      setvillages([]);
       return;
     }
     
-    const fetchTowns = async () => {
+    const fetchvillages = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/location/get_towns/", {
+        const response = await api.post("/location/get_villages/", {
           body: {
-            subdis_code: selectedSubDistricts,
+            subdis_code: [selectedSubDistricts],
             all_data: true
           },  
         });
@@ -274,92 +266,69 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
-        const data = await response.message as Towns[];
-        console.log("nerw data ",data)
-        const townData = data.map((town: Towns) => ({
+        const data = await response.message as villages[];
+
+        const townData = data.map((town: villages) => ({
           id: town.id,
           name: town.name,
-          population: town.population || 0,
-          subdistrictId: selectedSubDistricts[0]
         }));
         
-        setTowns(townData);
+        setvillages(townData);
       } catch (error) {
-        console.log('Error fetching towns:', error);
+        console.log('Error fetching villages:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchTowns();
+    fetchvillages();
     
     // Reset town selections when sub-districts change
-    setSelectedTowns([]);
-    setTotalPopulation(0);
+    setSelectedvillages([]);
   }, [selectedSubDistricts]);
 
-  // Calculate total population based on selected TOWNS (not sub-districts)
-  useEffect(() => {
-    if (selectedTowns.length > 0) {
-      // Filter to get only selected towns
-      const selectedTownObjects = towns.filter(town => 
-        selectedTowns.includes(Number(town.id))
-      );
-      
-      // Calculate total population from selected towns
-      const total = selectedTownObjects.reduce(
-        (sum, town) => sum + (town.population || 0), 
-        0
-      );
-      
-      setTotalPopulation(total);
-    } else {
-      setTotalPopulation(0);
-    }
-  }, [towns, selectedTowns]);
 
   // Handle state selection
   const handleStateChange = (stateId: number): void => {
     setSelectedState(stateId);
-    setSelectedDistricts([]);
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
+    setSelectedDistricts(null);
+    setSelectedSubDistricts(null);
+    setSelectedvillages([]);
     setSelectionsLocked(false);
-    setTotalPopulation(0);
+
   };
   
-  // Lock selections and return selected data (now requires towns to be selected)
+  // Lock selections and return selected data (now requires villages to be selected)
   const confirmSelections = (): SelectionsData | null => {
-    // Changed: Now requires towns to be selected instead of just sub-districts
-    if (selectedTowns.length === 0) {
+    // Changed: Now requires villages to be selected instead of just sub-districts
+    if (selectedvillages.length === 0) {
       return null;
     }
     
     const selectedSubDistrictObjects = subDistricts.filter(subDistrict => 
-      selectedSubDistricts.includes(Number(subDistrict.id))
+      subDistrict.id === selectedSubDistricts
     );
     
-    const selectedTownObjects = towns.filter(town => 
-      selectedTowns.includes(Number(town.id))
+    const selectedTownObjects = villages.filter(town => 
+      selectedvillages.includes(Number(town.id))
     );
     
     setSelectionsLocked(true);
-    
-    // Population is now calculated from selected towns, not sub-districts
+  
     return {
       subDistricts: selectedSubDistrictObjects,
-      towns: selectedTownObjects,
-      totalPopulation // This comes from selected towns
+      villages: selectedTownObjects,
+     
     };
   };
   
   // Reset all selections
   const resetSelections = (): void => {
     setSelectedState(null);
-    setSelectedDistricts([]);
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
-    setTotalPopulation(0);
+    setSelectedDistricts(null);
+    setSelectedSubDistricts(null);
+    setSelectedvillages([]);
+
     setSelectionsLocked(false);
   };
   
@@ -368,18 +337,17 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     states,
     districts,
     subDistricts,
-    towns,
+    villages,
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
-    selectedTowns,
-    totalPopulation,
+    selectedvillages,
     selectionsLocked,
     isLoading,
     handleStateChange,
     setSelectedDistricts,
     setSelectedSubDistricts,
-    setSelectedTowns,
+    setSelectedvillages,
     confirmSelections,
     resetSelections,
     displayRaster,

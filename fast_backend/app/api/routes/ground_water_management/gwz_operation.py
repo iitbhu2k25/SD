@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.schema.stp_schema import category_raster,STPPriorityOutput, STPSutabilityOutput
-from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper
+from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service
 from app.utils.exception import validate
 from app.api.schema.stp_schema import STPCategory
@@ -30,7 +30,7 @@ async def get_raster_gwli(db:db_dependency,category:str,all_data: bool = False):
 @router.post("/gwli_visual_display", status_code=status.HTTP_200_OK)
 @validate
 async def gwli_raster_dislay(db:db_dependency,payload:category_raster):
-    pass
+    return GWPumpingMapper().get_visual_raster(db,payload.clip)
 
 @router.post("/gwli_operation", status_code=status.HTTP_200_OK)
 @validate

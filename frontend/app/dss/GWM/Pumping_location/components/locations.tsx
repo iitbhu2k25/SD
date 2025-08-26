@@ -1,12 +1,12 @@
 'use client'
 import React from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation, SubDistrict } from '@/contexts/stp_sutability/admin/LocationContext';
+import { useLocation, SubDistrict } from '@/contexts/groundwaterIdent/LocationContext';
 import WholeLoading from "@/components/app_layout/newLoading";
+
 interface LocationSelectorProps {
   onConfirm?: (selectedData: {
     subDistricts: SubDistrict[];
-    totalPopulation: number;
   }) => void;
   onReset?: () => void;
 }
@@ -18,16 +18,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     districts,
     subDistricts,
     selectedState,
-    selectedDistricts,
-    selectedSubDistricts,
+    selectedDistricts, // This should be a single number, not array
+    selectedSubDistricts, // This should be a single number, not array
     selectionsLocked,
-    towns,
-    selectedTowns,
+    villages,
+    selectedvillages, // This remains an array for multiple selection
     isLoading,
     handleStateChange,
     setSelectedDistricts,
     setSelectedSubDistricts,
-    setSelectedTowns,
+    setSelectedvillages,
     confirmSelections,
     resetSelections
   } = useLocation();
@@ -39,30 +39,30 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     }
   };
   
-  // Handle multi-select changes
-  const handleDistrictsChange = (selectedIds: number[]): void => {
+  // Handle district selection (single select)
+  const handleDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     if (!selectionsLocked) {
-      setSelectedDistricts(selectedIds);
+      setSelectedDistricts(Number(e.target.value));
     }
   };
   
-  const handleSubDistrictsChange = (selectedIds: number[]): void => {
+  // Handle sub-district selection (single select)
+  const handleSubDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     if (!selectionsLocked) {
-      setSelectedSubDistricts(selectedIds);
+      setSelectedSubDistricts(Number(e.target.value));
     }
   };
   
-  const handleTownsChange = (selectedIds: number[]): void => {
+  // Handle villages selection (multi-select)
+  const handlevillagesChange = (selectedIds: number[]): void => {
     if (!selectionsLocked) {
-      setSelectedTowns(selectedIds);
+      setSelectedvillages(selectedIds);
     }
   };
 
-  
-  // Handle confirm button click (now requires towns to be selected)
+  // Handle confirm button click (requires villages to be selected)
   const handleConfirm = (): void => {
-    // Changed: Now requires towns to be selected, not just sub-districts
-    if (selectedTowns.length > 0 && !selectionsLocked) {
+    if (selectedvillages.length > 0 && !selectionsLocked) {
       const selectedData = confirmSelections();
       
       // Call the onConfirm prop to notify parent component
@@ -82,14 +82,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     }
   };
   
-  // Format sub-district display to include population
+  // Format sub-district display
   const formatSubDistrictDisplay = (subDistrict: SubDistrict): string => {
     return `${subDistrict.name}`;
   };
   
-  // Format town display to include population
-  const formatTownDisplay = (town: any): string => {
-    return `${town.name} (Pop: ${town.population?.toLocaleString() || 'N/A'})`;
+  // Format village display
+  const formatVillageDisplay = (village: any): string => {
+    return `${village.name}`;
   };
   
   return (
@@ -116,36 +116,57 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
           </select>
         </div>
 
-        {/* District Multiselect */}
-        <MultiSelect
-          items={districts}
-          selectedItems={selectedDistricts}
-          onSelectionChange={handleDistrictsChange}
-          label="District"
-          placeholder="--Choose Districts--"
-          disabled={!selectedState || selectionsLocked || isLoading}
-        />
+        {/* District Dropdown */}
+        <div>
+          <label htmlFor="district-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
+            District:
+          </label>
+          <select
+            id="district-dropdown"
+            className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={selectedDistricts || ''}
+            onChange={handleDistrictsChange}
+            disabled={!selectedState || selectionsLocked || isLoading}
+          >
+            <option value="">--Choose a District--</option>
+            {districts.map(district => (
+              <option key={district.id} value={district.id}>
+                {district.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        {/* Sub-District Multiselect */}
-        <MultiSelect
-          items={subDistricts}
-          selectedItems={selectedSubDistricts}
-          onSelectionChange={handleSubDistrictsChange}
-          label="Sub-District"
-          placeholder="--Choose SubDistricts--"
-          disabled={selectedDistricts.length === 0 || selectionsLocked || isLoading}
-          displayPattern={formatSubDistrictDisplay}
-        />
+        {/* Sub-District Dropdown */}
+        <div>
+          <label htmlFor="subdistrict-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
+            Sub-District:
+          </label>
+          <select
+            id="subdistrict-dropdown"
+            className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={selectedSubDistricts || ''}
+            onChange={handleSubDistrictsChange}
+            disabled={!selectedDistricts || selectionsLocked || isLoading}
+          >
+            <option value="">--Choose a Sub-District--</option>
+            {subDistricts.map(subDistrict => (
+              <option key={subDistrict.id} value={subDistrict.id}>
+                {subDistrict.name}
+              </option>
+            ))}
+          </select>
+        </div>
         
-        {/* Towns Multiselect */}
+        {/* Villages Multiselect */}
         <MultiSelect
-          items={towns}
-          selectedItems={selectedTowns}
-          onSelectionChange={handleTownsChange}
-          label="Towns"
-          placeholder="--Choose Towns--"
-          disabled={selectedSubDistricts.length === 0 || selectionsLocked || isLoading}
-          displayPattern={formatTownDisplay}
+          items={villages}
+          selectedItems={selectedvillages}
+          onSelectionChange={handlevillagesChange}
+          label="Villages"
+          placeholder="--Choose Villages--"
+          disabled={!selectedSubDistricts || selectionsLocked || isLoading}
+          displayPattern={formatVillageDisplay}
         />
       </div>
 
@@ -154,24 +175,13 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
         <h3 className="text-md font-medium text-gray-800 mb-2">Selected Locations</h3>
         <div className="space-y-2 text-sm text-gray-700">
           <p><span className="font-medium">State:</span> {states.find(s => s.id === selectedState)?.name || 'None'}</p>
-          <p><span className="font-medium">Districts:</span> {selectedDistricts.length > 0 
-            ? (selectedDistricts.length === districts.length 
-              ? 'All Districts' 
-              : districts.filter(d => selectedDistricts.includes(Number(d.id))).map(d => d.name).join(', '))
+          <p><span className="font-medium">District:</span> {districts.find(d => d.id === selectedDistricts)?.name || 'None'}</p>
+          <p><span className="font-medium">Sub-District:</span> {subDistricts.find(sd => sd.id === selectedSubDistricts)?.name || 'None'}</p>
+          <p><span className="font-medium">Villages:</span> {selectedvillages.length > 0 
+            ? (selectedvillages.length === villages.length 
+              ? 'All Villages' 
+              : villages.filter(v => selectedvillages.includes(Number(v.id))).map(v => v.name).join(', '))
             : 'None'}</p>
-          <p><span className="font-medium">Sub-Districts:</span> {selectedSubDistricts.length > 0 
-            ? (selectedSubDistricts.length === subDistricts.length 
-              ? 'All Sub-Districts' 
-              : subDistricts.filter(sd => selectedSubDistricts.includes(Number(sd.id))).map(sd => sd.name).join(', '))
-            : 'None'}</p>
-          <p><span className="font-medium">Towns:</span> {selectedTowns.length > 0 
-            ? (selectedTowns.length === towns.length 
-              ? 'All Towns' 
-              : towns.filter(t => selectedTowns.includes(Number(t.id))).map(t => t.name).join(', '))
-            : 'None'}</p>
-          {selectedTowns.length > 0 && (
-            <p><span className="font-medium">Total Population (from selected towns):</span> {towns.filter(t => selectedTowns.includes(Number(t.id))).reduce((sum, town) => sum + (town.population || 0), 0).toLocaleString()}</p>
-          )}
           {selectionsLocked && (
             <p className="mt-2 text-green-600 font-medium">Selections confirmed and locked</p>
           )}
@@ -182,12 +192,12 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
       <div className="flex space-x-4 mt-4">
         <button 
           className={`${
-            selectedTowns.length > 0 && !selectionsLocked 
+            selectedvillages.length > 0 && !selectionsLocked 
               ? 'bg-blue-500 hover:bg-blue-700' 
               : 'bg-gray-400 cursor-not-allowed'
           } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
           onClick={handleConfirm}
-          disabled={selectedTowns.length === 0 || selectionsLocked || isLoading}
+          disabled={selectedvillages.length === 0 || selectionsLocked || isLoading}
         >
           Confirm
         </button>

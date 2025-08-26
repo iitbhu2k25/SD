@@ -1,22 +1,22 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider } from "@/contexts/stp_sutability/admin/LocationContext";
-import { CategoryProvider } from "@/contexts/stp_sutability/admin/CategoryContext";
-import { MapProvider } from "@/contexts/stp_sutability/admin/MapContext";
-import LocationSelector from "@/app/dss/RWM/WWT/stp_sutability/admin/components/locations";
-import CategorySelector from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Category";
-import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
-import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
-import MapView from "@/app/dss/RWM/WWT/stp_sutability/admin/components/openlayer";
-import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
+import { LocationProvider } from "@/contexts/groundwaterIdent/LocationContext";
+import { CategoryProvider } from "@/contexts/groundwaterIdent/CategoryContext";
+import { MapProvider } from "@/contexts/groundwaterIdent/MapContext";
+import LocationSelector from "@/app/dss/GWM/Pumping_location/components/locations";
+import CategorySelector from "@/app/dss/GWM/Pumping_location/components/Category";
+import { useLocation } from "@/contexts/groundwaterIdent/LocationContext";
+import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
+import MapView from "@/app/dss/GWM/Pumping_location/components/openlayer";
+import { useMap } from "@/contexts/groundwaterIdent/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
-import {TreatmentForm }from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Stp_area";
+
 const MainContent = () => {
   // Add submitting state
   const [submitting, setSubmitting] = useState(false);
@@ -138,7 +138,7 @@ const MainContent = () => {
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
-                        onClick={handleSubmit}
+                       
                         disabled={submitting}
                         className={`px-8 py-3 rounded-full font-medium shadow-md ${
                           submitting
@@ -210,13 +210,6 @@ const MainContent = () => {
                 </div>
               )}
                
-             
-                {tableData.length > 0 && (
-                  <div className="flex justify-start mt-8">
-                 <TreatmentForm />
-                 </div>
-               )
-                }
  
             </section>
           </div>

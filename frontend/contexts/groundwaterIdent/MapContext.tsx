@@ -1,13 +1,13 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/stp_sutability/admin/LocationContext';
+import { useLocation } from '@/contexts/groundwaterIdent/LocationContext';
 
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {
   INDIA:"STP_State",
   STATE: "STP_district",
   DISTRICT: "STP_subdistrict",
-  SUB_DISTRICT: "Town",
+  SUB_DISTRICT: "STP_Village",
 };
 // Type definitions for the context
 interface MapContextType {
@@ -86,7 +86,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
-    selectedTowns,
+    selectedvillages,
 
   } = useLocation();
 
@@ -111,21 +111,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     let secondary: string | null = null;
     let filters_type:string | null = null;
     let filters_value: number[] = [];
-    if (selectedTowns.length) {
+    if (selectedvillages.length) {
       secondary = LAYER_NAMES.SUB_DISTRICT;
       filters_type = '"ID"';
-      filters_value = selectedTowns;
+      filters_value = selectedvillages;
     }
     // Logic for determining which layers to show based on selection state
-    else if (selectedSubDistricts.length) {
+    else if (selectedSubDistricts) {
       secondary = LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
-      filters_value = selectedSubDistricts;
+      filters_value = [selectedSubDistricts];
       }
-    else if (selectedDistricts.length ) {
+    else if (selectedDistricts ) {
       secondary = LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
-      filters_value = selectedDistricts;
+      filters_value = [selectedDistricts];
      }
     else if(selectedState) {
       secondary = LAYER_NAMES.STATE;
@@ -148,9 +148,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithLocation();
   }, [
     selectedState,
-    selectedDistricts.length,
-    selectedSubDistricts.length,
-    selectedTowns.length
+    selectedDistricts,
+    selectedSubDistricts,
+    selectedvillages.length
   ]);
   
   // Context value
