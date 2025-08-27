@@ -81,3 +81,31 @@ export const baseMaps: Record<string, BaseMapDefinition> = {
     icon: "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
   },
 };
+
+export const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature: any; mousePosition: { x: number; y: number } }) => {
+  if (!hoveredFeature) return null;
+
+  const featureName = hoveredFeature.get("name") || hoveredFeature.get("Name") || hoveredFeature.get("NAME") || "Unknown Feature";
+  
+  return (
+    <div 
+      className="absolute z-50 bg-gray-900/90 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none transition-all duration-200 backdrop-blur-sm border border-gray-700"
+      style={{
+        left: `${mousePosition.x + 15}px`,
+        top: `${mousePosition.y - 35}px`,
+        transform: mousePosition.x > window.innerWidth - 200 ? 'translateX(-100%)' : 'none'
+      }}
+    >
+      <div className="flex items-center">
+        <svg className="w-3 h-3 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+        </svg>
+        <span className="font-medium">{featureName}</span>
+      </div>
+      {/* Tooltip arrow */}
+      <div className="absolute bottom-0 left-4 transform translate-y-full">
+        <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900/90"></div>
+      </div>
+    </div>
+  );
+};

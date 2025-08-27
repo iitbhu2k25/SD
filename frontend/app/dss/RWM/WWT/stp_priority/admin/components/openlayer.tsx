@@ -1,4 +1,3 @@
-// Handle secondary layer visibility and primary layer toggle
 import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
@@ -9,7 +8,7 @@ import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
-import { doubleClick, pointerMove } from "ol/events/condition";
+import { doubleClick, pointerMove,singleClick } from "ol/events/condition";
 import Image from "next/image";
 
 import { fromLonLat } from "ol/proj";
@@ -25,41 +24,13 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import "ol/ol.css";
-import { baseMaps,GISCompass } from "@/components/mapcomponents";
+import { baseMaps,GISCompass,HoverTooltip} from "@/components/mapcomponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
 
 
-// Hover Tooltip Component
-const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature: any; mousePosition: { x: number; y: number } }) => {
-  if (!hoveredFeature) return null;
-
-  const featureName = hoveredFeature.get("name") || hoveredFeature.get("Name") || hoveredFeature.get("NAME") || "Unknown Feature";
-  
-  return (
-    <div 
-      className="absolute z-50 bg-gray-900/90 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none transition-all duration-200 backdrop-blur-sm border border-gray-700"
-      style={{
-        left: `${mousePosition.x + 15}px`,
-        top: `${mousePosition.y - 35}px`,
-        transform: mousePosition.x > window.innerWidth - 200 ? 'translateX(-100%)' : 'none'
-      }}
-    >
-      <div className="flex items-center">
-        <svg className="w-3 h-3 mr-2 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-        </svg>
-        <span className="font-medium">{featureName}</span>
-      </div>
-      {/* Tooltip arrow */}
-      <div className="absolute bottom-0 left-4 transform translate-y-full">
-        <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900/90"></div>
-      </div>
-    </div>
-  );
-};
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -163,7 +134,7 @@ const Maping: React.FC = () => {
     if (geometryType.includes("Polygon")) {
       styles.push(new Style({
         stroke: new Stroke({ color, width }),
-        fill: new Fill({ color: color + "20" })
+        fill: new Fill({ color: 'transparent' })
       }));
     }
 
@@ -250,7 +221,8 @@ const Maping: React.FC = () => {
       style: new Style({
         stroke: new Stroke({ color: '#ff0000', width: 3 }),
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
-      })
+      }),
+      
     });
 
     selectInteraction.on('select', (event) => {
@@ -258,8 +230,6 @@ const Maping: React.FC = () => {
       if (selectedFeatures.length > 0) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
-        
-
         if (geometry && geometry.getType().includes('Polygon')) {
           const stateCode = feature.get("State_Code")
           const districtCode= feature.get("district_c")
