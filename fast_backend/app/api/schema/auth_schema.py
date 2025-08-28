@@ -9,7 +9,7 @@ class login_input(BaseModel):
     
 
 class signup_input(BaseModel):
-    username: str = "rajat"
+    fullname: str = "rajat"
     email: EmailStr
     password: str = "rajat@123"
     
@@ -23,7 +23,7 @@ class Token(BaseModel):
     token_type: str
     
 class Useroutput(BaseModel):
-    username: str
+    fullname: str
     email: EmailStr
     created_at: datetime
 
@@ -32,9 +32,28 @@ class EmailSchema(BaseModel):
     
 class UserOut(BaseModel):
     user_id: int
-    username: str
+    fullname: str
     email: str
     is_verified: bool
-
+    access_token: str
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+
+class UserDetails(BaseModel):      
+    contact_no:str
+    organisation:str
+
+    
+class UserDetailsOut(BaseModel):
+    fullname: str
+    email: str
+    is_verified: bool
+    details:UserDetails
+    class Config:
+        from_attributes = True
+        
+class UserEditable(BaseModel):
+    fullname: Optional[str]
+    contact_no: Optional[str]
+    organisation: Optional[str]

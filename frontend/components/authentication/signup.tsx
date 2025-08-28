@@ -11,13 +11,13 @@ import 'react-toastify/dist/ReactToastify.css';
 export default function Signup({ onSwitch }: { onSwitch: () => void }) {
   const [isVisible, setIsVisible] = React.useState(false);
   const [formValues, setFormValues] = React.useState({
-    username: "",
+    fullname: "",
     email: "",
     password: "",
   });
 
   const [errors, setErrors] = React.useState({
-    username: "",
+    fullname: "",
     email: "",
     password: "",
   });
@@ -41,7 +41,7 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
     setSubmitted(true);
 
     const newErrors = {
-      username: validateField("username", formValues.username),
+      fullname: validateField("fullname", formValues.fullname),
       email: validateField("email", formValues.email),
       password: validateField("password", formValues.password),
     };
@@ -54,14 +54,14 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
       try {
         const response = await api.post("/authentication/signup", {
           body: {
-            username: formValues.username,
+            fullname: formValues.fullname,
             email: formValues.email,
             password: formValues.password,
           },
         });
         if (response.status === 201) {
           toast.success("sign up success")
-          setFormValues({ username: "", email: "", password: "" });
+          setFormValues({ fullname: "", email: "", password: "" });
           setSubmitted(false);
           onSwitch();
         }
@@ -88,27 +88,27 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5 mt-5">
-          {/* Username */}
+          {/* fullname */}
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200">
             <label
-              htmlFor="username"
+              htmlFor="fullname"
               className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
             >
-              Username
+              fullname
             </label>
             <input
               required
               type="text"
-              id="username"
-              name="username"
-              value={formValues.username}
+              id="fullname"
+              name="fullname"
+              value={formValues.fullname}
               onChange={handleChange}
               className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900"
             />
           </div>
-          {submitted && errors.username && (
+          {submitted && errors.fullname && (
             <span className="text-red-600 text-xs sm:text-sm -mt-3">
-              {errors.username}
+              {errors.fullname}
             </span>
           )}
 

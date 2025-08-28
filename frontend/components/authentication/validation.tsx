@@ -1,9 +1,9 @@
 export  const validateField = (name: string, value: string): string => {
     switch (name) {
-      case "username":
+      case "fullname":
         return value.length > 3
           ? ""
-          : "Username must be more than 3 characters.";
+          : "fullname must be more than 3 characters.";
       case "email": {
         const email = value.trim().toLowerCase();
         const simpleEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

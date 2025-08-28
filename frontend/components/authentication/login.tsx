@@ -9,13 +9,15 @@ import { useState } from "react";
 import { validateField } from "@/components/authentication/validation";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useAuthStore } from "@/store/authStore";
+import { set } from "lodash";
 
 interface respData {
   is_verified: boolean;
-  user?: {
-    id: string;
-    username: string;
-  };
+  user_id: string;
+  fullname: string;
+  email:string
+  access_token: string;
 }
 
 export default function Login({ onSwitch }: { onSwitch: () => void }) {
@@ -32,7 +34,8 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
   });
 
   const [submitted, setSubmitted] = useState(false);
-
+  const setUser = useAuthStore((s) => s.setUser);
+  const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const toggleVisibility = () => setIsVisible((prev) => !prev);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,10 +70,15 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
       });
       const data: respData = response.message as respData;
       if (response.status === 201) {
-        console.log("login data", data);
         toast.success("login success")
-        console.log("is verified", data.is_verified);
+        const User={
+          'fullname':data.fullname,
+          'email':data.email,
+        }
+        setUser(User);
+        setAccessToken(data.access_token);
         if (data.is_verified) {
+          console.log("verified");  
           router.replace("/dss"); // or whatever your home route is
         } else {
           console.log("not verified");

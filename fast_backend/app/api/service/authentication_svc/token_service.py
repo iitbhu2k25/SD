@@ -46,7 +46,7 @@ class TokenManager:
             if not stored_token:
                 raise Invalid_Token(CustomExceptionDetail="refresh token is invalid")
             obj =UserCrud(db).get_user(id=payload.get('sub@x'))
-            dict={"username":obj.username,"email":obj.email,"user_id":obj.id}
+            dict={"fullname":obj.fullname,"email":obj.email,"user_id":obj.id}
             return TokenManager.generate_access_token(dict,expire_time=timedelta(minutes=15))
         except (Invalid_Token,TokenNone) as e:
             raise e

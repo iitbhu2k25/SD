@@ -1,7 +1,7 @@
 import { api } from "@/services/api";
 
 export interface UserInfo {
-  username: string;
+  fullname: string;
   email: string;
 }
 
@@ -17,11 +17,11 @@ export async function validateToken(): Promise<{
 
     if (response.status === 201) {
       const user = {
-        username:
-          (response.message as { username: string; email: string }).username ||
+        fullname:
+          (response.message as { fullname: string; email: string }).fullname ||
           "",
         email:
-          (response.message as { username: string; email: string }).email || "",
+          (response.message as { fullname: string; email: string }).email || "",
       };
       return { isValid: true, user };
     } else {

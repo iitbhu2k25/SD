@@ -21,4 +21,4 @@ from app.database.models.model_gwz import(
     Groundwater_Identification,
     Groundwater_Identification_visual_raster
 )
-from app.database.models.auth_model import User,Report
+from app.database.models.auth_model import User,Report,UserDetails

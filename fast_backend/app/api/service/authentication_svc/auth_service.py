@@ -66,18 +66,16 @@ class AuthService(AuthServiceInterface):
         elif not self._verify_password(payload.password,obj.password):
             raise PasswordFail()
         else:
-            return {"username":obj.username,"email":obj.email,"user_id":obj.id,"is_verified":obj.is_verified}
+            return {"fullname":obj.fullname,"email":obj.email,"user_id":obj.id,"is_verified":obj.is_verified}
     def _generate_token(self,user:UserOut)->Tuple[str, str]:
         access_token=TokenManager.generate_access_token(user,timedelta(minutes=Settings().ACCESS_TOKEN_EXPIRE_MINUTES))
         refresh_token=TokenManager.generate_refresh_token(user["user_id"]) 
         return access_token,refresh_token
     
-    def _generate_token_response(self,user:UserOut,response:Response)->Response:
+    def _generate_token_response(self,user:UserOut,response:Response):
         access_token,refresh_token=self._generate_token(user=user)
         response.set_cookie(key="refresh_token",value=refresh_token,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
-        response.set_cookie(key="access_token",value=access_token,max_age=Settings().ACCESS_TOKEN_EXPIRE_MINUTES*60,httponly=True)
-        return response
-    
+        return access_token
     def get_user(self,db:Session,token:str):
         try:
             payload=TokenManager.validate_token(token)
@@ -102,8 +100,16 @@ class AuthService(AuthServiceInterface):
     def login(self,db:Session,payload:login_input,response:Response)->UserOut:
         try:
             objects= self._authenticate_user(db,payload) 
-            self._generate_token_response(user=objects,response=response)
-            return objects
+            access_token= self._generate_token_response(user=objects,response=response)
+            return{
+                "access_token":access_token,
+                "token_type":"Bearer",
+                "fullname":objects["fullname"],
+                "email":objects["email"],
+                "user_id":objects["user_id"],
+                "is_verified":objects["is_verified"]
+            }
+
         except (UserNotRegistered,PasswordFail) as Know_exception:
             raise Know_exception
         except Exception as e:

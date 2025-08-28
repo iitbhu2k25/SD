@@ -59,7 +59,8 @@
     "recharts": "^3.0.2",
     "reconnecting-websocket": "^4.4.0",
     "styled-components": "^6.1.18",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.14",

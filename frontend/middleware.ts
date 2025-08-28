@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("access_token")?.value;
+  const token = request.cookies.get("refresh_token")?.value;
 
   if (!token) {
     return NextResponse.redirect(new URL("/", request.url));

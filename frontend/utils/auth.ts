@@ -30,7 +30,7 @@ export const checkAuthState = async () => {
 
     return {
       isAuthenticated: isValid,
-      user: user, // { username: string; email: string }
+      user: user, // { fullname: string; email: string }
       redirectTo: getRedirectPath(isValid),
     };
   } catch (error) {

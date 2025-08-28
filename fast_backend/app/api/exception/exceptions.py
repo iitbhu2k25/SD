@@ -5,7 +5,7 @@ class EmailAlreadyExistsException(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email or username already exists"
+            detail="Email or fullname already exists"
         )
 class CustomException(HTTPException):
     def __init__(self, status_code, detail = None, headers = None):

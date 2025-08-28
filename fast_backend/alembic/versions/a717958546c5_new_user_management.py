@@ -1,8 +1,8 @@
-"""stp village
+"""new user management 
 
-Revision ID: 1de8761a915e
+Revision ID: a717958546c5
 Revises: 
-Create Date: 2025-08-26 09:40:12.444448
+Create Date: 2025-08-27 10:18:05.980566
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1de8761a915e'
+revision: str = 'a717958546c5'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -142,9 +142,9 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_stp_sutability_visual_raster_id'), 'stp_sutability_visual_raster', ['id'], unique=True)
-    op.create_table('user',
+    op.create_table('users',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('username', sa.String(length=50), nullable=False),
+    sa.Column('fullname', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=50), nullable=False),
     sa.Column('password', sa.String(length=200), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -162,7 +162,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_email_reports_id'), 'email_reports', ['id'], unique=True)
@@ -186,6 +186,17 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['river_Code'], ['stp_river.River_Code'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user_details',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('contact_no', sa.String(length=15), nullable=False),
+    sa.Column('organisation', sa.String(length=100), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('user_id')
     )
     op.create_table('stp_drain',
     sa.Column('Drain_No', sa.Integer(), nullable=False),
@@ -274,12 +285,13 @@ def downgrade() -> None:
     op.drop_table('stp_drain_sutability')
     op.drop_index(op.f('ix_stp_drain_id'), table_name='stp_drain')
     op.drop_table('stp_drain')
+    op.drop_table('user_details')
     op.drop_table('stp_stretches')
     op.drop_index(op.f('ix_stp_district_id'), table_name='stp_district')
     op.drop_table('stp_district')
     op.drop_index(op.f('ix_email_reports_id'), table_name='email_reports')
     op.drop_table('email_reports')
-    op.drop_table('user')
+    op.drop_table('users')
     op.drop_index(op.f('ix_stp_sutability_visual_raster_id'), table_name='stp_sutability_visual_raster')
     op.drop_table('stp_sutability_visual_raster')
     op.drop_index(op.f('ix_stp_sutability_raster_id'), table_name='stp_sutability_raster')
