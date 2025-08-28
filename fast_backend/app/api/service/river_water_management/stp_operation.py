@@ -165,7 +165,6 @@ class RasterProcess:
 
         constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
         final_priority = weighted_sum * constraint_mask
-        # Save constrained overlay
         output_path = os.path.join(self.config.output_path, output_name)
         with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
             dst.write(final_priority, 1)
@@ -195,13 +194,9 @@ class RasterProcess:
                         resampling=Resampling.nearest
                     )
 
-                # Generate binary mask (1 where constraint is met, 0 otherwise)
                 constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
-
-                # Combine constraints (logical AND: multiply masks together)
                 combined_constraint_mask *= constraint_mask
 
-            print("apply constrtin")
             final_priority = combined_constraint_mask*weighted_sum
 
         # Save constrained overlay
@@ -211,178 +206,10 @@ class RasterProcess:
 
         return output_path, final_priority
     
-    def clip_to_basin(self, raster_path: str, shapefile_path: str = None, 
-                     output_name: str = "clipped_priority_map.tif") -> str:
-        
-        basin = gpd.read_file(shapefile_path)
-        if basin.crs is None:
-            basin.set_crs("EPSG:32644", inplace=True) 
-        print('raster path',raster_path)
-        try:
-            basin = basin.to_crs("EPSG:32644")
-        except Exception as e:
-            print(e)
-
-        with rasterio.open(raster_path) as src:
-            out_image, out_transform = mask(dataset=src, shapes=basin.geometry, crop=True)
-            out_meta = src.meta.copy()
-        
-        
-        out_meta.update({
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
-        
-        
-        output_path = os.path.join(self.config.output_path, output_name)
+    def _saveraster(self,out_image,output_path:str,out_meta:dict):
         with rasterio.open(output_path, "w", **out_meta) as dest:
             dest.write(out_image)
-        
-   
-        return output_path
-    
-    def clip_to_user_villages(self, raster_path: str,final_name:str,clip:List[int]=None,place:str=None  ) -> str:
-        try:
-            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
-            villages_vector = gpd.read_file(villages_path)
-            if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
-            villages_vector=villages_vector.to_crs("EPSG:32644")
-            if place == "Drain":
-                villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-            else:
-                villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
-            with rasterio.open(raster_path) as src:
-                out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
-                out_meta = src.meta.copy()
-            out_meta.update({
-                "driver": "GTiff",
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
-            })
-            output_path = os.path.join(self.config.output_path, final_name)
-            with rasterio.open(output_path, "w", **out_meta) as dest:
-                dest.write(out_image)
-            return output_path
-        except Exception as e:
-            print(e)
-    
-    def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
-        try:
-            town_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp','Drain_stp','Town','Town.shp')
-            town_vector = gpd.read_file(town_path)
-            if town_vector.crs is None:
-                town_vector.set_crs("EPSG:32644", inplace=True) 
-            town_vector=town_vector.to_crs("EPSG:32644")
-            town_vector=town_vector[town_vector['ID'].isin(clip)]
-            class_buffer = 0 
-            if int(town_vector['class'].iloc[0]) == 1:
-                class_buffer=35000
-            elif int(town_vector['class'].iloc[0]) == 2:
-                class_buffer=30000
-            elif int(town_vector['class'].iloc[0]) == 3:
-                class_buffer=25000  
-            elif int(town_vector['class'].iloc[0]) == 4:
-                class_buffer=20000
-            elif int(town_vector['class'].iloc[0]) == 5:
-                class_buffer=10000
-            else:
-                class_buffer=5000
-            buffered_geom = town_vector.geometry.buffer(class_buffer)
-            buffered_gdf = gpd.GeoDataFrame(geometry=buffered_geom, crs=town_vector.crs)
-            if len(buffered_gdf) > 1:
-                print("Multiple geometries found, creating union...")
-                union_geom = buffered_gdf.geometry.unary_union
-                buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
-            geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
-            with rasterio.open(raster_path) as src:
-                out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
-                out_meta = src.meta.copy()
-            out_meta.update({
-
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
-            })
-            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
-            output_path = os.path.join(self.config.output_path, output_name)
-            print("ouytput path",output_path)
-            with rasterio.open(output_path, "w", **out_meta) as dest:
-                dest.write(out_image)
-            return output_path
-        except Exception as e:
-            print(e)
-    
-    def _get_table_data(self,villages_vector:gpd.GeoDataFrame, stats:list):
-        class_labels = {
-                1: 'Very_Low',
-                2: 'Low',
-                3: 'Medium',
-                4: 'High',
-                5: 'Very_High'
-                }
-        results = []
-        for i, counts in enumerate(stats):
-            shape_name = villages_vector.iloc[i]['Name']
-            total_pixels = sum([v for k, v in counts.items() if k in class_labels])
-            result = {'Village_Name': shape_name}
-            for class_val, label in class_labels.items():
-                pixel_count = counts.get(class_val, 0)
-                percent = (pixel_count / total_pixels * 100) if total_pixels > 0 else 0
-                result[label] = round(percent, 2)
-            results.append(result)
-        return results
-                    
-    def clip_details(self, raster_path: str,clip:List[int]=None,place:str=None,logic:str=None):
-        if logic is None:
-            return None
-        try:
-            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
-            villages_vector = gpd.read_file(villages_path)
-            if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
-            villages_vector=villages_vector.to_crs("EPSG:32644")
-            if logic == "priority":   # priority
-                if place == "Drain":
-                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-                else:
-                    villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
-            else:
-                if place == "Admin":
-                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-                pass
-            with rasterio.open(raster_path) as src:
-                raster = src.read(1, masked=True)
-                affine = src.transform
-
-                # Compute equal interval breaks
-                min_val = raster.min()
-                max_val = raster.max()
-                bins = np.linspace(min_val, max_val, 6)  # 5 classes = 6 edges
-
-                # Reclassify raster into 1–5 classes
-                reclass_raster = np.digitize(raster, bins[1:-1]) + 1  # bins[1:-1] excludes first & last edges
-                reclass_raster = np.where(raster.mask, 0, reclass_raster) 
-                
-
-                stats = zonal_stats(
-                    vectors=villages_vector,
-                    raster=reclass_raster,
-                    affine=affine,
-                    nodata=0,
-                    categorical=True,
-                    geojson_out=False  # ✅ Fix here
-                )
-                results = self._get_table_data(villages_vector, stats)
-                df = pd.DataFrame(results)
-                output_csv_path = os.path.join(self.config.output_path, f"village_details_{uuid.uuid4().hex}.csv")
-                df.to_csv(output_csv_path, index=False)
-                return output_csv_path,results
-        except Exception as e:
-            print(e)
-        
+       
     def _generate_colors(self,num_classes, color_ramp='blue_to_red'):
         colors = []
         if color_ramp == 'blue_to_red':
@@ -536,7 +363,8 @@ class RasterProcess:
         raster_symbolizer = ET.SubElement(rule, "sld:RasterSymbolizer")
         
         # Create color map - using type="ramp" as in the example
-        color_map = ET.SubElement(raster_symbolizer, "sld:ColorMap")
+        color_map = ET.SubElement(raster_symbolizer, "sld:ColorMap",
+                              type="ramp", extended="True")
         color_map.set("type", "ramp")
         
         # Define class labels
@@ -575,17 +403,13 @@ class RasterProcess:
                 raise ValueError("Raster contains no valid data")
             min_val = float(np.min(valid_data))
             max_val = max(float(np.max(valid_data)), 1.0)
-            print("min valuye ",min_val)
-            print("max valuye ",max_val)
-    
-        print(f"Raster min value: {min_val}, max value: {max_val}")
+
         if min_val == max_val:
             intervals = [min_val] * num_classes
         else:
             intervals = np.linspace(min_val, max_val, num_classes+1)
-       
         colors = self._generate_colors(num_classes, color_ramp)
-        print("reverse ",reverse)
+
         if reverse:
             colors = colors[::-1]
         for i in intervals:
@@ -595,7 +419,6 @@ class RasterProcess:
         output_sld_path = os.path.join(self.output_dir, unique_name)        
         with open(output_sld_path, 'w', encoding='utf-8') as f:
             f.write(sld_content)
-        print(f"SLD file created: {output_sld_path}")
         return output_sld_path
     
     def processRaster(self,file_path:str,reverse:bool=False):
@@ -611,7 +434,174 @@ class RasterProcess:
         except Exception as e:
             print("exceprion",e)
             return False
+    
+    
+    ### make the sepere class
+    def clip_to_basin(self, raster_path: str, shapefile_path: str = None, 
+                     output_name: str = "clipped_priority_map.tif") -> str:
+        
+        basin = gpd.read_file(shapefile_path)
+        if basin.crs is None:
+            basin.set_crs("EPSG:32644", inplace=True) 
+        try:
+            basin = basin.to_crs("EPSG:32644")
+        except Exception as e:
+            print(e)
 
+        with rasterio.open(raster_path) as src:
+            out_image, out_transform = mask(dataset=src, shapes=basin.geometry, crop=True)
+            out_meta = src.meta.copy()
+        
+        
+        out_meta.update({
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+        
+        
+        output_path = os.path.join(self.config.output_path, output_name)
+        self._saveraster(out_image,output_path,out_meta)
+        return output_path
+   
+    
+    def clip_to_user_villages(self, raster_path: str,final_name:str,clip:List[int]=None,place:str=None  ) -> str:
+        try:
+            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
+            villages_vector = gpd.read_file(villages_path)
+            if villages_vector.crs is None:
+                villages_vector.set_crs("EPSG:32644", inplace=True) 
+            villages_vector=villages_vector.to_crs("EPSG:32644")
+            if place == "Drain":
+                villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+            else:
+                villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
+            with rasterio.open(raster_path) as src:
+                out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
+                out_meta = src.meta.copy()
+            out_meta.update({
+                "driver": "GTiff",
+                "height": out_image.shape[1],
+                "width": out_image.shape[2],
+                "transform": out_transform
+            })
+            output_path = os.path.join(self.config.output_path, final_name)
+            self._saveraster(out_image,output_path,out_meta)
+            return output_path
+        except Exception as e:
+            print(e)
+    
+    def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
+        try:
+            town_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp','Drain_stp','Town','Town.shp')
+            town_vector = gpd.read_file(town_path)
+            if town_vector.crs is None:
+                town_vector.set_crs("EPSG:32644", inplace=True) 
+            town_vector=town_vector.to_crs("EPSG:32644")
+            town_vector=town_vector[town_vector['ID'].isin(clip)]
+            class_buffer = 0 
+            if int(town_vector['class'].iloc[0]) == 1:
+                class_buffer=35000
+            elif int(town_vector['class'].iloc[0]) == 2:
+                class_buffer=30000
+            elif int(town_vector['class'].iloc[0]) == 3:
+                class_buffer=25000  
+            elif int(town_vector['class'].iloc[0]) == 4:
+                class_buffer=20000
+            elif int(town_vector['class'].iloc[0]) == 5:
+                class_buffer=10000
+            else:
+                class_buffer=5000
+            buffered_geom = town_vector.geometry.buffer(class_buffer)
+            buffered_gdf = gpd.GeoDataFrame(geometry=buffered_geom, crs=town_vector.crs)
+            if len(buffered_gdf) > 1:
+                union_geom = buffered_gdf.geometry.unary_union
+                buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
+            geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
+            with rasterio.open(raster_path) as src:
+                out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
+                out_meta = src.meta.copy()
+            out_meta.update({
+
+                "height": out_image.shape[1],
+                "width": out_image.shape[2],
+                "transform": out_transform
+            })
+            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
+            output_path = os.path.join(self.config.output_path, output_name)
+            self._saveraster(out_image,output_path,out_meta)
+            return output_path
+        except Exception as e:
+            print(e)
+    
+    def _get_table_data(self,villages_vector:gpd.GeoDataFrame, stats:list):
+        class_labels = {
+                1: 'Very_Low',
+                2: 'Low',
+                3: 'Medium',
+                4: 'High',
+                5: 'Very_High'
+                }
+        results = []
+        for i, counts in enumerate(stats):
+            shape_name = villages_vector.iloc[i]['Name']
+            total_pixels = sum([v for k, v in counts.items() if k in class_labels])
+            result = {'Village_Name': shape_name}
+            for class_val, label in class_labels.items():
+                pixel_count = counts.get(class_val, 0)
+                percent = (pixel_count / total_pixels * 100) if total_pixels > 0 else 0
+                result[label] = round(percent, 2)
+            results.append(result)
+        return results
+                    
+    def clip_details(self, raster_path: str,clip:List[int]=None,place:str=None,logic:str=None):
+        if logic is None:
+            return None
+        try:
+            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
+            villages_vector = gpd.read_file(villages_path)
+            if villages_vector.crs is None:
+                villages_vector.set_crs("EPSG:32644", inplace=True) 
+            villages_vector=villages_vector.to_crs("EPSG:32644")
+            if logic == "priority":   # priority
+                if place == "Drain":
+                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+                else:
+                    villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
+            else:
+                if place == "Admin":
+                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+                pass
+            with rasterio.open(raster_path) as src:
+                raster = src.read(1, masked=True)
+                affine = src.transform
+
+                # Compute equal interval breaks
+                min_val = raster.min()
+                max_val = raster.max()
+                bins = np.linspace(min_val, max_val, 6)  # 5 classes = 6 edges
+
+                # Reclassify raster into 1–5 classes
+                reclass_raster = np.digitize(raster, bins[1:-1]) + 1  # bins[1:-1] excludes first & last edges
+                reclass_raster = np.where(raster.mask, 0, reclass_raster) 
+                
+
+                stats = zonal_stats(
+                    vectors=villages_vector,
+                    raster=reclass_raster,
+                    affine=affine,
+                    nodata=0,
+                    categorical=True,
+                    geojson_out=False  # ✅ Fix here
+                )
+                results = self._get_table_data(villages_vector, stats)
+                df = pd.DataFrame(results)
+                output_csv_path = os.path.join(self.config.output_path, f"village_details_{uuid.uuid4().hex}.csv")
+                df.to_csv(output_csv_path, index=False)
+                return output_csv_path,results
+        except Exception as e:
+            print(e)
+    
     def save_vector(self,vector,name:str):
        
         unique_village_zip = f"{name}.zip"
@@ -628,7 +618,7 @@ class RasterProcess:
                     zipf.write(file, file.name)
 
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-        print("xll")
+
         upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
         return name_only
 
@@ -642,12 +632,7 @@ class STPPriorityMapper:
         from app.database.config.dependency import PostgresDb
         db=PostgresDb().get_session
         raster_path=spt_service.Stp_service.get_priority_category(db)
-        print(raster_path,raster_path)
-        # raster_path = [{"file_name": i.file_name,
-        #                 "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
-        #                 "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
-        #                 } for i in raster_path]
-        # return raster_path
+
     def _get_clip_raster(self,raster_path:List,clip:List[int]=None,place:str=None):
         raster_response=[]
         for i in raster_path:
@@ -669,8 +654,6 @@ class STPPriorityMapper:
         catchment_polygon = catchment_selected.geometry.unary_union
         
         villages_intersect = villages[villages.intersects(catchment_polygon)]
-        print("villages_intersect",villages_intersect)
-
         # Data cleaning and validation
         villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
         villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
@@ -711,9 +694,6 @@ class STPPriorityMapper:
             }
             for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
         ]
-
-
-        print("name is ",name_only)
         return [data, name_only]
     def _raster_polyon_color(self,raster_path:str,clip:List[int]=None,place:str=None  ):
         villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
@@ -782,7 +762,7 @@ class STPPriorityMapper:
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
                 os.remove(final_path)
-                os.remove(final_path1)
+
                 os.remove(constrained_path)
                 os.remove(sld_path)
                 os.remove(csv_path)
@@ -851,7 +831,6 @@ class STPPriorityMapper:
                     "layer_name": layer_name,
                     "file_name":i["file_name"],
                 })
-            print("clips",clip)
             return response
         
         except Exception as e:
@@ -891,8 +870,6 @@ class STPSutabilityMapper:
         villages_intersect = villages[villages.geometry.intersects(catchment_buffer)]
         villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
         villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
-        
-        print('vill',villages_intersect.columns)
         if 'FID' in villages_intersect.columns:
             villages_intersect = villages_intersect.drop(columns=['FID'])
         if 'fid' in villages_intersect.columns:
@@ -986,10 +963,7 @@ class STPSutabilityMapper:
         output_name = f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
         output_path = os.path.join(self.config.output_path, output_name)
         
-        # Write the processed raster
-        with rasterio.open(output_path, "w", **out_meta) as dest:
-            dest.write(processed_data)
-        
+        self.processor._saveraster(processed_data,output_path,out_meta)
         return output_path
 
     def _temporory_vector(self,vector_temp_file):
@@ -1067,7 +1041,7 @@ class STPSutabilityMapper:
         if town_vector.empty:
             raise ValueError("No town polygon found for the provided clip ID(s)")
         town_poly = town_vector.iloc[0].geometry
-
+        # make the town extact problem
         cls = int(town_vector.iloc[0]['class'])
         buffer_map = {1: 35000, 2: 30000, 3: 25000, 4: 20000, 5: 10000}
         buf = buffer_map.get(cls, 5000)
@@ -1260,7 +1234,6 @@ class STP_Area:
     def save_results(self,clusters_gdf, output_path, top_n=3):
 
         if clusters_gdf is None or len(clusters_gdf) == 0:
-            print(" No data to save")
             return False
         
         top_clusters = clusters_gdf.head(top_n)
@@ -1273,7 +1246,7 @@ class STP_Area:
         land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
         required_area_ha = MLD_CAPACITY * land_per_mld
         required_area_m2 = required_area_ha * 10000
-        print("payload",payload)
+
         max_area_ha = required_area_ha
         if payload.CUSTOM_LAND_PER_MLD >0:
             max_area_ha = required_area_ha + 5

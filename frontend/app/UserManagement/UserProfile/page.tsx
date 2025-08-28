@@ -336,7 +336,6 @@ const UserProfilePage: React.FC = () => {
                 </div>
               </div>
 
-              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">{userr.fullname}</h3>
               <p className="text-gray-600 text-base sm:text-lg mb-8 font-medium">{userr.details.organisation || 'Organization not set'}</p>
 
               <div className="space-y-4">

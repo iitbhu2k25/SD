@@ -105,7 +105,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
   if (geometryType.includes("Polygon")) {
     styles.push(new Style({
       stroke: new Stroke({ color: colorConfig.color, width: 2 }),
-      fill: new Fill({ color: colorConfig.fill })
+      fill: new Fill({ color: 'transparent' })
     }));
   }
 
@@ -350,13 +350,13 @@ const Maping: React.FC = () => {
       }),
       filter: (feature, layer) => {
         // Exclude boundary layer from selection interactions
-        return layer !== boundaryLayerRef.current;
+        return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
       }
     });
 
     selectInteraction.on('select', (event) => {
       const selectedFeatures = event.selected;
-      if (selectedFeatures.length > 0) {
+      if (selectedFeatures.length > 0 ) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
 
@@ -398,7 +398,7 @@ const Maping: React.FC = () => {
       }),
       filter: (feature, layer) => {
         // Exclude boundary layer from hover interactions
-        return layer !== boundaryLayerRef.current;
+        return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
       }
     });
 
