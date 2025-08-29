@@ -52,7 +52,18 @@ import math
 from reportlab.platypus import Frame
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
-from time import sleep
+import rasterio
+import contextily as ctx
+import matplotlib.pyplot as plt
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+import numpy as np
+from shapely.geometry import box
+from pyproj import Transformer
+from shapely.ops import transform as shapely_transform
+import rasterio
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
+from cartopy.io.img_tiles import Stamen, GoogleTiles
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
 class STRPReportError(Exception):
@@ -1091,7 +1102,7 @@ class ReportGenerator:
             self._add_executive_summary()
             self._add_study_area_overview(location_data=location_data)
             self._add_methodology_section()
-            self._add_results_section(layer_names=layer_names)  # Uncomment when gdf is available
+            self._add_results_section(layer_names=layer_names) 
             self._add_references()
             
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 

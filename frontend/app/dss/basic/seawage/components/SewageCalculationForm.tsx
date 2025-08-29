@@ -210,7 +210,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch('/basics/swrunoff', {
+      const response = await fetch('http://localhost:9000/basics/swrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -270,7 +270,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch('/basics/stormwaterrunoff', {
+      const response = await fetch('http://localhost:9000/basics/stormwaterrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -600,101 +600,107 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
   };
 
   // Rest of your existing handlers and functions remain the same...
-  const handleCalculateSewage = async () => {
-    setError(null);
-    setWaterSupplyResult(null);
-    setDomesticSewageResult(null);
-    setShowPeakFlow(true);
-    setShowRawSewage(false);
+const handleCalculateSewage = async () => {
+  setError(null);
+  setWaterSupplyResult(null);
+  setDomesticSewageResult(null);
+  setShowPeakFlow(true);
+  setShowRawSewage(false);
 
-    let hasError = false;
-    const payloads: any[] = [];
+  let hasError = false;
+  const payloads: any[] = [];
 
-    // --- Water Supply Payload ---
-    if (totalSupplyInput === '' || Number(totalSupplyInput) <= 0) {
-      setError(prev => prev ? `${prev} Invalid total water supply. ` : 'Invalid total water supply. ');
-      hasError = true;
-    } else {
-      payloads.push({
-        method: 'water_supply',
-        total_supply: Number(totalSupplyInput),
-        drain_items: drainItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          discharge: typeof item.discharge === 'number' ? item.discharge : 0
-        })),
-        total_drain_discharge: totalDrainDischarge
-      });
-    }
+  // --- Water Supply Payload (OPTIONAL) ---
+  // Only add water supply payload if user has provided water supply input
+  if (totalSupplyInput !== '' && Number(totalSupplyInput) > 0) {
+    payloads.push({
+      method: 'water_supply',
+      total_supply: Number(totalSupplyInput),
+      drain_items: drainItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        discharge: typeof item.discharge === 'number' ? item.discharge : 0
+      })),
+      total_drain_discharge: totalDrainDischarge
+    });
+  }
 
-    // --- Domestic Sewage Payload ---
-    if (!domesticLoadMethod) {
-      setError(prev => prev ? `${prev} Please select a domestic sewage sector method. ` : 'Please select a domestic sewage sector method. ');
-      hasError = true;
-    } else {
-      const payload: any = {
-        method: 'domestic_sewage',
-        load_method: domesticLoadMethod,
-        drain_items: drainItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          discharge: typeof item.discharge === 'number' ? item.discharge : 0
-        })),
-        total_drain_discharge: totalDrainDischarge
-      };
-      if (domesticLoadMethod === 'manual') {
-        if (domesticSupplyInput === '' || Number(domesticSupplyInput) <= 0) {
-          setError(prev => prev ? `${prev} Invalid domestic supply. ` : 'Invalid domestic supply. ');
-          hasError = true;
-        } else {
-          payload.domestic_supply = Number(domesticSupplyInput);
-          payloads.push(payload);
-        }
-      } else if (domesticLoadMethod === 'modeled') {
-        payload.unmetered_supply = Number(unmeteredSupplyInput);
-        payload.computed_population = computedPopulation;
+  // --- Domestic Sewage Payload (REQUIRED) ---
+  if (!domesticLoadMethod) {
+    setError(prev => prev ? `${prev} Please select a domestic sewage sector method. ` : 'Please select a domestic sewage sector method. ');
+    hasError = true;
+  } else {
+    const payload: any = {
+      method: 'domestic_sewage',
+      load_method: domesticLoadMethod,
+      drain_items: drainItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        discharge: typeof item.discharge === 'number' ? item.discharge : 0
+      })),
+      total_drain_discharge: totalDrainDischarge
+    };
+    
+    if (domesticLoadMethod === 'manual') {
+      if (domesticSupplyInput === '' || Number(domesticSupplyInput) <= 0) {
+        setError(prev => prev ? `${prev} Invalid domestic supply. ` : 'Invalid domestic supply. ');
+        hasError = true;
+      } else {
+        payload.domestic_supply = Number(domesticSupplyInput);
         payloads.push(payload);
       }
+    } else if (domesticLoadMethod === 'modeled') {
+      payload.unmetered_supply = Number(unmeteredSupplyInput);
+      payload.computed_population = computedPopulation;
+      payloads.push(payload);
     }
+  }
 
-    if (hasError) return;
+  // Check if we have at least one payload to process
+  if (payloads.length === 0) {
+    setError('Please provide either water supply input or select a domestic sewage method with required inputs.');
+    hasError = true;
+  }
 
-    try {
-      const responses = await Promise.all(payloads.map(payload =>
-        fetch('/basics/sewage_calculation/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-      ));
+  if (hasError) return;
 
-      for (let i = 0; i < responses.length; i++) {
-        const response = responses[i];
-        if (!response.ok) {
-          const err = await response.json();
-          setError(prev => prev ? `${prev} ${err.error || 'Error calculating sewage.'} ` : err.error || 'Error calculating sewage.');
-          continue;
-        }
-        const data = await response.json();
-        if (payloads[i].method === 'water_supply') {
-          setWaterSupplyResult(data.sewage_demand);
-        } else if (payloads[i].method === 'domestic_sewage') {
-          if (payloads[i].load_method === 'manual') {
-            setDomesticSewageResult(data.sewage_demand);
-          } else {
-            setDomesticSewageResult(data.sewage_result);
-          }
+  try {
+    const responses = await Promise.all(payloads.map(payload =>
+      fetch('/basics/sewage_calculation/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    ));
+
+    for (let i = 0; i < responses.length; i++) {
+      const response = responses[i];
+      if (!response.ok) {
+        const err = await response.json();
+        setError(prev => prev ? `${prev} ${err.error || 'Error calculating sewage.'} ` : err.error || 'Error calculating sewage.');
+        continue;
+      }
+      const data = await response.json();
+      if (payloads[i].method === 'water_supply') {
+        setWaterSupplyResult(data.sewage_demand);
+      } else if (payloads[i].method === 'domestic_sewage') {
+        if (payloads[i].load_method === 'manual') {
+          setDomesticSewageResult(data.sewage_demand);
+        } else {
+          setDomesticSewageResult(data.sewage_result);
         }
       }
-
-      if (waterSupplyResult || domesticSewageResult) {
-        setShowPeakFlow(true);
-      }
-    } catch (error) {
-      console.error(error);
-      setError('Error connecting to backend.');
     }
-  };
+
+    // Show peak flow section if we have any sewage results
+    if (waterSupplyResult || domesticSewageResult || payloads.length > 0) {
+      setShowPeakFlow(true);
+    }
+  } catch (error) {
+    console.error(error);
+    setError('Error connecting to backend.');
+  }
+};
 
   const handlePeakFlowMethodToggle = (method: keyof typeof peakFlowMethods) => {
     setPeakFlowMethods({

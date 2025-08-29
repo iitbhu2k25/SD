@@ -250,27 +250,33 @@ const WatershedMap: React.FC = () => {
   const flowpathRef = useRef<L.GeoJSON | null>(null);
 
   // Function to fetch India base map
+// Function to fetch India base map from GeoServer
   const fetchIndiaBaseMap = async () => {
     try {
       setBaseMapLoading(true);
-      const response = await fetch('/basics/basemap/');
+      
+      const WFS_URL = '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
+      
+      const response = await fetch(WFS_URL, {
+        method: 'GET',
+      });
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch base map: ${response.status}`);
+        throw new Error(`Failed to fetch base map from GeoServer: ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('India base map data:', data);
+      console.log('India base map data from GeoServer:', data);
       
       // Validate and set the base map data
       if (isValidGeoJSON(data)) {
         setIndiaBaseMap(data);
       } else {
-        console.log('Invalid GeoJSON data received from base map API');
+        console.error('Invalid GeoJSON data received from GeoServer');
       }
     } catch (error) {
-      console.log('Error fetching India base map:', error);
-      setError('Failed to load India base map');
+      console.error('Error fetching India base map from GeoServer:', error);
+      setError('Failed to load India base map from GeoServer');
     } finally {
       setBaseMapLoading(false);
     }
@@ -416,7 +422,7 @@ const WatershedMap: React.FC = () => {
               });
             }
           } catch (e) {
-            console.log("Error fitting to bounds:", e);
+            console.error("Error fitting to bounds:", e);
           }
         }
       } else {
@@ -436,7 +442,7 @@ const WatershedMap: React.FC = () => {
               });
             }
           } catch (e) {
-            console.log("Error fitting to bounds:", e);
+            console.error("Error fitting to bounds:", e);
           }
         }
       }

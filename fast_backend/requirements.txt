@@ -50,3 +50,4 @@ redis
 websockets
 scipy
 jenkspy
+cartopy

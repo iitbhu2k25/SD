@@ -104,10 +104,34 @@ export default function GovernmentStyleAboutPage() {
                   This DSS works in alignment with national water projects including:
                 </p>
                 <ul className="my-4 pl-5">
-                  <li className="mb-2.5 pl-1.5"><strong>Jal Jeevan Mission:</strong> Supporting the aim of providing safe drinking water to all households.</li>
-                  <li className="mb-2.5 pl-1.5"><strong>Atal Bhujal Yojana:</strong> Enhancing groundwater management through community participation.</li>
-                  <li className="mb-2.5 pl-1.5"><strong>National Hydrological Project:</strong> Improving the accessibility of water resources information.</li>
-                  <li className="mb-2.5 pl-1.5"><strong>National Groundwater Management Improvement Program-2:</strong> Supporting sustainable groundwater management.</li>
+                  <li className="mb-2.5 pl-1.5">
+                    <strong>
+                      <a href="https://jaljeevanmission.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                        Jal Jeevan Mission
+                      </a>:
+                    </strong> Supporting the aim of providing safe drinking water to all households.
+                  </li>
+                  <li className="mb-2.5 pl-1.5">
+                    <strong>
+                      <a href="https://jalshakti-dowr.gov.in/schemes-programmes/atal-bhujal-yojana" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                        Atal Bhujal Yojana
+                      </a>:
+                    </strong> Enhancing groundwater management through community participation.
+                  </li>
+                  <li className="mb-2.5 pl-1.5">
+                    <strong>
+                      <a href="https://indiawris.gov.in/nhp/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                        National Hydrological Project
+                      </a>:
+                    </strong> Improving the accessibility of water resources information.
+                  </li>
+                  <li className="mb-2.5 pl-1.5">
+                    <strong>
+                      <a href="https://cgwb.gov.in/schemes/NGMIP-2.html" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                        National Groundwater Management Improvement Program-2
+                      </a>:
+                    </strong> Supporting sustainable groundwater management.
+                  </li>
                 </ul>
                 <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
                   By integrating these missions' goals into our system, we aim to enhance India's water resource management capabilities.
@@ -123,9 +147,25 @@ export default function GovernmentStyleAboutPage() {
                   The DSS utilizes advanced data from sources such as:
                 </p>
                 <ul className="my-4 pl-5">
-                  <li className="mb-2.5 pl-1.5">Central Water Commission (CWC) monitoring stations</li>
-                  <li className="mb-2.5 pl-1.5">India Meteorological Department (IMD) weather forecasts</li>
-                  <li className="mb-2.5 pl-1.5">Satellite imagery from NASA's MODIS and Sentinel satellites</li>
+                  <li className="mb-2.5 pl-1.5">
+                    <a href="https://cwc.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                      Central Water Commission (CWC)
+                    </a> monitoring stations
+                  </li>
+                  <li className="mb-2.5 pl-1.5">
+                    <a href="https://mausam.imd.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                      India Meteorological Department (IMD)
+                    </a> weather forecasts
+                  </li>
+                  <li className="mb-2.5 pl-1.5">
+                    Satellite imagery from 
+                    <a href="https://modis.gsfc.nasa.gov/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline ml-1">
+                      NASA's MODIS
+                    </a> and 
+                    <a href="https://sentinel.esa.int/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline ml-1">
+                      Sentinel satellites
+                    </a>
+                  </li>
                   <li className="mb-2.5 pl-1.5">Ground-level monitoring through IoT sensor networks</li>
                 </ul>
                 <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
@@ -137,7 +177,7 @@ export default function GovernmentStyleAboutPage() {
             {/* Sidebar - 1/3 width */}
             <div className="w-full lg:w-1/3 px-4">
               <div className="bg-[#f0f0f0] p-5 border border-[#ddd]">
-                <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-0 mb-4 pb-2 border-b border-[#ccc]">
+                {/* <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-0 mb-4 pb-2 border-b border-[#ccc]">
                   Documents
                 </h3>
                 <div className="text-center mb-5">
@@ -145,31 +185,31 @@ export default function GovernmentStyleAboutPage() {
                     className="inline-block py-2 px-4 bg-[#0066CC] text-white no-underline rounded text-sm transition-colors duration-300 hover:bg-[#00478f]">
                     <span className="mr-1">&#128196;</span> View All Documents
                   </Link>
-                </div>
+                </div> */}
 
                 <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-0 mb-4 pb-2 border-b border-[#ccc]">
                   Related Schemes
                 </h3>
                 <ul className="list-none p-0">
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://jaljeevanmission.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Jal Jeevan Mission
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://jalshakti-dowr.gov.in/schemes-programmes/atal-bhujal-yojana" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Atal Bhujal Yojana
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://nmcg.nic.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Namami Gange Programme
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://jalshakti-ddws.gov.in/hi/national-rural-drinking-water-programme" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       National Rural Drinking Water Programme
-                    </Link>
+                    </a>
                   </li>
                 </ul>
 
@@ -178,29 +218,29 @@ export default function GovernmentStyleAboutPage() {
                 </h3>
                 <ul className="list-none p-0">
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://jalshakti.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Ministry of Jal Shakti
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://cwc.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Central Water Commission
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://cgwb.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       Central Ground Water Board
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://nwm.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       National Water Mission
-                    </Link>
+                    </a>
                   </li>
                   <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <Link href="#" className="text-[#0066CC] no-underline hover:underline">
+                    <a href="https://mausam.imd.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
                       India Meteorological Department
-                    </Link>
+                    </a>
                   </li>
                 </ul>
 
@@ -210,10 +250,15 @@ export default function GovernmentStyleAboutPage() {
                 <div className="not-italic leading-relaxed">
                   <strong>Smart Laboratory for Clean Rivers (SLCR)</strong><br />
                   Department of Civil Engineering,<br />
-                  Indian Institute of Technology (BHU)<br />
+                  <a href="https://www.iitbhu.ac.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
+                    Indian Institute of Technology (BHU)
+                  </a><br />
                   Varanasi 221005<br />
                   <br />
-                  Email: dssiitbhu@gmail.com<br />
+                  Email: 
+                  <a href="mailto:dssiitbhu@gmail.com" className="text-[#0066CC] no-underline hover:underline ml-1">
+                    dssiitbhu@gmail.com
+                  </a><br />
                   Phone: +91-11-XXXXXXXX
                 </div>
               </div>

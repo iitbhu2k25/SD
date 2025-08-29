@@ -503,7 +503,7 @@ export default function Map({
       }
 
       const response = await fetch(
-        `/api//basics/mapplot/get_shapefile_data?category=${category}&subcategory=${subcategory}`
+        `/basics/get_shapefile?category=${category}&subcategory=${subcategory}`
       );
 
       if (!response.ok) {

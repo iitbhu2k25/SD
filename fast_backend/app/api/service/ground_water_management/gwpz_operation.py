@@ -27,6 +27,7 @@ from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service
 import pandas as pd
 from rasterstats import zonal_stats
+import matplotlib.cm as cm
 
 
 geo=Geoserver()
@@ -377,7 +378,13 @@ class RasterProcess:
                     
                 hex_color = f"#{r:02x}{g:02x}{b:02x}"
                 colors.append(hex_color.upper())
-        
+        elif color_ramp == 'turbo':
+            turbo = cm.get_cmap("turbo")
+            for i in range(num_classes):
+                t = i / max(1, num_classes - 1)
+                r, g, b, _ = turbo(t)  # Values in [0,1]
+                hex_color = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+                colors.append(hex_color.upper())
         elif color_ramp == 'orange_to_green':
             rgb_colors = [
                 (204, 0, 0),    # Red
@@ -578,7 +585,7 @@ class RasterProcess:
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='viridis')
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='blue_to_red')
             sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='orange_to_green',reverse=reverse)
-            #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='spectral')
+            #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='turbo',reverse=reverse)
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='terrain') #terrain
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp="greenTOred")
             sld_name = os.path.basename(sld_path).split('.')[0]
@@ -638,7 +645,7 @@ class GWAPriorityMapper:
                 raster_path=constrained_path,
                 shapefile_path=self.config.basin_shapefile , output_name=final_name
             )
-            sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
+            sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=False)
             final_path1=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds

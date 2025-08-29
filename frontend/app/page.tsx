@@ -24,10 +24,10 @@ export default function AuthPage() {
       {/* Image Container */}
       <div className="relative w-full lg:w-1/2 xl:w-2/3 min-h-[700px] order-1 lg:order-2 overflow-hidden rounded-lg lg:rounded-none">
         <Image
-          src="/Images/main_page.jpeg"    // Use the correct path starting with "/"
+          src="/Images/main_page_gif.gif"   
           alt="My Image"
           placeholder="blur"
-          blurDataURL="/Images/main_page.jpeg" // Only works if you have a base64 or same-path blur
+          blurDataURL="/Images/main_page.jpeg" 
           fill
           className="object-cover w-full h-full"
         />
