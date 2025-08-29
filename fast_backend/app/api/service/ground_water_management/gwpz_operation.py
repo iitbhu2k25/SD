@@ -24,7 +24,7 @@ import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service
+from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service,MARSutability_svc
 import pandas as pd
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
@@ -742,3 +742,40 @@ class GWPumpingMapper:
     #     except Exception as e:
     #         print(e)
     #         return False
+
+class MARSutabilityMapper:
+    def __init__(self, config: GeoConfig = None):
+        self.config = config or GeoConfig()
+        self.processor = RasterProcess(self.config)
+    
+    
+    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
+        try:
+            
+            raster_path=MARSutability_svc.get_MAR_visual(db)
+            raster_path = [{"file_name": i.file_name,
+                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
+                           } for i in raster_path]
+            print("raster_path",raster_path)
+            response=[]
+            print('str',place)
+            for i in raster_path:
+                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place="none")
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
+                unique_store_name = f"{self.config.raster_store}_{timestamp}"
+                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
+                sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)   
+                os.remove(final_path)
+                response.append({
+                    "workspace": self.config.raster_workspace,
+                    "layer_name": layer_name,
+                    "file_name":i["file_name"],
+                })
+            return response
+        
+        except Exception as e:
+            print(e)
+            return False
+    pass
