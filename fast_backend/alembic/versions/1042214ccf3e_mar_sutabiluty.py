@@ -1,8 +1,8 @@
-"""new user management 
+"""mar sutabiluty
 
-Revision ID: a717958546c5
+Revision ID: 1042214ccf3e
 Revises: 
-Create Date: 2025-08-27 10:18:05.980566
+Create Date: 2025-08-29 11:58:47.276903
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a717958546c5'
+revision: str = '1042214ccf3e'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -67,6 +67,30 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_groundwater_zone_visual_raster_id'), 'groundwater_zone_visual_raster', ['id'], unique=True)
+    op.create_table('mar_sutability_raster',
+    sa.Column('file_name', sa.String(), nullable=False),
+    sa.Column('layer_name', sa.String(), nullable=False),
+    sa.Column('weight', sa.Float(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('raster_category', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_mar_sutability_raster_id'), 'mar_sutability_raster', ['id'], unique=True)
+    op.create_table('mar_sutability_visual_raster',
+    sa.Column('file_name', sa.String(), nullable=False),
+    sa.Column('layer_name', sa.String(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('sld_path', sa.String(), nullable=False),
+    sa.Column('raster_category', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_mar_sutability_visual_raster_id'), 'mar_sutability_visual_raster', ['id'], unique=True)
     op.create_table('stp_priority_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -190,7 +214,7 @@ def upgrade() -> None:
     op.create_table('user_details',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('contact_no', sa.String(length=15), nullable=False),
-    sa.Column('organisation', sa.String(length=100), nullable=True),
+    sa.Column('organisation', sa.String(length=100), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -306,6 +330,10 @@ def downgrade() -> None:
     op.drop_table('stp_priority_visual_raster')
     op.drop_index(op.f('ix_stp_priority_raster_id'), table_name='stp_priority_raster')
     op.drop_table('stp_priority_raster')
+    op.drop_index(op.f('ix_mar_sutability_visual_raster_id'), table_name='mar_sutability_visual_raster')
+    op.drop_table('mar_sutability_visual_raster')
+    op.drop_index(op.f('ix_mar_sutability_raster_id'), table_name='mar_sutability_raster')
+    op.drop_table('mar_sutability_raster')
     op.drop_index(op.f('ix_groundwater_zone_visual_raster_id'), table_name='groundwater_zone_visual_raster')
     op.drop_table('groundwater_zone_visual_raster')
     op.drop_index(op.f('ix_groundwater_zone_raster_id'), table_name='groundwater_zone_raster')
