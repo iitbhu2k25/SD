@@ -1,9 +1,8 @@
 'use client'
 import React from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation, SubDistrict } from '@/contexts/groundwaterIdent/LocationContext';
+import { useLocation, SubDistrict } from '@/contexts/mar_sutability/admin/LocationContext';
 import WholeLoading from "@/components/app_layout/newLoading";
-
 interface LocationSelectorProps {
   onConfirm?: (selectedData: {
     subDistricts: SubDistrict[];
@@ -18,11 +17,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     districts,
     subDistricts,
     selectedState,
-    selectedDistricts, // This should be a single number, not array
-    selectedSubDistricts, // This should be a single number, not array
+    selectedDistricts,
+    selectedSubDistricts,
     selectionsLocked,
     villages,
-    selectedvillages, // This remains an array for multiple selection
+    selectedvillages,
     isLoading,
     handleStateChange,
     setSelectedDistricts,
@@ -39,28 +38,28 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     }
   };
   
-  // Handle district selection (single select)
-  const handleDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    if (!selectionsLocked) {
-      setSelectedDistricts(Number(e.target.value));
-    }
-  };
+  // Handle multi-select changes
+ const handleDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+     if (!selectionsLocked) {
+       setSelectedDistricts(Number(e.target.value));
+     }
+   };
+   
+   // Handle sub-district selection (single select)
+   const handleSubDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+     if (!selectionsLocked) {
+       setSelectedSubDistricts(Number(e.target.value));
+     }
+   };
+   
+   // Handle villages selection (multi-select)
+   const handlevillagesChange = (selectedIds: number[]): void => {
+     if (!selectionsLocked) {
+       setSelectedvillages(selectedIds);
+     }
+   };
   
-  // Handle sub-district selection (single select)
-  const handleSubDistrictsChange = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    if (!selectionsLocked) {
-      setSelectedSubDistricts(Number(e.target.value));
-    }
-  };
-  
-  // Handle villages selection (multi-select)
-  const handlevillagesChange = (selectedIds: number[]): void => {
-    if (!selectionsLocked) {
-      setSelectedvillages(selectedIds);
-    }
-  };
-
-  // Handle confirm button click (requires villages to be selected)
+  // Handle confirm button click (now requires towns to be selected)
   const handleConfirm = (): void => {
     if (selectedvillages.length > 0 && !selectionsLocked) {
       const selectedData = confirmSelections();
@@ -81,10 +80,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
       onReset();
     }
   };
-  
-  // Format sub-district display
 
-  // Format village display
   const formatVillageDisplay = (village: any): string => {
     return `${village.name}`;
   };

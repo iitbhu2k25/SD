@@ -57,3 +57,4 @@ class MARSutability_svc:
 
     def get_MAR_visual(db:Session,all_data:bool=True):
         return MARSutability_visualization_crud(db).get_all_visual()
+    

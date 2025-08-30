@@ -1,6 +1,6 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
-from app.api.schema.stp_schema import category_raster,STPPriorityOutput, STPSutabilityOutput
+from app.api.schema.stp_schema import category_raster,STPPriorityOutput, STPSutabilityOutput,STPSutabilityInput
 from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper,MARSutabilityMapper
 from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,Gwzp_service,GWLI_service
 from app.utils.exception import validate
@@ -49,7 +49,7 @@ async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
     return MARSutabilityMapper().get_visual_raster(db,payload.clip)
 
     
-# @router.post("/mar_sutability",status_code=status.HTTP_200_OK,)
-# @validate
-# async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
-#     pass
+@router.post("/mar_sutability",status_code=status.HTTP_200_OK,)
+@validate
+async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
+    return MARSutabilityMapper().create_sutability_map(db,payload)

@@ -25,6 +25,7 @@ from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service,MARSutability_svc
+from app.database.crud.gwpz_crud import MARSutability_crud
 import pandas as pd
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
@@ -112,12 +113,13 @@ class RasterProcess:
         
         if len(weights) != len(self.aligned_arrays):
             raise ValueError(f"Number of weights ({len(weights)}) must match number of rasters ({len(self.aligned_arrays)})")
-       
+
         weighted_sum = self.aligned_arrays[0] * weights[0]
  
         for i in range(1, len(self.aligned_arrays)):
             weighted_sum += self.aligned_arrays[i] * weights[i]
     
+
         weighted_sum = np.nan_to_num(weighted_sum, nan=-9999.0)
         
         output_profile = self.reference_profile.copy()
@@ -125,27 +127,35 @@ class RasterProcess:
             'nodata': -9999,
             'dtype': 'float32'
         })
-        valid_data = weighted_sum[weighted_sum != -9999]
-        print("min_value:", np.min(valid_data), "max_value:", np.max(valid_data))
-        print("shape:", weighted_sum.shape, "valid_pixels:", len(valid_data))
+        
         return weighted_sum
-    def make_raster_output(self, weighted_sum: np.ndarray, 
-                     output_name: str = "constrained_overlay.tif") -> str:
-        if weighted_sum.ndim == 2:
-            final_priority = weighted_sum[np.newaxis, :, :]
-        else:
-            final_priority = weighted_sum
-        profile = self.reference_profile.copy()
-        profile.update(
-            dtype=rasterio.float32,
-            count=1
-        )
+    
+    def apply_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
+                        output_name: str = "constrained_overlay.tif") -> str:
+        constraint_path = constraint_path or self.config.constraint_raster_path
+        constraint_aligned = np.zeros_like(weighted_sum, dtype=np.float32)
+        
+        with rasterio.open(constraint_path) as src:
+            reproject(
+                source=rasterio.band(src, 1),
+                destination=constraint_aligned,
+                src_transform=src.transform,
+                src_crs=src.crs,
+                dst_transform=self.reference_profile['transform'],
+                dst_crs=self.reference_profile['crs'],
+                resampling=Resampling.nearest
+            )
+        
+
+        constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
+        final_priority = weighted_sum * constraint_mask
         output_path = os.path.join(self.config.output_path, output_name)
-        with rasterio.open(output_path, 'w', **profile) as dst:
-            dst.write(final_priority.astype(np.float32))
-
+        with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
+            dst.write(final_priority, 1)
+        
+       
         return output_path, final_priority
-
+    
     def apply_constraints_new(self, weighted_sum: np.ndarray, constraint_paths: List[str] = None,
                         output_name: str = "constrained_overlay.tif") -> str:
        
@@ -168,13 +178,9 @@ class RasterProcess:
                         resampling=Resampling.nearest
                     )
 
-                # Generate binary mask (1 where constraint is met, 0 otherwise)
                 constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
-
-                # Combine constraints (logical AND: multiply masks together)
                 combined_constraint_mask *= constraint_mask
 
-            print("apply constrtin")
             final_priority = combined_constraint_mask*weighted_sum
 
         # Save constrained overlay
@@ -184,180 +190,10 @@ class RasterProcess:
 
         return output_path, final_priority
     
-    def clip_to_basin(self, raster_path: str, shapefile_path: str = None, 
-                     output_name: str = "clipped_priority_map.tif") -> str:
-        
-        basin = gpd.read_file(shapefile_path)
-        if basin.crs is None:
-            basin.set_crs("EPSG:32644", inplace=True) 
-        print('raster path',raster_path)
-        try:
-            basin = basin.to_crs("EPSG:32644")
-        except Exception as e:
-            print(e)
-
-        with rasterio.open(raster_path) as src:
-            out_image, out_transform = mask(dataset=src, shapes=basin.geometry, crop=True)
-            out_meta = src.meta.copy()
-        
-        
-        out_meta.update({
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
-        
-        
-        output_path = os.path.join(self.config.output_path, output_name)
+    def _saveraster(self,out_image,output_path:str,out_meta:dict):
         with rasterio.open(output_path, "w", **out_meta) as dest:
             dest.write(out_image)
-        
-   
-        return output_path
-    
-    def clip_to_user_villages(self, raster_path: str,clip:List[int]=None,place:str=None  ) -> str:
-        try:
-            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
-            villages_vector = gpd.read_file(villages_path)
-            if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
-            villages_vector=villages_vector.to_crs("EPSG:32644")
-            if place == "Drain":
-                villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-            else:
-                villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
-            with rasterio.open(raster_path) as src:
-                out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
-                out_meta = src.meta.copy()
-            out_meta.update({
-                "driver": "GTiff",
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
-            })
-            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
-            output_path = os.path.join(self.config.output_path, output_name)
-            with rasterio.open(output_path, "w", **out_meta) as dest:
-                dest.write(out_image)
-            return output_path
-        except Exception as e:
-            print(e)
-    
-    def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
-        try:
-            town_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp','Drain_stp','Town','Town.shp')
-            town_vector = gpd.read_file(town_path)
-            if town_vector.crs is None:
-                town_vector.set_crs("EPSG:32644", inplace=True) 
-            town_vector=town_vector.to_crs("EPSG:32644")
-            town_vector=town_vector[town_vector['ID'].isin(clip)]
-            class_buffer = 0 
-            if int(town_vector['class'].iloc[0]) == 1:
-                class_buffer=35000
-            elif int(town_vector['class'].iloc[0]) == 2:
-                class_buffer=30000
-            elif int(town_vector['class'].iloc[0]) == 3:
-                class_buffer=25000  
-            elif int(town_vector['class'].iloc[0]) == 4:
-                class_buffer=20000
-            elif int(town_vector['class'].iloc[0]) == 5:
-                class_buffer=10000
-            else:
-                class_buffer=5000
-            buffered_geom = town_vector.geometry.buffer(class_buffer)
-            buffered_gdf = gpd.GeoDataFrame(geometry=buffered_geom, crs=town_vector.crs)
-            if len(buffered_gdf) > 1:
-                print("Multiple geometries found, creating union...")
-                union_geom = buffered_gdf.geometry.unary_union
-                buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
-            geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
-            with rasterio.open(raster_path) as src:
-                out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
-                out_meta = src.meta.copy()
-            out_meta.update({
-
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
-            })
-            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
-            output_path = os.path.join(self.config.output_path, output_name)
-            print("ouytput path",output_path)
-            with rasterio.open(output_path, "w", **out_meta) as dest:
-                dest.write(out_image)
-            return output_path
-        except Exception as e:
-            print(e)
-    
-    def _get_table_data(self,villages_vector:gpd.GeoDataFrame, stats:list):
-        class_labels = {
-                1: 'Very_Low',
-                2: 'Low',
-                3: 'Medium',
-                4: 'High',
-                5: 'Very_High'
-                }
-        results = []
-        for i, counts in enumerate(stats):
-            shape_name = villages_vector.iloc[i]['Name']
-            total_pixels = sum([v for k, v in counts.items() if k in class_labels])
-            result = {'Village_Name': shape_name}
-            for class_val, label in class_labels.items():
-                pixel_count = counts.get(class_val, 0)
-                percent = (pixel_count / total_pixels * 100) if total_pixels > 0 else 0
-                result[label] = round(percent, 2)
-            results.append(result)
-        return results
-                    
-    def clip_details(self, raster_path: str,clip:List[int]=None,place:str=None,logic:str=None):
-        if logic is None:
-            return None
-        try:
-            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
-            villages_vector = gpd.read_file(villages_path)
-            if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
-            villages_vector=villages_vector.to_crs("EPSG:32644")
-            if logic == "priority":   # priority
-                if place == "Drain":
-                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-                else:
-                    villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
-            else:
-                if place == "Admin":
-                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-                pass
-            with rasterio.open(raster_path) as src:
-                raster = src.read(1, masked=True)
-                affine = src.transform
-
-                # Compute equal interval breaks
-                min_val = raster.min()
-                max_val = raster.max()
-                bins = np.linspace(min_val, max_val, 6)  # 5 classes = 6 edges
-
-                # Reclassify raster into 1–5 classes
-                reclass_raster = np.digitize(raster, bins[1:-1]) + 1  # bins[1:-1] excludes first & last edges
-                reclass_raster = np.where(raster.mask, 0, reclass_raster) 
-                
-
-                stats = zonal_stats(
-                    vectors=villages_vector,
-                    raster=reclass_raster,
-                    affine=affine,
-                    nodata=0,
-                    categorical=True,
-                    geojson_out=False  # ✅ Fix here
-                )
-                results = self._get_table_data(villages_vector, stats)
-                df = pd.DataFrame(results)
-                output_csv_path = os.path.join(self.config.output_path, f"village_details_{uuid.uuid4().hex}.csv")
-                df.to_csv(output_csv_path, index=False)
-                return output_csv_path,results
-        except Exception as e:
-            print(e)
-        
-
+       
     def _generate_colors(self,num_classes, color_ramp='blue_to_red'):
         colors = []
         if color_ramp == 'blue_to_red':
@@ -378,13 +214,7 @@ class RasterProcess:
                     
                 hex_color = f"#{r:02x}{g:02x}{b:02x}"
                 colors.append(hex_color.upper())
-        elif color_ramp == 'turbo':
-            turbo = cm.get_cmap("turbo")
-            for i in range(num_classes):
-                t = i / max(1, num_classes - 1)
-                r, g, b, _ = turbo(t)  # Values in [0,1]
-                hex_color = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
-                colors.append(hex_color.upper())
+        
         elif color_ramp == 'orange_to_green':
             rgb_colors = [
                 (204, 0, 0),    # Red
@@ -517,7 +347,8 @@ class RasterProcess:
         raster_symbolizer = ET.SubElement(rule, "sld:RasterSymbolizer")
         
         # Create color map - using type="ramp" as in the example
-        color_map = ET.SubElement(raster_symbolizer, "sld:ColorMap")
+        color_map = ET.SubElement(raster_symbolizer, "sld:ColorMap",
+                              type="ramp", extended="True")
         color_map.set("type", "ramp")
         
         # Define class labels
@@ -555,18 +386,14 @@ class RasterProcess:
             if len(valid_data) == 0:
                 raise ValueError("Raster contains no valid data")
             min_val = float(np.min(valid_data))
-            max_val = float(np.max(valid_data)+0.0001)
-            print("min valuye ",min_val)
-            print("max valuye ",max_val)
-    
-        print(f"Raster min value: {min_val}, max value: {max_val}")
+            max_val = max(float(np.max(valid_data)), 1.0)
+
         if min_val == max_val:
             intervals = [min_val] * num_classes
         else:
             intervals = np.linspace(min_val, max_val, num_classes+1)
-       
         colors = self._generate_colors(num_classes, color_ramp)
-        print("reverse ",reverse)
+
         if reverse:
             colors = colors[::-1]
         for i in intervals:
@@ -576,16 +403,14 @@ class RasterProcess:
         output_sld_path = os.path.join(self.output_dir, unique_name)        
         with open(output_sld_path, 'w', encoding='utf-8') as f:
             f.write(sld_content)
-        print(f"SLD file created: {output_sld_path}")
         return output_sld_path
-    
     
     def processRaster(self,file_path:str,reverse:bool=False):
         try:
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='viridis')
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='blue_to_red')
             sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='orange_to_green',reverse=reverse)
-            #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='turbo',reverse=reverse)
+            #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='spectral')
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='terrain') #terrain
             #sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp="greenTOred")
             sld_name = os.path.basename(sld_path).split('.')[0]
@@ -593,6 +418,193 @@ class RasterProcess:
         except Exception as e:
             print("exceprion",e)
             return False
+    
+    
+    ### make the sepere class
+    def clip_to_basin(self, raster_path: str, shapefile_path: str = None, 
+                     output_name: str = "clipped_priority_map.tif") -> str:
+        
+        basin = gpd.read_file(shapefile_path)
+        if basin.crs is None:
+            basin.set_crs("EPSG:32644", inplace=True) 
+        try:
+            basin = basin.to_crs("EPSG:32644")
+        except Exception as e:
+            print(e)
+
+        with rasterio.open(raster_path) as src:
+            out_image, out_transform = mask(dataset=src, shapes=basin.geometry, crop=True)
+            out_meta = src.meta.copy()
+        
+        
+        out_meta.update({
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+        
+        
+        output_path = os.path.join(self.config.output_path, output_name)
+        self._saveraster(out_image,output_path,out_meta)
+        return output_path
+   
+    
+    def clip_to_user_villages(self, raster_path: str,final_name:str,clip:List[int]=None,place:str=None  ) -> str:
+        try:
+            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
+            villages_vector = gpd.read_file(villages_path)
+            if villages_vector.crs is None:
+                villages_vector.set_crs("EPSG:32644", inplace=True) 
+            villages_vector=villages_vector.to_crs("EPSG:32644")
+            if place == "Drain":
+                villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+            else:
+                villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
+            with rasterio.open(raster_path) as src:
+                out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
+                out_meta = src.meta.copy()
+            out_meta.update({
+                "driver": "GTiff",
+                "height": out_image.shape[1],
+                "width": out_image.shape[2],
+                "transform": out_transform
+            })
+            output_path = os.path.join(self.config.output_path, final_name)
+            self._saveraster(out_image,output_path,out_meta)
+            return output_path
+        except Exception as e:
+            print(e)
+    
+    def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
+        try:
+            town_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp','Drain_stp','Town','Town.shp')
+            town_vector = gpd.read_file(town_path)
+            if town_vector.crs is None:
+                town_vector.set_crs("EPSG:32644", inplace=True) 
+            town_vector=town_vector.to_crs("EPSG:32644")
+            town_vector=town_vector[town_vector['ID'].isin(clip)]
+            class_buffer = 0 
+            if int(town_vector['class'].iloc[0]) == 1:
+                class_buffer=35000
+            elif int(town_vector['class'].iloc[0]) == 2:
+                class_buffer=30000
+            elif int(town_vector['class'].iloc[0]) == 3:
+                class_buffer=25000  
+            elif int(town_vector['class'].iloc[0]) == 4:
+                class_buffer=20000
+            elif int(town_vector['class'].iloc[0]) == 5:
+                class_buffer=10000
+            else:
+                class_buffer=5000
+            buffered_geom = town_vector.geometry.buffer(class_buffer)
+            buffered_gdf = gpd.GeoDataFrame(geometry=buffered_geom, crs=town_vector.crs)
+            if len(buffered_gdf) > 1:
+                union_geom = buffered_gdf.geometry.unary_union
+                buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
+            geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
+            with rasterio.open(raster_path) as src:
+                out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
+                out_meta = src.meta.copy()
+            out_meta.update({
+
+                "height": out_image.shape[1],
+                "width": out_image.shape[2],
+                "transform": out_transform
+            })
+            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
+            output_path = os.path.join(self.config.output_path, output_name)
+            self._saveraster(out_image,output_path,out_meta)
+            return output_path
+        except Exception as e:
+            print(e)
+    
+    def _get_table_data(self,villages_vector:gpd.GeoDataFrame, stats:list):
+        class_labels = {
+                1: 'Very_Low',
+                2: 'Low',
+                3: 'Medium',
+                4: 'High',
+                5: 'Very_High'
+                }
+        results = []
+        for i, counts in enumerate(stats):
+            shape_name = villages_vector.iloc[i]['Name']
+            total_pixels = sum([v for k, v in counts.items() if k in class_labels])
+            result = {'Village_Name': shape_name}
+            for class_val, label in class_labels.items():
+                pixel_count = counts.get(class_val, 0)
+                percent = (pixel_count / total_pixels * 100) if total_pixels > 0 else 0
+                result[label] = round(percent, 2)
+            results.append(result)
+        return results
+                    
+    def clip_details(self, raster_path: str,clip:List[int]=None,place:str=None,logic:str=None):
+        if logic is None:
+            return None
+        try:
+            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
+            villages_vector = gpd.read_file(villages_path)
+            if villages_vector.crs is None:
+                villages_vector.set_crs("EPSG:32644", inplace=True) 
+            villages_vector=villages_vector.to_crs("EPSG:32644")
+            if logic == "priority":   # priority
+                if place == "Drain":
+                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+                else:
+                    villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
+            else:
+                if place == "Admin":
+                    villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
+                pass
+            with rasterio.open(raster_path) as src:
+                raster = src.read(1, masked=True)
+                affine = src.transform
+
+                # Compute equal interval breaks
+                min_val = raster.min()
+                max_val = raster.max()
+                bins = np.linspace(min_val, max_val, 6)  # 5 classes = 6 edges
+
+                # Reclassify raster into 1–5 classes
+                reclass_raster = np.digitize(raster, bins[1:-1]) + 1  # bins[1:-1] excludes first & last edges
+                reclass_raster = np.where(raster.mask, 0, reclass_raster) 
+                
+
+                stats = zonal_stats(
+                    vectors=villages_vector,
+                    raster=reclass_raster,
+                    affine=affine,
+                    nodata=0,
+                    categorical=True,
+                    geojson_out=False  # ✅ Fix here
+                )
+                results = self._get_table_data(villages_vector, stats)
+                df = pd.DataFrame(results)
+                output_csv_path = os.path.join(self.config.output_path, f"village_details_{uuid.uuid4().hex}.csv")
+                df.to_csv(output_csv_path, index=False)
+                return output_csv_path,results
+        except Exception as e:
+            print(e)
+    
+    def save_vector(self,vector,name:str):
+       
+        unique_village_zip = f"{name}.zip"
+        output_zip_path = self.config.output_path / unique_village_zip
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_shp = Path(temp_dir) / f"{name}.shp"
+
+            vector.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
+            
+            # Create zip with all shapefile components
+            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+                for file in temp_shp.parent.glob(f"{name}.*"):
+                    zipf.write(file, file.name)
+
+        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+
+        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        return name_only
 
 class GWAPriorityMapper:
     def __init__(self, config: GeoConfig = None):
@@ -747,7 +759,7 @@ class MARSutabilityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-    
+        self.BASE_DIR="/home/app/"
     
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
@@ -758,16 +770,14 @@ class MARSutabilityMapper:
                            } for i in raster_path]
             print("raster_path",raster_path)
             response=[]
-            print('str',place)
             for i in raster_path:
-                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place="none")
+                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place="Drain")
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
                 unique_store_name = f"{self.config.raster_store}_{timestamp}"
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
                 sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
                 sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)   
-                os.remove(final_path)
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)  
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -778,4 +788,71 @@ class MARSutabilityMapper:
         except Exception as e:
             print(e)
             return False
-    pass
+    def _get_sutability_raster(self,db:db_dependency,payload:List):
+        all_sutability_raster=MARSutability_crud(db).get_all(True)
+        payload_dict = {r.id: r.weight for r in payload.data}
+        condition_raster = [
+            [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
+            for raster in all_sutability_raster
+            if raster.raster_category == 'condition' and raster.id in payload_dict
+        ]
+        constraintion_raster=[
+            os.path.join(self.BASE_DIR, raster.file_path)
+            for raster in all_sutability_raster
+            if raster.raster_category == 'constraint' and raster.id in payload_dict
+        ]
+        return condition_raster,constraintion_raster
+    def _get_raster_with_weight(self,db:db_dependency,payload:List):
+        condition_raster,constraintion_raster=self._get_sutability_raster(db,payload)
+        raster_path=[]
+        raster_weights=[]
+        for i in condition_raster:
+            raster_path.append(i[0])
+            raster_weights.append(i[1])
+        return raster_path,raster_weights,constraintion_raster
+
+    def _sutability_overlay(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
+        self.processor.align_rasters(raster_path)
+        overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
+        weighted_sum = self.processor.create_weighted_overlay(
+                raster_weights, overlay_name
+            )
+        constraint_name=f"constraint_{uuid.uuid4().hex}_map.tif"
+        constrained_path, _ = self.processor.apply_constraints_new(
+                weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
+            )
+        final_name = f"mar_sutability_{uuid.uuid4().hex}_map.tif"
+        return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
+    
+    def _cliping_raster(self,final_path:str,final_name:str,payload:List):
+        vector_name=None
+       
+        final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=payload.clip,place="Drain")
+        return final_path,vector_name,payload.clip
+    def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
+        raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
+        constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
+        final_name = f"MAR_Sutability_{uuid.uuid4().hex}.tif"
+        final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
+        sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+        unique_store_name = f"{self.config.raster_store}_{timestamp}"
+        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        if status:
+            os.remove(final_path)
+            os.remove(constrained_path)
+            os.remove(sld_path)
+            os.remove(csv_path)
+            return {
+                "status": "success",
+                "workspace": self.config.raster_workspace,
+                "store": self.config.raster_store,
+                "layer_name": layer_name,
+                "vector_name":vector_name,
+                "type": "raster",
+                "csv_path":csv_path,
+                "csv_details":csv_details
+            }
+        return False
