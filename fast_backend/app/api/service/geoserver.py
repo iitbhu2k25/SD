@@ -141,6 +141,7 @@ class Geoserver:
     def publish_raster(self, workspace_name, store_name, raster_path):
         try:
             layer_name = os.path.splitext(os.path.basename(raster_path))[0]
+            layer_name=layer_name.replace(" ","_")
             file_extension = os.path.splitext(raster_path)[1].lower()
             content_type = "image/tiff"
             store_type = "GeoTIFF"

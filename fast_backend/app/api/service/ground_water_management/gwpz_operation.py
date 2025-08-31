@@ -29,11 +29,61 @@ from app.database.crud.gwpz_crud import MARSutability_crud
 import pandas as pd
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
+from app.utils.name import Unique_name
 
 
 geo=Geoserver()
-class RasterProcess:    
+class VectorProcess(GeoConfig):
+    def __init__(self):
+        super().__init__()
+        self.village = self._force_to_epsg(self.villages_shapefile)
+        self.basin = self._force_to_epsg(self.basin_shapefile)
+        self.catchment = self._force_to_epsg(self.cachement_shapefile)
+        self.drain_cachement= self._force_to_epsg(self.drain_cachement_shapefile)
+        self.town=self._force_to_epsg(self.town_shapefile)
+        
+    def _force_to_epsg(self, gdf: str, epsg: str = "EPSG:32644") -> gpd.GeoDataFrame:
+        gdf=gpd.read_file(gdf)
+        if gdf.crs is None:
+            gdf.set_crs(epsg, inplace=True)
+            return gdf
+        return gdf.to_crs(epsg)
+    
+    def get_village(self,clip:List[int]=None):
+        return self.village[self.village['ID'].isin(clip)]
+    
+    def get_sub_village(self,clip:List[int]=None):
+        return self.village[self.village['subdis_cod'].isin(clip)]
+    
+    def get_town(self,clip:List[int]=None):
+        town_vector = self.town[self.town['ID'].isin(clip)].copy()
+        if town_vector.empty:
+            raise ValueError("No town polygon found for the provided clip ID(s)")
+        buffer_map = {1: 35000, 2: 30000, 3: 25000, 4: 20000, 5: 10000}
+        town_vector['buffer'] = town_vector['class'].map(buffer_map).fillna(5000)
+        town_poly = town_vector.iloc[0].geometry
+        cls = int(town_vector.iloc[0]['class'])
+        buf = buffer_map.get(cls, 5000)
+        return town_poly.buffer(buf)
+        
+    def get_town_village(self,clip:List[int]=None):
+        town_buff = self.get_town(clip)
+        return self.village[self.village.intersects(town_buff)].copy()
+        
+    def get_town_buffer(self,clip:List[int]=None):
+        buffered_geom = self.get_town(clip)
+        buffered_gdf = gpd.GeoDataFrame(geometry=[buffered_geom], crs="EPSG:32644")
+        if len(buffered_gdf) > 1:
+            union_geom = buffered_gdf.geometry.union_all()
+            buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
+        return buffered_gdf
+            
+    def get_basin(self):
+        return self.basin
+
+class RasterProcess(VectorProcess):    
     def __init__(self, config: GeoConfig = GeoConfig()):
+        super().__init__()
         self.output_dir=Path(config.output_path) / "SLD" 
         self.geoserver_url = config.geoserver_url
         self.username = config.username
@@ -45,6 +95,8 @@ class RasterProcess:
         self.aligned_arrays = []
         self.reference_profile = None
         os.makedirs(self.output_dir, exist_ok=True)
+        
+        
     def _calculate_common_extent(self, raster_paths: List[str]) -> Tuple[float, float, float, float, int, int]:
         all_bounds = []
         
@@ -419,14 +471,12 @@ class RasterProcess:
             print("exceprion",e)
             return False
     
-    
-    ### make the sepere class
     def clip_to_basin(self, raster_path: str, shapefile_path: str = None, 
                      output_name: str = "clipped_priority_map.tif") -> str:
         
         basin = gpd.read_file(shapefile_path)
         if basin.crs is None:
-            basin.set_crs("EPSG:32644", inplace=True) 
+            basin.set_crs("EPSG:32644", inplace=True,allow_override=True) 
         try:
             basin = basin.to_crs("EPSG:32644")
         except Exception as e:
@@ -448,70 +498,39 @@ class RasterProcess:
         self._saveraster(out_image,output_path,out_meta)
         return output_path
    
-    
     def clip_to_user_villages(self, raster_path: str,final_name:str,clip:List[int]=None,place:str=None  ) -> str:
-        try:
-            villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
-            villages_vector = gpd.read_file(villages_path)
-            if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
-            villages_vector=villages_vector.to_crs("EPSG:32644")
-            if place == "Drain":
-                villages_vector=villages_vector[villages_vector['ID'].isin(clip)]
-            else:
-                villages_vector=villages_vector[villages_vector['subdis_cod'].isin(clip)]
-            with rasterio.open(raster_path) as src:
-                out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
-                out_meta = src.meta.copy()
-            out_meta.update({
-                "driver": "GTiff",
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
-            })
-            output_path = os.path.join(self.config.output_path, final_name)
-            self._saveraster(out_image,output_path,out_meta)
-            return output_path
-        except Exception as e:
-            print(e)
-    
+        if place == "Drain":
+            villages_vector=self.get_village(clip)
+        else:
+            villages_vector=self.get_sub_village(clip)
+        with rasterio.open(raster_path) as src:
+            out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
+            out_meta = src.meta.copy()
+        out_meta.update({
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+        output_path = os.path.join(self.config.output_path, final_name)
+        with rasterio.open(output_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+        return output_path
+
     def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
         try:
-            town_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp','Drain_stp','Town','Town.shp')
-            town_vector = gpd.read_file(town_path)
-            if town_vector.crs is None:
-                town_vector.set_crs("EPSG:32644", inplace=True) 
-            town_vector=town_vector.to_crs("EPSG:32644")
-            town_vector=town_vector[town_vector['ID'].isin(clip)]
-            class_buffer = 0 
-            if int(town_vector['class'].iloc[0]) == 1:
-                class_buffer=35000
-            elif int(town_vector['class'].iloc[0]) == 2:
-                class_buffer=30000
-            elif int(town_vector['class'].iloc[0]) == 3:
-                class_buffer=25000  
-            elif int(town_vector['class'].iloc[0]) == 4:
-                class_buffer=20000
-            elif int(town_vector['class'].iloc[0]) == 5:
-                class_buffer=10000
-            else:
-                class_buffer=5000
-            buffered_geom = town_vector.geometry.buffer(class_buffer)
-            buffered_gdf = gpd.GeoDataFrame(geometry=buffered_geom, crs=town_vector.crs)
-            if len(buffered_gdf) > 1:
-                union_geom = buffered_gdf.geometry.unary_union
-                buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
+            buffered_gdf = self.get_town_buffer(clip)
+            
             geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
             with rasterio.open(raster_path) as src:
                 out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
                 out_meta = src.meta.copy()
             out_meta.update({
-
                 "height": out_image.shape[1],
                 "width": out_image.shape[2],
                 "transform": out_transform
             })
-            output_name=f"{raster_path.split('/')[-1].rsplit('.', 1)[0]}_{uuid.uuid4().hex}.tif"
+            output_name=Unique_name.unique_name_with_ext(raster_path.split('/')[-1].rsplit('.', 1)[0],"tif")
             output_path = os.path.join(self.config.output_path, output_name)
             self._saveraster(out_image,output_path,out_meta)
             return output_path
@@ -545,7 +564,7 @@ class RasterProcess:
             villages_path = os.path.join(self.config.base_dir, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.shp')
             villages_vector = gpd.read_file(villages_path)
             if villages_vector.crs is None:
-                villages_vector.set_crs("EPSG:32644", inplace=True) 
+                villages_vector.set_crs("EPSG:32644", inplace=True,allow_override=True) 
             villages_vector=villages_vector.to_crs("EPSG:32644")
             if logic == "priority":   # priority
                 if place == "Drain":
@@ -622,13 +641,14 @@ class GWAPriorityMapper:
     
             response=[]
             for i in raster_path:
-                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place=place)
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
-                unique_store_name = f"{self.config.raster_store}_{timestamp}"
+                final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
+                final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
+                unique_store_name = Unique_name.unique_name(self.config.raster_store)
+                print("unq",unique_store_name)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
+                sld_name=Unique_name.unique_name(layer_name)
+                print("sld_name",sld_name)
                 status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)   
-                os.remove(final_path)
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -649,7 +669,7 @@ class GWAPriorityMapper:
                 weights
             )
             output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
-            constrained_path, _ = self.processor.make_raster_output(
+            constrained_path, _ = self.processor.apply_constraint(
                 weighted_sum, output_name=output_name
             )
             final_name = f"Groundwater_potential_{uuid.uuid4().hex}.tif"
@@ -658,18 +678,13 @@ class GWAPriorityMapper:
                 shapefile_path=self.config.basin_shapefile , output_name=final_name
             )
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=False)
-            final_path1=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
+            final_path1=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
             unique_store_name = f"{self.config.raster_store}_{timestamp}"
             tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
-                os.remove(final_path)
-                os.remove(sld_path)
-                os.remove(csv_path)
-                os.remove(constrained_path)
-                os.remove(final_path1)
                 return {
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -755,39 +770,13 @@ class GWPumpingMapper:
     #         print(e)
     #         return False
 
-class MARSutabilityMapper:
+class MARSutabilityMapper:                                                                                                                                                                                                                                      
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
+        self.vector_process=VectorProcess()
         self.BASE_DIR="/home/app/"
     
-    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
-        try:
-            
-            raster_path=MARSutability_svc.get_MAR_visual(db)
-            raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
-                           } for i in raster_path]
-            print("raster_path",raster_path)
-            response=[]
-            for i in raster_path:
-                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place="Drain")
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
-                unique_store_name = f"{self.config.raster_store}_{timestamp}"
-                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-                sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)  
-                response.append({
-                    "workspace": self.config.raster_workspace,
-                    "layer_name": layer_name,
-                    "file_name":i["file_name"],
-                })
-            return response
-        
-        except Exception as e:
-            print(e)
-            return False
     def _get_sutability_raster(self,db:db_dependency,payload:List):
         all_sutability_raster=MARSutability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
@@ -813,44 +802,64 @@ class MARSutabilityMapper:
 
     def _sutability_overlay(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
         self.processor.align_rasters(raster_path)
-        overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
+        overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
         weighted_sum = self.processor.create_weighted_overlay(
                 raster_weights, overlay_name
             )
-        constraint_name=f"constraint_{uuid.uuid4().hex}_map.tif"
+        constraint_name=Unique_name.unique_name_with_ext("constraint","tif")
         constrained_path, _ = self.processor.apply_constraints_new(
                 weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
             )
-        final_name = f"mar_sutability_{uuid.uuid4().hex}_map.tif"
+        final_name = Unique_name.unique_name_with_ext("stp_sutability","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
-    
+
+
     def _cliping_raster(self,final_path:str,final_name:str,payload:List):
-        vector_name=None
-       
         final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=payload.clip,place="Drain")
-        return final_path,vector_name,payload.clip
+        return final_path,payload.clip
+    
+    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
+        try:
+            raster_path=MARSutability_svc.get_MAR_visual(db)
+            raster_path = [{"file_name": i.file_name,
+                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
+                           } for i in raster_path]
+            response=[]
+            for i in raster_path:
+                final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
+                final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place="Drain")
+                unique_store_name = Unique_name.unique_name("mar_sutability")
+                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
+                sld_name=Unique_name.unique_name(layer_name)
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)  
+                response.append({
+                    "workspace": self.config.raster_workspace,
+                    "layer_name": layer_name,
+                    "file_name":i["file_name"],
+                })
+            return response
+        
+        except Exception as e:
+            print(e)
+            return False
+
     def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
-        final_name = f"MAR_Sutability_{uuid.uuid4().hex}.tif"
-        final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
+        final_name = Unique_name.unique_name_with_ext("MAR_Sutability","tif")
+        final_path1,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
-        unique_store_name = f"{self.config.raster_store}_{timestamp}"
+        unique_store_name = Unique_name.unique_name(self.config.raster_store)
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
         if status:
-            os.remove(final_path)
-            os.remove(constrained_path)
-            os.remove(sld_path)
-            os.remove(csv_path)
             return {
                 "status": "success",
                 "workspace": self.config.raster_workspace,
                 "store": self.config.raster_store,
                 "layer_name": layer_name,
-                "vector_name":vector_name,
                 "type": "raster",
                 "csv_path":csv_path,
                 "csv_details":csv_details

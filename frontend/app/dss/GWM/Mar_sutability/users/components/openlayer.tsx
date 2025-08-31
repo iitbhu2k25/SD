@@ -991,7 +991,7 @@ const Maping: React.FC = () => {
 
       try {
         const resp = await fetch(
-          "/api/stp_operation/mar_sutability",
+          "/api/gwz_operation/mar_sutability",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
