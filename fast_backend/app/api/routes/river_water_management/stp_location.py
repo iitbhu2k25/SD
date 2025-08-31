@@ -57,13 +57,13 @@ async def get_stretch(db:db_dependency,payload:STPDrainInput):
     return Stp_location.get_drain_new(db,payload.stretch_ids)
 
 
-@router.post("/get_cachement",response_model=STPCatchmentOutput)
+@router.post("/get_priority_cachement",response_model=STPCatchmentOutput)
 @validate
 async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
     ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
     return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
-@router.post("/get_new_cachement",response_model=STPCatchmentOutput)
+@router.post("/get_sutability_cachement",response_model=STPCatchmentOutput)
 @validate
 async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
     ans=STPSutabilityMapper().cachement_villages(db,payload.drain_nos)

@@ -65,10 +65,10 @@ class Stp_service:
     def get_raster_sutability(db:Session,category:str,all_data:bool=False):
         return STP_sutability_crud(db).get_sutability_category(category,all_data)
 
-    def get_raster_priority(db:Session,all_data:bool=False):
+    def get_priority_category(db:Session,all_data:bool=False):
         return STP_priority_crud(db).get_raster_category(all_data)
     
-    def get_priority_category(db:Session,all_data:bool=False):
+    def get_priority_visual(db:Session,all_data:bool=False):
         return STP_visualization_crud(db).get_visual_path()
     
     def get_sutability_category(db:Session,all_data:bool=False):

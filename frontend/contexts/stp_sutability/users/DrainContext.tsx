@@ -290,7 +290,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchCatchments = async () => {
       try {
         const response = await fetch(
-          "/api/location/get_new_cachement",
+          "/api/location/get_sutability_cachement",
           {
             method: "POST",
             headers: {

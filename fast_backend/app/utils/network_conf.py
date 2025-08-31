@@ -19,6 +19,7 @@ class GeoConfig:
         self.villages_shapefile = self.input_path /"media" / "Rajat_data"/ "shape_stp" / "villages" / "STP_Village.shp"
         self.cachement_shapefile=self.input_path /"media" / "Rajat_data"/ "shape_stp" / "Drain_stp" / "Catchment"/"Catchment.shp"
         self.drain_cachement_shapefile=self.input_path /"media" / "Rajat_data"/ "shape_stp" / "Drain_stp" / "Drain_Suitability"/"Drain_Suitability.shp"
+        self.town_shapefile=self.input_path /"media" / "Rajat_data"/ "shape_stp" / "Drain_stp" / "Town"/"Town.shp"
         os.makedirs(self.output_path, exist_ok=True)
 
         self.target_crs = "EPSG:32644"

@@ -66,7 +66,6 @@ class Geoserver:
     def apply_sld_to_layer(self,workspace_name, layer_name, sld_content, sld_name=None):
         if sld_name is None:
             sld_name = layer_name+datetime.now().strftime("%Y%m%d%H%M%S")
-        
 
         new_sld_content=""
         with open(sld_content, "r") as f:
