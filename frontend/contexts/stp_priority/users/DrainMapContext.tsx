@@ -122,7 +122,7 @@ const MapContext = createContext<MapContextType>({
   rasterLayerInfo: null,
   setRasterLayerInfo: () => {},
   setShowLegend: () => {},
-  showLegend: false,
+  showLegend,
   handleLayerSelection: () => {},
   setSelectedradioLayer: () => {},
   selectedradioLayer: null,

@@ -704,23 +704,19 @@ class GWPumpingMapper:
     
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
-            print("clips",clip)
             raster_path=GWLI_service.get_GWLI_visual(db)
             raster_path = [{"file_name": i.file_name,
                             "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
                            } for i in raster_path]
-            print("raster_path",raster_path)
             response=[]
-            print('str',place)
             for i in raster_path:
-                final_path=self.processor.clip_to_user_villages(i['path'],clip=clip,place=place)
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  
-                unique_store_name = f"{self.config.raster_store}_{timestamp}"
+                final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
+                final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
+                unique_store_name = Unique_name.unique_name(self.config.raster_store)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
                 sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-                sld_name=f"{layer_name}_sld_{uuid.uuid4().hex}"
+                sld_name=Unique_name.unique_name(layer_name)
                 status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)   
-                os.remove(final_path)
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
