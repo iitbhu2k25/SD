@@ -191,7 +191,7 @@ class TableData:
         return table_data
 
 @contextmanager
-def managed_figure(figsize=(12, 10), dpi=100):
+def managed_figure(figsize=(12, 10), dpi=200):
    
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     try:
@@ -1176,7 +1176,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
 
 @app.task(bind=True,pydantic=True,name="celery_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=270).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=200).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])

@@ -184,28 +184,11 @@ class RasterProcess(VectorProcess):
     
     def apply_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
                         output_name: str = "constrained_overlay.tif") -> str:
-        constraint_path = constraint_path or self.config.constraint_raster_path
-        constraint_aligned = np.zeros_like(weighted_sum, dtype=np.float32)
-        
-        with rasterio.open(constraint_path) as src:
-            reproject(
-                source=rasterio.band(src, 1),
-                destination=constraint_aligned,
-                src_transform=src.transform,
-                src_crs=src.crs,
-                dst_transform=self.reference_profile['transform'],
-                dst_crs=self.reference_profile['crs'],
-                resampling=Resampling.nearest
-            )
-        
-
-        constraint_mask = np.where(constraint_aligned >= 1, 1, 0).astype("float32")
-        final_priority = weighted_sum * constraint_mask
+        final_priority = weighted_sum 
         output_path = os.path.join(self.config.output_path, output_name)
         with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
             dst.write(final_priority, 1)
-        
-       
+            
         return output_path, final_priority
     
     def apply_constraints_new(self, weighted_sum: np.ndarray, constraint_paths: List[str] = None,

@@ -1,5 +1,5 @@
-// hooks/useWebSocket.ts
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { toast, ToastContainer } from "react-toastify";
 
 export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);
@@ -10,7 +10,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const connect = useCallback(() => {
     if (!url) return;
 
-    const socket = new window.WebSocket(url);
+    const socket = new WebSocket(url);
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -21,19 +21,21 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     socket.onmessage = (event) => {
       if (typeof event.data === 'string') {
         setMessages((prev) => [...prev, event.data]);
-      }
-      else {
-        try{
+      } else {
+        // Handle binary data (PDF)
+        try {
           const blob = new Blob([event.data], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
           a.download = 'report.pdf';
           a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 10000);
-        }
-        catch (error) {
+          URL.revokeObjectURL(url); // Clean up immediately
+          toast.success('Report downloaded successfully!');
+          socket.close(); // Close WebSocket after download
+        } catch (error) {
           console.error('Error downloading PDF:', error);
+          toast.error('Failed to download report');
         }
       }
     };
@@ -42,13 +44,14 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
       setIsConnected(false);
       console.log('[WebSocket] Disconnected');
       if (options?.reconnect) {
-        reconnectInterval.current = setTimeout(connect, 3000); // retry in 3s
+        reconnectInterval.current = setTimeout(connect, 3000); // Retry in 3s
       }
     };
 
     socket.onerror = (error) => {
       console.error('[WebSocket] Error:', error);
-      socket.close(); // always close on error
+      socket.close();
+      toast.error('WebSocket connection error');
     };
   }, [url, options?.reconnect]);
 
@@ -65,6 +68,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
       socketRef.current.send(message);
     } else {
       console.warn('[WebSocket] Not connected');
+      toast.warn('Cannot send message: WebSocket not connected');
     }
   }, []);
 
