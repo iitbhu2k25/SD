@@ -2,13 +2,14 @@ import os
 import io
 import uuid
 import logging
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, PageBreak
+from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from datetime import datetime
-from shapely.geometry import MultiPolygon
+from shapely.geometry import mapping
+from rasterio.io import MemoryFile
 from shapely.ops import unary_union
-import requests
+from rasterio.mask import mask 
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
@@ -21,13 +22,11 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import contextily as ctx
 import rasterio
-from pyproj import Transformer
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
-from matplotlib import cm as matplotlib_cm
 from lxml import etree
 from PIL import Image as PILImage
-from reportlab.platypus import BaseDocTemplate, PageTemplate, Paragraph, Spacer, PageBreak
+from reportlab.platypus import  Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from datetime import datetime
 from reportlab.lib import colors
@@ -37,11 +36,8 @@ from reportlab.lib.units import inch, cm, mm
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, 
-    PageBreak, Image, KeepTogether, NextPageTemplate, PageTemplate
+    PageBreak, Image
 )
-from reportlab.platypus.tableofcontents import TableOfContents
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
 from reportlab.platypus.frames import Frame
 from celery import group, chord
 from app.conf.settings import Settings
@@ -52,7 +48,14 @@ import math
 from reportlab.platypus import Frame
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import letter
-from time import sleep
+import rasterio
+import contextily as ctx
+import matplotlib.pyplot as plt
+from rasterio.warp import calculate_default_transform, reproject
+import numpy as np
+import rasterio
+import matplotlib.pyplot as plt
+
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
 class STRPReportError(Exception):
@@ -526,73 +529,113 @@ class MapGenerator:
                filtered_vector: list) -> Optional[BytesIO]:
     
         try:
-          
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_village_from_catchment(clip=filtered_vector)
-            filtered_new = filtered.to_crs("EPSG:4326")
+            filtered = SpatialDataset().find_village(clip=filtered_vector)
+            filtered_new = filtered.to_crs("EPSG:3857")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
-            
-            if isinstance(single_polygon, MultiPolygon):
-                single_polygon = single_polygon.geoms[0]
 
             color_map = self._parse_color_map_entries(sld_path)
             values, hex_colors, labels = zip(*color_map)
             rgb_colors = [self._hex_to_rgb_tuple(c) for c in hex_colors]
             cmap = ListedColormap(rgb_colors)
-            norm = BoundaryNorm(list(values) + [max(values)+1], len(values))
+            norm = BoundaryNorm(list(values) + [max(values) + 1], len(values))
             
             # Create figure with context manager
-            with managed_figure(figsize=(25, 25), dpi=self.dpi) as (fig, ax):
-                with rasterio.open(raster_path) as src:
-                    raster_crs = src.crs
-                    raster_bounds = src.bounds
-                zoom, latitude, longitude = calculate_zoom_level(single_polygon, src.width, src.height)
+            with rasterio.open(raster_path) as src:
+                raster_data = src.read(1)  # Read first band
+                raster_crs = src.crs
+                raster_bounds = src.bounds
+                width, height = src.width, src.height
+                raster_transform = src.transform
+            
 
-            # Get satellite base map from docker service
-                resp = requests.get("http://docker-staticmaps:3000/staticmaps", params={
-                    "width": src.width,
-                    "height": src.height,
-                    "basemap": "satellite",
-                    "center": f"{longitude},{latitude}",
-                    "zoom": zoom,
-                })
-                resp.raise_for_status()
+            transform, new_width, new_height = calculate_default_transform(
+                raster_crs, 'EPSG:3857', width, height, *raster_bounds
+            )
+            
+            new_data = np.empty((new_height, new_width), dtype="float32")
+            reproject(
+                source=raster_data,
+                destination=new_data,
+                src_transform=raster_transform,
+                src_crs=raster_crs,
+                dst_transform=transform,
+                dst_crs='EPSG:3857',
+            )
+            
+            geojson_polygon = [mapping(single_polygon)]
+            meta = {
+                'driver': 'GTiff',
+                'dtype': new_data.dtype,
+                'nodata': -9999,  # Set nodata value (adjust if needed)
+                'width': new_width,
+                'height': new_height,
+                'count': 1,  # Single-band raster
+                'crs': 'EPSG:3857',
+                'transform': transform
+            }
+            
+            # Create in-memory raster for masking
+            with MemoryFile() as memfile:
+                with memfile.open(**meta) as dataset:
+                    dataset.write(new_data, 1)  # Write reprojected data to band 1
+                    masked_data, masked_transform = mask(
+                        dataset=dataset,
+                        shapes=geojson_polygon,
+                        crop=True,
+                        nodata=-9999
+                    )
+            masked_array = np.where(masked_data[0] == -9999, np.nan, masked_data[0])
+            
+            # Create visualization
+            with managed_figure(figsize=(25, 25), dpi=200) as (fig, ax):
+                # Calculate bounds of reprojected raster
+                raster_bounds_reproj = rasterio.transform.array_bounds(new_height, new_width, transform)
                 
-                # Load the satellite base map
-                satellite_img = PILImage.open(BytesIO(resp.content))
-                # Show satellite image as background
-                ax.imshow(satellite_img, extent=[raster_bounds.left, raster_bounds.right, 
-                                            raster_bounds.bottom, raster_bounds.top],
-                        aspect='auto', alpha=0.7)
+                # Set axis limits
+                self._set_axis_limits(ax, raster_bounds_reproj)
                 
-                # Overlay colored raster data
-                bounds, im = self._color_raster(ax, cmap, norm, raster_path)
+                # Add basemap
+                ctx.add_basemap(
+                    ax,
+                    crs='EPSG:3857',
+                    source=ctx.providers.Esri.WorldImagery,
+                    attribution="© Esri",
+                    alpha=0.7
+                )
                 
-                # Reproject vector to match raster CRS if needed
-                if filtered_new.crs != raster_crs:
-                    try:
-                        filtered_new=filtered_new.to_crs(raster_crs)
-                    except Exception as e:
-                        logger.warning(f"Failed to reproject vector: {e}")
+                # Overlay masked raster data
+                ax.imshow(
+                    masked_array,
+                    extent=[
+                        masked_transform[2],
+                        masked_transform[2] + masked_array.shape[1] * masked_transform[0],
+                        masked_transform[5] + masked_array.shape[0] * masked_transform[4],
+                        masked_transform[5]
+                    ],
+                    cmap=cmap,
+                    norm=norm,
+                    alpha=0.7
+                )
+
                 
                 # Overlay vector data
-                filtered_new.plot(
-                    ax=ax, 
-                    facecolor='none', 
-                    edgecolor='black', 
-                    linewidth=0.5,
+                vector_gs = filtered_new.geometry
+                vector_gs.plot(
+                    ax=ax,
+                    facecolor='none',
+                    edgecolor='black',
+                    linewidth=2,
                     alpha=0.95,
                     linestyle='-'
                 )
                 
                 # Set axis properties
-                self._set_axis_limits(ax, bounds)
                 ax.set_xlabel("Longitude", fontsize=18)
                 ax.set_ylabel("Latitude", fontsize=18)
-                
-                # Add legend
+                ax.tick_params(labelsize=14)    
                 legend_elements = [
                     Patch(facecolor=c, edgecolor='black', label=l.strip())
                     for c, l in zip(rgb_colors, labels)
@@ -610,12 +653,10 @@ class MapGenerator:
 
                 plt.tight_layout()
                 return self._save_plot(fig, file_path=file_path[:-4])
-
                     
         except Exception as e:
             logger.error(f"Failed to generate image: {e}")
             raise ResourceError(f"Image generation failed: {e}")
-
 class StpDocument:
     """Main document class with improved error handling and resource management."""
     
