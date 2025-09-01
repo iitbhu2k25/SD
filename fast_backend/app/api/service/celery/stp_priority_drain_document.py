@@ -590,7 +590,7 @@ class MapGenerator:
             masked_array = np.where(masked_data[0] == -9999, np.nan, masked_data[0])
             
             # Create visualization
-            with managed_figure(figsize=(25, 25), dpi=200) as (fig, ax):
+            with managed_figure(figsize=(25, 25), dpi=self.dpi) as (fig, ax):
                 # Calculate bounds of reprojected raster
                 raster_bounds_reproj = rasterio.transform.array_bounds(new_height, new_width, transform)
                 
@@ -1187,7 +1187,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
 
 @app.task(bind=True,pydantic=True,name="celery_currency_image1")
 def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=100).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=270).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
