@@ -1,4 +1,4 @@
 # buffer polygon is not works based on class in sutability
-# elivation value in sutabilkity drain
+# elivation value in sutability drain
 # visual not show properly in the sutability 
 

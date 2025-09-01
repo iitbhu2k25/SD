@@ -605,31 +605,10 @@ class RasterProcess(VectorProcess):
         except Exception as e:
             print(e)
     
-    def save_vector(self,vector,name:str):
-       
-        unique_village_zip = f"{name}.zip"
-        output_zip_path = self.config.output_path / unique_village_zip
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_shp = Path(temp_dir) / f"{name}.shp"
-
-            vector.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
-            
-            # Create zip with all shapefile components
-            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                for file in temp_shp.parent.glob(f"{name}.*"):
-                    zipf.write(file, file.name)
-
-        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-
-        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
-        return name_only
-
 class GWAPriorityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-    
     
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
@@ -644,10 +623,8 @@ class GWAPriorityMapper:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 unique_store_name = Unique_name.unique_name(self.config.raster_store)
-                print("unq",unique_store_name)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
                 sld_name=Unique_name.unique_name(layer_name)
-                print("sld_name",sld_name)
                 status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
@@ -659,29 +636,28 @@ class GWAPriorityMapper:
         except Exception as e:
             print(e)
             return False
-        
+    def _overlay(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
+        if len(raster_path) != len(raster_weights):
+            raise ValueError(f"Number of rasters ({len(raster_path)}) must match number of weights ({len(raster_weights)})")
+        self.processor.align_rasters(raster_path)
+        weighted_sum = self.processor.create_weighted_overlay(
+            raster_weights
+        )
+        output_name=Unique_name.unique_name_with_ext("Final_Ground_water_Potential","tif")
+        constrained_path, _ = self.processor.apply_constraint(
+            weighted_sum, output_name=output_name
+        )
+        final_name = Unique_name.unique_name_with_ext("Ground_water_Potential","tif")
+        return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
+  
     def create_gwpz_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
         try:
-            if len(raster_paths) != len(weights):
-                raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
-            self.processor.align_rasters(raster_paths)
-            weighted_sum = self.processor.create_weighted_overlay(
-                weights
-            )
-            output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
-            constrained_path, _ = self.processor.apply_constraint(
-                weighted_sum, output_name=output_name
-            )
-            final_name = f"Groundwater_potential_{uuid.uuid4().hex}.tif"
-            final_path = self.processor.clip_to_basin(
-                raster_path=constrained_path,
-                shapefile_path=self.config.basin_shapefile , output_name=final_name
-            )
+            constrained_path,final_path=self._overlay(raster_paths,None,weights)
             sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=False)
+            final_name = Unique_name.unique_name_with_ext("Ground_water_Potential","tif")
             final_path1=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
             csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
-            unique_store_name = f"{self.config.raster_store}_{timestamp}"
+            unique_store_name = Unique_name.unique_name(self.config.raster_store)
             tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
             status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
             if status:
