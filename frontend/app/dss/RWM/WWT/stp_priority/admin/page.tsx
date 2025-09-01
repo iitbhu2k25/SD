@@ -224,7 +224,7 @@ const MainContent = () => {
                         toast.success('Report downloaded successfully!');
                       }
                     }}
-                    onTick={(seconds) => console.log(`Report generation: ${seconds}s remaining`)}
+                    
                     triggerAction={handlereport}
                     className="bg-white rounded-lg shadow-md p-4"
                     buttonClassName="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"

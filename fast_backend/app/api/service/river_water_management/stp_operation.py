@@ -529,7 +529,6 @@ class RasterProcess(VectorProcess):
     def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
         try:
             buffered_gdf = self.get_town_buffer(clip)
-            
             geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
             with rasterio.open(raster_path) as src:
                 out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)

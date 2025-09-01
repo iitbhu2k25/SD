@@ -62,6 +62,17 @@ async def stp_priority_drain_report(payload:StpPriorityDrainReport):
     return celery_id(task_id=task_id.id)
 
 
+@router.get("/get_stp_sutability_area",response_model=list[Stp_Area])
+@validate
+async def stp_sutability_area(db:db_dependency):
+    return  Stp_service.get_sutability_area(db)
+
+
+@router.post("/stp_sutability_area")
+@validate
+async def stp_sutability_area(db:db_dependency,payload:STP_sutability_Area):
+    return STP_Area().stp_area_finding(db,payload)
+
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):
     await connection_manager.connect(websocket)
@@ -123,14 +134,3 @@ async def report_download(websocket: WebSocket, task_id: str):
             "message": str(e)
         })
         connection_manager.disconnect(websocket)
-
-@router.get("/get_stp_sutability_area",response_model=list[Stp_Area])
-@validate
-async def stp_sutability_area(db:db_dependency):
-    return  Stp_service.get_sutability_area(db)
-
-
-@router.post("/stp_sutability_area")
-@validate
-async def stp_sutability_area(db:db_dependency,payload:STP_sutability_Area):
-    return STP_Area().stp_area_finding(db,payload)
