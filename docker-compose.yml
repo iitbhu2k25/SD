@@ -14,18 +14,6 @@ services:
   #     - geoserver
   #   command: npm start
 
-  docker-staticmaps:
-    image: mxdcodes/docker-staticmaps:latest
-    container_name: docker-staticmaps
-    restart: always
-    ports:
-      - "4000:3000"
-    environment:
-      - LOG_LEVEL=INFO
-      - TILE_CACHE_TTL=3600
-      - DISABLE_TILE_CACHE=false
-      - RATE_LIMIT_MS=60000
-      - RATE_LIMIT_MAX=60
 
   backend:
     build:

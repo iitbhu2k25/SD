@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.database.crud.gwpz_crud import GWZ_crud,MARSutability_crud,MARSutability_visualization_crud,GWA_visualization_crud,GWLI_crud,GWLI_visualization_crud
 from app.api.schema.stp_schema import STPCategory
 import os
+from  app.api.service.river_water_management.spt_service import Stp_service
 from app.conf.settings import Settings
 
 class Gwzp_service:
@@ -58,3 +59,69 @@ class MARSutability_svc:
     def get_MAR_visual(db:Session,all_data:bool=True):
         return MARSutability_visualization_crud(db).get_all_visual()
     
+class Raster_visual:
+    @staticmethod
+    def visual_raster(db):
+        temp = Stp_service.get_priority_visual(db)
+        temp2 = Stp_service.get_sutability_category(db)
+        temp3= Gwzp_service.get_GWA_Priority_visual(db)
+        temp4 = GWLI_service.get_GWLI_visual(db)
+        temp5=MARSutability_svc.get_MAR_visual(db)
+
+        
+        resp = [
+            {
+                "module": "Stp priority",
+                "category": False,
+                "raster": [
+                    {"file_name": i.file_name, "layer_name": i.layer_name}
+                    for i in temp
+                ]
+            },
+            {
+                "module": "Stp suitability",
+                "category": True,
+                "raster": [
+                    {
+                        "file_name": i.file_name,
+                        "layer_name": i.layer_name,
+                        "category": i.raster_category
+                    }
+                    for i in temp2
+                ]
+            },
+            {
+                "module": "Groundwater Potential Zone",
+                "category": False,
+                "raster": [
+                    {"file_name": i.file_name, "layer_name": i.layer_name}
+                    for i in temp3
+                ]
+            },
+            {
+                "module": "Groundwater Pumping Location",
+                "category": True,
+                "raster": [
+                    {
+                        "file_name": i.file_name,
+                        "layer_name": i.layer_name,
+                        "category": i.raster_category
+                    }
+                    for i in temp4  # ← Use temp4 here, if intended
+                ]
+            },
+            {
+                "module": "MAR Site Suitability",
+                "category": True,
+                "raster": [
+                    {
+                        "file_name": i.file_name,
+                        "layer_name": i.layer_name,
+                        "category": i.raster_category
+                    }
+                    for i in temp5  # ← Use temp5 here
+                ]
+            }
+        ]
+
+        return resp

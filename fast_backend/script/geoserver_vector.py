@@ -4,6 +4,10 @@ from pathlib import Path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 from app.api.service.script_svc.geoserver_svc import create_workspace,create_vector_stores,upload_shapefile
+from app.api.service.geoserver import Geoserver
+import pandas as pd
+import time
+import uuid
 state_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'state', 'STP_State.zip')
 district_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'district', 'STP_district.zip')
 subdistrict_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'subdistrict', 'STP_subdistrict.zip')
@@ -15,10 +19,23 @@ drain_buffer_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Dr
 boundry_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Boundary', 'Boundary.zip')
 town_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Town', 'Town.zip')
 
+stp_priority = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_stp", "stp_priority_visual_raster.csv")
+stp_sutability = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_stp", "stp_sutability_visual_raster.csv")
+groundwater_identification = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "gwli_visual.csv")
+groundwater_zone = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "gwz_visual.csv")
+mar_sutability = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "mar_sutability_visual_raster.csv")
 
 
+csv_files = [
+    stp_priority,
+    stp_sutability,
+    groundwater_zone,
+]
+
+visual_raster=Geoserver()
 try:
     create_workspace("vector_work")
+    create_workspace("raster_visualization")
     create_vector_stores("vector_work","stp_vector_store")
     upload_shapefile("vector_work","stp_vector_store",state_zip,"STP_state_layers")
     upload_shapefile("vector_work","stp_vector_store",district_zip,"STP_district_layers")
@@ -30,6 +47,21 @@ try:
     upload_shapefile("vector_work","stp_vector_store",boundry_zip,"Boundary")
     upload_shapefile("vector_work","stp_vector_store",town_zip,"Town")
     upload_shapefile("vector_work","stp_vector_store",drain_buffer_zip,"Drain_Suitability")
+    all_layers = pd.concat(
+    (
+        pd.read_csv(f)[["layer_name", "file_path", "sld_path"]]
+        .assign(
+            file_path=lambda df: df["file_path"].apply(lambda x: os.path.join(BASE_DIR, x.lstrip("/"))),
+            sld_path=lambda df: df["sld_path"].apply(lambda x: os.path.join(BASE_DIR, x.lstrip("/")))
+        )
+        for f in csv_files
+    ),
+    ignore_index=True
+    )
+    all_layers = all_layers.drop_duplicates(subset=["layer_name"], keep="first")
+    for i in all_layers.iterrows():
+        visual_raster.publish_raster(workspace_name="raster_visualization", store_name=i[1]["layer_name"], raster_path=i[1]["file_path"])
+        visual_raster.apply_sld_to_layer(workspace_name="raster_visualization", layer_name=i[1]["layer_name"], sld_content=i[1]["sld_path"], sld_name=uuid.uuid4().hex)
 
 except Exception as e:
     print(e)
