@@ -487,17 +487,12 @@ class RasterProcess(VectorProcess):
         else:
             villages_vector=self.get_sub_village(clip)
         with rasterio.open(raster_path) as src:
-            out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
             out_meta = src.meta.copy()
-        out_meta.update({
-            "driver": "GTiff",
-            "height": out_image.shape[1],
-            "width": out_image.shape[2],
-            "transform": out_transform
-        })
-        output_path = os.path.join(self.config.output_path, final_name)
-        with rasterio.open(output_path, "w", **out_meta) as dest:
-            dest.write(out_image)
+            
+            output_path = os.path.join(self.config.output_path, final_name)
+            
+            with rasterio.open(output_path, "w", **out_meta) as dest:
+                dest.write(src.read())  # directly copy all bands
         return output_path
 
     def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
@@ -777,7 +772,8 @@ class MARSutabilityMapper:
         try:
             raster_path=MARSutability_svc.get_MAR_visual(db)
             raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
+                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path), 
+                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                           
                            } for i in raster_path]
             response=[]
             for i in raster_path:
@@ -785,9 +781,8 @@ class MARSutabilityMapper:
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place="Drain")
                 unique_store_name = Unique_name.unique_name("mar_sutability")
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
                 sld_name=Unique_name.unique_name(layer_name)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)  
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)  
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,

@@ -131,10 +131,11 @@ const Navbar = (): JSX.Element => {
 
             {/* About */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss/about" className={navLinkClasses}>
-                About
+              <Link href="/dss/dashboard" className={navLinkClasses}>
+                Dashboard
               </Link>
             </li>
+           
 
             {/* Basic Modules */}
             <li className="relative group flex-shrink-0">
@@ -273,7 +274,7 @@ const Navbar = (): JSX.Element => {
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
-                        Ground Water Assessment
+                        Need Assessment
                       </Link>
                     </li>
                     <li>
@@ -281,23 +282,16 @@ const Navbar = (): JSX.Element => {
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
-                        Surface Water Assessment
+                        Water Source Estimation
                       </Link>
                     </li>
-                    <li>
-                      <Link
-                        href="/dss/default"
-                        className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
-                        Climate Change
-                      </Link>
-                    </li>
+            
                     <li>
                       <Link
                         href="/dss/GWM/Mar_sutability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
-                        Site suitability For MAR
+                        MAR site Suitability
                       </Link>
                     </li>
                     <li>
@@ -305,7 +299,7 @@ const Navbar = (): JSX.Element => {
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
-                        Optimized Solution
+                        Differential Optimum Solution
                       </Link>
                     </li>
                   </ul>
@@ -825,7 +819,7 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/dss/default"
+                    href="/components/gallery"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Gallery
@@ -914,12 +908,12 @@ const Navbar = (): JSX.Element => {
             </li>
 
             {/* Dashboard */}
-            <li className="relative group flex-shrink-0">
-              <Link href="/dss/dashboard" className={navLinkClasses}>
-                Dashboard
+            
+             <li className="relative group flex-shrink-0">
+              <Link href="/dss/about" className={navLinkClasses}>
+                About
               </Link>
             </li>
-
             {/* User */}
             <li
               className="relative group flex-shrink-0"
@@ -930,7 +924,7 @@ const Navbar = (): JSX.Element => {
                 onClick={() => toggleDropdown("user", !openDropdowns.user)}
                 className={navLinkClasses}
               >
-                {user_name}
+                Profile
               </button>
               <ul
                 className={`${openDropdowns.user ? "block" : "hidden"
@@ -941,7 +935,7 @@ const Navbar = (): JSX.Element => {
                     href="/UserManagement/UserProfile"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
-                    profile
+                    {user_name}
                   </Link>
                 </li>
                 <li>
