@@ -27,9 +27,10 @@ mar_sutability = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visuall
 
 
 csv_files = [
-    stp_priority,
-    stp_sutability,
+    mar_sutability,
     groundwater_zone,
+    stp_priority,
+    stp_sutability
 ]
 
 visual_raster=Geoserver()
@@ -60,7 +61,7 @@ try:
     )
     all_layers = all_layers.drop_duplicates(subset=["layer_name"], keep="first")
     for i in all_layers.iterrows():
-        visual_raster.publish_raster(workspace_name="raster_visualization", store_name=i[1]["layer_name"], raster_path=i[1]["file_path"])
+        visual_raster.publish_raster(workspace_name="raster_visualization", store_name=uuid.uuid4().hex, raster_path=i[1]["file_path"],layer_name=i[1]["layer_name"])
         visual_raster.apply_sld_to_layer(workspace_name="raster_visualization", layer_name=i[1]["layer_name"], sld_content=i[1]["sld_path"], sld_name=uuid.uuid4().hex)
 
 except Exception as e:

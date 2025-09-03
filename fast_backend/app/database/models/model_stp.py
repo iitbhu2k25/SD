@@ -83,6 +83,7 @@ class STP_Drain_sutability(Base):
     drain_class: Mapped[int] = mapped_column(Integer, nullable=False)
     Name : Mapped[str] = mapped_column(String, nullable=False)
     Drain_Area: Mapped[float] = mapped_column(Float, nullable=False)
+    Elevation: Mapped[Integer] = mapped_column(Integer, nullable=False)
 
 class STP_Catchment(Base):
     __tablename__ = "stp_catchment"

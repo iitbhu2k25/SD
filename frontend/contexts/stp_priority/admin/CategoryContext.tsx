@@ -126,7 +126,7 @@ export const CategoryProvider = ({
       setError(null);
       
       const response = await api.get('/stp_operation/get_priority_category?all_data=true'); 
-      if (response.status !== 200) {
+      if (response.status != 201) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data =response.message as Category[];

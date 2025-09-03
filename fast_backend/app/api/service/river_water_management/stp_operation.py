@@ -75,12 +75,31 @@ class VectorProcess(GeoConfig):
         buf = buffer_map.get(cls, 5000)
         return town_poly.buffer(buf)
         
+    def get_drain(self,clip:List[int]=None):
+        drain_vector = self.drain_cachement[self.drain_cachement['Drain_No'].isin(clip)].copy()
+        if drain_vector.empty:
+            raise ValueError("No town polygon found for the provided clip ID(s)")
+        buffer_map = {1: 35000, 2: 30000, 3: 25000, 4: 20000, 5: 10000}
+        drain_vector['buffer'] =drain_vector['class'].map(buffer_map).fillna(5000)
+        town_poly = drain_vector.iloc[0].geometry
+        cls = int(drain_vector.iloc[0]['class'])
+        buf = buffer_map.get(cls, 5000)
+        return town_poly.buffer(buf)
+        
     def get_town_village(self,clip:List[int]=None):
         town_buff = self.get_town(clip)
         return self.village[self.village.intersects(town_buff)].copy()
         
     def get_town_buffer(self,clip:List[int]=None):
         buffered_geom = self.get_town(clip)
+        buffered_gdf = gpd.GeoDataFrame(geometry=[buffered_geom], crs="EPSG:32644")
+        if len(buffered_gdf) > 1:
+            union_geom = buffered_gdf.geometry.union_all()
+            buffered_gdf = gpd.GeoDataFrame(geometry=[union_geom], crs=buffered_gdf.crs)
+        return buffered_gdf
+    
+    def get_drain_buffer(self,clip:List[int]=None):
+        buffered_geom = self.get_drain(clip)
         buffered_gdf = gpd.GeoDataFrame(geometry=[buffered_geom], crs="EPSG:32644")
         if len(buffered_gdf) > 1:
             union_geom = buffered_gdf.geometry.union_all()
@@ -544,6 +563,25 @@ class RasterProcess(VectorProcess):
             return output_path
         except Exception as e:
             print(e)
+        
+    def clip_to_drain_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
+        try:
+            buffered_gdf = self.get_drain_buffer(clip)
+            geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
+            with rasterio.open(raster_path) as src:
+                out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
+                out_meta = src.meta.copy()
+            out_meta.update({
+                "height": out_image.shape[1],
+                "width": out_image.shape[2],
+                "transform": out_transform
+            })
+            output_name=Unique_name.unique_name_with_ext(raster_path.split('/')[-1].rsplit('.', 1)[0],"tif")
+            output_path = os.path.join(self.config.output_path, output_name)
+            self._saveraster(out_image,output_path,out_meta)
+            return output_path
+        except Exception as e:
+            print(e)
     
     def _get_table_data(self,villages_vector:gpd.GeoDataFrame, stats:list):
         class_labels = {
@@ -770,8 +808,6 @@ class STPPriorityMapper:
             }
         return False
 
-
-    
       
 class STPSutabilityMapper:
     def __init__(self, config: GeoConfig = None):
@@ -781,68 +817,54 @@ class STPSutabilityMapper:
         self.BASE_DIR="/home/app/"
     
     def cachement_villages(self,db:Session,drain_no:List[int]):
-        # get the drain buffer 
-        buffer_value=Stp_drain_new_crud(db).get_drains_class(drain_no)
-        buffer_class=buffer_value[0].drain_class
-        if buffer_class == 1:
-            buffer_value=35000
-        elif buffer_class == 2:
-            buffer_value=30000
-        elif buffer_class == 3:
-            buffer_value=25000  
-        elif buffer_class == 4:
-            buffer_value=20000
-        elif buffer_class == 5:
-            buffer_value=10000
-        else:
-            buffer_value=5000
-        projected_crs = 'EPSG:32643' 
-        drain_catchment = gpd.read_file(self.config.drain_cachement_shapefile).to_crs(projected_crs)
-        villages = gpd.read_file(self.config.villages_shapefile).to_crs(projected_crs)
-        catchment_selected = drain_catchment[drain_catchment["Drain_No"].isin(drain_no)]
-        catchment_polygon = catchment_selected.geometry.unary_union
-        catchment_buffer=catchment_polygon.buffer(buffer_value)
-        villages_sindex = villages.sindex
-        villages = villages.iloc[list(villages_sindex.query(catchment_buffer))]
-        villages_intersect = villages[villages.geometry.intersects(catchment_buffer)]
-        villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
-        villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
-        if 'FID' in villages_intersect.columns:
-            villages_intersect = villages_intersect.drop(columns=['FID'])
-        if 'fid' in villages_intersect.columns:
-            villages_intersect = villages_intersect.drop(columns=['fid'])
-        if 'ID' in villages_intersect.columns:
-            villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
-        # Generate unique names
-        random_name = f"{uuid.uuid4().hex}"
-        unique_village_zip = f"catchment_villages_{random_name}.zip"
-        output_zip_path = self.config.output_path / unique_village_zip
+        try:
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_shp = Path(temp_dir) / f"catchment_villages_{random_name}.shp"
-            
-            # Save using fiona engine explicitly
-            villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
-            
-            # Create zip with all shapefile components
-            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                for file in temp_shp.parent.glob(f"catchment_villages_{random_name}.*"):
-                    zipf.write(file, file.name)
+            vector_process=VectorProcess()
+            catchment_buffer = vector_process.get_drain_buffer(clip=drain_no).iloc[0].geometry
+            villages_sindex = vector_process.village.sindex
+            possible_matches_idx = list(villages_sindex.query(catchment_buffer, predicate="intersects"))
+            villages = vector_process.village.iloc[possible_matches_idx]
+            villages_intersect = villages[villages.geometry.intersects(catchment_buffer)].copy()
+            villages_intersect = villages_intersect[villages_intersect.geometry.is_valid].copy()
+            villages_intersect = villages_intersect.set_geometry(
+                villages_intersect.geometry.buffer(0)
+            )
+            villages_intersect["geometry"] = villages_intersect.geometry.buffer(0)
+            if 'ID' in villages_intersect.columns:
+                villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
+            # Generate unique names
+            random_name = f"{uuid.uuid4().hex}"
+            unique_village_zip = f"catchment_villages_{random_name}.zip"
+            output_zip_path = self.config.output_path / unique_village_zip
 
-        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_shp = Path(temp_dir) / f"catchment_villages_{random_name}.shp"
+                
+                # Save using fiona engine explicitly
+                villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
+                
+                # Create zip with all shapefile components
+                with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+                    for file in temp_shp.parent.glob(f"catchment_villages_{random_name}.*"):
+                        zipf.write(file, file.name)
 
-        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+            name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
 
-        # Update data array to use the new column name
-        data = [
-            {
-                "id": village_id,  # Now using village_id instead of ID
-                "village_name": name,
-                "area": geom.area
-            }
-            for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
-        ]
-        return [data, name_only]
+            upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+
+            # Update data array to use the new column name
+            data = [
+                {
+                    "id": village_id,  # Now using village_id instead of ID
+                    "village_name": name,
+                    "area": geom.area
+                }
+                for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
+            ]
+            return [data, name_only]
+        except Exception as e:
+            print(e)
+            return False
     
     def temporary_raster(self,raster_path:str,elevation_value:float):
         with rasterio.open(raster_path) as src:
@@ -974,7 +996,7 @@ class STPSutabilityMapper:
         if payload.place == "Drain":
             elevation_value=4
         else: 
-            elevation_value=Stp_towns_crud(db).get_all(payload.clip)/len(payload.clip)
+            elevation_value=Stp_towns_crud(db).get_sum_elevation(payload.clip)/len(payload.clip)
         for i in condition_raster:
             if i[2] == 'STP_Elevation_Raster':
                 elevation_path=self.temporary_raster(i[0],elevation_value)

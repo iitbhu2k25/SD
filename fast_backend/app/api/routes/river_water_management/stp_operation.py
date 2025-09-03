@@ -15,47 +15,47 @@ from app.utils.exception import validate
 connection_manager=ConnectionManager()
 router=APIRouter()
 
-@router.get("/get_priority_category",status_code=status.HTTP_200_OK,response_model=list[STPPriorityOutput])
+@router.get("/get_priority_category",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityOutput])
 @validate
 async def get_priority_category(db:db_dependency,all_data: bool = False):
     return Stp_service.get_priority_category(db,all_data)
 
-@router.post("/stp_priority_visual_display",status_code=status.HTTP_200_OK,)
+@router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority_visual_display(db:db_dependency,payload:category_raster):
     return STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
 
-@router.post("/stp_priority",status_code=status.HTTP_200_OK,)
+@router.post("/stp_priority",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority(db:db_dependency,payload: STPCategory):
     raster_path,raster_weights=Stp_service.get_raster(db,payload)
     return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
     
-@router.get("/get_sutability_by_category",status_code=status.HTTP_200_OK,response_model=list[STPSutabilityOutput])
+@router.get("/get_sutability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPSutabilityOutput])
 @validate
 async def get_raster_sutability(db:db_dependency,category:str,all_data: bool = False):
     return Stp_service.get_raster_sutability(db,category,all_data)
 
 
-@router.post("/stp_sutability_visual_display",status_code=status.HTTP_200_OK,)
+@router.post("/stp_sutability_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
     return STPSutabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
 
     
-@router.post("/stp_sutability",status_code=status.HTTP_200_OK,)
+@router.post("/stp_sutability",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
     return STPSutabilityMapper().create_sutability_map(db,payload)
 
 
-@router.post("/stp_priority_admin_report",status_code=status.HTTP_200_OK,response_model=celery_id)
+@router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_priority_admin_report(payload:StpPriorityAdminReport):
     task_id= document_gen.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
-@router.post("/stp_priority_drain_report",status_code=status.HTTP_200_OK,response_model=celery_id)
+@router.post("/stp_priority_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_priority_drain_report(payload:StpPriorityDrainReport):
     task_id= document_gen1.delay(payload=payload.model_dump())

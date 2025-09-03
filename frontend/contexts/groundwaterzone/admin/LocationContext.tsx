@@ -130,7 +130,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       try {
         const response = await api.get("/location/get_states?all_data=true")
 
-        if (response.status != 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.message as State[];
@@ -165,7 +165,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
             all_data: true,
           },
         });
-        if (response.status != 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const data = await response.message as District[];
@@ -210,7 +210,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
             },
           });
 
-          if (response.status != 200) {
+          if (response.status != 201) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
           const data = await response.message as SubDistrict[];

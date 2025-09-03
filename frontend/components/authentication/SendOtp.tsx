@@ -4,14 +4,14 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
-import Link from "next/link";
+import { useLogout } from "@/components/authentication/logout";
 function SendOTP() {
   const imageUrl =
     "https://images.pexels.com/photos/16542959/pexels-photo-16542959.jpeg";
 
   const router = useRouter();
 
-
+  const { handleLogout } = useLogout();
   const generateOtp = async () => {
     try {
       const response = await api.post("/authentication/email_otp", {
@@ -55,14 +55,14 @@ function SendOTP() {
           >
             Send OTP. I will confirm now.
           </button>
-
+          <button
+            onClick={() => handleLogout()}
+            className="w-full bg-blue-500 hover:bg-blue-800 text-white text-sm sm:text-base py-3 rounded-lg font-medium transition duration-200"
+          >
+            No, Log me Out. I will confirm later.
+          </button>
          
-            <Link
-                href="/authentication/logout"
-                className="w-full border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white text-sm sm:text-base py-3 rounded-lg font-medium transition duration-200"
-              >
-                 No, Log me Out. I will confirm later.
-              </Link>
+           
         </div>
       </div>
     </div>

@@ -410,7 +410,7 @@ const OpenLayersRasterViewer: React.FC = () => {
                     onChange={(e) => setSelectedModule(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
                   >
-                    <option value="">All Modules</option>
+                    <option value="">Select Modules</option>
                     {Displaydata.map((module) => (
                       <option key={module.module} value={module.module}>
                         {module.module}

@@ -1,8 +1,8 @@
-"""mar sutabiluty
+"""done
 
-Revision ID: 1042214ccf3e
+Revision ID: 882604610790
 Revises: 
-Create Date: 2025-08-29 11:58:47.276903
+Create Date: 2025-09-03 09:20:16.142419
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1042214ccf3e'
+revision: str = '882604610790'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -241,6 +241,7 @@ def upgrade() -> None:
     sa.Column('drain_class', sa.Integer(), nullable=False),
     sa.Column('Name', sa.String(), nullable=False),
     sa.Column('Drain_Area', sa.Float(), nullable=False),
+    sa.Column('Elevation', sa.Integer(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),

@@ -110,7 +110,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       try {
         const response = await api.get('/location/get_states?all_data=true');
 
-        if (response.status != 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
@@ -150,7 +150,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           },
         })
     
-        if (response.status != 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
@@ -196,7 +196,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           },
         });
         
-        if (response.status != 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         
@@ -262,7 +262,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           },  
         });
         
-        if (response.status !== 200) {
+        if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         

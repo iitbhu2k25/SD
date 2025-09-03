@@ -90,7 +90,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
       try {
         setIsLoading(true);
         const response = await api.get("/stp_operation/get_sutability_by_category?category=condition&all_data=true")
-        if (response.status !== 200) {
+        if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
@@ -114,7 +114,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchConstraintCategories = async () => {
       try {
         const response = await api.get("/stp_operation/get_sutability_by_category?category=constraint&all_data=true") 
-        if (response.status !== 200) {
+        if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
@@ -136,7 +136,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchArea = async ()=>{
       try{
         const response = await api.get("/stp_operation/get_stp_sutability_area") 
-        if (response.status !== 200) {
+        if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Stp_area[];

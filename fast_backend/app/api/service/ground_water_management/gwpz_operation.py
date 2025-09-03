@@ -487,12 +487,17 @@ class RasterProcess(VectorProcess):
         else:
             villages_vector=self.get_sub_village(clip)
         with rasterio.open(raster_path) as src:
+            out_image, out_transform = mask(dataset=src, shapes=villages_vector.geometry, crop=True)
             out_meta = src.meta.copy()
-            
-            output_path = os.path.join(self.config.output_path, final_name)
-            
-            with rasterio.open(output_path, "w", **out_meta) as dest:
-                dest.write(src.read())  # directly copy all bands
+        out_meta.update({
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+        output_path = os.path.join(self.config.output_path, final_name)
+        with rasterio.open(output_path, "w", **out_meta) as dest:
+            dest.write(out_image)
         return output_path
 
     def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:

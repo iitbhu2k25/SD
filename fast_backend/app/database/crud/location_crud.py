@@ -48,7 +48,7 @@ class Stp_towns_crud(CrudBase):
         super().__init__(db,Model)
         self.obj = None
 
-    def get_all(self,town_id:list,all_data:bool=True):
+    def get_sum_elevation(self,town_id:list,all_data:bool=True):
         query = self.db.query(func.sum(self.Model.elevation)).filter(
         self.Model.id.in_(town_id))
         total_elevation = query.scalar()  # Returns the sum as a single value

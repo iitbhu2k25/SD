@@ -138,11 +138,12 @@ class Geoserver:
         return True
   
     
-    def publish_raster(self, workspace_name, store_name, raster_path):
+    def publish_raster(self, workspace_name, store_name, raster_path,layer_name=None):
         try:
-            layer_name = os.path.splitext(os.path.basename(raster_path))[0]
+            if layer_name is None:
+                layer_name = os.path.splitext(os.path.basename(raster_path))[0]
             layer_name=layer_name.replace(" ","_")
-            file_extension = os.path.splitext(raster_path)[1].lower()
+
             content_type = "image/tiff"
             store_type = "GeoTIFF"
             api_extension = "file.geotiff"
