@@ -18,7 +18,6 @@ import "ol/ol.css";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
 import { baseMaps } from "@/components/mapcomponents";
-
 // TypeScript interfaces
 interface BaseMap {
   name: string;
@@ -81,7 +80,6 @@ const OpenLayersRasterViewer: React.FC = () => {
     };
     fetchModules();
   }, []);
-  
   // Constants
   const GEOSERVER_URL = "/geoserver/api/wms";
   const GEOSERVER_WFS_URL = "/geoserver/api/wfs";
@@ -91,6 +89,7 @@ const OpenLayersRasterViewer: React.FC = () => {
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 23.5937;
   const INITIAL_ZOOM = 5;
+
 
 
   // Filter rasters
@@ -109,132 +108,89 @@ const OpenLayersRasterViewer: React.FC = () => {
         });
     }
   }
-
   // Initialize map and vector layer together
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Ensure container has dimensions
-    const container = mapRef.current;
-    if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-      console.warn('Map container has no dimensions');
-      return;
-    }
+    const initialBaseLayer = new TileLayer({
+      source: baseMaps.osm.source(),
+      zIndex: 0,
+    });
 
-    try {
-      // Create base layer with error handling
-      const initialBaseLayer = new TileLayer({
-        source: baseMaps.osm.source(),
-        zIndex: 0,
-        preload: Infinity, // Preload tiles
-        visible: true
-      });
+    baseLayerRef.current = initialBaseLayer;
 
-      // Add error handling for base layer
-      const baseSource = initialBaseLayer.getSource();
-      if (baseSource) {
-        baseSource.on('tileloaderror', (event) => {
-          console.error('Base tile loading error:', event);
-          setError('Failed to load base map tiles. Check your internet connection.');
-        });
-
-        baseSource.on('tileloadend', () => {
-          // Clear any previous tile loading errors
-          if (error?.includes('Failed to load base map')) {
-            setError(null);
-          }
-        });
-      }
-
-      baseLayerRef.current = initialBaseLayer;
-
-      const controls = defaultControls({
-        attributionOptions: {
-          collapsible: false,
+    const controls = defaultControls({
+      attributionOptions: {
+        collapsible: false,
+      },
+    }).extend([
+      new ScaleLine({
+        units: "metric",
+        bar: true,
+        steps: 4,
+        minWidth: 140,
+      }),
+      new MousePosition({
+        coordinateFormat: (coordinate: Coordinate | undefined): string => {
+          if (!coordinate) return "No coordinates";
+          const [longitude, latitude] = coordinate;
+          return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
         },
-      }).extend([
-        new ScaleLine({
-          units: "metric",
-          bar: true,
-          steps: 4,
-          minWidth: 140,
+        projection: "EPSG:4326",
+        target: document.getElementById("mouse-position") || undefined,
+      }),
+      new ZoomToExtent({
+        tipLabel: "Zoom to extent",
+        extent: fromLonLat([68, 6]).concat(fromLonLat([97, 37])),
+      }),
+      new FullScreen({
+        tipLabel: "Toggle fullscreen",
+      }),
+    ]);
+
+    const map = new Map({
+      target: mapRef.current,
+      layers: [initialBaseLayer],
+      controls: controls,
+      view: new View({
+        center: fromLonLat([INDIA_CENTER_LON, INDIA_CENTER_LAT]),
+        zoom: INITIAL_ZOOM,
+        enableRotation: true,
+        constrainRotation: false,
+      }),
+    });
+
+    mapInstanceRef.current = map;
+
+    // Load vector layer after map initialization
+    const wfsUrl = `${GEOSERVER_WFS_URL}?service=WFS&version=1.1.0&request=GetFeature&typeName=${Vector_workspace}:${FIXED_VECTOR_LAYER}&outputFormat=application/json&srsname=EPSG:3857`;
+
+    const vectorSource = new VectorSource({
+      url: wfsUrl,
+      format: new GeoJSON(),
+    });
+
+    const vectorLayer = new VectorLayer({
+      source: vectorSource,
+      style: new Style({
+        stroke: new Stroke({
+          color: "#3b82f6",
+          width: 3,
+          lineJoin: "round",
         }),
-        new MousePosition({
-          coordinateFormat: (coordinate: Coordinate | undefined): string => {
-            if (!coordinate) return "No coordinates";
-            const [longitude, latitude] = coordinate;
-            return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
-          },
-          projection: "EPSG:4326",
-          target: document.getElementById("mouse-position") || undefined,
-        }),
-        new ZoomToExtent({
-          tipLabel: "Zoom to extent",
-          extent: fromLonLat([68, 6]).concat(fromLonLat([97, 37])),
-        }),
-        new FullScreen({
-          tipLabel: "Toggle fullscreen",
-        }),
-      ]);
 
-      const map = new Map({
-        target: container,
-        layers: [initialBaseLayer],
-        controls: controls,
-        view: new View({
-          center: fromLonLat([INDIA_CENTER_LON, INDIA_CENTER_LAT]),
-          zoom: INITIAL_ZOOM,
-          enableRotation: true,
-          constrainRotation: false,
-          maxZoom: 20,
-          minZoom: 2
-        }),
-      });
+      }),
+      zIndex: 5,
+    });
 
-      mapInstanceRef.current = map;
+    // Add vector layer to map
+    map.addLayer(vectorLayer);
+    vectorLayerRef.current = vectorLayer;
 
-      // Force map to update its size after a short delay
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.updateSize();
-        }
-      }, 100);
-
-      // Load vector layer after map initialization
-      const wfsUrl = `${GEOSERVER_WFS_URL}?service=WFS&version=1.1.0&request=GetFeature&typeName=${Vector_workspace}:${FIXED_VECTOR_LAYER}&outputFormat=application/json&srsname=EPSG:3857`;
-
-      const vectorSource = new VectorSource({
-        url: wfsUrl,
-        format: new GeoJSON(),
-      });
-
-      const vectorLayer = new VectorLayer({
-        source: vectorSource,
-        style: new Style({
-          stroke: new Stroke({
-            color: "#3b82f6",
-            width: 3,
-            lineJoin: "round",
-          }),
-        }),
-        zIndex: 5,
-      });
-
-      // Add vector layer to map
-      map.addLayer(vectorLayer);
-      vectorLayerRef.current = vectorLayer;
-
-      // Handle vector source errors
-      vectorSource.on('featuresloaderror', () => {
-        setError('Failed to load vector layer');
-      });
-
-      console.log('Map initialized successfully');
-
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setError('Failed to initialize map. Please refresh the page.');
-    }
+    // Handle vector source errors
+    vectorSource.on('featuresloaderror', () => {
+      setError('Failed to load vector layer');
+    });
 
     return () => {
       if (mapInstanceRef.current) {
@@ -242,7 +198,7 @@ const OpenLayersRasterViewer: React.FC = () => {
         layers.forEach(layer => {
           mapInstanceRef.current?.removeLayer(layer);
         });
-        mapInstanceRef.current.setTarget(undefined);
+        mapInstanceRef.current.setTarget("");
         mapInstanceRef.current = null;
       }
       rasterLayerRef.current = null;
@@ -315,35 +271,17 @@ const OpenLayersRasterViewer: React.FC = () => {
   const changeBaseMap = (baseMapKey: string) => {
     if (!mapInstanceRef.current || !baseLayerRef.current) return;
 
-    try {
-      mapInstanceRef.current.removeLayer(baseLayerRef.current);
+    mapInstanceRef.current.removeLayer(baseLayerRef.current);
 
-      const baseMapConfig = baseMaps[baseMapKey];
-      const newBaseLayer = new TileLayer({
-        source: baseMapConfig.source(),
-        zIndex: 0,
-        preload: Infinity,
-        visible: true
-      });
+    const baseMapConfig = baseMaps[baseMapKey];
+    const newBaseLayer = new TileLayer({
+      source: baseMapConfig.source(),
+      zIndex: 0,
+    });
 
-      // Add error handling for new base layer
-      const baseSource = newBaseLayer.getSource();
-      if (baseSource) {
-        baseSource.on('tileloaderror', (event) => {
-          console.error('Base tile loading error:', event);
-          setError(`Failed to load ${baseMapConfig.name} tiles`);
-        });
-      }
-
-      baseLayerRef.current = newBaseLayer;
-      mapInstanceRef.current.getLayers().insertAt(0, newBaseLayer);
-      setSelectedBaseMap(baseMapKey);
-      
-      console.log(`Base map changed to: ${baseMapConfig.name}`);
-    } catch (error) {
-      console.error('Error changing base map:', error);
-      setError('Failed to change base map');
-    }
+    baseLayerRef.current = newBaseLayer;
+    mapInstanceRef.current.getLayers().insertAt(0, newBaseLayer);
+    setSelectedBaseMap(baseMapKey);
   };
 
   // Handle opacity change
@@ -377,7 +315,7 @@ const OpenLayersRasterViewer: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full h-screen bg-slate-900 flex flex-col md:flex-row">
+    <div className="relative w-full h-200 bg-slate-900 flex flex-col md:flex-row">
       {/* Mobile Sidebar Toggle Button */}
       <button
         onClick={toggleSidebar}
@@ -651,11 +589,10 @@ const OpenLayersRasterViewer: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 p-1 relative bg-slate-950">
+      <div className="flex-1 p-1 relative  bg-slate-950">
         <div
           ref={mapRef}
           className="w-full h-full rounded-2xl shadow-2xl border border-slate-700 bg-slate-900"
-          style={{ minHeight: '500px' }}
         />
         {/* Floating Toolbar */}
         {/* Floating Toolbar */}
@@ -780,4 +717,4 @@ const OpenLayersRasterViewer: React.FC = () => {
   );
 };
 
-export default OpenLayersRasterViewer;
+export default OpenLayersRasterViewer;            
