@@ -754,7 +754,7 @@ class ReportGenerator:
     """Main report generation class with improved error handling."""
     
     def __init__(self, config: 'ReportConfig', static_data: 'StaticTextData', 
-                 table_data: 'TableData', dpi: int = 100):
+                 table_data: 'TableData', dpi: int = 50):
         
         self.config = config
         self.static_data = static_data
