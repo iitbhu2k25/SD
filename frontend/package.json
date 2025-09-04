@@ -37,6 +37,7 @@
     "leaflet-geometryutil": "^0.10.3",
     "leaflet.bigimage": "^1.0.1",
     "leaflet.locatecontrol": "^0.84.1",
+    "lightgallery": "^2.9.0-beta.1",
     "loadsh": "^0.0.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.483.0",
@@ -60,6 +61,7 @@
     "recharts": "^3.0.2",
     "reconnecting-websocket": "^4.4.0",
     "styled-components": "^6.1.18",
+    "swiper": "^11.2.10",
     "uuid": "^11.1.0",
     "zustand": "^5.0.8"
   },

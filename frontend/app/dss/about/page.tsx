@@ -1,273 +1,610 @@
 'use client';
+import React, { useEffect, useRef, useState } from 'react';
+import { Slide } from 'react-toastify';
 
-import Link from 'next/link';
+interface Slide {
+  // Add properties of the Slide interface here
+  title: string;
+  body: string;
+  image: string;
+  alt?: string;
+}
 
-export default function GovernmentStyleAboutPage() {
+interface SwiperSectionProps {
+  heroBg: string;
+  slides: Slide[];
+}
+function SwiperSection({
+  heroBg = "/Images/gallery/main_background.jpg",
+  slides = [] as Slide[],
+}) {
+  const wrapperRef = useRef<HTMLElement | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Automatic slide rotation every 3 seconds
+  useEffect(() => {
+    if (slides.length === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [slides.length]);
+
   return (
-    <div className="font-['Roboto',_'Arial',_sans-serif] text-[#333] bg-[#f5f5f5] m-0 p-0 leading-relaxed">
-      <div className="max-w-[1140px] mx-auto bg-white shadow-md">
-        {/* Header with national colors */}
-        {/*  */}
+    <section
+      ref={wrapperRef}
+      className="relative w-full "
+    >
+      <div className="relative h-screen">
+        <div
+          className="absolute inset-0 bg-center bg-cover bg-fixed -z-10 pointer-events-none"
+          style={{ backgroundImage: `url('${heroBg}')` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20 pointer-events-none -z-10" />
 
-        {/* Breadcrumb navigation */}
-        <div className="bg-[#f0f0f0] py-2.5 px-5 text-sm border-b border-[#ddd]">
-          <Link href="/" className="text-[#0066CC] no-underline hover:underline">
-            Home
-          </Link>
-          <span className="text-[#666] mx-1.5">&gt;</span>
-          <span>About</span>
-        </div>
+        <div className="relative z-10 h-full w-full flex items-center">
+          <div className="w-full px-6 md:px-12 lg:px-16">
+            <div className="mx-auto max-w-6xl grid grid-cols-1 md:grid-cols-[60%_40%] gap-8 items-center">
+              <div className="text-white">
+                <div className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full text-sm font-medium mb-6">
+                  Our Distinguished Team
+                </div>
+                <h3 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
+                  {slides[currentSlide]?.title || "Leading Researchers"}
+                </h3>
+                <p className="text-lg md:text-xl leading-relaxed mb-8">
+                  {slides[currentSlide]?.body || "Meet our expert faculty members"}
+                </p>
 
-        {/* Main content area with sidebar */}
-        <div className="p-8">
-          <div className="flex flex-wrap -mx-4">
-            {/* Main content - 2/3 width */}
-            <div className="w-full lg:w-2/3 px-4">
-              {/* Introduction section */}
-              <div className="bg-white border border-[#ddd] p-5 mb-6">
-                <h2 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-2xl mt-0 mb-4 pb-2.5 border-b-2 border-[#ddd]">
-                  Introduction
-                </h2>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  This project addresses the critical need for a comprehensive Decision Support System (DSS) to manage water resources effectively. The DSS integrates sophisticated models and simulations to support sustainable Water Resource Management, ultimately contributing to the achievement of Sustainable Development Goals (SDGs).
-                </p>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  Water Resource Management is a complex, multi-dimensional challenge exacerbated by climate change, urban expansion, and socio-economic dynamics. The aim of this DSS is to provide holistic solutions to water management by combining hydrological, socio-economic, and ecological factors through an integrated modeling framework.
-                </p>
-                <div className="bg-[#f8f9fa] border-l-4 border-[#0066CC] p-4 my-5 text-[0.95em]">
-                  <strong>Official Notice:</strong> This initiative is in accordance with the National Water Policy and adheres to guidelines set forth by the Ministry of Jal Shakti, Government of India.
+                {/* Slide indicators */}
+                <div className="flex space-x-2">
+                  {slides.map((_: any, index: React.Key | null | undefined) => (
+                    <div
+                      key={index}
+                      className={`h-1 rounded-full transition-all duration-300 ${index === currentSlide ? 'w-8 bg-white' : 'w-4 bg-white/40'
+                        }`}
+                    />
+                  ))}
                 </div>
               </div>
 
-              {/* Objectives section */}
-              <div className="bg-white border border-[#ddd] p-5 mb-6">
-                <h2 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-2xl mt-0 mb-4 pb-2.5 border-b-2 border-[#ddd]">
-                  Project Objectives
-                </h2>
-                <ul className="my-4 pl-5">
-                  <li className="mb-2.5 pl-1.5">Development of a Data Management Framework to handle large-scale, multi-source water data.</li>
-                  <li className="mb-2.5 pl-1.5">Design of an Integrated Hydro-Computational Modeling Framework to simulate water behaviors.</li>
-                  <li className="mb-2.5 pl-1.5">Creation of a Graphical User Interface (GUI) for simplified decision-making and visual data representation.</li>
-                  <li className="mb-2.5 pl-1.5">Implementation of a stakeholder engagement platform to facilitate inclusive Water Resource Management.</li>
-                  <li className="mb-2.5 pl-1.5">Development of policy recommendation modules adapted to changing environmental conditions.</li>
-                </ul>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  The above objectives are aligned with the National Water Mission and aim to enhance water resource management capabilities throughout India.
-                </p>
-              </div>
+              <div className="justify-self-end">
+                <div className="relative">
+                  {/* Image container with cylindrical roll effect */}
+                  <div className="relative h-[60vh] md:h-[70vh] lg:h-[80vh] w-[400px] md:w-[450px] lg:w-[500px]">
+                    {slides.map((slide, index) => (
+                      <div
+                        key={index}
+                        className={`absolute inset-0 transition-all duration-700 ease-in-out ${index === currentSlide
+                          ? 'opacity-100 transform translate-x-0 scale-100 rotate-0'
+                          : index === (currentSlide - 1 + slides.length) % slides.length
+                            ? 'opacity-40 transform -translate-x-8 scale-95 -rotate-12'
+                            : index === (currentSlide + 1) % slides.length
+                              ? 'opacity-40 transform translate-x-8 scale-95 rotate-12'
+                              : 'opacity-0 transform translate-x-16 scale-90 rotate-45'
+                          }`}
+                        style={{
+                          zIndex: index === currentSlide ? 10 : 5 - Math.abs(index - currentSlide)
+                        }}
+                      >
+                        <img
+                          src={slide.image}
+                          alt={slide.alt || slide.title}
+                          className="h-full w-full object-cover rounded-xl shadow-2xl shadow-black/30"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-xl" />
 
-              {/* Applications section */}
-              <div className="bg-white border border-[#ddd] p-5 mb-6">
-                <h2 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-2xl mt-0 mb-4 pb-2.5 border-b-2 border-[#ddd]">
-                  Potential Applications
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse my-5">
-                    <thead>
-                      <tr>
-                        <th className="bg-[#00008B] text-white p-2.5 text-left font-normal">Application Area</th>
-                        <th className="bg-[#00008B] text-white p-2.5 text-left font-normal">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="p-2 border-b border-[#ddd]">Drought Management</td>
-                        <td className="p-2 border-b border-[#ddd]">Early warning systems and resource allocation optimization during water scarcity conditions.</td>
-                      </tr>
-                      <tr className="bg-[#f5f5f5]">
-                        <td className="p-2 border-b border-[#ddd]">Flood Prevention</td>
-                        <td className="p-2 border-b border-[#ddd]">Real-time monitoring and predictive modeling to mitigate flooding risks in vulnerable areas.</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 border-b border-[#ddd]">Groundwater Management</td>
-                        <td className="p-2 border-b border-[#ddd]">Sustainable utilization strategies based on recharge rates, extraction patterns, and contamination risks.</td>
-                      </tr>
-                      <tr className="bg-[#f5f5f5]">
-                        <td className="p-2 border-b border-[#ddd]">Urban Water Supply</td>
-                        <td className="p-2 border-b border-[#ddd]">Optimization of distribution networks, leakage detection, and demand forecasting for growing urban centers.</td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 border-b border-[#ddd]">Agricultural Water</td>
-                        <td className="p-2 border-b border-[#ddd]">Precision irrigation scheduling and crop water requirement modeling to maximize agricultural productivity.</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                        {/* Show overlay only on current slide */}
+                        {index === currentSlide && (
+                          <div className="absolute bottom-4 left-4 right-4 text-white">
+                            <h4 className="text-xl font-semibold">{slide.title}</h4>
+                            <p className="text-sm text-white/90 mt-1">{slide.body}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-              {/* Collaborations section */}
-              <div className="bg-white border border-[#ddd] p-5 mb-6">
-                <h2 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-2xl mt-0 mb-4 pb-2.5 border-b-2 border-[#ddd]">
-                  Key Collaborations
-                </h2>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  This DSS works in alignment with national water projects including:
-                </p>
-                <ul className="my-4 pl-5">
-                  <li className="mb-2.5 pl-1.5">
-                    <strong>
-                      <a href="https://jaljeevanmission.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                        Jal Jeevan Mission
-                      </a>:
-                    </strong> Supporting the aim of providing safe drinking water to all households.
-                  </li>
-                  <li className="mb-2.5 pl-1.5">
-                    <strong>
-                      <a href="https://jalshakti-dowr.gov.in/schemes-programmes/atal-bhujal-yojana" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                        Atal Bhujal Yojana
-                      </a>:
-                    </strong> Enhancing groundwater management through community participation.
-                  </li>
-                  <li className="mb-2.5 pl-1.5">
-                    <strong>
-                      <a href="https://indiawris.gov.in/nhp/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                        National Hydrological Project
-                      </a>:
-                    </strong> Improving the accessibility of water resources information.
-                  </li>
-                  <li className="mb-2.5 pl-1.5">
-                    <strong>
-                      <a href="https://cgwb.gov.in/schemes/NGMIP-2.html" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                        National Groundwater Management Improvement Program-2
-                      </a>:
-                    </strong> Supporting sustainable groundwater management.
-                  </li>
-                </ul>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  By integrating these missions' goals into our system, we aim to enhance India's water resource management capabilities.
-                </p>
-              </div>
-
-              {/* Technology section */}
-              <div className="bg-white border border-[#ddd] p-5 mb-6">
-                <h2 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-2xl mt-0 mb-4 pb-2.5 border-b-2 border-[#ddd]">
-                  Technological Framework
-                </h2>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  The DSS utilizes advanced data from sources such as:
-                </p>
-                <ul className="my-4 pl-5">
-                  <li className="mb-2.5 pl-1.5">
-                    <a href="https://cwc.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Central Water Commission (CWC)
-                    </a> monitoring stations
-                  </li>
-                  <li className="mb-2.5 pl-1.5">
-                    <a href="https://mausam.imd.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      India Meteorological Department (IMD)
-                    </a> weather forecasts
-                  </li>
-                  <li className="mb-2.5 pl-1.5">
-                    Satellite imagery from 
-                    <a href="https://modis.gsfc.nasa.gov/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline ml-1">
-                      NASA's MODIS
-                    </a> and 
-                    <a href="https://sentinel.esa.int/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline ml-1">
-                      Sentinel satellites
-                    </a>
-                  </li>
-                  <li className="mb-2.5 pl-1.5">Ground-level monitoring through IoT sensor networks</li>
-                </ul>
-                <p className="text-[#333] text-base leading-relaxed mb-4 text-justify">
-                  By combining these data sources and applying system thinking methodologies, the DSS facilitates informed, effective decision-making at multiple levels of Water Resource Management.
-                </p>
-              </div>
-            </div>
-
-            {/* Sidebar - 1/3 width */}
-            <div className="w-full lg:w-1/3 px-4">
-              <div className="bg-[#f0f0f0] p-5 border border-[#ddd]">
-                {/* <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-0 mb-4 pb-2 border-b border-[#ccc]">
-                  Documents
-                </h3>
-                <div className="text-center mb-5">
-                  <Link href="/confident" 
-                    className="inline-block py-2 px-4 bg-[#0066CC] text-white no-underline rounded text-sm transition-colors duration-300 hover:bg-[#00478f]">
-                    <span className="mr-1">&#128196;</span> View All Documents
-                  </Link>
-                </div> */}
-
-                <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-0 mb-4 pb-2 border-b border-[#ccc]">
-                  Related Schemes
-                </h3>
-                <ul className="list-none p-0">
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://jaljeevanmission.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Jal Jeevan Mission
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://jalshakti-dowr.gov.in/schemes-programmes/atal-bhujal-yojana" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Atal Bhujal Yojana
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://nmcg.nic.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Namami Gange Programme
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://jalshakti-ddws.gov.in/hi/national-rural-drinking-water-programme" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      National Rural Drinking Water Programme
-                    </a>
-                  </li>
-                </ul>
-
-                <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-6 mb-4 pb-2 border-b border-[#ccc]">
-                  Important Links
-                </h3>
-                <ul className="list-none p-0">
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://jalshakti.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Ministry of Jal Shakti
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://cwc.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Central Water Commission
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://cgwb.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      Central Ground Water Board
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://nwm.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      National Water Mission
-                    </a>
-                  </li>
-                  <li className="py-2 border-b border-dotted border-[#ccc]">
-                    <a href="https://mausam.imd.gov.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                      India Meteorological Department
-                    </a>
-                  </li>
-                </ul>
-
-                <h3 className="font-['Times_New_Roman',_Times,_serif] text-[#00008B] text-xl mt-6 mb-4 pb-2 border-b border-[#ccc]">
-                  Contact Information
-                </h3>
-                <div className="not-italic leading-relaxed">
-                  <strong>Smart Laboratory for Clean Rivers (SLCR)</strong><br />
-                  Department of Civil Engineering,<br />
-                  <a href="https://www.iitbhu.ac.in/" target="_blank" rel="noopener noreferrer" className="text-[#0066CC] no-underline hover:underline">
-                    Indian Institute of Technology (BHU)
-                  </a><br />
-                  Varanasi 221005<br />
-                  <br />
-                  Email: 
-                  <a href="mailto:dssiitbhu@gmail.com" className="text-[#0066CC] no-underline hover:underline ml-1">
-                    dssiitbhu@gmail.com
-                  </a><br />
-                  Phone: +91-11-XXXXXXXX
+                  {/* Decorative elements for cylindrical effect */}
+                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+                  <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/5 rounded-full blur-xl"></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        
       </div>
+    </section>
+  );
+}
+
+export default function ModernAboutPage() {
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+
+    // Enhanced intersection observer for staggered animations
+    const els = Array.from(document.querySelectorAll('.reveal-on-scroll'));
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e, index) => {
+          if (e.isIntersecting) {
+            setTimeout(() => {
+              e.target.classList.add('opacity-100', 'translate-y-0', 'scale-100');
+            }, index * 100); // Staggered animation
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -50px 0px' }
+    );
+
+    els.forEach((el) => {
+      el.classList.add(
+        'opacity-0',
+        'translate-y-16',
+        'scale-95',
+        'transition-all',
+        'duration-1000',
+        'ease-out'
+      );
+      io.observe(el);
+    });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      io.disconnect();
+    };
+  }, []);
+
+  const professors = [
+    {
+      image: "/Images/about/gaur.jpg",
+      title: "Prof. Shishir Gaur",
+      body: "Department of Civil Engineering IIT(BHU) - Specializing in Water Resource Management and Hydrology"
+    },
+    {
+      image: "/Images/about/ohri.jpg",
+      title: "Prof. Anurag Ohri",
+      body: "Department of Civil Engineering IIT(BHU) - Expert in Environmental Engineering and Sustainable Development"
+    },
+    {
+      image: "/Images/about/soni.jpeg",
+      title: "Prof. Pramod Soni",
+      body: "Department of Civil Engineering IIT(BHU) - Research in Water Systems and Climate Change Adaptation"
+    }
+  ];
+
+  return (
+    <div className="relative">
+      {/* Global transparent background that moves with scroll */}
+      <div
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat opacity-5 pointer-events-none z-0"
+        style={{
+          backgroundImage: `url('/Images/gallery/main_background.jpg')`,
+          transform: `translateY(${scrollY * 0.2}px)`
+        }}
+      />
+
+      {/* Hero Section */}
+      <section className="relative h-screen overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url('/Images/gallery/main_background.jpg')`,
+            transform: `translateY(${scrollY * 0.5}px)`
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/80 via-blue-800/60 to-indigo-900/70" />
+
+        <div className="relative z-10 flex items-center justify-center h-full text-white text-center px-6">
+          <div className="max-w-5xl mx-auto">
+
+            <h1 className="text-6xl md:text-8xl font-bold mb-8 tracking-tight animate-fadeInUp animation-delay-300">
+              Water Resource
+              <span className="block text-blue-300 mt-2">Management DSS</span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-12 leading-relaxed opacity-90 max-w-3xl mx-auto animate-fadeInUp animation-delay-600">
+              Comprehensive Decision Support System for Sustainable Water Resource Management through Advanced Technology Integration
+            </p>
+            <div className="flex items-center justify-center space-x-4 animate-fadeInUp animation-delay-900">
+              <div className="w-16 h-1 bg-blue-400"></div>
+              <div className="w-8 h-8 border-2 border-blue-400 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+              </div>
+              <div className="w-16 h-1 bg-blue-400"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="flex flex-col items-center space-y-2 animate-bounce">
+            <span className="text-white/70 text-sm uppercase tracking-wider">Scroll</span>
+            <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
+              <div className="w-1 h-3 bg-white/70 rounded-full mt-2 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="relative z-10">
+        {/* Introduction Section */}
+        <section className="py-32 px-6 bg-white/95 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div className="reveal-on-scroll">
+                <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full text-sm font-medium mb-8">
+                  Project Introduction
+                </div>
+                <h2 className="text-6xl font-bold text-gray-900 mb-10 leading-tight">
+                  Sustainable Water
+                  <span className="block text-transparent bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text">
+                    Resource Solutions
+                  </span>
+                </h2>
+                <div className="space-y-8 text-gray-700 leading-relaxed">
+                  <p className="text-xl">
+                    This project addresses the critical need for a comprehensive Decision Support System (DSS) to manage water resources effectively. The DSS integrates sophisticated models and simulations to support sustainable Water Resource Management, ultimately contributing to the achievement of Sustainable Development Goals (SDGs).
+                  </p>
+                  <p className="text-lg">
+                    Water Resource Management is a complex, multi-dimensional challenge exacerbated by climate change, urban expansion, and socio-economic dynamics. The aim of this DSS is to provide holistic solutions to water management by combining hydrological, socio-economic, and ecological factors through an integrated modeling framework.
+                  </p>
+                  <div className="flex items-center space-x-4 pt-4">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
+                    <span className="text-blue-600 font-semibold">Advancing SDG Implementation</span>
+                  </div>
+                </div>
+              </div>
+              <div className="reveal-on-scroll">
+                <div className="relative group">
+                  <img
+                    src="/Images/about/varuna1.png"
+                    alt="Water Resource Management"
+                    className="rounded-3xl shadow-2xl w-full h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent rounded-3xl"></div>
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Ganga River Management</h3>
+                      <p className="text-gray-600">Comprehensive water quality monitoring and sustainable resource management</p>
+                    </div>
+                  </div>
+                  {/* Decorative elements */}
+                  <div className="absolute -top-4 -right-4 w-20 h-20 bg-blue-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700"></div>
+                  <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-cyan-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Professors Section with SwiperSection */}
+        <SwiperSection
+          heroBg="/Images/gallery/main_background.jpg"
+          slides={professors as Slide[]}
+        />
+
+
+        <section className="relative py-32 px-6 overflow-hidden">
+          {/* Radiant gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-blue-50 to-white"></div>
+
+          {/* Accent gradient glow */}
+          <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-green-300/40 to-emerald-400/30 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-gradient-to-tr from-blue-300/30 to-indigo-400/20 rounded-full blur-3xl"></div>
+
+          <div className="relative max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              {/* Left Image */}
+              <div className="reveal-on-scroll order-2 lg:order-1">
+                <div className="relative group">
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Doppler_Weather_Radar_Station_on_Kailasagiri_%28May_2019%29.jpg"
+                    alt="Weather Monitoring Technology"
+                    className="rounded-3xl shadow-2xl w-full h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-blue-500/20 rounded-3xl"></div>
+                  <div className="absolute top-6 left-6">
+                    <div className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-md">
+                      Advanced Monitoring
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Content */}
+              <div className="reveal-on-scroll order-1 lg:order-2 relative z-10">
+                <h2 className="text-6xl font-extrabold text-gray-900 mb-12 leading-tight tracking-tight">
+                  Project
+                  <span className="block text-transparent bg-gradient-to-r from-green-600 via-emerald-500 to-teal-600 bg-clip-text animate-gradient">
+                    Goals
+                  </span>
+                </h2>
+                <div className="space-y-10">
+                  {([
+                    "Development of a Data Management Framework to handle large-scale, multi-source water data",
+                    "Design of an Integrated Hydro-Computational Modeling Framework to simulate water behaviors",
+                    "Creation of a Graphical User Interface (GUI) for simplified decision-making and visual data representation",
+                    "Implementation of a stakeholder engagement platform to facilitate inclusive Water Resource Management",
+                    "Development of policy recommendation modules adapted to changing environmental conditions"
+                  ] as string[]).map((objective: string, index: number) => (
+                    <div
+                      key={index}
+                      className="flex items-start space-x-6 group hover:translate-x-1 transition-all duration-300"
+                    >
+                      <div className="flex-shrink-0 w-14 h-14 rounded-full bg-gradient-to-tr from-green-500 to-emerald-500 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-green-500/30 group-hover:scale-110 group-hover:shadow-emerald-500/50 transition-all duration-300">
+                        {index + 1}
+                      </div>
+                      <p className="text-lg text-gray-700 leading-relaxed pt-2 group-hover:text-gray-900 transition-colors duration-300">
+                        {objective}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+        {/* Applications Section */}
+        <section className="relative py-32 px-6 overflow-hidden bg-gradient-to-br from-gray-900 via-indigo-950 to-black">
+          {/* Accent gradient orbs */}
+          <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-indigo-600/20 to-purple-600/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-gradient-to-tr from-blue-600/20 to-emerald-500/10 rounded-full blur-3xl"></div>
+
+          <div className="relative max-w-7xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-20 reveal-on-scroll">
+              <h2 className="text-6xl font-extrabold text-white mb-8">
+                Transforming Water
+                <span className="block text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text animate-gradient">
+                  Management
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                Our DSS addresses critical water management challenges across multiple sectors with innovative solutions
+              </p>
+            </div>
+
+            {/* Cards Grid */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[
+                {
+                  icon: "🌧️",
+                  title: "Drought Management",
+                  description: "Early warning systems and resource allocation optimization during water scarcity conditions",
+                  gradient: "from-red-500 to-orange-500",
+                },
+                {
+                  icon: "🌊",
+                  title: "Flood Prevention",
+                  description: "Real-time monitoring and predictive modeling to mitigate flooding risks in vulnerable areas",
+                  gradient: "from-blue-500 to-cyan-500",
+                },
+                {
+                  icon: "💧",
+                  title: "Groundwater Management",
+                  description: "Sustainable utilization strategies based on recharge rates, extraction patterns, and contamination risks",
+                  gradient: "from-teal-500 to-green-500",
+                },
+                {
+                  icon: "🏙️",
+                  title: "Urban Water Supply",
+                  description: "Optimization of distribution networks, leakage detection, and demand forecasting for growing urban centers",
+                  gradient: "from-purple-500 to-indigo-500",
+                },
+                {
+                  icon: "🌾",
+                  title: "Agricultural Water",
+                  description: "Precision irrigation scheduling and crop water requirement modeling to maximize agricultural productivity",
+                  gradient: "from-green-500 to-emerald-500",
+                },
+                {
+                  icon: "🏞️",
+                  title: "Ecosystem Protection",
+                  description: "Monitoring and preserving aquatic ecosystems while maintaining sustainable water resource utilization",
+                  gradient: "from-emerald-500 to-teal-500",
+                },
+              ].map((app, index) => (
+                <div key={index} className="reveal-on-scroll group">
+                  <div className="bg-white/5 backdrop-blur-lg rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 p-8 h-full border border-white/10">
+                    <div
+                      className={`w-20 h-20 bg-gradient-to-r ${app.gradient} rounded-2xl flex items-center justify-center text-3xl mb-8 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-lg`}
+                    >
+                      {app.icon}
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text group-hover:from-gray-100 group-hover:to-gray-400 transition-all duration-300">
+                      {app.title}
+                    </h3>
+                    <p className="text-gray-300 leading-relaxed">
+                      {app.description}
+                    </p>
+                    <div className="mt-6 flex items-center text-sm font-medium text-gray-400 group-hover:text-gray-200 transition-colors duration-300">
+                      <span>Learn more</span>
+                      <svg
+                        className="ml-2 w-4 h-4 transform group-hover:translate-x-1 transition-transform duration-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+
+        {/* Technology Framework */}
+        <section className="py-32 px-6 bg-gradient-to-br from-white/90 to-purple-50/80 backdrop-blur-sm ">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <div className="reveal-on-scroll">
+
+                <h2 className="text-6xl font-bold text-gray-900 mb-10 leading-tight">
+                  Technological
+                  <span className="block text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">
+                    Framework
+                  </span>
+                </h2>
+                <p className="text-xl text-gray-700 mb-12 leading-relaxed">
+                  Our DSS utilizes cutting-edge data sources and advanced analytics to provide comprehensive water resource insights through integrated technology solutions.
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {[
+                    { name: "Central Water Commission", abbr: "CWC", color: "from-blue-500 to-blue-600" },
+                    { name: "India Meteorological Dept", abbr: "IMD", color: "from-green-500 to-green-600" },
+                    { name: "NASA MODIS Satellites", abbr: "SAT", color: "from-purple-500 to-purple-600" },
+                    { name: "IoT Sensor Networks", abbr: "IoT", color: "from-orange-500 to-orange-600" }
+                  ].map((source, index) => (
+                    <div key={index} className="group">
+                      <div className="flex items-center space-x-4 p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group-hover:scale-105">
+                        <div className={`w-14 h-14 bg-gradient-to-r ${source.color} text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-lg group-hover:rotate-6 transition-transform duration-300`}>
+                          {source.abbr}
+                        </div>
+                        <span className="text-gray-700 font-semibold group-hover:text-gray-900 transition-colors duration-300">{source.name}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+
+              </div>
+
+              <div className="reveal-on-scroll">
+                <div className="relative group">
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/35/AWS%28Automatic_Weather_station%29.JPG"
+                    alt="Advanced Weather Station Technology"
+                    className="rounded-3xl shadow-2xl w-full h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl"></div>
+                  <div className="absolute top-6 right-6">
+                    <div className="bg-purple-500 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                      <span>Live Data</span>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">Automated Weather Station</h3>
+                      <p className="text-gray-600 text-sm">Real-time meteorological data collection for precise water resource modeling</p>
+                    </div>
+                  </div>
+                  {/* Enhanced decorative elements */}
+                  <div className="absolute -top-6 -right-6 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700"></div>
+                  <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-pink-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="relative w-full h-screen overflow-hidden bg-gradient-to-br from-gray-950 via-neutral-900 to-indigo-950 text-neutral-100">
+          {/* Accent gradient orbs */}
+          <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/20 to-teal-400/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-500/20 to-purple-600/10 rounded-full blur-3xl"></div>
+
+          <div className="relative grid h-full grid-cols-1 lg:grid-cols-[35%_65%]">
+            {/* Left Image */}
+            <div className="relative">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Kendujhar%2C_Odisha%2C_India_-_panoramio_%2824%29.jpg/960px-Kendujhar%2C_Odisha%2C_India_-_panoramio_%2824%29.jpg?20170620025307"
+                alt="Coastal cleanup volunteers at work"
+                className="h-full w-full object-cover brightness-90 contrast-110 rounded-r-3xl shadow-2xl"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/20 to-transparent rounded-r-3xl"></div>
+            </div>
+
+            {/* Right Content */}
+            <div className="flex items-center">
+              <div className="px-6 md:px-16 max-w-3xl mx-auto">
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text">
+                  Key Collaborations
+                </h2>
+
+                <p className="mt-6 text-lg leading-relaxed text-gray-300 first-letter:uppercase first-letter:text-4xl first-letter:font-semibold first-letter:mr-2 first-letter:float-left">
+                  This DSS works in alignment with national water projects including:
+                </p>
+
+                <ul className="mt-6 space-y-4 text-lg leading-relaxed">
+                  <li className="flex items-start space-x-3">
+                    <span className="mt-1 w-3 h-3 rounded-full bg-gradient-to-r from-indigo-400 to-purple-500"></span>
+                    <span>
+                      <strong>Jal Jeevan Mission:</strong> Supporting the aim of providing safe drinking water to all households.
+                    </span>
+                  </li>
+                  <li className="flex items-start space-x-3">
+                    <span className="mt-1 w-3 h-3 rounded-full bg-gradient-to-r from-teal-400 to-emerald-500"></span>
+                    <span>
+                      <strong>Atal Bhujal Yojana:</strong> Enhancing groundwater management through community participation.
+                    </span>
+                  </li>
+                  <li className="flex items-start space-x-3">
+                    <span className="mt-1 w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-cyan-500"></span>
+                    <span>
+                      <strong>National Hydrological Project:</strong> Improving the accessibility of water resources information.
+                    </span>
+                  </li>
+                  <li className="flex items-start space-x-3">
+                    <span className="mt-1 w-3 h-3 rounded-full bg-gradient-to-r from-pink-400 to-red-500"></span>
+                    <span>
+                      <strong>National Groundwater Management Improvement Program-2:</strong> Supporting sustainable groundwater management.
+                    </span>
+                  </li>
+                </ul>
+
+                <p className="mt-6 text-lg leading-relaxed text-gray-300">
+                  By integrating these missions' goals into our system, we aim to enhance India's water resource management capabilities.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes progress {
+          0% { width: 0%; }
+          100% { width: 100%; }
+        }
+        
+        .animate-fadeInUp {
+          animation: fadeInUp 0.8s ease-out forwards;
+        }
+        
+        .animation-delay-300 {
+          animation-delay: 0.3s;
+        }
+        
+        .animation-delay-600 {
+          animation-delay: 0.6s;
+        }
+        
+        .animation-delay-900 {
+          animation-delay: 0.9s;
+        }
+      `}</style>
     </div>
   );
 }

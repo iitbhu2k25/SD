@@ -6,7 +6,7 @@ from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,G
 from app.utils.exception import validate
 from app.api.schema.stp_schema import STPCategory
 router=APIRouter()
-@router.get("/get_gwz_category",response_model=list[STPPriorityOutput])
+@router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_raster_gwz(db:db_dependency,all_data: bool = False):
     return Gwzp_service.get_raster_GWZ(db,all_data)
