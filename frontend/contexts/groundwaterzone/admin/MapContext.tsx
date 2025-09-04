@@ -215,7 +215,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         }
       );
 
-        if (resp.status !== 200) {
+        if (resp.status != 201) {
           throw new Error(`STP operation failed with status: ${resp.status}`);
         }
 
