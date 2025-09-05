@@ -23,13 +23,13 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { GISCompass } from "@/components/mapcomponents";
+import { GISCompass } from "@/components/MapComponents";
 import { Style, Fill, Stroke, Text } from "ol/style";
 import { useMap } from "@/contexts/mar_sutability/users/DrainMapContext";
 import { useCategory } from "@/contexts/mar_sutability/admin/CategoryContext";
 import "ol/ol.css";
 import { useRiverSystem } from "@/contexts/mar_sutability/users/DrainContext";
-import { baseMaps } from "@/components/mapcomponents";
+import { baseMaps } from "@/components/MapComponents";
 interface LayerColorConfig {
   color: string;
   name: string;

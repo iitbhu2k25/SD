@@ -10,7 +10,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import GeoJSON from "ol/format/GeoJSON";
 import Image from "next/image";
-import { GISCompass } from "@/components/mapcomponents";
+import { GISCompass } from "@/components/MapComponents";
 import { fromLonLat, transform } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -25,7 +25,7 @@ import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
 
-import { baseMaps } from "@/components/mapcomponents";
+import { baseMaps } from "@/components/MapComponents";
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);

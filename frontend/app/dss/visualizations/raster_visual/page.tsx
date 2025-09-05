@@ -17,7 +17,7 @@ import { Coordinate } from "ol/coordinate";
 import "ol/ol.css";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
-import { baseMaps } from "@/components/mapcomponents";
+import { baseMaps } from "@/components/MapComponents";
 // TypeScript interfaces
 interface BaseMap {
   name: string;

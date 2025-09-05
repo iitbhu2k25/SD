@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, JSX } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown, Menu, X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/components/authentication/logout";
 import { startCase } from "lodash";
@@ -16,12 +16,12 @@ const Navbar = (): JSX.Element => {
   const [openDropdowns, setOpenDropdowns] = useState<DropdownState>({});
   const navRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   let user_name = useAuthStore((state) => state.user?.fullname) ?? 'User';
   user_name = startCase(user_name);
   if (user_name.length > 8) {
     user_name = user_name.slice(0, 5) + "...";
   }
-
 
   // Handle sticky navbar on scroll
   useEffect(() => {
@@ -43,6 +43,18 @@ const Navbar = (): JSX.Element => {
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close mobile menu on window resize to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileMenuOpen(false);
+        setOpenDropdowns({});
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Toggle dropdown with delay for closing
@@ -83,45 +95,41 @@ const Navbar = (): JSX.Element => {
     }));
   };
 
-  // Common navbar link classes with single row fix
+  const { handleLogout } = useLogout();
+
+  // Common navbar link classes
   const navLinkClasses = "text-white font-semibold text-lg lg:text-base xl:text-lg px-3 lg:px-4 xl:px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300 whitespace-nowrap";
-   const { handleLogout } = useLogout();
+
   return (
     <nav
       ref={navRef}
-      className={`${isSticky
-          ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-1000"
+      className={`${
+        isSticky
+          ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-50"
           : "bg-opacity-10 bg-[#081F5C]"
-        } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-1000`}
+        } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-40`}
     >
       <div className="container mx-auto px-4">
         {/* Mobile menu button */}
         <div className="flex justify-between items-center lg:hidden">
+          <div className="text-white font-bold text-lg">DSS</div>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="text-white focus:outline-none"
+            className="text-white focus:outline-none p-2 rounded-md hover:bg-white hover:bg-opacity-10 transition-colors duration-200"
             aria-label="Toggle navigation menu"
           >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
+            {isMobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </div>
 
         {/* Navbar items */}
         <div className={`${isMobileMenuOpen ? "block" : "hidden"} lg:block`}>
           <ul className="flex flex-col lg:flex-row lg:justify-center lg:items-center space-y-2 lg:space-y-0 lg:space-x-1 xl:space-x-2 overflow-x-auto lg:overflow-visible">
+            
             {/* Home */}
             <li className="relative group flex-shrink-0">
               <Link href="/dss" className={navLinkClasses}>
@@ -129,13 +137,12 @@ const Navbar = (): JSX.Element => {
               </Link>
             </li>
 
-            {/* About */}
+            {/* Dashboard */}
             <li className="relative group flex-shrink-0">
               <Link href="/dss/dashboard" className={navLinkClasses}>
                 Dashboard
               </Link>
             </li>
-           
 
             {/* Basic Modules */}
             <li className="relative group flex-shrink-0">
@@ -160,8 +167,9 @@ const Navbar = (): JSX.Element => {
                 </span>
               </button>
               <ul
-                className={`${openDropdowns.gwm ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                className={`${
+                  openDropdowns.gwm ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
               >
                 {/* Groundwater Potential Assessment */}
                 <li
@@ -175,13 +183,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Groundwater Potential Assessment
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.gwPotential ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.gwPotential ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.gwPotential ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.gwPotential ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -214,13 +224,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Resource Estimation
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.gwResource ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.gwResource ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.gwResource ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.gwResource ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -261,13 +273,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Managed Aquifer Recharge
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.gwAquifer ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.gwAquifer ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.gwAquifer ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.gwAquifer ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -285,7 +299,6 @@ const Navbar = (): JSX.Element => {
                         Water Source Estimation
                       </Link>
                     </li>
-            
                     <li>
                       <Link
                         href="/dss/GWM/Mar_sutability"
@@ -317,13 +330,15 @@ const Navbar = (): JSX.Element => {
                   >
                     River Aquifer Interaction
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.gwRiver ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.gwRiver ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.gwRiver ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.gwRiver ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -362,10 +377,11 @@ const Navbar = (): JSX.Element => {
                 </span>
               </button>
               <ul
-                className={`${openDropdowns.rwm ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                className={`${
+                  openDropdowns.rwm ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
               >
-                {/* River Estimation */}
+                {/* Resource Estimation */}
                 <li
                   className="relative group/submenu"
                   onMouseEnter={() => toggleDropdown("rwEstimation", true)}
@@ -377,13 +393,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Resource Estimation
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.rwEstimation ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.rwEstimation ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.rwEstimation ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.rwEstimation ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -440,13 +458,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Flood Forecasting and Management
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.rwFlood ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.rwFlood ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.rwFlood ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.rwFlood ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -487,13 +507,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Water Bodies Management
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.rwWaterBodies ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.rwWaterBodies ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.rwWaterBodies ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.rwWaterBodies ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -542,13 +564,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Waste Water Treatment
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.rwWasteWater ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.rwWasteWater ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.rwWasteWater ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.rwWasteWater ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -603,8 +627,9 @@ const Navbar = (): JSX.Element => {
                 </span>
               </button>
               <ul
-                className={`${openDropdowns.wrm ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-50`}
+                className={`${
+                  openDropdowns.wrm ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-50`}
               >
                 {/* Demand and Forecasting */}
                 <li
@@ -618,13 +643,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Demand and Forecasting
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.wrmDemand ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.wrmDemand ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.wrmDemand ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.wrmDemand ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -657,13 +684,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Resource Allocation
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.wrmAllocation ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.wrmAllocation ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.wrmAllocation ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.wrmAllocation ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -688,23 +717,22 @@ const Navbar = (): JSX.Element => {
 
             {/* System Dynamics */}
             <li
-              className="relative group flex-shrink-0"
+              className="relative group flex-shrink-0 tooltip-container"
               onMouseEnter={() => toggleDropdown("shsd", true)}
               onMouseLeave={() => toggleDropdown("shsd", false)}
             >
               <button
                 onClick={() => toggleDropdown("shsd", !openDropdowns.shsd)}
                 className={navLinkClasses}
+                data-tooltip="Hydrological System Dynamics"
               >
                 <span className="hidden xl:inline">System Dynamics</span>
-
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
-                  Hydrological System Dynamics
-                </span>
+                <span className="xl:hidden">System</span>
               </button>
               <ul
-                className={`${openDropdowns.shsd ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-50`}
+                className={`${
+                  openDropdowns.shsd ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-50`}
               >
                 {/* Resource Management */}
                 <li
@@ -718,13 +746,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Resource Management
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.shsdResource ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.shsdResource ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.shsdResource ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.shsdResource ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -752,6 +782,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                   </ul>
                 </li>
+
                 {/* Impact Assessment */}
                 <li
                   className="relative group/submenu"
@@ -764,13 +795,15 @@ const Navbar = (): JSX.Element => {
                   >
                     Impact Assessment
                     <ChevronRight
-                      className={`w-4 h-4 ${openDropdowns.shsdImpact ? "rotate-90" : ""
-                        } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
+                      className={`w-4 h-4 ${
+                        openDropdowns.shsdImpact ? "rotate-90" : ""
+                      } lg:group-hover/submenu:rotate-90 transition-transform duration-200`}
                     />
                   </div>
                   <ul
-                    className={`${openDropdowns.shsdImpact ? "block" : "hidden"
-                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    className={`${
+                      openDropdowns.shsdImpact ? "block" : "hidden"
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
                   >
                     <li>
                       <Link
@@ -806,8 +839,9 @@ const Navbar = (): JSX.Element => {
                 Activities
               </button>
               <ul
-                className={`${openDropdowns.activities ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-50`}
+                className={`${
+                  openDropdowns.activities ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -842,8 +876,9 @@ const Navbar = (): JSX.Element => {
                 <span className="xl:hidden">Reports</span>
               </button>
               <ul
-                className={`${openDropdowns.reportandpublication ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-50`}
+                className={`${
+                  openDropdowns.reportandpublication ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -877,8 +912,9 @@ const Navbar = (): JSX.Element => {
                 Visualization
               </button>
               <ul
-                className={`${openDropdowns.visualization ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+                className={`${
+                  openDropdowns.visualization ? "block" : "hidden"
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -907,13 +943,13 @@ const Navbar = (): JSX.Element => {
               </ul>
             </li>
 
-            {/* Dashboard */}
-            
-             <li className="relative group flex-shrink-0">
+            {/* About */}
+            <li className="relative group flex-shrink-0">
               <Link href="/dss/about" className={navLinkClasses}>
                 About
               </Link>
             </li>
+
             {/* User */}
             <li
               className="relative group flex-shrink-0"
@@ -927,8 +963,9 @@ const Navbar = (): JSX.Element => {
                 Profile
               </button>
               <ul
-                className={`${openDropdowns.user ? "block" : "hidden"
-                  } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+                className={`${
+                  openDropdowns.user ? "block" : "hidden"
+                } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
               >
                 <li>
                   <Link
@@ -941,19 +978,11 @@ const Navbar = (): JSX.Element => {
                 <li>
                   <button
                     onClick={handleLogout}
-                    className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 text-left"
+                    className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Logout
                   </button>
                 </li>
-                {/* <li>
-                  <Link
-                    href="/UserManagement/SavedProject"
-                    className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
-                    my projects
-                  </Link>
-                </li> */}
               </ul>
             </li>
           </ul>

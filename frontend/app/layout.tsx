@@ -17,9 +17,9 @@ export const metadata = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen">
+      <body className="flex flex-col min-h-screen antialiased">
           <Header/>
-          <main className="flex-1 flex flex-col">
+          <main className="flex-1 flex flex-col w-full overflow-x-hidden">
             {children}
             <ToastContainer
               position="top-right"
@@ -31,6 +31,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
               pauseOnFocusLoss
               draggable
               pauseOnHover
+              className="mt-16 sm:mt-20" // Account for header height on mobile
+              toastClassName="text-sm sm:text-base" // Responsive text size
             />
           </main>
           <Footer/>

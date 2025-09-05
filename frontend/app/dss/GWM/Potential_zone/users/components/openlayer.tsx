@@ -28,7 +28,7 @@ import { Style, Fill, Stroke, Text } from "ol/style";
 import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
 import "ol/ol.css";
 import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
-import { GISCompass } from "@/components/mapcomponents";
+import { GISCompass } from "@/components/MapComponents";
 // Define base map type interface
 
 interface LayerColorConfig {
@@ -41,7 +41,7 @@ interface LayerColorsType {
   [key: string]: LayerColorConfig;
 }
 
-import { baseMaps } from "@/components/mapcomponents";
+import { baseMaps } from "@/components/MapComponents";
 
 
 const LAYER_COLORS: LayerColorsType = {

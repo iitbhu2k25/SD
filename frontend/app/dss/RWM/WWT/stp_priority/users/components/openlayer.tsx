@@ -24,7 +24,7 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
 import "ol/ol.css";
-import { GISCompass, baseMaps } from "@/components/mapcomponents";
+import { GISCompass, baseMaps } from "@/components/MapComponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };

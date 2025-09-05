@@ -20,13 +20,13 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { GISCompass } from "@/components/mapcomponents";
+import { GISCompass } from "@/components/MapComponents";
 import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
 import { useCategory } from "@/contexts/stp_sutability/admin/CategoryContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
 import { none } from "ol/centerconstraint";
-import { baseMaps } from "@/components/mapcomponents";
+import { baseMaps } from "@/components/MapComponents";
 
 // Define base map type interface
 

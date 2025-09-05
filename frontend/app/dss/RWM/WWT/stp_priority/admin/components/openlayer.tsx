@@ -24,7 +24,7 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import "ol/ol.css";
-import { baseMaps,GISCompass,HoverTooltip} from "@/components/mapcomponents";
+import { baseMaps,GISCompass,HoverTooltip} from "@/components/MapComponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };

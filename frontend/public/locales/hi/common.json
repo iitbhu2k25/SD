@@ -1,0 +1,10 @@
+{
+  "welcome": "स्वागत है",
+  "home": "होम",
+  "about": "हमारे बारे में",
+  "contact": "संपर्क",
+  "language": "भाषा",
+  "theme": "थीम",
+  "description": "यह डार्क मोड और बहुभाषी समर्थन के साथ एक responsive Next.js ऐप है।",
+  "selectLanguage": "भाषा चुनें"
+}
