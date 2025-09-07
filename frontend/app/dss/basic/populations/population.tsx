@@ -450,7 +450,7 @@ const Population: React.FC<PopulationProps> = ({
                     }
                 })
                 .catch(error => {
-                    console.error("Error fetching 2025 population:", error);
+                    console.log("Error fetching 2025 population:", error);
                 });
         } else if (selectedMethod) {
             // Handle other methods - unchanged logic
@@ -521,7 +521,7 @@ const Population: React.FC<PopulationProps> = ({
                         }
                     })
                     .catch(error => {
-                        console.error("Error fetching 2025 population:", error);
+                        console.log("Error fetching 2025 population:", error);
                     });
             }
         }
@@ -569,7 +569,7 @@ const Population: React.FC<PopulationProps> = ({
             return cohortPopulation;
 
         } catch (error) {
-            console.error('Error processing cohort data:', error);
+            console.log('Error processing cohort data:', error);
             setError('Failed to process cohort data. Please try again.');
             return null;
         } finally {
@@ -747,7 +747,7 @@ const Population: React.FC<PopulationProps> = ({
                         requestTypes.push('timeseries');
                     }
                 } catch (error) {
-                    console.error("Error in time series API:", error);
+                    console.log("Error in time series API:", error);
                     const fallbackData = generateFallbackTimeSeriesData(
                         totalPopulation_props,
                         single_year,
@@ -944,7 +944,7 @@ const Population: React.FC<PopulationProps> = ({
             console.log('Selected Population Forecast:', (window as any).selectedPopulationForecast);
 
         } catch (error) {
-            console.error('Error in calculate:', error);
+            console.log('Error in calculate:', error);
             setError('An error occurred during calculation. Please try again.');
         } finally {
             setLoading(false);

@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     console.log("token verified successfully");
     return NextResponse.next();
   } catch (err) {
-    console.error("Error verifying token:", err);
+    console.log("Error verifying token:", err);
 
     try {
       const backendRes = await api.get("/authentication/authentic");
@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/", request.url));
       }
     } catch (backendErr) {
-      console.error("Backend check failed:", backendErr);
+      console.log("Backend check failed:", backendErr);
       return NextResponse.redirect(new URL("/", request.url));
     }
   }

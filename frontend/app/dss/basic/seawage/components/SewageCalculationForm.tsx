@@ -235,7 +235,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       }
 
     } catch (error) {
-      console.error('Error fetching storm water data:', error);
+      console.log('Error fetching storm water data:', error);
       setStormWaterError(`Failed to fetch storm water data: ${(error as Error).message}`);
     }
     finally {
@@ -284,7 +284,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       const result = await response.json();
       setStormWaterResult(result);
     } catch (error) {
-      console.error('Error calculating storm water runoff:', error);
+      console.log('Error calculating storm water runoff:', error);
       setStormWaterError(`Failed to calculate storm water runoff: ${(error as Error).message}`);
     }
     finally {
@@ -697,7 +697,7 @@ const handleCalculateSewage = async () => {
       setShowPeakFlow(true);
     }
   } catch (error) {
-    console.error(error);
+    console.log(error);
     setError('Error connecting to backend.');
   }
 };
@@ -2017,7 +2017,7 @@ const handleCalculateSewage = async () => {
       });
 
     } catch (error) {
-      console.error('Failed to capture map:', error);
+      console.log('Failed to capture map:', error);
       return null;
     }
   };
@@ -2037,9 +2037,9 @@ const handleCalculateSewage = async () => {
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        console.error(`Map capture attempt ${i + 1} failed:`, error);
+        console.log(`Map capture attempt ${i + 1} failed:`, error);
         if (i === maxRetries - 1) {
-          console.error('All map capture attempts failed');
+          console.log('All map capture attempts failed');
           return null;
         }
       }
@@ -2080,7 +2080,7 @@ const handleCalculateSewage = async () => {
         doc.addImage(iitLogo, 'PNG', 14, 5, 25, 25);
         doc.addImage(rightLogo, 'PNG', pageWidth - 39, 5, 25, 25);
       } catch (err) {
-        console.error("Failed to load logos:", err);
+        console.log("Failed to load logos:", err);
       }
     };
 
@@ -2583,7 +2583,7 @@ const handleCalculateSewage = async () => {
               yPos = (doc as any).lastAutoTable?.finalY + 5;
               // yPos = updateYPosWithPageBreak(doc, yPos, 0);
             } catch (error) {
-              console.error("Error adding village table:", error);
+              console.log("Error adding village table:", error);
               yPos = updateYPosWithPageBreak(doc, yPos, 5);
             }
           }
@@ -2735,7 +2735,7 @@ const handleCalculateSewage = async () => {
             }
 
           } catch (error) {
-            console.error("Error adding population forecasting data:", error);
+            console.log("Error adding population forecasting data:", error);
             addParagraph("Error occurred while processing population forecasting data.");
             yPos += 10;
           }
@@ -2798,7 +2798,7 @@ const handleCalculateSewage = async () => {
               addParagraph("Water demand data not available");
             }
           } catch (error) {
-            console.error("Error adding water demand data:", error);
+            console.log("Error adding water demand data:", error);
             yPos += 5;
           }
 
@@ -3077,7 +3077,7 @@ const handleCalculateSewage = async () => {
               addParagraph("Water supply data not available");
             }
           } catch (error) {
-            console.error("Error adding water supply data:", error);
+            console.log("Error adding water supply data:", error);
             yPos += 5;
           }
 
@@ -3939,13 +3939,13 @@ const handleCalculateSewage = async () => {
               }, 100);
             } else {
               const errorText = await uploadResponse.text();
-              console.error('Upload failed:', uploadResponse.status, errorText);
+              console.log('Upload failed:', uploadResponse.status, errorText);
               setTimeout(() => {
                 // alert('PDF generated successfully, but upload to server failed. Check console for details.');
               }, 100);
             }
           } catch (uploadError) {
-            console.error('Upload error:', uploadError);
+            console.log('Upload error:', uploadError);
             setTimeout(() => {
               //alert('PDF generated successfully, but upload to server failed. Check console for details.');
             }, 100);
@@ -3960,7 +3960,7 @@ const handleCalculateSewage = async () => {
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");
         } // End of try block
       } catch (error) {
-        console.error("Error generating report:", error);
+        console.log("Error generating report:", error);
       }
       finally {
         setIsDownloading(false);

@@ -34,7 +34,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
           toast.success('Report downloaded successfully!');
           socket.close(); // Close WebSocket after download
         } catch (error) {
-          console.error('Error downloading PDF:', error);
+          console.log('Error downloading PDF:', error);
           toast.error('Failed to download report');
         }
       }
@@ -49,7 +49,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     };
 
     socket.onerror = (error) => {
-      console.error('[WebSocket] Error:', error);
+      console.log('[WebSocket] Error:', error);
       socket.close();
       toast.error('WebSocket connection error');
     };

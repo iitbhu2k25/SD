@@ -72,7 +72,7 @@ const OpenLayersRasterViewer: React.FC = () => {
         setDisplayData(data);
 
       } catch (err) {
-        console.error("Failed to fetch modules", err);
+        console.log("Failed to fetch modules", err);
         toast.error("Failed to connect the server ", {
           position: "top-center",
         })
@@ -261,7 +261,7 @@ const OpenLayersRasterViewer: React.FC = () => {
 
       console.log(`Raster layer loaded: ${fullLayerName}`);
     } catch (error) {
-      console.error("Error loading raster layer:", error);
+      console.log("Error loading raster layer:", error);
       setError(`Error loading raster layer: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setLoading(false);
     }

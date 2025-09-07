@@ -91,7 +91,7 @@ const UserProfilePage: React.FC = () => {
         });
       } catch (err) {
         setError('Failed to load profile. Please try again later.');
-        console.error('Failed to fetch profile:', err);
+        console.log('Failed to fetch profile:', err);
       } finally {
         setIsLoading(false);
       }
@@ -131,7 +131,7 @@ const UserProfilePage: React.FC = () => {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       setError('Failed to save profile. Please try again.');
-      console.error('Failed to save profile:', err);
+      console.log('Failed to save profile:', err);
     } finally {
       setIsLoading(false);
     }

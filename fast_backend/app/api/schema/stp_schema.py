@@ -200,3 +200,17 @@ class StpPriorityDrainReport(BaseModel):
     raster: List[DataItem] = None
     location: LocationData
     weight_data: List[weight_insight]
+
+class StpSutabilityAdminReport(BaseModel):
+
+    class LocationData(BaseModel):
+        state:str
+        districts:list
+        subDistricts: list
+        towns:list
+    table:List[CsvData]
+    place: str
+    clip: List[int] = None
+    raster: List[DataItem] = None
+    location: LocationData
+    weight_data: List[weight_insight]

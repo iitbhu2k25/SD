@@ -110,7 +110,7 @@ const MainContent = () => {
       setTaskId(task['task_id']);
       setPdfDownloaded(false);
     } catch (error) {
-      console.error("Report error", error);
+      console.log("Report error", error);
       toast.error("Failed to start report");
       stopTimer();
     } finally {

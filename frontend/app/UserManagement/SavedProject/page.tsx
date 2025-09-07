@@ -175,7 +175,7 @@ export default function SavedProjects({ params, searchParams }: SavedProjectsPro
           const resolvedP = await params;
           setResolvedParams(resolvedP);
         } catch (error) {
-          console.error('Error resolving params:', error);
+          console.log('Error resolving params:', error);
         }
       }
       
@@ -184,7 +184,7 @@ export default function SavedProjects({ params, searchParams }: SavedProjectsPro
           const resolvedSP = await searchParams;
           setResolvedSearchParams(resolvedSP);
         } catch (error) {
-          console.error('Error resolving searchParams:', error);
+          console.log('Error resolving searchParams:', error);
         }
       }
     };

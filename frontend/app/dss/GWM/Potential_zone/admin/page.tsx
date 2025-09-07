@@ -98,7 +98,7 @@ const MainContent = () => {
       const task = response.message as Record<string, string>
       setTaskId(task['task_id'])
     } catch (error) {
-      console.error("Report error", error);
+      console.log("Report error", error);
       toast.error("Failed to start report");
     }
     finally {

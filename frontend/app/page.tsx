@@ -47,11 +47,7 @@ export default function AuthPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent lg:hidden"></div>
         
         {/* Optional: Logo or branding overlay */}
-        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 lg:top-8 lg:left-8">
-          <div className="text-white font-bold text-lg sm:text-xl lg:text-2xl drop-shadow-lg">
-            Water DSS
-          </div>
-        </div>
+        
       </div>
     </div>
   );

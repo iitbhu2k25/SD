@@ -272,10 +272,10 @@ const WatershedMap: React.FC = () => {
       if (isValidGeoJSON(data)) {
         setIndiaBaseMap(data);
       } else {
-        console.error('Invalid GeoJSON data received from GeoServer');
+        console.log('Invalid GeoJSON data received from GeoServer');
       }
     } catch (error) {
-      console.error('Error fetching India base map from GeoServer:', error);
+      console.log('Error fetching India base map from GeoServer:', error);
       setError('Failed to load India base map from GeoServer');
     } finally {
       setBaseMapLoading(false);
@@ -422,7 +422,7 @@ const WatershedMap: React.FC = () => {
               });
             }
           } catch (e) {
-            console.error("Error fitting to bounds:", e);
+            console.log("Error fitting to bounds:", e);
           }
         }
       } else {
@@ -442,7 +442,7 @@ const WatershedMap: React.FC = () => {
               });
             }
           } catch (e) {
-            console.error("Error fitting to bounds:", e);
+            console.log("Error fitting to bounds:", e);
           }
         }
       }

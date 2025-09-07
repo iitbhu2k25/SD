@@ -729,7 +729,7 @@ export default function Map({
 
   const handleFullScreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(console.error);
+      document.documentElement.requestFullscreen().catch(console.log);
     } else {
       document.exitFullscreen?.();
     }

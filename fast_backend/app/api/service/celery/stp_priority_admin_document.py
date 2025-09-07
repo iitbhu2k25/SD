@@ -1149,7 +1149,7 @@ class ReportGenerator:
             raise STRPReportError(f"Report generation failed: {e}")
 
 
-@app.task(bind=True,pydantic=True,name="main pdf generation")
+@app.task(bind=True,pydantic=True,name="stp_priority_admin_document")
 def document_gen(self,payload: StpPriorityAdminReport):
     unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
     try:
@@ -1174,15 +1174,15 @@ def document_gen(self,payload: StpPriorityAdminReport):
         logger.error(f"Failed to load raster data: {e}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
-@app.task(bind=True,pydantic=True,name="celery_currency_image")
+@app.task(bind=True,pydantic=True,name="stp_priority_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=200).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
     }
 
-@app.task(bind=True,pydantic=True,name="pdf_generation_start")
+@app.task(bind=True,pydantic=True,name="stp_priority_admin_generation_start")
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
     pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
     return pdf_path

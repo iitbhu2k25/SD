@@ -136,7 +136,7 @@ function MapLayers({
         }
       }
     } catch (error) {
-      console.error('Error zooming to feature bounds:', error);
+      console.log('Error zooming to feature bounds:', error);
     }
   };
 
@@ -193,7 +193,7 @@ function MapLayers({
         map.removeLayer(districtLayersRef.current);
         districtLayersRef.current = null;
       } catch (error) {
-        console.error('Error removing district layers:', error);
+        console.log('Error removing district layers:', error);
       }
     }
   };
@@ -205,7 +205,7 @@ function MapLayers({
         map.removeLayer(subDistrictLayersRef.current);
         subDistrictLayersRef.current = null;
       } catch (error) {
-        console.error('Error removing sub-district layers:', error);
+        console.log('Error removing sub-district layers:', error);
       }
     }
   };
@@ -217,7 +217,7 @@ function MapLayers({
         map.removeLayer(villageLayersRef.current);
         villageLayersRef.current = null;
       } catch (error) {
-        console.error('Error removing village layers:', error);
+        console.log('Error removing village layers:', error);
       }
     }
   };
@@ -229,7 +229,7 @@ function MapLayers({
         map.removeLayer(stateLayerRef.current);
         stateLayerRef.current = null;
       } catch (error) {
-        console.error('Error removing state layer:', error);
+        console.log('Error removing state layer:', error);
       }
     }
   };
@@ -395,13 +395,13 @@ function MapLayers({
                 console.warn('Invalid bounds for base map layer');
               }
             } catch (error) {
-              console.error('Error fitting map to bounds:', error);
+              console.log('Error fitting map to bounds:', error);
             }
             setIsLoadingBase(false);
           }
         });
       } catch (error) {
-        console.error('Error fetching or rendering base map:', error);
+        console.log('Error fetching or rendering base map:', error);
         if (isMounted) {
           setIsLoadingBase(false);
         }
@@ -502,13 +502,13 @@ function MapLayers({
                 console.warn('Invalid bounds for state layer');
               }
             } catch (error) {
-              console.error('Error fitting map to state layer bounds:', error);
+              console.log('Error fitting map to state layer bounds:', error);
             }
           }
           setIsLoadingState(false);
         });
       } catch (error) {
-        console.error('Error fetching or rendering state data:', error);
+        console.log('Error fetching or rendering state data:', error);
         setIsLoadingState(false);
       }
     };
@@ -542,7 +542,7 @@ function MapLayers({
 
         if (!response.ok) {
           alert('We have data only for Uttar Pradesh.');
-          console.error('Failed to fetch district data:', response.status);
+          console.log('Failed to fetch district data:', response.status);
           setIsLoadingDistricts(false);
           return;
         }
@@ -596,12 +596,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.error('Error fitting map to district layer bounds:', error);
+            console.log('Error fitting map to district layer bounds:', error);
           }
           setIsLoadingDistricts(false);
         });
       } catch (error) {
-        console.error('Error fetching or rendering district data:', error);
+        console.log('Error fetching or rendering district data:', error);
         setIsLoadingDistricts(false);
       }
     };
@@ -637,7 +637,7 @@ function MapLayers({
         const response = await fetch(url);
 
         if (!response.ok) {
-          console.error('Failed to fetch subdistrict data:', response.status);
+          console.log('Failed to fetch subdistrict data:', response.status);
           setIsLoadingSubDistricts(false);
           return;
         }
@@ -671,12 +671,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.error('Error fitting map to sub-district layer bounds:', error);
+            console.log('Error fitting map to sub-district layer bounds:', error);
           }
           setIsLoadingSubDistricts(false);
         });
       } catch (error) {
-        console.error('Error fetching or rendering sub-district data:', error);
+        console.log('Error fetching or rendering sub-district data:', error);
         setIsLoadingSubDistricts(false);
       }
     };
@@ -706,7 +706,7 @@ function MapLayers({
         const response = await fetch(url);
 
         if (!response.ok) {
-          console.error('Failed to fetch village data:', response.status);
+          console.log('Failed to fetch village data:', response.status);
           setIsLoadingVillages(false);
           return;
         }
@@ -797,12 +797,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.error('Error fitting map to village layer bounds:', error);
+            console.log('Error fitting map to village layer bounds:', error);
           }
           setIsLoadingVillages(false);
         });
       } catch (error) {
-        console.error('Error fetching or rendering village data:', error);
+        console.log('Error fetching or rendering village data:', error);
         setIsLoadingVillages(false);
       }
     };
@@ -901,7 +901,7 @@ export default function Map({
   }
 
   function setMapError(arg0: string | null) {
-    console.error('Map error:', arg0);
+    console.log('Map error:', arg0);
   }
 
   return (

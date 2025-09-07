@@ -112,7 +112,7 @@ const Navbar = (): JSX.Element => {
       <div className="container mx-auto px-4">
         {/* Mobile menu button */}
         <div className="flex justify-between items-center lg:hidden">
-          <div className="text-white font-bold text-lg">DSS</div>
+          <div className="text-white font-bold text-lg">Decision Support System</div>
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="text-white focus:outline-none p-2 rounded-md hover:bg-white hover:bg-opacity-10 transition-colors duration-200"
