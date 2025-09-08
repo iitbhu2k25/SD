@@ -6,6 +6,12 @@ from .forecast import GroundwaterForecastView
 from .upload_temp import CSVUploadView
 from .validate import CSVValidationView
 from .trends import GroundwaterTrendAnalysisView
+from .catchment import VillagesByCatchmentFileAPI
+from .recharge2 import GroundwaterRechargeView
+from .views import PopulationForecastAPI
+from .crops import GetCropsBySeasonView
+from .agriculture import AgriculturalDemandAPIView
+from .gsr import GSRComputeAPIView
 # from interpolation import InterpolateRasterView
 
 urlpatterns = [
@@ -17,4 +23,9 @@ urlpatterns = [
     path('validate-csv', CSVValidationView.as_view(), name='validate-csv'),
     path('trends', GroundwaterTrendAnalysisView.as_view(), name='trends'),
     path('villagescatchment', VillagesByCatchmentFileAPI.as_view(), name="villages-by-catchment-file"),
+    path('recharge2', GroundwaterRechargeView.as_view(), name='recharge'),
+    path("forecast-population", PopulationForecastAPI.as_view(), name="forecast-population"),
+    path('crops', GetCropsBySeasonView.as_view(), name='crops'),
+    path('agricultural', AgriculturalDemandAPIView.as_view(), name='agricultural'),
+    path('gsr', GSRComputeAPIView.as_view(), name='gsr'),
 ]

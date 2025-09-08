@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "mapplot",
     "authapp",
     "gwa",
+    "swa",
 ]
 
 MIDDLEWARE = [
@@ -128,7 +129,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://192.168.1.2:3000",
     "http://127.0.0.1:3000",
-    "http://172.16.32.67:3000", 
+    "http://172.16.32.69:3000", 
     # Add your frontend domain here
 ]
 CORS_ALLOW_CREDENTIALS = True
@@ -164,10 +165,9 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '192.168.1.5',
     '0.0.0.0',
-    'backend',
     '172.16.32.94',
     '172.22.176.1',
-    '172.16.32.67',
+    '172.16.32.69',
     # Add any other IPs you need
 ]
 # Media files (User uploaded files)

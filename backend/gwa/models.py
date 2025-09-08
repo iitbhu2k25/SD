@@ -91,3 +91,13 @@ class Well(models.Model):
 
     def __str__(self):
         return f"Well FID {self.FID_clip} in village {self.village_code_id}"
+    
+class Crop(models.Model):
+    season = models.CharField(max_length=100)
+    crop = models.CharField(max_length=100)
+    stage = models.CharField(max_length=100)
+    period = models.CharField(max_length=100)
+    crop_factor = models.FloatField()
+
+    def __str__(self):
+        return f"{self.crop}"

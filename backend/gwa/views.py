@@ -7,9 +7,13 @@ from .serializers import WellSerializer
 from .interpolation import InterpolateRasterView
 from .trend import GroundwaterTrendAnalysisView
 from .forecast import GroundwaterForecastView
+from .recharge2 import GroundwaterRechargeView
 from .upload_temp import CSVUploadView
 from .validate import CSVValidationView
 from .trends import GroundwaterTrendAnalysisView
+from .catchment import VillagesByCatchmentFileAPI
+from .crops import GetCropsBySeasonView
+
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import GEOSGeometry
@@ -48,140 +52,129 @@ class WellsAPI(APIView):
         serial = WellSerializer(wells, many=True)
         sorted_data = sorted(serial.data, key=lambda x: x['HYDROGRAPH'])
         return Response(sorted_data, status=status.HTTP_200_OK)
-
     
 
 
+import os
+import pandas as pd
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from Basic.models import Population_2011, Basic_village
+from django.conf import settings
 
 
-
-class VillagesByCatchmentFileAPI(APIView):
+class PopulationForecastAPI(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request, format=None):
-        """
-        Request JSON:
-        {
-          "catchment_no": 123
-        }
-        Response: list of villages (code, name) whose geometry intersects with the catchment polygon.
-        """
-        catchment_no = request.data.get("catchment_no", None)
-        if catchment_no is None:
-            return Response({"error": "catchment_no is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Shapefile paths in MEDIA
-        catch_path = os.path.join(settings.MEDIA_ROOT, "gwa_data", "gwa_shp", "Catchments", "Catchment.shp")
-        village_path = os.path.join(settings.MEDIA_ROOT, "gwa_data", "gwa_shp", "Final_Village", "Village.shp")
-
-        # Verify files exist (and rely on .dbf/.shx/.prj being present alongside)
-        if not os.path.exists(catch_path):
-            return Response({"error": "Catchment.shp not found in MEDIA"}, status=status.HTTP_404_NOT_FOUND)
-        if not os.path.exists(village_path):
-            return Response({"error": "Village.shp not found in MEDIA"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Open shapefiles
+    def post(self, request):
         try:
-            ds_c = DataSource(catch_path)
-            ds_v = DataSource(village_path)
-        except Exception as e:
-            return Response({"error": f"Failed to open shapefiles: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            village_codes = request.data.get("village_code")
+            subdistrict_codes = request.data.get("subdistrict_code")
+            csv_filename = request.data.get("csv_filename")  # 🔹 new field
+            lpcd = request.data.get("lpcd", 60)  # default 60
 
-        # Get layers
-        try:
-            layer_c = ds_c[0]  # First layer from catchment shapefile
-            layer_v = ds_v[0]  # First layer from village shapefile
-        except IndexError:
-            return Response({"error": "No layers found in shapefiles"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if not csv_filename:
+                return Response({"error": "csv_filename is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Field names mapping
-        CATCHMENT_NO_FIELD = "GRIDCODE"    # field in catchment.dbf
-        VIL_CODE_FIELD = "village_co"      # field in village.dbf  
-        NAME_FIELD = "shapeName"           # village name field
+            # 🔹 Build path
+            csv_path = os.path.join(settings.MEDIA_ROOT, "temp", csv_filename)
 
-        # Step 1: Find the target catchment polygon by GRIDCODE
-        target_catch = None
-        try:
-            for feat in layer_c:
-                catchment_value = feat.get(CATCHMENT_NO_FIELD)
-                if catchment_value is not None and str(catchment_value) == str(catchment_no):
-                    target_catch = feat
-                    break
-        except Exception as e:
-            return Response({"error": f"Error reading catchment features: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if not os.path.exists(csv_path):
+                return Response({"error": f"CSV file '{csv_filename}' not found in temp"}, status=status.HTTP_404_NOT_FOUND)
 
-        if target_catch is None:
-            return Response({"error": f"Catchment with GRIDCODE {catchment_no} not found"}, status=status.HTTP_404_NOT_FOUND)
+            # 🔹 Load CSV and detect maximum year
+            df = pd.read_csv(csv_path)
+            year_cols = [col for col in df.columns if col.upper().startswith(("PRE_", "POST_"))]
 
-        # Step 2: Prepare catchment geometry
-        try:
-            c_geom_ogr = target_catch.geom
-            if c_geom_ogr is None:
-                return Response({"error": f"Catchment {catchment_no} has no geometry"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            c_geom = GEOSGeometry(c_geom_ogr.wkt)
-            
-            # Set SRID for catchment geometry
-            if c_geom_ogr.srs and c_geom_ogr.srs.srid:
-                c_geom.srid = c_geom_ogr.srs.srid
+            if not year_cols:
+                return Response({"error": "CSV does not contain PRE_ / POST_ year columns"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Extract years from column names
+            years = [int(col.split("_")[1]) for col in year_cols if "_" in col]
+            if not years:
+                return Response({"error": "No valid year columns found in CSV"}, status=status.HTTP_400_BAD_REQUEST)
+
+            target_year = max(years)  # 🔹 maximum year
+
+            # ensure lpcd is numeric
+            try:
+                lpcd = float(lpcd)
+            except ValueError:
+                return Response({"error": "lpcd must be a number"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 🔹 Collect all villages
+            villages = []
+            if village_codes:
+                if not isinstance(village_codes, list):
+                    return Response({"error": "village_code must be a list"}, status=status.HTTP_400_BAD_REQUEST)
+                villages = Basic_village.objects.filter(village_code__in=village_codes)
+
+            elif subdistrict_codes:
+                if not isinstance(subdistrict_codes, list):
+                    return Response({"error": "subdistrict_code must be a list"}, status=status.HTTP_400_BAD_REQUEST)
+                villages = Basic_village.objects.filter(subdistrict_code_id__in=subdistrict_codes)
+
             else:
-                # Default to WGS84 if no SRID found
-                c_geom.srid = 4326
-                
-        except Exception as e:
-            return Response({"error": f"Failed to process catchment geometry: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({"error": "Provide either village_code or subdistrict_code"}, status=status.HTTP_400_BAD_REQUEST)
 
-        results = []
+            if not villages.exists():
+                return Response({"error": "No villages found for given input"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Step 3: Iterate through all villages and check spatial relationship
-        try:
-            for v_feat in layer_v:
+            results = []
+            base_year = 2011
+
+            for village in villages:
                 try:
-                    # Get village geometry
-                    v_geom_ogr = v_feat.geom
-                    if v_geom_ogr is None:
-                        continue  # Skip villages without geometry
-                    
-                    v_geom = GEOSGeometry(v_geom_ogr.wkt)
-                    
-                    # Set SRID for village geometry
-                    if v_geom_ogr.srs and v_geom_ogr.srs.srid:
-                        v_geom.srid = v_geom_ogr.srs.srid
-                    else:
-                        v_geom.srid = c_geom.srid  # Use catchment SRID as fallback
-                    
-                    # Transform coordinates if SRIDs don't match
-                    if v_geom.srid != c_geom.srid:
-                        try:
-                            v_geom.transform(c_geom.srid)
-                        except Exception:
-                            continue  # Skip if transformation fails
-                    
-                    # Step 4: Spatial intersection test
-                    # Check if village polygon intersects with catchment polygon
-                    if v_geom.intersects(c_geom):
-                        # Get village attributes
-                        village_code = v_feat.get(VIL_CODE_FIELD)
-                        village_name = v_feat.get(NAME_FIELD)
-                        
-                        # Create result item
-                        item = {
-                            "village_code": village_code if village_code is not None else "Unknown",
-                            "name": village_name if village_name is not None else f"Village_{village_code or 'Unknown'}"
-                        }
-                        results.append(item)
-                        
-                except Exception as e:
-                    # Log error but continue processing other villages
-                    print(f"Error processing village feature: {str(e)}")
+                    sub = Population_2011.objects.get(subdistrict_code=village.subdistrict_code_id)
+                except Population_2011.DoesNotExist:
+                    results.append({
+                        "village_code": village.village_code,
+                        "error": "Subdistrict data not found"
+                    })
                     continue
-                    
-        except Exception as e:
-            return Response({"error": f"Error processing village features: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Step 5: Return results
-        return Response({
-            "catchment_no": catchment_no,
-            "total_villages": len(results),
-            "villages": results
-        }, status=status.HTTP_200_OK)
+                # Historical populations
+                p1, p2, p3, p4, p5, p6, p7 = (
+                    sub.population_1951, sub.population_1961, sub.population_1971,
+                    sub.population_1981, sub.population_1991, sub.population_2001,
+                    sub.population_2011
+                )
+
+                # Decadal differences
+                d1, d2, d3, d4, d5, d6 = (p2-p1, p3-p2, p4-p3, p5-p4, p6-p5, p7-p6)
+                d_mean = (d1+d2+d3+d4+d5+d6) / 6
+                m_mean = ((d2-d1) + (d3-d2) + (d4-d3) + (d5-d4) + (d6-d5)) / 5
+
+                # Ratio k
+                k = village.population_2011 / p7
+
+                # Years difference
+                n = (target_year - base_year) / 10
+
+                # Forecast
+                forecast = int(
+                    village.population_2011 +
+                    (k * n * d_mean) +
+                    (k * (n * (n + 1)) * m_mean / 2)
+                )
+
+                # 🔹 Demand calculation (MLD)
+                demand = round(((forecast * lpcd) / 1000)*365, 3)
+
+                results.append({
+                    "village_code": village.village_code,
+                    "village_name": village.village_name,
+                    "subdistrict_code": village.subdistrict_code_id,
+                    "base_year": base_year,
+                    "target_year": target_year,   # 🔹 from CSV
+                    "population_2011": village.population_2011,
+                    "forecast_population": forecast,
+                    "lpcd": lpcd,
+                    "demand_mld": demand
+                })
+
+            return Response({"forecasts": results})
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

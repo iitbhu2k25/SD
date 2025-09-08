@@ -24,12 +24,12 @@ class GroundwaterForecastView(APIView):
         method = request.data.get('method')
         forecast_type = request.data.get('forecast_type')
         target_years = request.data.get('target_years')
-        timeseries_csv_filename = request.data.get('timeseries_csv_filename')
+        timeseries_yearly_csv_filename = request.data.get('timeseries_yearly_csv_filename')
 
         # Validate required fields
-        if not all([method, forecast_type, target_years, timeseries_csv_filename]):
+        if not all([method, forecast_type, target_years, timeseries_yearly_csv_filename]):
             return Response(
-                {"success": False, "message": "Missing required fields: method, forecast_type, target_years, or timeseries_csv_filename"},
+                {"success": False, "message": "Missing required fields: method, forecast_type, target_years, or timeseries_yearly_csv_filename"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -60,7 +60,7 @@ class GroundwaterForecastView(APIView):
 
         try:
             # Fetch CSV from media/temp/
-            csv_path = os.path.join('media', 'temp', timeseries_csv_filename)
+            csv_path = os.path.join('media', 'temp', timeseries_yearly_csv_filename)
             if not os.path.exists(csv_path):
                 return Response(
                     {"success": False, "message": f"CSV file not found at {csv_path}"},
@@ -150,7 +150,7 @@ class GroundwaterForecastView(APIView):
                     "method": "ARIMA" if use_arima else "Linear Regression",
                     "forecast_type": forecast_type,
                     "target_years": target_years,
-                    "timeseries_csv_filename": timeseries_csv_filename,
+                    "timeseries_yearly_csv_filename": timeseries_yearly_csv_filename,
                     "available_years": available_years,
                     "year_range": f"{min(available_years)}-{max(available_years)}"
                 },

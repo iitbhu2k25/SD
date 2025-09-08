@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StormwaterRunoffView, pdftotemp, swrunoffView, ShapefileDataAPI, VillagePopulationRawSQL, VillagePopulationAPI,MultipleVillagesAPI, VillagesCatchmentIntersection, AllStretches, Catchments, BasinAPI, RiverMapAPI, RiverStretched, Drain, CohortView, DefaultBaseMapAPI, StateShapefileAPI, MultipleDistrictsAPI,MultipleSubdistrictsAPI, Locations_stateAPI,Locations_districtAPI,Locations_subdistrictAPI,Locations_villageAPI,Time_series,Demographic,SewageCalculation,WaterSupplyCalculationAPI,DomesticWaterDemandCalculationAPIView,FloatingWaterDemandCalculationAPIView,InstitutionalWaterDemandCalculationAPIView,FirefightingWaterDemandCalculationAPIView
+from .views import StormwaterRunoffView, UploadShapefile, pdftotemp, swrunoffView, ShapefileDataAPI, VillagePopulationRawSQL, VillagePopulationAPI, VillagesCatchmentIntersection, AllStretches, Catchments, BasinAPI, RiverMapAPI, RiverStretched, Drain, CohortView, Locations_stateAPI,Locations_districtAPI,Locations_subdistrictAPI,Locations_villageAPI,Time_series,Demographic,SewageCalculation,WaterSupplyCalculationAPI,DomesticWaterDemandCalculationAPIView,FloatingWaterDemandCalculationAPIView,InstitutionalWaterDemandCalculationAPIView,FirefightingWaterDemandCalculationAPIView
 urlpatterns = [
     path("state",Locations_stateAPI.as_view(),name="states"),
     path("district",Locations_districtAPI.as_view(),name="districts"),
@@ -15,10 +15,10 @@ urlpatterns = [
     path('institutional_water_demand', InstitutionalWaterDemandCalculationAPIView.as_view(), name='institutional_water_demand'),
     path('firefighting_water_demand', FirefightingWaterDemandCalculationAPIView.as_view(), name='firefighting_water_demand'),
     path('cohort', CohortView.as_view(), name='cohort'),
-    path('basemap', DefaultBaseMapAPI.as_view(), name='default-base-map'),
-    path('state-shapefile', StateShapefileAPI.as_view(), name='state-shapefile'),
-    path('multiple-districts', MultipleDistrictsAPI.as_view(), name='multiple-districts'),
-    path('multiple-subdistricts', MultipleSubdistrictsAPI.as_view(), name='multiple-subdistricts'),
+    #path('basemap', DefaultBaseMapAPI.as_view(), name='default-base-map'),
+    #path('state-shapefile', StateShapefileAPI.as_view(), name='state-shapefile'),
+    #path('multiple-districts', MultipleDistrictsAPI.as_view(), name='multiple-districts'),
+    #path('multiple-subdistricts', MultipleSubdistrictsAPI.as_view(), name='multiple-subdistricts'),
     path('rivers', RiverMapAPI.as_view(), name='river-map'),
     path('river-stretched', RiverStretched.as_view(), name='river-stretched'), 
     path('drain', Drain.as_view(), name='drain'),
@@ -26,10 +26,11 @@ urlpatterns = [
     path('catchment', Catchments.as_view(), name='catchment'),
     path('all-stretches', AllStretches.as_view(), name='all-stretches'),
     path('catchment_village', VillagesCatchmentIntersection.as_view(),name='catchment_village'),
-    path('multiple-villages', MultipleVillagesAPI.as_view(), name='multiple-villages-api'),
+    # path('multiple-villages', MultipleVillagesAPI.as_view(), name='multiple-villages-api'),
     path('village-population', VillagePopulationAPI.as_view(), name='village-population'),
     path('village-population-raw', VillagePopulationRawSQL.as_view(), name='village-population-raw'),
     path('get_shapefile', ShapefileDataAPI.as_view(), name='get_data'),
+    path("upload-shapefile", UploadShapefile.as_view(), name="upload-shapefile"),
     path('swrunoff', swrunoffView.as_view(), name='get_data'),
     path('stormwaterrunoff', StormwaterRunoffView.as_view(), name='get_data'), 
     path('pdf', pdftotemp.as_view(), name='pdf-to-temp'),

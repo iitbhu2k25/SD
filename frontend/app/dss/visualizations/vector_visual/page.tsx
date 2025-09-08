@@ -79,7 +79,7 @@ export default function VectorPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <i className="fas fa-globe-asia text-2xl mr-2"></i>
-              <h3 className="text-xl font-semibold m-0">India GIS Vector Data Viewer</h3>
+              <h3 className="text-xl font-semibold m-0">(DSS-WRM) IIT BHU Vector Data Viewer Tool</h3>
             </div>
             <div className="text-right">
               <span className="text-light">Advanced Geospatial Analysis Tool</span>

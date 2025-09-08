@@ -35,12 +35,12 @@ export default function Features({ properties, onClose }: FeaturesProps) {
           <i className="fas fa-info-circle mr-2.5 text-lg"></i>
           <h5 className="text-base font-medium m-0">Feature Information</h5>
         </div>
-        <button 
+        {/* <button 
           onClick={onClose}
           className="bg-transparent border-none text-white text-base cursor-pointer transition-transform duration-200 hover:scale-125"
         >
           <i className="fas fa-times"></i>
-        </button>
+        </button> */}
       </div>
       <div id="feature-content" className="p-4 flex-1 overflow-y-auto">
         {renderProperties()}

@@ -3,7 +3,7 @@ from .models import *
 
 def Arithmetic_d_values(subdistrict):
     subdistrict_new_ids = [x['id'] for x in subdistrict]
-    ##print("subdistrict_new_ids", subdistrict_new_ids)
+    print("subdistrict_new_ids", subdistrict_new_ids)
         
         # Get population data for subdistricts
     subdistrict_2011 = list(Population_2011.objects.filter(
@@ -14,7 +14,7 @@ def Arithmetic_d_values(subdistrict):
         'population_2001', 'population_2011'
     ))
     
-    ##print("subdistrict_2011",subdistrict_2011)
+    print("subdistrict_2011",subdistrict_2011)
     
     # Calculate the total population for each decade
    
@@ -36,29 +36,29 @@ def Arithmetic_d_values(subdistrict):
 def Arithmetic_population_single_year(base_year,single_year,villages,subdistrict):
     output_year = {}
     ans=Arithmetic_d_values(subdistrict)
-    ##print("ans ", ans)
+    print("ans ", ans)
     if single_year:
         target_year = int(single_year)
         for village in villages: 
-            # #print("village", village)
+            # print("village", village)
             village_id, value ,vill_sub_id= village['id'],village['population'],village['subDistrictId']
             items= next(item for item in ans if item['subdistrict_code'] == vill_sub_id)
             output_year[village_id] = {
                 "2011": value,
                 str(target_year): int(value + ((items['annual_growth_rate'] * (target_year - base_year)) * (value / items['total_p7'])))
             }
-        #print(f"output year {output_year}")    
+        print(f"output year {output_year}")    
         Air_last_output={}
         Air_last_output['2011']=sum([values['2011'] for values in output_year.values()])
         Air_last_output[target_year]=sum([values[str(target_year)] for values in output_year.values()])
-        #print('Air_last_output',Air_last_output)
+        print('Air_last_output',Air_last_output)
         
     return Air_last_output
 
 def Arithmetic_population_range(base_year, start_year, end_year, villages, subdistrict):
     output_year = {}
     ans = Arithmetic_d_values(subdistrict)
-    #print("ans", ans)
+    print("ans", ans)
 
     # Compute the population projections for each village separately
     for village in villages:
@@ -73,14 +73,14 @@ def Arithmetic_population_range(base_year, start_year, end_year, villages, subdi
                 projected_value = int(value + ((items['annual_growth_rate'] * (year - base_year)) * (value / items['total_p7'])))
                 output_year[village_id][year] = projected_value
 
-    #print(f"Output years Range {output_year}")
+    print(f"Output years Range {output_year}")
 
     # Now sum the populations across all villages to get the final output
     Air_last_output = {"2011": sum(values["2011"] for values in output_year.values())}
     for year in range(start_year, end_year + 1):
         Air_last_output[year] = sum(values[year] for values in output_year.values())
 
-    #print(f"Air_last_output {Air_last_output}")
+    print(f"Air_last_output {Air_last_output}")
     return Air_last_output
 
 ##### this is for special case to include 2025 always but currently it is implement in main site but it is correct 
@@ -88,7 +88,7 @@ def Arithmetic_population_range(base_year, start_year, end_year, villages, subdi
 # def Arithmetic_population_range(base_year, start_year, end_year, villages, subdistrict):
 #     output_year = {}
 #     ans = Arithmetic_d_values(subdistrict)
-#     #print("ans", ans)
+#     print("ans", ans)
 
 #     # Force include base_year (2011) and final fixed year (2025) in the year range
 #     fixed_years = {base_year, 2025}
@@ -110,14 +110,14 @@ def Arithmetic_population_range(base_year, start_year, end_year, villages, subdi
 #                     projected_value = int(value + ((items['annual_growth_rate'] * (year - base_year)) * (value / items['total_p7'])))
 #                     output_year[village_id][year] = projected_value
 
-#     #print(f"Output years Range {output_year}")
+#     print(f"Output years Range {output_year}")
 
 #     # Aggregate population for each year
 #     Air_last_output = {}
 #     for year in full_years:
 #         Air_last_output[year] = sum(values.get(year, 0) for values in output_year.values())
 
-#     #print(f"Air_last_output {Air_last_output}")
+#     print(f"Air_last_output {Air_last_output}")
 #     return Air_last_output
 #####
 
@@ -182,31 +182,31 @@ def Geometric_d_values(subdistrict):
 def Geometric_population_single_year(base_year,single_year,villages,subdistrict):
     output_year = {}
     ans = Geometric_d_values(subdistrict)
-    #print(f"ans {ans}")
+    print(f"ans {ans}")
 
     if single_year:
         target_year = int(single_year)
         base_year = int(base_year)
         n = (target_year-base_year)/10
         for village in villages: 
-            # #print("village", village)
+            # print("village", village)
             village_id, value ,vill_sub_id= village['id'],village['population'],village['subDistrictId']
             items= next(item for item in ans if item['subdistrict_code'] == vill_sub_id)
             output_year[village_id] = {
                 "2011": value,
                 str(target_year): int(value * (math.pow((1 + (items['annual_growth_rate']/100)), n)))
             }
-        # #print(f"output year_g {output_year}")    
+        # print(f"output year_g {output_year}")    
         Air_last_output={}
         Air_last_output['2011']=sum([values['2011'] for values in output_year.values()])
         Air_last_output[target_year]=sum([values[str(target_year)] for values in output_year.values()])
-        #print('Air_last_output_g',Air_last_output)
+        print('Air_last_output_g',Air_last_output)
     return Air_last_output
 
 def Geometric_population_range(base_year, start_year, end_year, villages, subdistrict):
     output_year = {}
     ans = Geometric_d_values(subdistrict)
-    #print("ans-g", ans)
+    print("ans-g", ans)
     base_year = int(base_year)
     start_year = int(start_year)
     end_year = int(end_year)
@@ -225,14 +225,14 @@ def Geometric_population_range(base_year, start_year, end_year, villages, subdis
                 projected_value =  int(value * (math.pow((1 + (items['annual_growth_rate']/100)), n)))
                 output_year[village_id][year] = projected_value
 
-    #print(f"Output years Range {output_year}")
+    print(f"Output years Range {output_year}")
 
     # Now sum the populations across all villages to get the final output
     Air_last_output = {"2011": sum(values["2011"] for values in output_year.values())}
     for year in range(start_year, end_year + 1):
         Air_last_output[year] = sum(values[year] for values in output_year.values())
 
-    #print(f"Air_last_output {Air_last_output}")
+    print(f"Air_last_output {Air_last_output}")
     return Air_last_output
    
 
@@ -281,14 +281,14 @@ def Incremental_d_values(subdistrict):
 def Incremental_population_single_year(base_year,single_year,villages,subdistrict):
     output_year = {}
     ans = Incremental_d_values(subdistrict)
-    #print(f"ans_i {ans}")
+    print(f"ans_i {ans}")
 
     if single_year:
         target_year = int(single_year)
         base_year = int(base_year)
         n = (target_year-base_year)/10
         for village in villages: 
-            # #print("village", village)
+            # print("village", village)
             village_id, value ,vill_sub_id= village['id'],village['population'],village['subDistrictId']
            
             items= next(item for item in ans if item['subdistrict_code'] == vill_sub_id)
@@ -297,18 +297,18 @@ def Incremental_population_single_year(base_year,single_year,villages,subdistric
                 "2011": value,
                 str(target_year): int(value + k*n*items['d_mean'] + ((n*(n+1))*items['m_mean'] / 2)*k)
             }
-        # #print(f"output year_g {output_year}")    
+        # print(f"output year_g {output_year}")    
         Air_last_output={}
         Air_last_output['2011']=sum([values['2011'] for values in output_year.values()])
         Air_last_output[target_year]=sum([values[str(target_year)] for values in output_year.values()])
-        #print('Air_last_output_i',Air_last_output)
+        print('Air_last_output_i',Air_last_output)
     return Air_last_output
 
 def Incremental_population_range(base_year, start_year, end_year, villages, subdistrict):
 
     output_year = {}
     ans = Incremental_d_values(subdistrict)
-    #print("ans-g", ans)
+    print("ans-g", ans)
     base_year = int(base_year)
     start_year = int(start_year)
     end_year = int(end_year)
@@ -329,14 +329,14 @@ def Incremental_population_range(base_year, start_year, end_year, villages, subd
                 projected_value = int(value + k*n*items['d_mean'] + ((n*(n+1))*items['m_mean'] / 2)*k)
                 output_year[village_id][year] = projected_value
 
-    #print(f"Output years Range {output_year}")
+    print(f"Output years Range {output_year}")
 
     # Now sum the populations across all villages to get the final output
     Air_last_output = {"2011": sum(values["2011"] for values in output_year.values())}
     for year in range(start_year, end_year + 1):
         Air_last_output[year] = sum(values[year] for values in output_year.values())
 
-    #print(f"Air_last_output {Air_last_output}")
+    print(f"Air_last_output {Air_last_output}")
     return Air_last_output
 
 
@@ -398,14 +398,14 @@ def Exponential_d_values(subdistrict):
 def Exponential_population_single_year(base_year,single_year,villages,subdistrict):
     output_year = {}
     ans = Exponential_d_values(subdistrict)
-    #print(f"ans_i {ans}")
+    print(f"ans_i {ans}")
 
     if single_year:
         target_year = int(single_year)
         base_year = int(base_year)
         t = (target_year-base_year)
         for village in villages: 
-            # #print("village", village)
+            # print("village", village)
             village_id, value ,vill_sub_id= village['id'],village['population'],village['subDistrictId']
            
             items= next(item for item in ans if item['subdistrict_code'] == vill_sub_id)
@@ -414,11 +414,11 @@ def Exponential_population_single_year(base_year,single_year,villages,subdistric
                 "2011": value,
                 str(target_year): int(value * math.exp(items['growth_rate']*t))
             }
-        # #print(f"output year_g {output_year}")    
+        # print(f"output year_g {output_year}")    
         Air_last_output={}
         Air_last_output['2011']=sum([values['2011'] for values in output_year.values()])
         Air_last_output[target_year]=sum([values[str(target_year)] for values in output_year.values()])
-        #print('Air_last_output_i',Air_last_output)
+        print('Air_last_output_i',Air_last_output)
     return Air_last_output
 
 
@@ -426,7 +426,7 @@ def Exponential_population_range(base_year, start_year, end_year, villages, subd
 
     output_year = {}
     ans = Exponential_d_values(subdistrict)
-    #print("ans-g", ans)
+    print("ans-g", ans)
     base_year = int(base_year)
     start_year = int(start_year)
     end_year = int(end_year)
@@ -447,14 +447,14 @@ def Exponential_population_range(base_year, start_year, end_year, villages, subd
                 projected_value = int(value * math.exp(items['growth_rate']*t))
                 output_year[village_id][year] = projected_value
 
-    #print(f"Output years Range {output_year}")
+    print(f"Output years Range {output_year}")
 
     # Now sum the populations across all villages to get the final output
     Air_last_output = {"2011": sum(values["2011"] for values in output_year.values())}
     for year in range(start_year, end_year + 1):
         Air_last_output[year] = sum(values[year] for values in output_year.values())
 
-    #print(f"Air_last_output {Air_last_output}")
+    print(f"Air_last_output {Air_last_output}")
     return Air_last_output
 
 
@@ -465,17 +465,17 @@ def Demographic_population_single_year(base_year,single_year,villages,subdistric
         base_year = int(base_year)
         t = (target_year-base_year)
         for village in villages: 
-            # #print("village", village)
+            # print("village", village)
             village_id, value ,vill_sub_id= village['id'],village['population'],village['subDistrictId']
             output_year[village_id] = {
                 "2011": value,
                 str(target_year): int( value + (value * t * (annual_birth_rate-annual_death_rate)) + (t * (annual_emigration_rate - annual_immigration_rate)))
             }
-        #print(f"output year {output_year}")
+        print(f"output year {output_year}")
         Air_last_output={}
         Air_last_output['2011']=sum([values['2011'] for values in output_year.values()])
         Air_last_output[target_year]=sum([values[str(target_year)] for values in output_year.values()])
-        #print('Air_last_output_i',Air_last_output)
+        print('Air_last_output_i',Air_last_output)
     return Air_last_output
 
 
