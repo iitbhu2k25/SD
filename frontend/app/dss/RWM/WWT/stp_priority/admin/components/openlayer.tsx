@@ -508,7 +508,7 @@ const Maping: React.FC = () => {
         {/* Components */}
         <GISCompass />
         
-        {/* Hover Tooltip */}
+       
         <HoverTooltip 
           hoveredFeature={hoveredFeature} 
           mousePosition={mousePosition} 

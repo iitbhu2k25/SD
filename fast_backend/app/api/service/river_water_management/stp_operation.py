@@ -1063,7 +1063,7 @@ class STP_Area:
         self.N_CLASSES = 5  
         self.TOP_N_CLUSTERS = 3 
         self.USE_THRESHOLD_MODE = True 
-        self.SUITABILITY_THRESHOLD = 0.46
+        self.SUITABILITY_THRESHOLD = 0.417
         self.USE_FAST_CLASSIFICATION = True 
         self.MAX_SAMPLE_SIZE = 50000
     
@@ -1095,31 +1095,13 @@ class STP_Area:
         if len(valid_data) == 0:
             raise ValueError("Raster contains no valid data after cleaning")
         
-        data_min, data_max = valid_data.min(), valid_data.max()
-        valid_pixels = len(valid_data)
-        total_pixels = data.size
-        valid_percentage = (valid_pixels / total_pixels) * 100
-        
         return data, profile, res_x, res_y, transform, crs, bounds
     
     def apply_threshold_classification(self,data, threshold=0.353):    
         valid_mask = ~np.isnan(data) & (data >= 0) & (data <= 1) & np.isfinite(data)
-        valid_pixels = data[valid_mask]
-        
-        if len(valid_pixels) == 0:
-            raise ValueError("No valid pixels found in the dataset")
-
         suitable_mask = (data >= threshold) & valid_mask
-        
-        suitable_pixels = np.sum(suitable_mask)
-        suitable_percentage = (suitable_pixels / len(valid_pixels)) * 100
-        
-        if suitable_pixels == 0:
-            raise ValueError(f"No pixels meet the suitability threshold of {threshold}")
-        
         reclassified = np.zeros_like(data, dtype=np.uint8)
         reclassified[suitable_mask] = 5
-        
         return reclassified, threshold
     
     def calculate_required_pixels(self,required_area_m2, res_x, res_y):
@@ -1149,82 +1131,78 @@ class STP_Area:
         return suitable_mask
 
     def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None,max_area_m2=None):
-       
-       
         labeled_array, num_features = label(mask_array)
-        
-        if num_features == 0:
-            return None
-        
-        polygons = []
-        areas = []
-        
-      
-        
-        with tqdm(desc="Processing clusters", unit="cluster") as pbar:
-            for geom, value in shapes(labeled_array.astype(np.uint8), transform=transform):
-                if value > 0:  # Only process non-zero values
-                    poly = shape(geom)
-                    area_m2 = poly.area
-                    print("area_m2",area_m2,"min_area_m2",min_area_m2,"max_area_m2",max_area_m2)
-
-                    # Filter by minimum area if specified
-                    if  area_m2 >= min_area_m2 and area_m2 < max_area_m2:
-                        polygons.append(poly)
-                        areas.append(area_m2)
-                        pbar.update(1)
-        
+        polygons, areas = [], []
+        for geom, value in shapes(labeled_array.astype(np.uint8), transform=transform):
+            if value > 0:
+                poly = shape(geom)
+                area_m2 = poly.area
+                if min_area_m2 is None or area_m2 >= min_area_m2:
+                    polygons.append(poly)
+                    areas.append(area_m2)
         if not polygons:
-            print(" No clusters meet the minimum area requirement")
             return None
-        
         gdf = gpd.GeoDataFrame({
+            'cluster_id': range(1, len(polygons) + 1),
             'area_m2': areas,
             'area_ha': [a/10000 for a in areas],
             'geometry': polygons
         }, crs=crs)
-        gdf['cluster_id'] = gdf.index + 1
-
-        gdf = gdf.sort_values('area_m2', ascending=False).reset_index(drop=True)
-        gdf["Name"] = gdf.apply(
-            lambda row: f"Area (ha)   {row.area_ha}", axis=1
-        )
-        
-        return gdf
-
+        return gdf.sort_values('area_m2', ascending=False).reset_index(drop=True)
 
     def save_results(self,clusters_gdf, output_path, top_n=3):
 
         if clusters_gdf is None or len(clusters_gdf) == 0:
             return False
-        
-        top_clusters = clusters_gdf.head(top_n)
-        return RasterProcess().save_vector(vector=top_clusters,name=f"area_{uuid.uuid4().hex}")
+        if "closeness" in clusters_gdf.columns:
+            clusters_gdf = clusters_gdf.drop(columns=["closeness"])
 
+        return RasterProcess().save_vector(vector=clusters_gdf,name=f"area_{uuid.uuid4().hex}")
+    def display_results(self,clusters_gdf, required_area_ha, top_n=5, tolerance_pct=20):
+        if clusters_gdf is None or len(clusters_gdf) == 0:
+            raise ValueError("No clusters found")
+        tolerance = tolerance_pct / 100.0
+        selected = gpd.GeoDataFrame()
+        with tqdm(total=9, desc="Expanding tolerance", unit="step") as pbar:
+            while len(selected) < top_n and tolerance <= 1.0:
+                lower = required_area_ha * (1 - tolerance)
+                upper = required_area_ha * (1 + tolerance)
+                mask = (clusters_gdf["area_ha"] >= lower) & (clusters_gdf["area_ha"] <= upper)
+                selected = clusters_gdf[mask].copy()
+                if len(selected) < top_n:
+                    tolerance += 0.1
+                    pbar.update(1)
+                else:
+                    break
+        if len(selected) == 0:
+            print("❌ No clusters found even after tolerance expansion!")
+            return None
+        selected["closeness"] = (selected["area_ha"] - required_area_ha).abs()
+        selected = selected.sort_values("closeness").head(top_n).reset_index(drop=True)
+        print(f"✅ Selected {len(selected)} cluster(s) within {tolerance*100:.0f}% tolerance\n")
+        for _, row in selected.iterrows():
+            print(f" Cluster {row['cluster_id']}:")
+            print(f"   • Area: {row['area_ha']:.2f} ha")
+            print(f"   • Difference from Required: {row['closeness']:.2f} ha\n")
+        return selected
     def stp_area_finding(self,db:db_dependency,payload:STP_sutability_Area):
         raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']
         MLD_CAPACITY=payload.MLD_CAPACITY
-        val=payload.TREATMENT_TECHNOLOGY
         land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
-        required_area_ha = MLD_CAPACITY * land_per_mld
-        required_area_m2 = required_area_ha * 10000
-
-        max_area_ha = required_area_ha
-        if payload.CUSTOM_LAND_PER_MLD >0:
-            max_area_ha = required_area_ha + 5
-        max_area_m2 = max_area_ha * 10000
+        required_area_ha = MLD_CAPACITY * land_per_mld +(payload.CUSTOM_LAND_PER_MLD if payload.CUSTOM_LAND_PER_MLD else 0)
+        max_area_m2 = required_area_ha * 10000
 
 
         data, profile, res_x, res_y, transform, crs, bounds=self.read_raster(raster_path)
         reclassified, threshold_info = self.apply_threshold_classification(data, self.SUITABILITY_THRESHOLD)
         kernel_size, required_pixels, pixel_area = self.calculate_required_pixels(
-            required_area_m2, res_x, res_y
+            max_area_m2, res_x, res_y
         )
         suitable_mask = self.find_suitable_areas(reclassified, kernel_size, required_pixels, self.USE_THRESHOLD_MODE)
 
         clusters_gdf = self.extract_clusters_as_polygons(
-            suitable_mask, transform, crs, min_area_m2=required_area_m2,max_area_m2=max_area_m2
+            suitable_mask, transform, crs, min_area_m2=max_area_m2,max_area_m2=max_area_m2
         )
+        new_cluster=self.display_results(clusters_gdf, required_area_ha, top_n=3, tolerance_pct=20)
         temp_shape_file=Settings().TEMP_DIR+"/temp.shp"
-        return self.save_results(clusters_gdf,temp_shape_file,top_n=3)
-
+        return self.save_results(new_cluster,temp_shape_file,top_n=3)

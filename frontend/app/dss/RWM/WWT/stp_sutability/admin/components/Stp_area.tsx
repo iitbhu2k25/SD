@@ -5,6 +5,7 @@ import { api } from "@/services/api";
 import { useLocation } from "@/contexts/stp_sutability/admin/LocationContext";
 import { useMap } from "@/contexts/stp_sutability/admin/MapContext";
 import { result } from "lodash";
+import { toast } from "react-toastify";
 
 type FormValues = {
   stpAreaId: number;
@@ -29,24 +30,38 @@ export const TreatmentForm: React.FC = () => {
   const onSubmit = async (data: FormValues) => {
     const chosen = StpArea.find((opt) => opt.id == data.stpAreaId);
     if (chosen) {
-      setIsMapLoading(true);
-      OptSetStpArea(chosen);
+      try {
 
-      const layer_name = displayRaster.find(
-        (opt) => opt.file_name === "STP_Sutability"
-      )?.layer_name;
+        setIsMapLoading(true);
+        OptSetStpArea(chosen);
 
-      const response = await api.post("/stp_operation/stp_sutability_area", {
-        body: {
-          TREATMENT_TECHNOLOGY: chosen.id,
-          MLD_CAPACITY: data.mldCapacity,
-          CUSTOM_LAND_PER_MLD: data.customLand,
-          layer_name: layer_name,
-        },
-      });
+        const layer_name = displayRaster.find(
+          (opt) => opt.file_name === "STP_Sutability"
+        )?.layer_name;
 
-      setResultLayer(response.message as string);
-      setIsMapLoading(false);
+        const response = await api.post("/stp_operation/stp_sutability_area", {
+          body: {
+            TREATMENT_TECHNOLOGY: chosen.id,
+            MLD_CAPACITY: data.mldCapacity,
+            CUSTOM_LAND_PER_MLD: data.customLand,
+            layer_name: layer_name,
+          },
+        });
+        if (response.message ==false) {
+          console.log("No cluster found")
+          toast.error("No cluster found")
+          return
+        }
+        toast.success("cluster found")
+        setResultLayer(response.message as string);
+      }
+      catch (err) {
+        console.log(err)
+      }
+      finally {
+        setIsMapLoading(false);
+      }
+
     }
   };
 
@@ -57,10 +72,10 @@ export const TreatmentForm: React.FC = () => {
     >
       {/* Disco background */}
       <div className="absolute inset-0 bg-gradient-to-r from-yellow-500 via-purple-600 to-blue-500 animate-[gradient_6s_linear_infinite] bg-[length:400%_400%] opacity-20"></div>
-      
+
       <div className="relative z-10 bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl p-6">
         <h2 className="text-2xl font-extrabold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 via-purple-500 to-blue-500 animate-pulse">
-           STP Area and Location Finder 
+          STP Area and Location Finder
         </h2>
 
         {/* 1️⃣ MLD Capacity Input */}
@@ -153,7 +168,7 @@ export const TreatmentForm: React.FC = () => {
         {/* 4️⃣ Custom Land Slider */}
         <div className="mb-6">
           <label className="block text-gray-700 font-semibold mb-1">
-            Custom Land Area (per MLD)
+            Custom Land Area
           </label>
           <Controller
             name="customLand"
@@ -196,7 +211,7 @@ export const TreatmentForm: React.FC = () => {
           type="submit"
           className="w-full mt-4 bg-gradient-to-r from-yellow-500 via-purple-500 to-blue-500 hover:opacity-90 text-white font-bold py-2 rounded-lg shadow-lg animate-[pulse_2s_infinite] transition"
         >
-           Submit
+          Submit
         </button>
       </div>
     </form>

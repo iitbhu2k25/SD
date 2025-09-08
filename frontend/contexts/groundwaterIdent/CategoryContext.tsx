@@ -133,19 +133,8 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
 
       }
     };
-    const fetchArea = async ()=>{
-      try{
-        const response = await api.get("/stp_operation/get_stp_sutability_area") 
-        if (response.status != 201) {
-          throw new Error('Failed to fetch condition categories');
-        }
-        const data = await response.message as Stp_area[];
-        SetStpArea(data)
-      }catch(err){}
-    }
 
-    // Execute both fetch operations and set loading to false when completed
-    Promise.all([fetchConditionCategories(), fetchConstraintCategories(),fetchArea()])
+    Promise.all([fetchConditionCategories(), fetchConstraintCategories()])
       .finally(() => {
         setIsLoading(false);
       });
