@@ -1045,8 +1045,7 @@ class STPSutabilityMapper:
                     final_path=self.processor.clip_to_town_buffer(i['path'],clip=clip)
                 unique_store_name =Unique_name.unique_name(self.config.raster_store)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_name=Unique_name.unique_name("sld_")
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)   
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useRef } from "react";
 import { LocationProvider } from "@/contexts/stp_sutability/admin/LocationContext";
 import { CategoryProvider } from "@/contexts/stp_sutability/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_sutability/admin/MapContext";
@@ -17,23 +18,36 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import {TreatmentForm }from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Stp_area";
+import { api } from "@/services/api";
+import { TimerComponent } from "@/components/TimerComponent";
+import { useWebSocket } from "@/services/websocket";
+
 const MainContent = () => {
   // Add submitting state
   const [submitting, setSubmitting] = useState(false);
-
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
     "condition"
   );
+
 
   const {
     selectedCondition,
     selectedConstraint,
     setSelectedCategory,
     tableData,
-    
   } = useCategory();
-
-  const { selectionsLocked, confirmSelections, resetSelections } =
+  const [reportLoading, setReportLoading] = useState(false);
+    const [taskId, setTaskId] = useState<string | null>(null);
+    const [pdfDownloaded, setPdfDownloaded] = useState(false);
+    const timerRef = useRef<{ stopTimer: () => void }>(null); // Move inside component
+  
+    const { messages, sendMessage, isConnected } = useWebSocket(
+      taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : '',
+      { 
+        reconnect: false,
+      }
+    );
+  const { selectionsLocked,displayRaster, confirmSelections, resetSelections,selectedDistrictsNames,selectedStateName,selectedTownsNames,selectedSubDistrictsNames,selectedTowns} =
     useLocation();
 
   const { setstpOperation ,isMapLoading, loading, stpOperation} = useMap();
@@ -46,8 +60,74 @@ const MainContent = () => {
   const formatName = (fileName: string): string => {
     return fileName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
-  const handleReset = () => {
-    resetSelections();
+  useEffect(() => {
+    if (!messages.length || pdfDownloaded) return;
+    setReportLoading(true);
+    const last = messages[messages.length - 1];
+    try {
+      const parsed = JSON.parse(last);
+      if (parsed.status === 'SUCCESS') {
+        toast.success('Report generated successfully!');
+        sendMessage('SEND_FILE');
+        timerRef.current?.stopTimer(); // Stop timer on success
+        setPdfDownloaded(true);
+      } else if (parsed.status === 'FAILURE') {
+        toast.error(`Report failed: ${parsed.error || 'Unknown error'}`);
+        timerRef.current?.stopTimer(); // Stop timer on failure
+        setTaskId(null);
+      } else if (parsed.status === 'ERROR') {
+        toast.error(`WebSocket error: ${parsed.message || 'Unknown error'}`);
+        timerRef.current?.stopTimer(); // Stop timer on error
+        setTaskId(null);
+      }
+    } catch {
+      console.warn('Received non-JSON message:', last);
+    } finally {
+      setReportLoading(false);
+    }
+  }, [messages, sendMessage, pdfDownloaded]);
+
+  const handlereport = async (startTimer: () => void, stopTimer: () => void) => {
+    try {
+      setReportLoading(true);
+      startTimer();
+      const locationData = {
+        state: selectedStateName,
+        districts: selectedDistrictsNames,
+        subDistricts: selectedSubDistrictsNames,
+        towns: selectedTownsNames
+      };
+      const data = {
+        table: tableData,
+        raster: displayRaster,
+        place: "Admin",
+        clip: selectedTowns,
+        location: locationData,
+        weight_data: selectedCondition,
+        non_weight_data: selectedConstraint,
+      };
+      const response = await api.post("/stp_operation/stp_sutability_admin_report", {
+        body: data,
+      });
+      if (response.status != 201) {
+        stopTimer();
+        setReportLoading(false);
+        toast.error("Report failed", {
+          position: "top-center",
+        });
+        return null;
+      }
+      toast.success("Report generation started");
+      const task = response.message as Record<string, string>;
+      setTaskId(task['task_id']);
+      setPdfDownloaded(false);
+    } catch (error) {
+      console.log("Report error", error);
+      toast.error("Failed to start report");
+      stopTimer();
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -77,16 +157,16 @@ const MainContent = () => {
     <div className="min-h-screen bg-gray-50">
       {
         <WholeLoading
-          visible={loading || isMapLoading || stpOperation}
-          title={
-            stpOperation ? "Analyzing STP priorities" : "Loading Resources"
-          }
-          message={
-            stpOperation
-              ? "Analyzing site priorities and generating results..."
-              : "Fetching map data and initializing components..."
-          }
-        />
+        visible={loading || isMapLoading || stpOperation || reportLoading}
+        title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+        message={
+          stpOperation
+            ? "Analyzing site priorities and generating results..."
+            : reportLoading
+            ? "Generating report, please wait..."
+            : "Fetching map data and initializing components..."
+        }
+      />
       }
       <main className="px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
@@ -215,42 +295,33 @@ const MainContent = () => {
           
        
                 
-                {/* {tableData.length > 0 && (
-                  <div className="flex justify-start mt-8">
-                    <button
-                      type="button"
-                      onClick={handlereport}
-                      className="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16h8M8 12h8m-8-4h8M4 6h16M4 6v12M20 6v12"
-                        />
-                      </svg>
-                      Generate Report
-                    </button>
-                    <WholeLoading
-                      visible={reportLoading}
-                      title={"Generating report for STP priorities"}
-                      message={
-                          "Analyzing site priorities and generating results..."    
-                      }
-                    />
-                  </div>
-                )} */}
+                 {tableData.length > 0 && (
+                                <div className="flex m-8 justify-center">
+                                  <TimerComponent
+                                    ref={timerRef}
+                                    duration={60}
+                                    label="Generate Report"
+                                    onTimeout={() => {
+                                      setTaskId(null);
+                                      setReportLoading(false);
+                                    }}
+                                    onStart={() => setReportLoading(true)}
+                                    onStop={() => {
+                                      setReportLoading(false);
+                                      if (pdfDownloaded) {
+                                        toast.success('Report downloaded successfully!');
+                                      }
+                                    }}
+                                    
+                                    triggerAction={handlereport}
+                                    className="bg-white rounded-lg shadow-md p-4"
+                                    buttonClassName="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                                  />
+                                </div>
+                              )}
+                            </section>
+                          </div>
  
-            </section>
-          </div>
-
           {/* Map and Slider area - Now spans 4/12 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
             {/* Map Section with Larger Height */}

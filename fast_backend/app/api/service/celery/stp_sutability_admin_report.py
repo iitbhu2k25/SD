@@ -55,6 +55,7 @@ from rasterio.warp import calculate_default_transform, reproject
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
+from app.utils.network_conf import GeoConfig
 
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
@@ -126,14 +127,14 @@ class StaticTextData:
     Population_Density: str = ""
     Slope: str = ""
     Soil_Texture: str = ""
-    ASI_Sites: str = ""
-    Builtup: str = ""
-    Flood_Plain: str = ""
-    Groundwater_Depthh: str = ""
-    Highway: str = ""
-    Railway: str = ""
-    STP: str = ""
-    Water_Body: str = ""
+    ASI_Sites_constraint: str = ""
+    Builtup_constraint: str = ""
+    Flood_Plain_constraint: str = ""
+    Groundwater_Depth_constraint: str = ""
+    Highway_constraint: str = ""
+    Railway_constraint: str = ""
+    STP_constraint: str = ""
+    Water_Body_constraint: str = ""
     
    
 @dataclass
@@ -408,9 +409,11 @@ class TableGenerator:
             logger.error(f"Failed to create table: {e}")
             return None
 
-class SpatialDataset:
+class SpatialDataset(GeoConfig):
     def __init__(self):
-        self.village_path = Settings().villages_path
+        super().__init__()
+        self.village_path = self.villages_shapefile
+        self.town_path = self.town_shapefile
     
     def find_village(self,clip:list)->gpd.GeoDataFrame:
         try:
@@ -421,6 +424,24 @@ class SpatialDataset:
             
             gdf = gpd.read_file(self.village_path).to_crs(epsg=3857)
             gdf = gdf[gdf['subdis_cod'].isin(clip)]
+            
+            if gdf.empty:
+                raise ValidationError(f"No village polygon found for clip IDs: {clip}")
+            
+            return gdf
+        except Exception as e:
+            logger.error(f"Failed to filter villages: {e}")
+            raise
+        
+    def find_towns(self,clip:list)->gpd.GeoDataFrame:
+        try:
+            if not clip:
+                raise ValidationError("Clip list cannot be empty")
+            
+            validate_file_exists(self.town_shapefile, "Village file")
+            
+            gdf = gpd.read_file(self.town_shapefile).to_crs(epsg=3857)
+            gdf = gdf[gdf['ID'].isin(clip)]
             
             if gdf.empty:
                 raise ValidationError(f"No village polygon found for clip IDs: {clip}")
@@ -540,7 +561,7 @@ class MapGenerator:
         try:
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_village(clip=filtered_vector)
+            filtered = SpatialDataset().find_towns(clip=filtered_vector)
             filtered_new = filtered.to_crs("EPSG:3857")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
@@ -726,14 +747,14 @@ class StpDocument:
                Population_Density="Population density guides site placement by highlighting areas with greater sewage volumes, ensuring efficient resource use, and facilitating public health benefits where the need is highest (Lehner et al., 2022).",
                Slope="Slope influences drainage and construction stability; gentle slopes are optimal for gravity-based sewage flow, while steep slopes entail erosion risk and higher construction costs (Mansouri et al., 2013).",
                Soil_Texture="Soil texture affects the infiltration rate, retention of effluent, and risk of groundwater contamination. Well-balanced soils (loam) support safe operation, while sandy soils heighten risk of contaminant migration, and clay impedes drainage (US EPA, 1987).",
-               ASI_Sites="Locations protected by ASI must be excluded to safeguard cultural heritage and comply with legal requirements, as construction activities can damage irreplaceable monuments and violate national preservation laws (Mansouri et al., 2013).",
-               Builtup="Highly built-up zones must be masked due to land scarcity, community opposition, and incompatibility with local land use and public health protection. STP construction in developed urban areas is generally not feasible (Mansouri et al., 2013).",
-               Flood_Plain="Active flood plains are highly unsuitable for STP siting due to elevated risk of inundation, which can cause catastrophic equipment failure and contamination of surface waters. Regulatory and engineering standards require excluding these zones (Mansouri et al., 2013).",
-               Groundwater_Depthh="Sites with shallow groundwater tables are masked as unsuitable due to high risk of aquifer contamination by seepage, aligning with requirements for vadose zone thickness and sustainable hydrogeology (Ahmadi et al., 2017). In Varuna River Basin, depth < 2m is considered as the constraint zone to prevent the development of any treatment infrastructure",
-               Highway="Highways require exclusion zones to prevent interference with traffic flow, infrastructure risks, and exposure of travelers to possible odor and accidental releases. Buffering highways ensures the plant’s activities do not diminish road safety and environmental quality (Awawdeh, 2024). 60 m, as Right of Way (RoW) on either side of the highway is used to protect any development.",
-               Railway="Safety and infrastructure constraints necessitate avoiding railway corridors, as STP construction near railways can disrupt operations, pose accident risks, and violate regulatory setbacks for pollution control and vibration impact (Awawdeh, 2024). Therefore 100 m of distance on either of the side of the railway should not be considered as the suitable zone for the development.",
-               STP="The presence of existing STPs serves as a constraint for new plant siting to prevent redundancy, operational conflicts, and potential cumulative environmental impacts. This is standard to avoid overburdening infrastructure in a locale and promote spatialcoverage (Awawdeh, 2024).",
-               Water_Body="Proximity to rivers, lakes, or ponds is a constraint, since STPs can be a source of accidental pollution and must avoid flood-prone areas. Siting too close violates environmental regulations aimed at protecting aquatic ecosystems and human health due to waterborne exposure risks (Mansouri et al., 2013)"
+               ASI_Sites_constraint="Locations protected by ASI must be excluded to safeguard cultural heritage and comply with legal requirements, as construction activities can damage irreplaceable monuments and violate national preservation laws (Mansouri et al., 2013).",
+               Builtup_constraint="Highly built-up zones must be masked due to land scarcity, community opposition, and incompatibility with local land use and public health protection. STP construction in developed urban areas is generally not feasible (Mansouri et al., 2013).",
+               Flood_Plain_constraint="Active flood plains are highly unsuitable for STP siting due to elevated risk of inundation, which can cause catastrophic equipment failure and contamination of surface waters. Regulatory and engineering standards require excluding these zones (Mansouri et al., 2013).",
+               Groundwater_Depth_constraint="Sites with shallow groundwater tables are masked as unsuitable due to high risk of aquifer contamination by seepage, aligning with requirements for vadose zone thickness and sustainable hydrogeology (Ahmadi et al., 2017). In Varuna River Basin, depth < 2m is considered as the constraint zone to prevent the development of any treatment infrastructure",
+               Highway_constraint="Highways require exclusion zones to prevent interference with traffic flow, infrastructure risks, and exposure of travelers to possible odor and accidental releases. Buffering highways ensures the plant’s activities do not diminish road safety and environmental quality (Awawdeh, 2024). 60 m, as Right of Way (RoW) on either side of the highway is used to protect any development.",
+               Railway_constraint="Safety and infrastructure constraints necessitate avoiding railway corridors, as STP construction near railways can disrupt operations, pose accident risks, and violate regulatory setbacks for pollution control and vibration impact (Awawdeh, 2024). Therefore 100 m of distance on either of the side of the railway should not be considered as the suitable zone for the development.",
+               STP_constraint="The presence of existing STPs serves as a constraint for new plant siting to prevent redundancy, operational conflicts, and potential cumulative environmental impacts. This is standard to avoid overburdening infrastructure in a locale and promote spatialcoverage (Awawdeh, 2024).",
+               Water_Body_constraint="Proximity to rivers, lakes, or ponds is a constraint, since STPs can be a source of accidental pollution and must avoid flood-prone areas. Siting too close violates environmental regulations aimed at protecting aquatic ecosystems and human health due to waterborne exposure risks (Mansouri et al., 2013)"
             )
             
             table_data = TableData(village_raw_data=csv_data,weights_table=weight_data)
@@ -918,11 +939,21 @@ class ReportGenerator:
                                          self.style_manager.styles['SectionHeader']))
             
             summary_text = """
-            This report presents a geospatial and multi-criteria analysis for prioritizing villages and towns 
-            for the development or upgrading of Sewage Treatment Plants (STPs). The analysis integrates 
-            environmental, infrastructural, and demographic indicators to identify high-need areas within 
-            the study region. The outcomes are intended to support policy makers and urban planners in 
-            aligning sanitation interventions with SDG 6 targets on water and sanitation access.
+            This report presents a robust GIS-based multi-criteria module for identifying optimal sites
+            for Sewage Treatment Plants (STPs) according to diverse treatment technologies. By
+            harnessing several important conditioning and constraint raster datasets, the module
+            evaluates environmental, infrastructural, and technological factors to delineate locations
+            that will enable efficient and sustainable STP deployment. The outputs serve policy makers
+            and urban planners by ensuring strategic alignment with Sustainable Development Goal
+            (SDG) 6: “Ensure availability and sustainable management of water and sanitation for
+            all.” Specifically, the module supports achievement of SDG target 6.3 by facilitating water
+            quality improvements, reducing pollution, minimizing hazardous releases, and increasing
+            the proportion of safely treated and reused wastewater in the study region. By enabling
+            data-driven prioritization and design, this work also contributes to other SDGs including
+            SDG 3 (Good Health and Wellbeing), SDG 11 (Sustainable Cities and Communities), and
+            SDG 12 (Responsible Consumption and Production) through better resource management,
+            safer urban environments, and support for circular economy principles linked to water,
+            energy, and nutrient recovery.
             """
             
             self.elements.append(Paragraph(summary_text, self.style_manager.styles['JustifiedBody']))
@@ -936,8 +967,7 @@ class ReportGenerator:
         self.elements.append(Spacer(1, 0.2 * inch))
 
         # Compose your narrative and location details
-        narrative = ("The study area encompasses selected villages and urban settlements "
-                    "characterized by varied physiographic and hydrological conditions.")
+        narrative = ("The study area encompasses selected towns and cities characterized by varied physiographic and hydrological conditions.")
 
         lines = [
             narrative,
@@ -945,6 +975,8 @@ class ReportGenerator:
             f"State: {location_data[0][1]}",
             f"District(s): {', '.join(location_data[1][1])}",
             f"SubDistrict(s): {', '.join(location_data[2][1])}"
+            f"Towns: {', '.join(location_data[3][1])}"
+            f"Total population: {location_data[4][1]}"
         ]
         content = "<br/>".join(lines)
 
@@ -961,22 +993,34 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
             database_text = """
-            A range of spatial and non-spatial datasets were integrated for the STP prioritization analysis. 
-            The following thematic layers were used:
+            A range of spatial and non-spatial datasets were integrated for the STP
+            prioritization analysis. All these factors are categorized within two groups; first one is the
+            conditioning factor, and second one is the constraint factor.
             """
             
             self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
             
             # Factor descriptions
             factors = [
-                ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
-                ("Drainage Distance", self.static_data.Drainage_Distance),
-                ("Groundwater Depth", self.static_data.Groundwater_Depth),
-                ("Groundwater Quality", self.static_data.Groundwater_Quality),
-                ("LULC", self.static_data.LULC),
-                ("Major City Risk", self.static_data.Major_City_Risk),
-                ("Population", self.static_data.Population),
-                ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
+                ("Distance_From_Builtup", self.static_data.Distance_From_Builtup),
+                ("Distance_From_Waterbody", self.static_data.Distance_From_Waterbody),
+                ("Elevation",self.static_data.Elevation),
+                ("Geomorphology", self.static_data.Geomorphology),
+                ("Groundwater_Depth", self.static_data.Groundwater_Depth),
+                ("Groundwater_Quality", self.static_data.Groundwater_Quality),
+                ("Land_Availability", self.static_data.Land_Availability),
+                ("Land_Use_Land_Cover",self.static_data.Land_Use_Land_Cover),
+                ("Population_Density", self.static_data.Population_Density),
+                ("Slope", self.static_data.Slope),
+                ("Soil_Texture", self.static_data.Soil_Texture),
+                ("ASI_Sites_constraint", self.static_data.ASI_Sites_constraint),
+                ("Builtup_constraint", self.static_data.Builtup_constraint),
+                ("Flood_Plain_constraint", self.static_data.Flood_Plain_constraint),
+                ("Groundwater_Depth_constraint", self.static_data.Groundwater_Depth_constraint),
+                ("Highway_constraint", self.static_data.Highway_constraint),
+                ("Railway_constraint", self.static_data.Railway_constraint),
+                ("STP_constraint", self.static_data.STP_constraint),
+                ("Water_Body_constraint", self.static_data.Water_Body_constraint)
             ]
             
             for factor_name, description in factors:

@@ -214,3 +214,4 @@ class StpSutabilityAdminReport(BaseModel):
     raster: List[DataItem] = None
     location: LocationData
     weight_data: List[weight_insight]
+    non_weight_data: List[weight_insight]
