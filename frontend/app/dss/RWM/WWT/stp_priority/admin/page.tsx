@@ -7,6 +7,7 @@ import { CategoryProvider } from "@/contexts/stp_priority/admin/CategoryContext"
 import { MapProvider } from "@/contexts/stp_priority/admin/MapContext";
 import LocationSelector from "@/app/dss/RWM/WWT/stp_priority/admin/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
+import { TimerComponent } from "@/components/TimerComponent";
 import CategorySelector from "@/app/dss/RWM/WWT/stp_priority/admin/components/Category";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
@@ -19,7 +20,7 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import { useWebSocket } from "@/services/websocket";
-import { TimerComponent } from "@/components/timercomponent";
+
 
 const MainContent = () => {
   const { selectedCategories, stpProcess, tableData } = useCategory();

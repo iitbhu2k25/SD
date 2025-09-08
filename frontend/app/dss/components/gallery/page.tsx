@@ -22,7 +22,7 @@ const galleryImages = [
   '/Images/gallery/g10.webp',
 ];
 
-export const App = () => {
+export default function gallery() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-slate-50">
      
@@ -56,7 +56,3 @@ export const App = () => {
     </div>
   );
 };
-
-
-
-export default App;
