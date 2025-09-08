@@ -597,7 +597,7 @@ export default function Map(props: MapProps) {
       await waitForMap();
       if (!mapInstanceRef.current) throw new Error('Map not initialized after waiting');
 
-      const response = await fetch(`/basics/get_shapefile?category=${category}&subcategory=${subcategory}`);
+      const response = await fetch(`/django/get_shapefile?category=${category}&subcategory=${subcategory}`);
       if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
 
       const geoJsonData = await response.json();
@@ -933,7 +933,7 @@ export default function Map(props: MapProps) {
   const uploadToApi = async (files: FileList) => {
     const form = new FormData();
     Array.from(files).forEach(f => form.append('file', f)); // request.FILES.getlist("file")
-    const res = await fetch('/basics/upload-shapefile', {
+    const res = await fetch('/django/upload-shapefile', {
       method: 'POST',
       body: form,
     });

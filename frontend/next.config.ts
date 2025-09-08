@@ -20,8 +20,8 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:7000/api/:path*"
       },
       {
-        source: "/basics/:path*",
-        destination: "http://localhost:9000/basics/:path*",
+        source: "/django/:path*",
+        destination: "http://localhost:9000/django/:path*",
       },
     ]
   },

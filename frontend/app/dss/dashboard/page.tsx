@@ -1,55 +1,46 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
-import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
-
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { usePathname } from 'next/navigation'; // ✅ Ensure this is available with App Router
+import VarunaMap from './varunamap'; // ✅ Import VarunaMap
+// Interfaces
 interface Alert {
   type: string;
   severity: 'High' | 'Critical';
   message: string;
   location: string;
-  value?: number;      // 👈 optional value (for BOD/DO/COD/etc.)
-  threshold?: number;  // 👈 optional threshold
+  value?: number;
+  threshold?: number;
 }
-
 interface TabButtonProps {
   id: string;
   label: string;
   isActive: boolean;
-  onClick: (id: string) => void;  // ✅ This tells TypeScript that `id` is a string
+  onClick: (id: string) => void;
 }
-
-const TabButton: React.FC<TabButtonProps> = ({ id, label, isActive, onClick }) => {
-  return (
-    <button
-      className={`px-4 py-2 rounded-md transition ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-blue-600'}`}
-      onClick={() => onClick(id)}  // ✅ Here you're passing id back
-    >
-      {label}
-    </button>
-  );
-};
-
-
-
-// ✅ Dynamically import the Map component
-const Map = dynamic(
-  () => import('@/app/dss/visualizations/vector_visual/components/map'),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-96 bg-gray-100 flex items-center justify-center rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-sm text-gray-600">Loading Map...</p>
-        </div>
-      </div>
-    )
-  }
-);
-
-// Sample data based on your document
+interface DrainRecord {
+  id: number;
+  location: string;
+  stream?: string;
+  ph: number;
+  temp: number;
+  ec_us_cm: number;
+  tds_ppm: number;
+  do_mg_l: number;
+  turbidity: number;
+  tss_mg_l: number;
+  cod: number;
+  bod_mg_l: number;
+  ts_mg_l: number;
+  chloride: number;
+  nitrate: number;
+  faecal_col: string | null;
+  total_col: string | null;
+  lat: number | null;
+  lon: number | null;
+}
+// Sample Data
 const temporalData = [
   { month: 'Jul-09', temp: 34.1, pH: 8.0, DO: 1.8, BOD: 88, COD: 150, alkalinity: 300 },
   { month: 'Aug-09', temp: 33.0, pH: 7.6, DO: 2.0, BOD: 80, COD: 112, alkalinity: 220 },
@@ -64,7 +55,6 @@ const temporalData = [
   { month: 'May-10', temp: 34.8, pH: 8.1, DO: 1.8, BOD: 70, COD: 101, alkalinity: 379 },
   { month: 'Jun-10', temp: 35.5, pH: 8.5, DO: 1.0, BOD: 78, COD: 135, alkalinity: 395 }
 ];
-
 const spatialData = [
   { station: 'Mahadev Mandir, Prayagraj', district: 'Prayagraj', DO: 2.8, BOD: 5.16, COD: 31.1, status: 'Moderate' },
   { station: 'Mobi Deenpur Bridge, Bhadohi', district: 'Bhadohi', DO: 5.8, BOD: 5.6, COD: 18.7, status: 'Good' },
@@ -76,79 +66,6 @@ const spatialData = [
   { station: 'Varuna at Pishaura Bridge', district: 'Varanasi', DO: 7.2, BOD: 1.23, COD: 17.14, status: 'Good' },
   { station: 'Varuna at Kutchehari Bridge', district: 'Varanasi', DO: 4.1, BOD: 6.62, COD: 30.24, status: 'Poor' }
 ];
-
-// Drain Water Quality Data (ALL 68 records with temperature measurements)
-const drainWaterQualityData = [
-  { Location: "Varuna Pul (Kuchehri road)", pH: 5.38, Temperatur: "25.89°C", EC__S_cm_: 1282, TDS_ppm_: 641, DO_mg_L_: 41.35, Turbidity_: 69.8, TSS_mg_l_: 86, COD: 67.2, BOD_mg_l_: 26.4, TS_mg_l_: 727, Chloride_m: 42.96, Nitrate: 0.773, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Bheem Nagar", pH: 5.38, Temperatur: "25.10°C", EC__S_cm_: 1209, TDS_ppm_: 605, DO_mg_L_: 43.3, Turbidity_: 60.1, TSS_mg_l_: 162, COD: 70.4, BOD_mg_l_: 27.5, TS_mg_l_: 767, Chloride_m: 47.96, Nitrate: 1.564, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Varuna Pul (Kuchehri road)", pH: 5.4, Temperatur: "26.52°C", EC__S_cm_: 1293, TDS_ppm_: 647, DO_mg_L_: 39.55, Turbidity_: 73.4, TSS_mg_l_: 66, COD: 64, BOD_mg_l_: 25.65, TS_mg_l_: 713, Chloride_m: 48.96, Nitrate: 0.767, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Bheem Nagar", pH: 5.4, Temperatur: "25.88°C", EC__S_cm_: 1248, TDS_ppm_: 624, DO_mg_L_: 43.3, Turbidity_: 59.1, TSS_mg_l_: 0, COD: 0, BOD_mg_l_: 29.2, TS_mg_l_: 624, Chloride_m: 0, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Dhelwariyan", pH: 5.41, Temperatur: "28.99°C", EC__S_cm_: 1338, TDS_ppm_: 669, DO_mg_L_: 36, Turbidity_: 74, TSS_mg_l_: 72, COD: 92.8, BOD_mg_l_: 23.05, TS_mg_l_: 741, Chloride_m: 44.96, Nitrate: 2.008, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Nakki Ghat", pH: 5.42, Temperatur: "30.05°C", EC__S_cm_: 1308, TDS_ppm_: 654, DO_mg_L_: 30.55, Turbidity_: 69.8, TSS_mg_l_: 208, COD: 64, BOD_mg_l_: 20.05, TS_mg_l_: 862, Chloride_m: 47.96, Nitrate: 1.111, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Bagwanaara (Halmauja)", pH: 5.42, Temperatur: "26.24°C", EC__S_cm_: 1300, TDS_ppm_: 650, DO_mg_L_: 32.45, Turbidity_: 87.2, TSS_mg_l_: 188, COD: 70.4, BOD_mg_l_: 21.35, TS_mg_l_: 838, Chloride_m: 48.96, Nitrate: 2.053, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "BagwanaaLa (Halmauja)", pH: 5.42, Temperatur: "27.24°C", EC__S_cm_: 1311, TDS_ppm_: 655, DO_mg_L_: 34.25, Turbidity_: 53.7, TSS_mg_l_: 78, COD: 64, BOD_mg_l_: 22.15, TS_mg_l_: 733, Chloride_m: 48.96, Nitrate: 1.658, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Dhelwariyan", pH: 5.42, Temperatur: "28.76°C", EC__S_cm_: 1315, TDS_ppm_: 657, DO_mg_L_: 37.8, Turbidity_: 59.7, TSS_mg_l_: 230, COD: 72.8, BOD_mg_l_: 24.55, TS_mg_l_: 887, Chloride_m: 48.96, Nitrate: 1.792, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Koniya (Sitla Mata Mandir)", pH: 5.43, Temperatur: "24.40°C", EC__S_cm_: 1268, TDS_ppm_: 634, DO_mg_L_: 24.75, Turbidity_: 112, TSS_mg_l_: 220, COD: 86.4, BOD_mg_l_: 15.6, TS_mg_l_: 854, Chloride_m: 46.96, Nitrate: 2.023, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Nakki Ghat", pH: 5.44, Temperatur: "29.05°C", EC__S_cm_: 1331, TDS_ppm_: 666, DO_mg_L_: 28.55, Turbidity_: 70.2, TSS_mg_l_: 234, COD: 86.4, BOD_mg_l_: 18.65, TS_mg_l_: 900, Chloride_m: 49.96, Nitrate: 2.653, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Koniya (Sitla Mata Mandir)", pH: 5.45, Temperatur: "24.46°C", EC__S_cm_: 1271, TDS_ppm_: 635, DO_mg_L_: 26.6, Turbidity_: 112, TSS_mg_l_: 194, COD: 102.4, BOD_mg_l_: 17.1, TS_mg_l_: 829, Chloride_m: 49.96, Nitrate: 1.061, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Sail putri (Puranapul)", pH: 5.46, Temperatur: "28.32°C", EC__S_cm_: 1314, TDS_ppm_: 657, DO_mg_L_: 21.1, Turbidity_: 77.6, TSS_mg_l_: 12, COD: 64, BOD_mg_l_: 13.95, TS_mg_l_: 669, Chloride_m: 46.96, Nitrate: 1893, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Sail putri (Puranapul)", pH: 5.46, Temperatur: "28.32°C", EC__S_cm_: 1312, TDS_ppm_: 656, DO_mg_L_: 22.9, Turbidity_: 144, TSS_mg_l_: 32, COD: 86.4, BOD_mg_l_: 14.7, TS_mg_l_: 688, Chloride_m: 50.96, Nitrate: 1.923, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Paraspur Bhejwariya", pH: 5.7, Temperatur: "27.93°C", EC__S_cm_: 1334, TDS_ppm_: 667, DO_mg_L_: 0.18, Turbidity_: 77, TSS_mg_l_: 0.39, COD: 205.1, BOD_mg_l_: 20.75, TS_mg_l_: 667.39, Chloride_m: 44.66, Nitrate: "N/A", Faecal_Col: "81,000-100,000", Total_Coli: "150,000-180,000" },
-  { Location: "Imiliya ghaat", pH: 5.89, Temperatur: "25.19°C", EC__S_cm_: 1362, TDS_ppm_: 681, DO_mg_L_: 19.25, Turbidity_: 141, TSS_mg_l_: 174, COD: 76.8, BOD_mg_l_: 12.75, TS_mg_l_: 855, Chloride_m: 50.96, Nitrate: 1.117, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Imiliya ghaat", pH: 5.9, Temperatur: "25.22°C", EC__S_cm_: 1363, TDS_ppm_: 682, DO_mg_L_: 17.7, Turbidity_: 63, TSS_mg_l_: 24, COD: 96, BOD_mg_l_: 11.35, TS_mg_l_: 706, Chloride_m: 58.95, Nitrate: 1.541, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Kotawaan 2,(Tadiya)", pH: 5.92, Temperatur: "26.31°C", EC__S_cm_: 1216, TDS_ppm_: 608, DO_mg_L_: 11.05, Turbidity_: 51.8, TSS_mg_l_: 250, COD: 86.4, BOD_mg_l_: 8.2, TS_mg_l_: 858, Chloride_m: 44.96, Nitrate: 2.058, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Kotawaan 1, (chittauni)", pH: 5.92, Temperatur: "26.69°C", EC__S_cm_: 868, TDS_ppm_: 434, DO_mg_L_: 5.05, Turbidity_: 34.2, TSS_mg_l_: 228, COD: 80, BOD_mg_l_: 5.7, TS_mg_l_: 662, Chloride_m: 49.96, Nitrate: 2.122, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Kotawaan 2,(Tadiya)", pH: 5.93, Temperatur: "26.30°C", EC__S_cm_: 1215, TDS_ppm_: 608, DO_mg_L_: 9.15, Turbidity_: 47, TSS_mg_l_: 188, COD: 76.8, BOD_mg_l_: 7.65, TS_mg_l_: 796, Chloride_m: 34.97, Nitrate: 1.671, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Gate No. 5, Phulwariya", pH: 5.95, Temperatur: "26.20°C", EC__S_cm_: 1171, TDS_ppm_: 586, DO_mg_L_: 13, Turbidity_: 53.8, TSS_mg_l_: 18, COD: 76.8, BOD_mg_l_: 9.3, TS_mg_l_: 604, Chloride_m: 49.96, Nitrate: 2.058, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Gate No. 5, Phulwariya", pH: 5.96, Temperatur: "26.72°C", EC__S_cm_: 1401, TDS_ppm_: 701, DO_mg_L_: 15.15, Turbidity_: 75.7, TSS_mg_l_: 94, COD: 76.8, BOD_mg_l_: 10.3, TS_mg_l_: 795, Chloride_m: 59.95, Nitrate: 1.886, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Kotawaan 1, (chittauni)", pH: 5.98, Temperatur: "26.61°C", EC__S_cm_: 1188, TDS_ppm_: 594, DO_mg_L_: 7.15, Turbidity_: 66.9, TSS_mg_l_: 392, COD: 64, BOD_mg_l_: 6.95, TS_mg_l_: 986, Chloride_m: 19.98, Nitrate: 1.204, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Rameshwaram Temple", pH: 5.98, Temperatur: "27.90°C", EC__S_cm_: 775, TDS_ppm_: 387, DO_mg_L_: 2.95, Turbidity_: 4.8, TSS_mg_l_: 22, COD: 60.8, BOD_mg_l_: 2.6, TS_mg_l_: 409, Chloride_m: 29.98, Nitrate: 1.623, Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Dharaura pul", pH: 6.95, Temperatur: "27.90°C", EC__S_cm_: 1490, TDS_ppm_: 714, DO_mg_L_: 0.23, Turbidity_: 148, TSS_mg_l_: 0.55, COD: 253.3, BOD_mg_l_: 18.1, TS_mg_l_: 714.55, Chloride_m: 60.54, Nitrate: "N/A", Faecal_Col: "26,000-34,000", Total_Coli: "55,000-65,000" },
-  { Location: "Dhraura", pH: 7.25, Temperatur: "30.70°C", EC__S_cm_: 1441, TDS_ppm_: 720, DO_mg_L_: 1.6, Turbidity_: 68.7, TSS_mg_l_: 0.456, COD: 190.4, BOD_mg_l_: 19.05, TS_mg_l_: 720.456, Chloride_m: 56.75, Nitrate: "N/A", Faecal_Col: "11,000-16,000", Total_Coli: "21,000-33,000" },
-  { Location: "Dhraura", pH: 7.28, Temperatur: "30.50°C", EC__S_cm_: 1515, TDS_ppm_: 758, DO_mg_L_: 0.82, Turbidity_: 55.9, TSS_mg_l_: 0.32, COD: 61.1, BOD_mg_l_: 17.25, TS_mg_l_: 758.32, Chloride_m: 59.41, Nitrate: "N/A", Faecal_Col: "21,000-27,000", Total_Coli: "41,000-55,000" },
-  { Location: "Mai Bridge", pH: 7.32, Temperatur: "27.70°C", EC__S_cm_: 674, TDS_ppm_: 337, DO_mg_L_: 5.3, Turbidity_: 8.5, TSS_mg_l_: 0.33, COD: 107.1, BOD_mg_l_: 16.5, TS_mg_l_: 337.33, Chloride_m: 33.75, Nitrate: "N/A", Faecal_Col: "11,000-17,000", Total_Coli: "24,000-32,000" },
-  { Location: "Morwa", pH: 7.32, Temperatur: "26.30°C", EC__S_cm_: 543, TDS_ppm_: 209, DO_mg_L_: 3.41, Turbidity_: 14.6, TSS_mg_l_: 0.643, COD: 40, BOD_mg_l_: 6.49, TS_mg_l_: 209.643, Chloride_m: 41.97, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Dhraura", pH: 7.49, Temperatur: "28.80°C", EC__S_cm_: 1520, TDS_ppm_: 760, DO_mg_L_: 0.51, Turbidity_: 129, TSS_mg_l_: 0.194, COD: 211.2, BOD_mg_l_: 24.25, TS_mg_l_: 760.194, Chloride_m: 63.51, Nitrate: "N/A", Faecal_Col: "93,000-110,000", Total_Coli: "180,000-220,000" },
-  { Location: "Rameshwaram Temple", pH: 7.54, Temperatur: "30.80°C", EC__S_cm_: 650, TDS_ppm_: 325, DO_mg_L_: 5.43, Turbidity_: 5, TSS_mg_l_: 0.374, COD: 141.5, BOD_mg_l_: 20.5, TS_mg_l_: 325.374, Chloride_m: 40.54, Nitrate: "N/A", Faecal_Col: "18,000-25,000", Total_Coli: "35,000-45,000" },
-  { Location: "Lashkar Bhemnagar", pH: 7.6, Temperatur: "30.81°C", EC__S_cm_: 1044, TDS_ppm_: 522, DO_mg_L_: 0.5, Turbidity_: 499, TSS_mg_l_: 0.362, COD: 94.1, BOD_mg_l_: 17.64, TS_mg_l_: 522.362, Chloride_m: 49.63, Nitrate: "N/A", Faecal_Col: "15,000-22,000", Total_Coli: "30,000-40,000" },
-  { Location: "Lashkar Bhemnagar", pH: 7.64, Temperatur: "30.67°C", EC__S_cm_: 997, TDS_ppm_: 498, DO_mg_L_: 2.01, Turbidity_: 59.3, TSS_mg_l_: 0.456, COD: 105.2, BOD_mg_l_: 15.84, TS_mg_l_: 498.456, Chloride_m: 50.64, Nitrate: "N/A", Faecal_Col: "17,000-19,000", Total_Coli: "50,000-64,000" },
-  { Location: "Dharaura pul", pH: 7.67, Temperatur: "28.50°C", EC__S_cm_: 1245, TDS_ppm_: 567, DO_mg_L_: 1.54, Turbidity_: 76.8, TSS_mg_l_: 0.308, COD: 136.8, BOD_mg_l_: 21.6, TS_mg_l_: 567.308, Chloride_m: 48.63, Nitrate: "N/A", Faecal_Col: "16,000-23,000", Total_Coli: "31,000-45,000" },
-  { Location: "Varuna (US) Before morwa", pH: 7.73, Temperatur: "25.50°C", EC__S_cm_: 560, TDS_ppm_: 205, DO_mg_L_: 3.32, Turbidity_: 15.5, TSS_mg_l_: 0.523, COD: 237.4, BOD_mg_l_: 3.79, TS_mg_l_: 205.523, Chloride_m: 28.98, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Purapul (Vatsalya Bridge)(US)", pH: 7.75, Temperatur: "27.63°C", EC__S_cm_: 1174, TDS_ppm_: 587, DO_mg_L_: 4.74, Turbidity_: 150, TSS_mg_l_: 0.48, COD: 28, BOD_mg_l_: 0.6, TS_mg_l_: 587.48, Chloride_m: 55.95, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Lashkar Bhemnagar", pH: 7.75, Temperatur: "29.43°C", EC__S_cm_: 1263, TDS_ppm_: 631, DO_mg_L_: 0.62, Turbidity_: 59.3, TSS_mg_l_: 0.846, COD: 221.1, BOD_mg_l_: 21.7, TS_mg_l_: 631.846, Chloride_m: 50.62, Nitrate: "N/A", Faecal_Col: "60,000-100,000", Total_Coli: "130,000-120,000" },
-  { Location: "Koirajpur Drain(US)", pH: 7.75, Temperatur: "31.65°C", EC__S_cm_: 795, TDS_ppm_: 398, DO_mg_L_: 6.14, Turbidity_: 46.7, TSS_mg_l_: 0.466, COD: 80.6, BOD_mg_l_: 6.8, TS_mg_l_: 398.466, Chloride_m: 55.9, Nitrate: "N/A", Faecal_Col: "15,000-17,000", Total_Coli: "40,000-49,000" },
-  { Location: "Kuri Drain(US)", pH: 7.79, Temperatur: "34.41°C", EC__S_cm_: 664, TDS_ppm_: 332, DO_mg_L_: 4.17, Turbidity_: 16.8, TSS_mg_l_: 0.187, COD: 100.6, BOD_mg_l_: 9.5, TS_mg_l_: 332.187, Chloride_m: 54.8, Nitrate: "N/A", Faecal_Col: "17,000-20,000", Total_Coli: "46,000-50,000" },
-  { Location: "Koirajpur Drain", pH: 7.8, Temperatur: "27.88°C", EC__S_cm_: 1058, TDS_ppm_: 52.9, DO_mg_L_: 1.76, Turbidity_: 72.8, TSS_mg_l_: 0.496, COD: 450.5, BOD_mg_l_: 21.87, TS_mg_l_: 53.396, Chloride_m: 69, Nitrate: "N/A", Faecal_Col: "50,000-55,000", Total_Coli: "164,000-170,000" },
-  { Location: "Ojhapur Jamalapur US", pH: 7.82, Temperatur: "35.14°C", EC__S_cm_: 428, TDS_ppm_: 214, DO_mg_L_: 22.5, Turbidity_: 2.31, TSS_mg_l_: 0.452, COD: 71.6, BOD_mg_l_: 28.9, TS_mg_l_: 214.452, Chloride_m: 292, Nitrate: "N/A", Faecal_Col: "52,000-55,000", Total_Coli: "100,000-150,000" },
-  { Location: "Purapul (Vatsalya Bridge)(DS)", pH: 7.84, Temperatur: "28.30°C", EC__S_cm_: 1185, TDS_ppm_: 577, DO_mg_L_: 4.54, Turbidity_: 190, TSS_mg_l_: 0.44, COD: 88, BOD_mg_l_: 2.85, TS_mg_l_: 577.44, Chloride_m: 48.96, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Ojhapur Jamalapur Drain", pH: 7.87, Temperatur: "30.87°C", EC__S_cm_: 2134, TDS_ppm_: 1067, DO_mg_L_: 0.76, Turbidity_: 113, TSS_mg_l_: 0.614, COD: 170.6, BOD_mg_l_: 51.3, TS_mg_l_: 1067.614, Chloride_m: 348, Nitrate: "N/A", Faecal_Col: "200,000-210,000", Total_Coli: "350,000-500,000" },
-  { Location: "Masjidiya ghat Drain(DS)", pH: 7.89, Temperatur: "33.07°C", EC__S_cm_: 911, TDS_ppm_: 456, DO_mg_L_: 7.27, Turbidity_: 23.9, TSS_mg_l_: 0.346, COD: 150.4, BOD_mg_l_: 15.6, TS_mg_l_: 456.346, Chloride_m: 59, Nitrate: "N/A", Faecal_Col: "21,000-23,000", Total_Coli: "42,000-45,000" },
-  { Location: "Koirajpur Drain(DS)", pH: 7.89, Temperatur: "30.61°C", EC__S_cm_: 845, TDS_ppm_: 422, DO_mg_L_: 5.06, Turbidity_: 68.1, TSS_mg_l_: 0.522, COD: 160.6, BOD_mg_l_: 20.9, TS_mg_l_: 422.522, Chloride_m: 54.7, Nitrate: "N/A", Faecal_Col: "47,000-48,000", Total_Coli: "60,000-65,000" },
-  { Location: "Bikapur Drain", pH: 7.9, Temperatur: "25.88°C", EC__S_cm_: 691, TDS_ppm_: 345, DO_mg_L_: 1.01, Turbidity_: 33.5, TSS_mg_l_: 0.678, COD: 50.9, BOD_mg_l_: 45.8, TS_mg_l_: 345.678, Chloride_m: 432, Nitrate: "N/A", Faecal_Col: "250,000-260,000", Total_Coli: "450,000-600,000" },
-  { Location: "Masjidiya ghat Drain", pH: 7.94, Temperatur: "29.35°C", EC__S_cm_: 1358, TDS_ppm_: 679, DO_mg_L_: 1.11, Turbidity_: 169, TSS_mg_l_: 0.604, COD: 300.6, BOD_mg_l_: 60.7, TS_mg_l_: 679.604, Chloride_m: 76.9, Nitrate: "N/A", Faecal_Col: "40,000-45,000", Total_Coli: "230,000-240,000" },
-  { Location: "Kuri Drain", pH: 7.94, Temperatur: "31.78°C", EC__S_cm_: 1291, TDS_ppm_: 645, DO_mg_L_: 0.83, Turbidity_: 646, TSS_mg_l_: 0.32, COD: 289.6, BOD_mg_l_: 50.7, TS_mg_l_: 645.32, Chloride_m: 71.9, Nitrate: "N/A", Faecal_Col: "30,000-45,000", Total_Coli: "175,000-179,000" },
-  { Location: "Ojhapur Jamalapur DS", pH: 7.94, Temperatur: "33.72°C", EC__S_cm_: 471, TDS_ppm_: 236, DO_mg_L_: 2.35, Turbidity_: 14, TSS_mg_l_: 0.412, COD: 165.8, BOD_mg_l_: 40.7, TS_mg_l_: 236.412, Chloride_m: 344, Nitrate: "N/A", Faecal_Col: "23,000-26,000", Total_Coli: "45,000-70,000" },
-  { Location: "Jogipur Drain", pH: 7.96, Temperatur: "29.96°C", EC__S_cm_: 747, TDS_ppm_: 373, DO_mg_L_: 0.67, Turbidity_: 113, TSS_mg_l_: 0.641, COD: 36.7, BOD_mg_l_: 39.6, TS_mg_l_: 373.641, Chloride_m: 227, Nitrate: "N/A", Faecal_Col: "38,000-40,000", Total_Coli: "75,000-100,000" },
-  { Location: "Bikapur US", pH: 7.98, Temperatur: "26.56°C", EC__S_cm_: 423, TDS_ppm_: 218, DO_mg_L_: 1.51, Turbidity_: 423, TSS_mg_l_: 0.431, COD: 96.6, BOD_mg_l_: 30.8, TS_mg_l_: 218.431, Chloride_m: 356, Nitrate: "N/A", Faecal_Col: "32,000-40,000", Total_Coli: "60,000-100,000" },
-  { Location: "Kalikadham Drain(DS)", pH: 7.99, Temperatur: "35.26°C", EC__S_cm_: 687, TDS_ppm_: 344, DO_mg_L_: 5.17, Turbidity_: 4.2, TSS_mg_l_: 0.506, COD: 180.6, BOD_mg_l_: 18.98, TS_mg_l_: 344.506, Chloride_m: 54.9, Nitrate: "N/A", Faecal_Col: "25,000-26,000", Total_Coli: "93,000-95,000" },
-  { Location: "Bikapur DS", pH: 7.99, Temperatur: "24.64°C", EC__S_cm_: 928, TDS_ppm_: 464, DO_mg_L_: 1.56, Turbidity_: 90.9, TSS_mg_l_: 0.467, COD: 102.8, BOD_mg_l_: 32.5, TS_mg_l_: 464.467, Chloride_m: 323, Nitrate: "N/A", Faecal_Col: "65,000-70,000", Total_Coli: "120,000-180,000" },
-  { Location: "Jogipur US", pH: 7.99, Temperatur: "28.13°C", EC__S_cm_: 2348, TDS_ppm_: 1174, DO_mg_L_: 0.8, Turbidity_: 17.6, TSS_mg_l_: 0.321, COD: 39.1, BOD_mg_l_: 20.9, TS_mg_l_: 1174.321, Chloride_m: 181, Nitrate: "N/A", Faecal_Col: "13,000-15,000", Total_Coli: "25,000-40,000" },
-  { Location: "Siriuili DS", pH: 8.01, Temperatur: "33.68°C", EC__S_cm_: 364, TDS_ppm_: 182, DO_mg_L_: 1.6, Turbidity_: 11.2, TSS_mg_l_: 0.543, COD: 116.1, BOD_mg_l_: 18.9, TS_mg_l_: 182.543, Chloride_m: 264, Nitrate: "N/A", Faecal_Col: "20,000-25,000", Total_Coli: "40,000-60,000" },
-  { Location: "Siriuili US", pH: 8.02, Temperatur: "33.44°C", EC__S_cm_: 532, TDS_ppm_: 265, DO_mg_L_: 1.27, Turbidity_: 1.6, TSS_mg_l_: 0.431, COD: 36.7, BOD_mg_l_: 17.6, TS_mg_l_: 265.431, Chloride_m: 143, Nitrate: "N/A", Faecal_Col: "12,000-16,000", Total_Coli: "25,000-35,000" },
-  { Location: "Masjidiya ghat Drain(US)", pH: 8.04, Temperatur: "32.02°C", EC__S_cm_: 916, TDS_ppm_: 458, DO_mg_L_: 6.45, Turbidity_: 32.4, TSS_mg_l_: 0.53, COD: 70.4, BOD_mg_l_: 5.7, TS_mg_l_: 458.53, Chloride_m: 64, Nitrate: "N/A", Faecal_Col: "30,000-32,000", Total_Coli: "102,000-120,000" },
-  { Location: "Deeh Koiran DS", pH: 8.04, Temperatur: "31.56°C", EC__S_cm_: 1371, TDS_ppm_: 685, DO_mg_L_: 0.87, Turbidity_: 17.5, TSS_mg_l_: 0.342, COD: 48.5, BOD_mg_l_: 38.4, TS_mg_l_: 685.342, Chloride_m: 123, Nitrate: "N/A", Faecal_Col: "10,000-20,000", Total_Coli: "25,000-50,000" },
-  { Location: "Kalikadham Drain", pH: 8.07, Temperatur: "33.77°C", EC__S_cm_: 1362, TDS_ppm_: 682, DO_mg_L_: 1.11, Turbidity_: 98.6, TSS_mg_l_: 0.542, COD: 350.8, BOD_mg_l_: 70.6, TS_mg_l_: 682.542, Chloride_m: 65.9, Nitrate: "N/A", Faecal_Col: "45,000-50,000", Total_Coli: "120,000-124,000" },
-  { Location: "Kalikadham Drain(US)", pH: 8.09, Temperatur: "35.75°C", EC__S_cm_: 619, TDS_ppm_: 305, DO_mg_L_: 5.11, Turbidity_: 14.2, TSS_mg_l_: 0.458, COD: 90.66, BOD_mg_l_: 6.9, TS_mg_l_: 305.458, Chloride_m: 56, Nitrate: "N/A", Faecal_Col: "12,000-14,000", Total_Coli: "25,000-28,000" },
-  { Location: "Anangpur (Beda Factory)", pH: 8.1, Temperatur: "31.88°C", EC__S_cm_: 1932, TDS_ppm_: 966, DO_mg_L_: 0.12, Turbidity_: 47.4, TSS_mg_l_: 0.524, COD: 160.6, BOD_mg_l_: 50.1, TS_mg_l_: 966.524, Chloride_m: 40, Nitrate: "N/A", Faecal_Col: "89,000-95,000", Total_Coli: "150,000-250,000" },
-  { Location: "Jogipur DS", pH: 8.1, Temperatur: "33.34°C", EC__S_cm_: 2293, TDS_ppm_: 1147, DO_mg_L_: 2.02, Turbidity_: 12, TSS_mg_l_: 0.354, COD: 34.5, BOD_mg_l_: 36.3, TS_mg_l_: 1147.354, Chloride_m: 203, Nitrate: "N/A", Faecal_Col: "33,000-35,000", Total_Coli: "65,000-90,000" },
-  { Location: "Deeh Koiran Drain", pH: 8.15, Temperatur: "29.43°C", EC__S_cm_: 1828, TDS_ppm_: 914, DO_mg_L_: 0.33, Turbidity_: 61.6, TSS_mg_l_: 0.613, COD: 61.6, BOD_mg_l_: 24.1, TS_mg_l_: 914.613, Chloride_m: 151, Nitrate: "N/A", Faecal_Col: "32,000-40,000", Total_Coli: "60,000-100,000" },
-  { Location: "Morwa+Varuna (DS)", pH: 8.17, Temperatur: "25.30°C", EC__S_cm_: 559, TDS_ppm_: 210, DO_mg_L_: 3.21, Turbidity_: 15.2, TSS_mg_l_: 0.441, COD: 98, BOD_mg_l_: 8.21, TS_mg_l_: 210.441, Chloride_m: 38.97, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Siriuili Drain", pH: 8.19, Temperatur: "34.12°C", EC__S_cm_: 5356, TDS_ppm_: 2678, DO_mg_L_: 0.97, Turbidity_: 393, TSS_mg_l_: 0.59, COD: 190.9, BOD_mg_l_: 40.4, TS_mg_l_: 2678.59, Chloride_m: 270, Nitrate: "N/A", Faecal_Col: "45,000-50,000", Total_Coli: "80,000-95,000" },
-  { Location: "Deeh Koiran US", pH: 8.24, Temperatur: "31.82°C", EC__S_cm_: 1334, TDS_ppm_: 667, DO_mg_L_: 0.85, Turbidity_: 32.4, TSS_mg_l_: 0.592, COD: 51.1, BOD_mg_l_: 34.9, TS_mg_l_: 667.592, Chloride_m: 92, Nitrate: "N/A", Faecal_Col: "20,000-30,000", Total_Coli: "40,000-75,000" },
-  { Location: "Basuhi Varuna Sangam (Jadupur Z.Bhari)", pH: 8.36, Temperatur: "27.84°C", EC__S_cm_: 624, TDS_ppm_: 312, DO_mg_L_: 7.23, Turbidity_: 24.3, TSS_mg_l_: 0.186, COD: 118.8, BOD_mg_l_: 3.04, TS_mg_l_: 312.186, Chloride_m: 38.97, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" },
-  { Location: "Jaruna Bridge", pH: 8.5, Temperatur: "32.77°C", EC__S_cm_: 344, TDS_ppm_: 172, DO_mg_L_: 9.05, Turbidity_: 128, TSS_mg_l_: 0.253, COD: 194.2, BOD_mg_l_: 4.32, TS_mg_l_: 172.253, Chloride_m: 13.99, Nitrate: "N/A", Faecal_Col: "N/A", Total_Coli: "N/A" }
-];
-
 const industrialData = [
   { type: 'Textile/Yarn', count: 54, location: 'Bhadohi (50)', status: 'High Impact' },
   { type: 'Saree Printing', count: 33, location: 'Varanasi (33)', status: 'High Impact' },
@@ -157,22 +74,19 @@ const industrialData = [
   { type: 'Slaughterhouses', count: 3, location: 'Various', status: 'Low Impact' },
   { type: 'Food & Beverage', count: 3, location: 'Various', status: 'Low Impact' }
 ];
-
-const drainData = [
+const drainDataSample = [
   { name: 'Kutchehari Bridge Drain', status: 'Untapped', pollution: 'Critical', BOD_contribution: 22, priority: 1 },
   { name: 'Daniyalpur Drain', status: 'Untapped', pollution: 'High', BOD_contribution: 12, priority: 2 },
   { name: 'Nai Bazar Drain', status: 'Untapped', pollution: 'Medium', BOD_contribution: 8, priority: 3 },
   { name: 'Koirajpur Bridge Drain', status: 'Untapped', pollution: 'Medium', BOD_contribution: 6, priority: 4 },
   { name: 'Connected Drains (7)', status: 'Tapped', pollution: 'Controlled', BOD_contribution: 15, priority: 'N/A' }
 ];
-
 const predictionData = [
   { timeframe: 'Next 7 days', BOD_forecast: 65, confidence: 85, trend: 'Increasing' },
   { timeframe: 'Next 30 days', BOD_forecast: 72, confidence: 75, trend: 'Increasing' },
   { timeframe: 'Next 90 days', BOD_forecast: 58, confidence: 65, trend: 'Monsoon Dilution' },
   { timeframe: 'Next 180 days', BOD_forecast: 45, confidence: 55, trend: 'Seasonal Variation' }
 ];
-
 const interventionData = [
   { intervention: 'Connect Kutchehari Drain', cost: 8, impact: 22, timeline: 60, roi: 2.75 },
   { intervention: 'Shutdown 15 Worst Industries', cost: 2, impact: 28, timeline: 30, roi: 14.0 },
@@ -180,306 +94,326 @@ const interventionData = [
   { intervention: 'Install Emergency Oxygenation', cost: 1.5, impact: 8, timeline: 15, roi: 5.33 },
   { intervention: 'Build CETP for Bhadohi', cost: 45, impact: 15, timeline: 365, roi: 0.33 }
 ];
-
-// Enhanced detailed data for statistics
 const statisticsDetailData = {
   riverLength: {
-    title: "🌊 River Length Details",
-    subtitle: "Comprehensive river network analysis",
+    title: '🌊 River Length Details',
+    subtitle: 'Comprehensive river network analysis',
     data: [
-      { segment: "Main River Channel", length: "105 km", condition: "Moderate", tributaries: 3 },
-      { segment: "Major Tributaries", length: "65 km", condition: "Variable", tributaries: 8 },
-      { segment: "Minor Tributaries", length: "30 km", condition: "Poor", tributaries: 15 },
-      { segment: "Seasonal Streams", length: "20 km", condition: "Intermittent", tributaries: 12 }
+      { segment: 'Main River Channel', length: '105 km', condition: 'Moderate', tributaries: 3 },
+      { segment: 'Major Tributaries', length: '65 km', condition: 'Variable', tributaries: 8 },
+      { segment: 'Minor Tributaries', length: '30 km', condition: 'Poor', tributaries: 15 },
+      { segment: 'Seasonal Streams', length: '20 km', condition: 'Intermittent', tributaries: 12 }
     ],
     summary: {
-      total: "220 km total network",
-      monitored: "200 km actively monitored",
-      critical: "45 km critically polluted"
+      total: '220 km total network',
+      monitored: '200 km actively monitored',
+      critical: '45 km critically polluted'
     }
   },
   districts: {
-    title: "📍 District Coverage Details",
-    subtitle: "Administrative and jurisdictional information",
+    title: '📍 District Coverage Details',
+    subtitle: 'Administrative and jurisdictional information',
     data: [
-      { 
-        district: "Prayagraj", 
-        population: "6.1 million", 
-        riverLength: "25 km", 
-        stations: 1, 
-        industries: 15,
-        status: "Moderate Impact",
-        keyIssues: "Urban runoff, religious activities"
-      },
-      { 
-        district: "Bhadohi", 
-        population: "1.7 million", 
-        riverLength: "85 km", 
-        stations: 4, 
-        industries: 54,
-        status: "High Impact",
-        keyIssues: "Textile industries, carpet weaving"
-      },
-      { 
-        district: "Varanasi", 
-        population: "4.2 million", 
-        riverLength: "90 km", 
-        stations: 7, 
-        industries: 923,
-        status: "Critical Impact",
-        keyIssues: "Dense industrial zones, urban sewage"
-      }
+      { district: 'Prayagraj', population: '6.1 million', riverLength: '25 km', stations: 1, industries: 15, status: 'Moderate Impact', keyIssues: 'Urban runoff, religious activities' },
+      { district: 'Bhadohi', population: '1.7 million', riverLength: '85 km', stations: 4, industries: 54, status: 'High Impact', keyIssues: 'Textile industries, carpet weaving' },
+      { district: 'Varanasi', population: '4.2 million', riverLength: '90 km', stations: 7, industries: 923, status: 'Critical Impact', keyIssues: 'Dense industrial zones, urban sewage' }
     ],
     summary: {
-      totalPopulation: "12 million people",
-      totalIndustries: "992 industries",
-      adminComplexity: "3-tier governance system"
+      totalPopulation: '12 million people',
+      totalIndustries: '992 industries',
+      adminComplexity: '3-tier governance system'
     }
   },
   monitoringStations: {
-    title: "🔬 Monitoring Stations Network",
-    subtitle: "Real-time water quality monitoring infrastructure",
+    title: '🔬 Monitoring Stations Network',
+    subtitle: 'Real-time water quality monitoring infrastructure',
     data: [
-      { id: "VS-01", name: "Mahadev Mandir", district: "Prayagraj", status: "Active", parameters: 8, condition: "Moderate" },
-      { id: "VS-02", name: "Mobi Deenpur Bridge", district: "Bhadohi", status: "Active", parameters: 8, condition: "Good" },
-      { id: "VS-03", name: "Kusha Ghat-Godma Bridge", district: "Bhadohi", status: "Active", parameters: 8, condition: "Good" },
-      { id: "VS-04", name: "Varuna U/s Dhaurahra", district: "Bhadohi", status: "Active", parameters: 8, condition: "Excellent" },
-      { id: "VS-05", name: "Varuna D/s Nai Bazar", district: "Bhadohi", status: "Active", parameters: 8, condition: "Moderate" },
-      { id: "VS-06", name: "Rameswaram Mandir", district: "Varanasi", status: "Active", parameters: 8, condition: "Good" },
-      { id: "VS-07", name: "Koirajpur Bridge", district: "Varanasi", status: "Active", parameters: 8, condition: "Good" },
-      { id: "VS-08", name: "Pishaura Bridge", district: "Varanasi", status: "Active", parameters: 8, condition: "Good" },
-      { id: "VS-09", name: "Kutchehari Bridge", district: "Varanasi", status: "Alert", parameters: 8, condition: "Poor" },
-      { id: "VS-10", name: "Downstream Confluence", district: "Varanasi", status: "Active", parameters: 6, condition: "Moderate" },
-      { id: "VS-11", name: "Midstream Monitoring", district: "Bhadohi", status: "Maintenance", parameters: 8, condition: "Unknown" },
-      { id: "VS-12", name: "Upstream Source", district: "Prayagraj", status: "Active", parameters: 8, condition: "Good" }
+      { id: 'VS-01', name: 'Mahadev Mandir', district: 'Prayagraj', status: 'Active', parameters: 8, condition: 'Moderate' },
+      { id: 'VS-02', name: 'Mobi Deenpur Bridge', district: 'Bhadohi', status: 'Active', parameters: 8, condition: 'Good' },
+      { id: 'VS-03', name: 'Kusha Ghat-Godma Bridge', district: 'Bhadohi', status: 'Active', parameters: 8, condition: 'Good' },
+      { id: 'VS-04', name: 'Varuna U/s Dhaurahra', district: 'Bhadohi', status: 'Active', parameters: 8, condition: 'Excellent' },
+      { id: 'VS-05', name: 'Varuna D/s Nai Bazar', district: 'Bhadohi', status: 'Active', parameters: 8, condition: 'Moderate' },
+      { id: 'VS-06', name: 'Rameswaram Mandir', district: 'Varanasi', status: 'Active', parameters: 8, condition: 'Good' },
+      { id: 'VS-07', name: 'Koirajpur Bridge', district: 'Varanasi', status: 'Active', parameters: 8, condition: 'Good' },
+      { id: 'VS-08', name: 'Pishaura Bridge', district: 'Varanasi', status: 'Active', parameters: 8, condition: 'Good' },
+      { id: 'VS-09', name: 'Kutchehari Bridge', district: 'Varanasi', status: 'Alert', parameters: 8, condition: 'Poor' },
+      { id: 'VS-10', name: 'Downstream Confluence', district: 'Varanasi', status: 'Active', parameters: 6, condition: 'Moderate' },
+      { id: 'VS-11', name: 'Midstream Monitoring', district: 'Bhadohi', status: 'Maintenance', parameters: 8, condition: 'Unknown' },
+      { id: 'VS-12', name: 'Upstream Source', district: 'Prayagraj', status: 'Active', parameters: 8, condition: 'Good' }
     ],
     summary: {
-      operational: "11 stations operational",
-      maintenance: "1 station under maintenance",
-      coverage: "95% network coverage"
+      operational: '11 stations operational',
+      maintenance: '1 station under maintenance',
+      coverage: '95% network coverage'
     }
   },
   basinArea: {
-    title: "🏞️ Basin Area Analysis",
-    subtitle: "Comprehensive watershed characteristics",
+    title: '🏞️ Basin Area Analysis',
+    subtitle: 'Comprehensive watershed characteristics',
     data: [
-      { category: "Urban Area", area: "425 km²", percentage: "13.5%", impact: "High pollution load", population: "8.2 million" },
-      { category: "Agricultural Land", area: "1,890 km²", percentage: "60.2%", impact: "Fertilizer runoff", population: "2.8 million" },
-      { category: "Industrial Zones", area: "185 km²", percentage: "5.9%", impact: "Toxic discharge", population: "0.3 million" },
-      { category: "Forest Cover", area: "315 km²", percentage: "10.0%", impact: "Natural filtration", population: "0.1 million" },
-      { category: "Water Bodies", area: "95 km²", percentage: "3.0%", impact: "Flood regulation", population: "- " },
-      { category: "Barren/Others", area: "231 km²", percentage: "7.4%", impact: "Erosion source", population: "0.6 million" }
+      { category: 'Urban Area', area: '425 km²', percentage: '13.5%', impact: 'High pollution load', population: '8.2 million' },
+      { category: 'Agricultural Land', area: '1,890 km²', percentage: '60.2%', impact: 'Fertilizer runoff', population: '2.8 million' },
+      { category: 'Industrial Zones', area: '185 km²', percentage: '5.9%', impact: 'Toxic discharge', population: '0.3 million' },
+      { category: 'Forest Cover', area: '315 km²', percentage: '10.0%', impact: 'Natural filtration', population: '0.1 million' },
+      { category: 'Water Bodies', area: '95 km²', percentage: '3.0%', impact: 'Flood regulation', population: '-' },
+      { category: 'Barren/Others', area: '231 km²', percentage: '7.4%', impact: 'Erosion source', population: '0.6 million' }
     ],
     summary: {
-      totalArea: "3,141 km² watershed",
-      rainfalPattern: "850-1200mm annual",
-      landUseChange: "2.5% urban expansion annually"
+      totalArea: '3,141 km² watershed',
+      rainfallPattern: '850-1200mm annual',
+      landUseChange: '2.5% urban expansion annually'
     }
   }
 };
-
-// Water Quality Standards (CPCB)
 const WATER_QUALITY_STANDARDS = {
   BOD: { excellent: 3, good: 6, poor: 10 },
   DO: { excellent: 6, good: 4, poor: 2 },
   pH: { min: 6.5, max: 8.5 }
 };
-
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
-
 // Animated Counter Component
 const AnimatedCounter = ({ value, duration = 2000 }: { value: number; duration?: number }) => {
   const [count, setCount] = useState(0);
-
   useEffect(() => {
     let startTime = 0;
     const animate = (currentTime: number) => {
       if (startTime === 0) startTime = currentTime;
       const progress = Math.min((currentTime - startTime) / duration, 1);
       setCount(Math.floor(progress * value));
-      
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
+      if (progress < 1) requestAnimationFrame(animate);
     };
     requestAnimationFrame(animate);
   }, [value, duration]);
-
   return <span>{count}</span>;
 };
-
-// Enhanced Loading Skeleton
-const LoadingSkeleton = () => (
-  <div className="animate-pulse space-y-4">
-    <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-3/4"></div>
-    <div className="h-4 bg-gradient-to-r from-gray-200 to-gray-300 rounded w-1/2"></div>
-  </div>
-);
-
+// Image Carousel Component
+const ImageCarousel = () => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = [
+    '/Images/dashboard/varuna1.png', '/Images/dashboard/varuna2.png', '/Images/dashboard/varuna3.png', '/Images/dashboard/varuna4.png',
+    '/Images/dashboard/varuna5.png', '/Images/dashboard/varuna6.png', '/Images/dashboard/varuna7.png'
+  ];
+  const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  useEffect(() => {
+    const interval = setInterval(nextImage, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <div className="relative w-full h-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 flex justify-between items-center">
+        <div><h2 className="text-xl font-bold">🌊 Varuna River Gallery</h2></div>
+      </div>
+      <div className="relative h-[638px] overflow-hidden">
+        <img src={images[currentImageIndex]} alt={`Varuna River ${currentImageIndex + 1}`} className="w-full h-full object-cover transition-all duration-500 ease-in-out" />
+        <button onClick={prevImage} className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200">
+          <ChevronLeft size={20} />
+        </button>
+        <button onClick={nextImage} className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200">
+          <ChevronRight size={20} />
+        </button>
+        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-2">
+          {images.map((_, index) => (
+            <button key={index} onClick={() => setCurrentImageIndex(index)} className={`w-2 h-2 rounded-full transition-all duration-200 ${index === currentImageIndex ? 'bg-white' : 'bg-white/50'}`} />
+          ))}
+        </div>
+        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+          {currentImageIndex + 1} / {images.length}
+        </div>
+      </div>
+    </div>
+  );
+};
+// Main Dashboard Component
 export default function VarunaRiverDashboard() {
+  const [worstNitrate, setWorstNitrate] = useState({ location: '—', value: '—' });
+  const [worstBOD, setWorstBOD] = useState({ location: '—', value: '—' });
+  const [worstFaecalColiform, setWorstFaecalColiform] = useState({ location: '—', value: '—' });
+  const [worstAlgaeRisk, setWorstAlgaeRisk] = useState({ location: '—', nitrate: '—', bod: '—' });
+  const [worstChemicalRisk, setWorstChemicalRisk] = useState({ location: '—', cod: '—', tss: '—' });
+  const [worstTurbidity, setWorstTurbidity] = useState({ location: '—', value: '—' });
+  const [worstSalinity, setWorstSalinity] = useState({ location: '—', tds: '—', ec: '—' });
+  const [worstIndustrial, setWorstIndustrial] = useState({ location: '—', cod: '—', tds: '—' });
+  const [worstLandDumping, setWorstLandDumping] = useState({ location: '—', tss: '—', turbidity: '—', ts: '—' });
+  const [worstDetergentRisk, setWorstDetergentRisk] = useState({ location: '—', bod: '—', cod: '—' });
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedParameter, setSelectedParameter] = useState('BOD');
-  const [timeRange, setTimeRange] = useState('12months');
   const [alertsCount, setAlertsCount] = useState(0);
-  const [alertDetails, setAlertDetails] = useState<Array<{
-    type: string;
-    severity: 'Critical' | 'High' | 'Medium' | 'Low';
-    message: string;
-    location?: string;
-    value?: number;
-    threshold?: number;
-  }>>([]);
+  const [alertDetails, setAlertDetails] = useState<Alert[]>([]);
   const [showAlertDetails, setShowAlertDetails] = useState(false);
-  
-  // New state for statistics details
   const [showStatDetails, setShowStatDetails] = useState(false);
   const [selectedStat, setSelectedStat] = useState<string | null>(null);
-  
-  // ✅ NEW: Map functionality state
   const [showMap, setShowMap] = useState(true);
-  
   const [isLoading, setIsLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // ✅ Added for VarunaMap
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
+  const [drainData, setDrainData] = useState<DrainRecord[]>([]);
+  const [showMarkers, setShowMarkers] = useState(false);
   const alertRef = useRef<HTMLDivElement>(null);
   const statRef = useRef<HTMLDivElement>(null);
-  
-  // ✅ NEW: Map ref
   const mapRef = useRef<HTMLDivElement>(null);
-
-  // ✅ NEW: Map handlers
-  const handleMapNotification = (title: string, message: string, type = 'info') => {
+  const pathname = usePathname(); // ✅ Using App Router hook
+  // ✅ NEW: Map notification handler
+  const showNotification = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
     console.log(`${type.toUpperCase()}: ${title} - ${message}`);
   };
-
-  const handleMapFeatureClick = (feature: any, layer: any) => {
-    console.log('Map feature clicked:', feature);
+  // Calculate Pollution Load Index
+  const calculatePollutionLoadIndex = (data: DrainRecord): { score: number; level: string; location: string } => {
+    const oxygenDeficit = Math.max(0, 8 - data.do_mg_l);
+    const pollutionScore = (data.bod_mg_l * 0.4) + (data.cod * 0.003) + (oxygenDeficit * 10);
+    let level: string;
+    if (pollutionScore > 50) level = 'EXTREME';
+    else if (pollutionScore > 30) level = 'HIGH';
+    else if (pollutionScore > 15) level = 'MODERATE';
+    else if (pollutionScore > 5) level = 'LOW';
+    else level = 'MINIMAL';
+    return { score: Math.round(pollutionScore * 10) / 10, level, location: data.location };
   };
-
-  // ✅ NEW: Filter data of Drain Water Quality Stations
-  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
-  const pathname = usePathname();
-  useEffect(() => {
-    setSelectedFilter(null); 
-  }, [pathname]);
-
-
-  const filteredDrainData = (() => {
-    switch (selectedFilter) {
-      case 'acidic':
-        return drainWaterQualityData.filter(d => d.pH < 6.5);
-      case 'lowDO':
-        return drainWaterQualityData.filter(d => d.DO_mg_L_ < 4);
-      case 'highBOD':
-        return drainWaterQualityData.filter(d => d.BOD_mg_l_ > 10);
-      case 'highCOD':
-        return drainWaterQualityData.filter(d => d.COD > 100);
-      case 'coliform':
-        return drainWaterQualityData.filter(
-          d =>
-            (d.Faecal_Col && d.Faecal_Col !== 'N/A') ||
-            (d.Total_Coli && d.Total_Coli !== 'N/A')
-        );
-      default:
-        return drainWaterQualityData;
+  // Calculate Eutrophication Risk
+  const calculateEutrophicationRisk = (data: DrainRecord): { score: number; level: string; location: string } => {
+    const nitrateScore = typeof data.nitrate === 'number' ? Math.min(data.nitrate * 2, 10) : 0;
+    const turbidityScore = Math.min(data.turbidity / 10, 10);
+    const oxygenScore = data.do_mg_l < 4 ? 10 : data.do_mg_l < 6 ? 5 : 0;
+    const eutrophicationScore = nitrateScore + turbidityScore + oxygenScore;
+    let level: string;
+    if (eutrophicationScore > 20) level = 'EXTREME';
+    else if (eutrophicationScore > 15) level = 'HIGH';
+    else if (eutrophicationScore > 10) level = 'MODERATE';
+    else if (eutrophicationScore > 5) level = 'LOW';
+    else level = 'MINIMAL';
+    return { score: Math.round(eutrophicationScore * 10) / 10, level, location: data.location };
+  };
+  // Calculate Bacterial Contamination
+  const calculateBacterialContamination = (data: DrainRecord): { score: number; level: string; location: string } => {
+    let bacterialScore = 0;
+    let level = 'UNKNOWN';
+    if (data.faecal_col && data.faecal_col !== 'N/A' && data.faecal_col.trim() !== '') {
+      const numbers = data.faecal_col.match(/[\d,]+/g);
+      if (numbers) {
+        const maxValue = Math.max(...numbers.map(n => parseInt(n.replace(/,/g, ''))));
+        bacterialScore = Math.log10(maxValue + 1);
+        if (maxValue > 100000) level = 'EXTREME';
+        else if (maxValue > 50000) level = 'HIGH';
+        else if (maxValue > 10000) level = 'MODERATE';
+        else if (maxValue > 1000) level = 'LOW';
+        else level = 'MINIMAL';
       }
-    })();
-
-
-  // ✅ NEW: Auto-load river data when map is shown
-  useEffect(() => {
-    if (showMap) {
-      const timer = setTimeout(() => {
-        if (typeof window !== 'undefined' && window.loadGeoJSON) {
-          window.loadGeoJSON('rivers', 'varuna');
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+    } else {
+      if (data.bod_mg_l > 30) { bacterialScore = 5; level = 'HIGH (BOD-based)'; }
+      else if (data.bod_mg_l > 15) { bacterialScore = 3; level = 'MODERATE (BOD-based)'; }
+      else { bacterialScore = 1; level = 'LOW (BOD-based)'; }
     }
-  }, [showMap]);
-
-  // ✅ NEW: AGGRESSIVELY hide map elements
+    return { score: Math.round(bacterialScore * 10) / 10, level, location: data.location };
+  };
+  // Find worst sites
+  const getWorstSites = () => {
+    if (drainData.length === 0) return null;
+    const pollutionResults = drainData.map(calculatePollutionLoadIndex);
+    const eutrophicationResults = drainData.map(calculateEutrophicationRisk);
+    const bacterialResults = drainData.map(calculateBacterialContamination);
+    const worstPollution = pollutionResults.sort((a, b) => b.score - a.score)[0];
+    const worstEutrophication = eutrophicationResults.sort((a, b) => b.score - a.score)[0];
+    const worstBacterial = bacterialResults.sort((a, b) => b.score - a.score)[0];
+    return { pollution: worstPollution, eutrophication: worstEutrophication, bacterial: worstBacterial };
+  };
+  // Fetch drain data
   useEffect(() => {
-    if (showMap) {
-      const hideMapElements = () => {
-        // Remove ALL unwanted elements
-        const selectorsToHide = [
-          // Download/Export buttons
-          'button:contains("Download")',
-          'button:contains("Export")', 
-          'button:contains("Buffer")',
-          '[title*="Download"]',
-          '[title*="Export"]',
-          
-          // Specific positioned elements from your map component
-          '.absolute.top-2.left-12',
-          '.absolute.top-2.left-72', 
-          '.absolute.right-2.top-140',
-          '.absolute.right-2',
-          '.absolute.top-44.right-10',
-          '.absolute.top-213.left-30',
-          
-          // Compass and grid
-          '#compass',
-          '.leaflet-control-zoom',
-          '.leaflet-control-attribution',
-          
-          // Any div that contains tools/controls on the right
-          'div[class*="right-2"]',
-          'div[class*="top-140"]',
-          'div[class*="top-44"]'
-        ];
-
-        selectorsToHide.forEach(selector => {
-          try {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => {
-              if (el instanceof HTMLElement) {
-                el.remove(); // Completely remove from DOM
-              }
+    fetch('/django/drain-water-quality/main/')
+      .then(async res => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      })
+      .then(data => {
+        setDrainData(data);
+        const alerts: Alert[] = [];
+        data.forEach((site: DrainRecord) => {
+          const exceed = [];
+          if (site.bod_mg_l > 30) exceed.push(`BOD = ${site.bod_mg_l}`);
+          if (site.do_mg_l < 3) exceed.push(`DO = ${site.do_mg_l}`);
+          if (site.cod > 200) exceed.push(`COD = ${site.cod}`);
+          if (exceed.length > 0) {
+            alerts.push({
+              type: 'Drain Critical Alert',
+              severity: 'Critical',
+              location: site.location,
+              message: exceed.length === 1 ? `High level detected: ${exceed[0]}` : `Multiple high levels detected: ${exceed.join(', ')}`,
             });
-          } catch (e) {
-            // Ignore selector errors
           }
         });
-
-        // Also find and remove by text content
-        const allButtons = document.querySelectorAll('button');
-        allButtons.forEach(btn => {
-          const text = btn.textContent?.toLowerCase() || '';
-          if (text.includes('download') || text.includes('export') || text.includes('buffer') || text.includes('zoom') || text.includes('home') || text.includes('locate') || text.includes('fullscreen')) {
-            btn.remove();
-          }
+        setAlertDetails(alerts);
+        setAlertsCount(alerts.length);
+        const nitrateSorted = [...data].filter(site => site.nitrate !== null && site.nitrate !== undefined).sort((a, b) => b.nitrate - a.nitrate);
+        if (nitrateSorted.length > 0) setWorstNitrate({ location: nitrateSorted[0].location, value: nitrateSorted[0].nitrate.toFixed(2) });
+        const bodSorted = [...data].filter(site => site.bod_mg_l !== null && site.bod_mg_l !== undefined).sort((a, b) => b.bod_mg_l - a.bod_mg_l);
+        if (bodSorted.length > 0) setWorstBOD({ location: bodSorted[0].location, value: bodSorted[0].bod_mg_l.toFixed(2) });
+        const faecalSites = data.filter((d: DrainRecord) => {
+          const val = d.faecal_col;
+          if (!val || val === 'N/A') return false;
+          const parsed = extractFaecalValue(val);
+          return !isNaN(parsed) && parsed > 0;
         });
-
-        // Remove any div containing map controls (right side)
-        const allDivs = document.querySelectorAll('div');
-        allDivs.forEach(div => {
-          const classes = div.className || '';
-          if (classes.includes('absolute') && (classes.includes('right-2') || classes.includes('top-140') || classes.includes('top-44'))) {
-            div.remove();
-          }
-        });
-      };
-
-      // Run multiple times with increasing delays
-      const delays = [500, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
-      const timers = delays.map(delay => setTimeout(hideMapElements, delay));
-
-      return () => timers.forEach(timer => clearTimeout(timer));
+        const worstFaecal = faecalSites.sort((a: DrainRecord, b: DrainRecord) => extractFaecalValue(b.faecal_col) - extractFaecalValue(a.faecal_col))[0];
+        if (worstFaecal) setWorstFaecalColiform({ location: worstFaecal.location, value: extractFaecalValue(worstFaecal.faecal_col).toFixed(0) });
+        const algaeRiskCandidates = data.filter((d: DrainRecord) => d.nitrate !== null && d.bod_mg_l !== null);
+        const highestAlgaeSite = algaeRiskCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.nitrate + b.bod_mg_l) - (a.nitrate + a.bod_mg_l))[0];
+        if (highestAlgaeSite) setWorstAlgaeRisk({ location: highestAlgaeSite.location, nitrate: highestAlgaeSite.nitrate.toFixed(2), bod: highestAlgaeSite.bod_mg_l.toFixed(2) });
+        const chemicalRiskCandidates = data.filter((d: DrainRecord) => d.cod !== null && d.tss_mg_l !== null);
+        const highestChemicalSite = chemicalRiskCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.cod + b.tss_mg_l) - (a.cod + a.tss_mg_l))[0];
+        if (highestChemicalSite) setWorstChemicalRisk({ location: highestChemicalSite.location, cod: highestChemicalSite.cod.toFixed(2), tss: highestChemicalSite.tss_mg_l.toFixed(2) });
+        const highTurbiditySite = data.filter((d: DrainRecord) => typeof d.turbidity === 'number').sort((a: DrainRecord, b: DrainRecord) => b.turbidity - a.turbidity)[0];
+        if (highTurbiditySite) setWorstTurbidity({ location: highTurbiditySite.location, value: highTurbiditySite.turbidity.toFixed(2) });
+        const salinityCandidates = data.filter((d: DrainRecord) => d.tds_ppm > 500 || d.ec_us_cm > 1000);
+        const highestSalinitySite = salinityCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.tds_ppm + b.ec_us_cm) - (a.tds_ppm + a.ec_us_cm))[0];
+        if (highestSalinitySite) setWorstSalinity({ location: highestSalinitySite.location, tds: highestSalinitySite.tds_ppm.toFixed(2), ec: highestSalinitySite.ec_us_cm.toFixed(2) });
+        const industrialCandidates = data.filter((d: DrainRecord) => d.cod && d.tds_ppm);
+        const highestIndustrial = industrialCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.cod + b.tds_ppm) - (a.cod + a.tds_ppm))[0];
+        if (highestIndustrial) setWorstIndustrial({ location: highestIndustrial.location, cod: highestIndustrial.cod.toFixed(2), tds: highestIndustrial.tds_ppm.toFixed(2) });
+        const landDumpingCandidates = data.filter((d: DrainRecord) => d.tss_mg_l > 100 || d.turbidity > 25 || d.ts_mg_l > 500);
+        const worstDumpingSite = landDumpingCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.tss_mg_l + b.turbidity + b.ts_mg_l) - (a.tss_mg_l + a.turbidity + a.ts_mg_l))[0];
+        if (worstDumpingSite) setWorstLandDumping({ location: worstDumpingSite.location, tss: worstDumpingSite.tss_mg_l.toFixed(1), turbidity: worstDumpingSite.turbidity.toFixed(1), ts: worstDumpingSite.ts_mg_l.toFixed(1) });
+        const detergentRiskCandidates = data.filter((d: DrainRecord) => d.bod_mg_l !== null && d.cod !== null);
+        const worstDetergentSite = detergentRiskCandidates.sort((a: DrainRecord, b: DrainRecord) => (b.bod_mg_l + b.cod) - (a.bod_mg_l + a.cod))[0];
+        if (worstDetergentSite) setWorstDetergentRisk({ location: worstDetergentSite.location, bod: worstDetergentSite.bod_mg_l.toFixed(2), cod: worstDetergentSite.cod.toFixed(2) });
+      })
+      .catch(error => console.log('Error fetching drain data:', error));
+  }, []);
+  const extractFaecalValue = (val: string | null): number => {
+    if (!val || val === 'N/A') return 0;
+    const parts = val.replace(/,/g, '').split(/–|-/).map(Number);
+    return parts.length === 2 ? (parts[0] + parts[1]) / 2 : Number(parts[0]);
+  };
+  const { acidicCount, lowDOCount, highBODCount, highCODCount, coliformCount } = useMemo(() => ({
+    acidicCount: drainData.filter(d => d.ph < 6.5).length,
+    lowDOCount: drainData.filter(d => d.do_mg_l < 4).length,
+    highBODCount: drainData.filter(d => d.bod_mg_l > 10).length,
+    highCODCount: drainData.filter(d => d.cod > 100).length,
+    coliformCount: drainData.filter(d => (d.faecal_col && d.faecal_col !== 'N/A') || (d.total_col && d.total_col !== 'N/A')).length,
+  }), [drainData]);
+  const filteredDrainData = useMemo(() => {
+    switch (selectedFilter) {
+      case 'acidic': return drainData.filter(d => d.ph < 6.5);
+      case 'lowDO': return drainData.filter(d => d.do_mg_l < 4);
+      case 'highBOD': return drainData.filter(d => d.bod_mg_l > 10);
+      case 'highCOD': return drainData.filter(d => d.cod > 100);
+      case 'coliform': return drainData.filter(d => (d.faecal_col && d.faecal_col !== 'N/A') || (d.total_col && d.total_col !== 'N/A'));
+      default: return drainData;
     }
-  }, [showMap]);
-
-  // Calculate real alerts based on water quality standards (HIGH PRIORITY ONLY)
+  }, [drainData, selectedFilter]);
+  const processedData = drainData.map((entry, index) => ({
+    label: entry.location || `Point-${index + 1}`,
+    pH: entry.ph,
+    DO: entry.do_mg_l,
+    BOD: entry.bod_mg_l,
+    COD: entry.cod,
+    temp: entry.temp,
+  }));
   const calculateRealAlerts = () => {
     const alerts: Alert[] = [];
-
-    // Check BOD violations (CRITICAL & HIGH ONLY)
     spatialData.forEach(station => {
-      
-
       if (station.BOD > WATER_QUALITY_STANDARDS.BOD.poor) {
         alerts.push({
           type: 'BOD Critical',
-          severity: 'Critical' as const,
+          severity: 'Critical',
           message: `BOD level critically high - Immediate action required`,
           location: station.station,
           value: station.BOD,
@@ -488,19 +422,17 @@ export default function VarunaRiverDashboard() {
       } else if (station.BOD > WATER_QUALITY_STANDARDS.BOD.good) {
         alerts.push({
           type: 'BOD High',
-          severity: 'High' as const,
+          severity: 'High',
           message: `BOD level above acceptable limit - Action needed`,
           location: station.station,
           value: station.BOD,
           threshold: WATER_QUALITY_STANDARDS.BOD.good
         });
       }
-
-      // Check DO violations (CRITICAL & HIGH ONLY)
       if (station.DO < WATER_QUALITY_STANDARDS.DO.poor) {
         alerts.push({
           type: 'DO Critical',
-          severity: 'Critical' as const,
+          severity: 'Critical',
           message: `Dissolved Oxygen critically low - Emergency intervention needed`,
           location: station.station,
           value: station.DO,
@@ -509,7 +441,7 @@ export default function VarunaRiverDashboard() {
       } else if (station.DO < WATER_QUALITY_STANDARDS.DO.good) {
         alerts.push({
           type: 'DO Low',
-          severity: 'High' as const,
+          severity: 'High',
           message: `Dissolved Oxygen below acceptable level - Urgent attention required`,
           location: station.station,
           value: station.DO,
@@ -517,95 +449,42 @@ export default function VarunaRiverDashboard() {
         });
       }
     });
-     // 🚨 Drain Water Alerts (NEW)
-    drainWaterQualityData.forEach(site => {
-      if (site.COD > 200) {
-        alerts.push({
-          type: 'Drain COD Critical',
-          severity: 'Critical' as const,
-          message: 'Drain COD above 200 - Extreme organic pollution',
-          location: site.Location,
-          value: site.COD,
-          threshold: 200
-        });
-      }
-
-      if (site.BOD_mg_l_ > 30) {
-        alerts.push({
-          type: 'Drain BOD Critical',
-          severity: 'Critical' as const,
-          message: 'Drain BOD extremely high - Hazardous condition',
-          location: site.Location,
-          value: site.BOD_mg_l_,
-          threshold: 30
-        });
-      }
-
-      if (site.DO_mg_L_ < 3) {
-        alerts.push({
-          type: 'Drain DO Critical',
-          severity: 'Critical' as const,
-          message: 'Drain DO extremely low - Dangerously low oxygen levels',
-          location: site.Location,
-          value: site.DO_mg_L_,
-          threshold: 3
-        });
-      }
-  });
-
-
-    // Check industrial pollution (HIGH PRIORITY ONLY)
-    const criticalIndustries = industrialData.filter(industry => 
-      industry.status.includes('Critical') || industry.count > 500
-    );
+    const criticalIndustries = industrialData.filter(industry => industry.status.includes('Critical') || industry.count > 500);
     if (criticalIndustries.length > 0) {
       alerts.push({
         type: 'Industrial Pollution',
-        severity: 'High' as const,
+        severity: 'High',
         message: `${criticalIndustries[0]?.count || 0} small-scale industries without proper treatment - High pollution risk`,
         location: 'Varanasi District'
       });
     }
-
-    // Only return HIGH and CRITICAL priority alerts
     return alerts.filter(alert => alert.severity === 'Critical' || alert.severity === 'High');
   };
-
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-
-    // Calculate and set real alerts (fixed - no simulation)
+    setTimeout(() => setIsLoading(false), 1000);
     const alerts = calculateRealAlerts();
     setAlertDetails(alerts);
     setAlertsCount(alerts.length);
   }, []);
-
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (alertRef.current && !alertRef.current.contains(event.target as Node)) {
-        setShowAlertDetails(false);
-      }
+      if (alertRef.current && !alertRef.current.contains(event.target as Node)) setShowAlertDetails(false);
       if (statRef.current && !statRef.current.contains(event.target as Node)) {
         setShowStatDetails(false);
         setSelectedStat(null);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Handle statistic click
+  useEffect(() => {
+    setSelectedFilter(null); // Reset filter on route change
+  }, [pathname]);
   const handleStatClick = (statType: string) => {
     setSelectedStat(statType);
     setShowStatDetails(true);
-    setShowAlertDetails(false); // Close alerts if open
+    setShowAlertDetails(false);
   };
-
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'excellent': return 'text-emerald-700 bg-emerald-100 border-emerald-200';
@@ -616,7 +495,6 @@ export default function VarunaRiverDashboard() {
       default: return 'text-gray-700 bg-gray-100 border-gray-200';
     }
   };
-
   const getSeverityColor = (severity: string) => {
     switch (severity.toLowerCase()) {
       case 'critical': return 'text-red-800 bg-red-100 border-red-200';
@@ -626,65 +504,33 @@ export default function VarunaRiverDashboard() {
       default: return 'text-gray-800 bg-gray-100 border-gray-200';
     }
   };
-
-  const TabButton = ({ id, label, isActive, onClick }: any) => (
+  const TabButton = ({ id, label, isActive, onClick }: TabButtonProps) => (
     <button
       onClick={() => onClick(id)}
       className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 transform ${
-        isActive 
-          ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105' 
+        isActive
+          ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105'
           : 'bg-white text-gray-700 hover:bg-gray-50 hover:scale-102 shadow-sm border border-gray-200'
       }`}
     >
       {label}
     </button>
   );
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-cyan-50 p-6">
-      
-      {/* ✅ NEW: GLOBAL STYLES TO COMPLETELY REMOVE MAP ELEMENTS */}
       <style jsx global>{`
-        /* Completely hide and remove unwanted map elements */
-        .absolute.top-2.left-12,
-        .absolute.top-2.left-72,
-        .absolute.right-2.top-140,
-        .absolute.right-2,
-        .absolute.top-44.right-10,
-        .absolute.top-213.left-30,
-        #compass,
+        /* Ensure VarunaMap controls are visible, avoid hiding Leaflet-specific elements */
+        .varuna-map-controls {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+        /* Remove any aggressive hiding of Leaflet controls that might interfere */
         .leaflet-control-zoom,
         .leaflet-control-attribution {
           display: none !important;
-          visibility: hidden !important;
-          opacity: 0 !important;
-          pointer-events: none !important;
-          position: absolute !important;
-          left: -9999px !important;
-          top: -9999px !important;
-        }
-        
-        /* Hide any element containing these words */
-        button[title*="Download"],
-        button[title*="Export"],
-        button[title*="Buffer"],
-        *[class*="download"],
-        *[class*="export"],
-        *[class*="buffer"] {
-          display: none !important;
-          visibility: hidden !important;
-        }
-        
-        /* Force hide any right-side positioned elements */
-        div[class*="absolute"][class*="right-"],
-        div[class*="right-2"],
-        div[class*="top-140"],
-        div[class*="top-44"] {
-          display: none !important;
-          visibility: hidden !important;
         }
       `}</style>
-
       <style jsx>{`
         @keyframes pulse-glow {
           0%, 100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
@@ -713,57 +559,54 @@ export default function VarunaRiverDashboard() {
           animation: fadeIn 0.5s ease-out;
         }
       `}</style>
-
-      {/* Enhanced Header Section */}
+      {/* Header Section */}
       <div className="mb-8">
         <div className="bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-800 text-white rounded-2xl p-8 shadow-2xl border border-blue-500/20">
           <div className="flex justify-between items-center">
             <button
-               onClick={() => window.location.href = '/'}
-               className="bg-orange-500 text-blue-700 font-bold px-4 py-2 rounded-lg shadow hover:bg-blue-100"  >
-                ⬅️ Back
-              </button>
+              onClick={() => window.location.href = '/'}
+              className="bg-orange-500 text-blue-700 font-bold px-4 py-2 rounded-lg shadow hover:bg-blue-100"
+            >
+              ⬅️ Back
+            </button>
             <div>
-             
               <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
                 🌊 Varuna River Management Dashboard
               </h1>
               <p className="text-blue-100 text-lg mb-4">Comprehensive Water Quality Monitoring & Decision Support System</p>
               <div className="flex flex-wrap gap-3 mt-4">
-                <span 
+                <span
                   onClick={() => handleStatClick('riverLength')}
                   className="bg-blue-700/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium border border-blue-500/30 cursor-pointer hover:bg-blue-600/60 hover:scale-105 transition-all duration-300 hover:shadow-lg"
                   title="Click for detailed river network information"
                 >
                   200km River Length
                 </span>
-                <span 
+                <span
                   onClick={() => handleStatClick('districts')}
                   className="bg-blue-700/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium border border-blue-500/30 cursor-pointer hover:bg-blue-600/60 hover:scale-105 transition-all duration-300 hover:shadow-lg"
                   title="Click for district-wise coverage details"
                 >
                   3 Districts Covered
                 </span>
-                <span 
+                <span
                   onClick={() => handleStatClick('monitoringStations')}
                   className="bg-blue-700/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium border border-blue-500/30 cursor-pointer hover:bg-blue-600/60 hover:scale-105 transition-all duration-300 hover:shadow-lg"
                   title="Click for monitoring station network details"
                 >
                   12 Monitoring Stations
                 </span>
-                <span 
+                <span
                   onClick={() => handleStatClick('basinArea')}
                   className="bg-blue-700/50 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium border border-blue-500/30 cursor-pointer hover:bg-blue-600/60 hover:scale-105 transition-all duration-300 hover:shadow-lg"
                   title="Click for watershed and basin area analysis"
                 >
                   3141 km² Basin Area
                 </span>
-                {/* ✅ NEW: SHOW ON MAP BUTTON - Added here after Basin Area */}
-                
               </div>
             </div>
             <div className="text-right relative" ref={alertRef}>
-              <div 
+              <div
                 className="bg-gradient-to-r from-red-500 via-red-600 to-red-700 text-white px-4 py-3 rounded-xl cursor-pointer hover:from-red-600 hover:via-red-700 hover:to-red-800 transition-all duration-300 transform hover:scale-110 shadow-xl pulse-glow border border-red-400 mb-3"
                 onClick={() => setShowAlertDetails(!showAlertDetails)}
                 title="Click to view high priority alert details"
@@ -776,93 +619,77 @@ export default function VarunaRiverDashboard() {
                   <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
                 </div>
               </div>
-              
-              {/* Super High Z-Index Alert Details Popup */}
               {showAlertDetails && (
-                <div 
+                <div
                   className="fixed top-4 right-4 w-96 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 max-h-[80vh] overflow-y-auto flex flex-col"
                   style={{ zIndex: 99999 }}
                 >
                   <div className="popup flex flex-col" style={{ maxHeight: '80vh' }}>
-                  {/* Header */}
-                  <div className="p-4 border-b bg-gradient-to-r from-red-50 via-pink-50 to-red-50 rounded-t-2xl">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="text-lg font-bold text-red-800">🚨 Critical Alerts ({alertsCount})</h3>
-                        <p className="text-sm text-red-600">High priority water quality issues</p>
+                    <div className="p-4 border-b bg-gradient-to-r from-red-50 via-pink-50 to-red-50 rounded-t-2xl">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="text-lg font-bold text-red-800">🚨 Critical Alerts ({alertsCount})</h3>
+                          <p className="text-sm text-red-600">High priority water quality issues</p>
+                        </div>
+                        <button
+                          onClick={() => setShowAlertDetails(false)}
+                          className="text-red-500 hover:text-red-700 text-2xl font-bold transition-colors hover:bg-red-100 rounded-full w-8 h-8 flex items-center justify-center"
+                        >
+                          ×
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => setShowAlertDetails(false)}
-                        className="text-red-500 hover:text-red-700 text-2xl font-bold transition-colors hover:bg-red-100 rounded-full w-8 h-8 flex items-center justify-center"
-                      >
-                        ×
-                      </button>
+                    </div>
+                    <div className="p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 150px)' }}>
+                      {alertDetails.length > 0 ? (
+                        alertDetails.map((alert, index) => (
+                          <div key={index} className={`p-4 rounded-xl border-2 ${getSeverityColor(alert.severity)} hover:shadow-lg transition-all duration-300 transform hover:scale-102`}>
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-bold text-sm">{alert.type}</span>
+                              <span className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${
+                                alert.severity === 'Critical' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' :
+                                alert.severity === 'High' ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' :
+                                'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white'
+                              }`}>
+                                {alert.severity}
+                              </span>
+                            </div>
+                            <p className="text-sm mb-2 font-medium">{alert.message}</p>
+                            {alert.location && <p className="text-xs text-gray-600 mb-1">📍 {alert.location}</p>}
+                            {alert.value && alert.threshold && (
+                              <div className="text-xs bg-gray-100 rounded-lg p-2 mt-2">
+                                <span className="font-semibold">Current: {alert.value}</span> | <span className="font-semibold">Threshold: {alert.threshold}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 py-8 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
+                          <div className="text-4xl mb-2">✅</div>
+                          <p className="font-semibold">No Critical Alerts</p>
+                          <p className="text-sm">All parameters within acceptable limits</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 border-t bg-gradient-to-r from-gray-50 to-blue-50 text-center rounded-b-2xl">
+                      <p className="text-xs text-gray-600 font-medium">
+                        Last updated: {new Date().toLocaleTimeString()} | Based on CPCB standards
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Scrollable Content */}
-                  <div className="p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 150px)' }}>
-                    {alertDetails.length > 0 ? (
-                      alertDetails.map((alert, index) => (
-                        <div key={index} className={`p-4 rounded-xl border-2 ${getSeverityColor(alert.severity)} hover:shadow-lg transition-all duration-300 transform hover:scale-102`}>
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-bold text-sm">{alert.type}</span>
-                            <span className={`text-xs px-3 py-1 rounded-full font-bold shadow-sm ${
-                              alert.severity === 'Critical' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' :
-                              alert.severity === 'High' ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white' :
-                              alert.severity === 'Medium' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white' :
-                              'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-                            }`}>
-                              {alert.severity}
-                            </span>
-                          </div>
-                          <p className="text-sm mb-2 font-medium">{alert.message}</p>
-                          {alert.location && (
-                            <p className="text-xs text-gray-600 mb-1">📍 {alert.location}</p>
-                          )}
-                          {alert.value && alert.threshold && (
-                            <div className="text-xs bg-gray-100 rounded-lg p-2 mt-2">
-                              <span className="font-semibold">Current: {alert.value}</span> | 
-                              <span className="font-semibold"> Threshold: {alert.threshold}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center text-gray-500 py-8 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl">
-                        <div className="text-4xl mb-2">✅</div>
-                        <p className="font-semibold">No Critical Alerts</p>
-                        <p className="text-sm">All parameters within acceptable limits</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Footer */}
-                  <div className="p-3 border-t bg-gradient-to-r from-gray-50 to-blue-50 text-center rounded-b-2xl">
-                    <p className="text-xs text-gray-600 font-medium">
-                      Last updated: {new Date().toLocaleTimeString()} | Based on CPCB standards
-                    </p>
-                  </div>
                 </div>
-               </div> 
               )}
-              
-              <div className="text-blue-100 text-sm">
-                Last Updated: {new Date().toLocaleString()}
-              </div>
+              <div className="text-blue-100 text-sm">Last Updated: {new Date().toLocaleString()}</div>
             </div>
           </div>
         </div>
       </div>
-
       {/* Statistics Details Popup */}
       {showStatDetails && selectedStat && (
-        <div 
+        <div
           ref={statRef}
           className="fixed top-4 left-4 right-4 max-w-4xl mx-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 max-h-[85vh] overflow-hidden"
           style={{ zIndex: 99998 }}
         >
-          {/* Header */}
           <div className="p-6 border-b bg-gradient-to-r from-blue-50 via-cyan-50 to-blue-50 rounded-t-2xl">
             <div className="flex justify-between items-center">
               <div>
@@ -873,7 +700,7 @@ export default function VarunaRiverDashboard() {
                   {statisticsDetailData[selectedStat as keyof typeof statisticsDetailData]?.subtitle}
                 </p>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   setShowStatDetails(false);
                   setSelectedStat(null);
@@ -884,8 +711,6 @@ export default function VarunaRiverDashboard() {
               </button>
             </div>
           </div>
-          
-          {/* Scrollable Content */}
           <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
               {statisticsDetailData[selectedStat as keyof typeof statisticsDetailData]?.data.map((item: any, index: number) => (
@@ -913,7 +738,6 @@ export default function VarunaRiverDashboard() {
                       </div>
                     </>
                   )}
-                  
                   {selectedStat === 'districts' && (
                     <>
                       <div className="flex justify-between items-start mb-3">
@@ -947,7 +771,6 @@ export default function VarunaRiverDashboard() {
                       </div>
                     </>
                   )}
-                  
                   {selectedStat === 'monitoringStations' && (
                     <>
                       <div className="flex justify-between items-start mb-3">
@@ -979,7 +802,6 @@ export default function VarunaRiverDashboard() {
                       </div>
                     </>
                   )}
-                  
                   {selectedStat === 'basinArea' && (
                     <>
                       <div className="flex justify-between items-start mb-3">
@@ -1000,8 +822,8 @@ export default function VarunaRiverDashboard() {
                         </div>
                       </div>
                       <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-1000" 
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-1000"
                           style={{ width: item.percentage }}
                         ></div>
                       </div>
@@ -1011,8 +833,6 @@ export default function VarunaRiverDashboard() {
               ))}
             </div>
           </div>
-          
-          {/* Summary Footer */}
           <div className="p-4 border-t bg-gradient-to-r from-gray-50 to-blue-50 rounded-b-2xl">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               {Object.entries(statisticsDetailData[selectedStat as keyof typeof statisticsDetailData]?.summary || {}).map(([key, value]) => (
@@ -1025,119 +845,66 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
-      {/* ✅ NEW: Map Section with VISIBLE Header */}
+      {/* Map and Carousel Section */}
       {showMap && (
-        <div className="flex flex-col lg:flex-row gap-6 mb-8 items-stretch">
-          {/* 🔹 Left Side - Navigation Buttons */}
-        <div className="w-full lg:w-1/2 flex">
-         <div className="grid grid-cols-2 gap-y-15 gap-x-4 bg-white/70 backdrop-blur-lg p-6 rounded-2xl shadow-xl border border-white/20 w-full h-full content-center">
-          <TabButton id="overview" label="📊 Overview" isActive={activeTab === 'overview'} onClick={setActiveTab}  />
-          <TabButton id="water-quality" label="💧 Water Quality" isActive={activeTab === 'water-quality'} onClick={setActiveTab}  />
-          <TabButton id="pollution-sources" label="🏭 Pollution Sources" isActive={activeTab === 'pollution-sources'} onClick={setActiveTab}  />
-          <TabButton id="predictions" label="🔮 Predictions" isActive={activeTab === 'predictions'} onClick={setActiveTab} />
-          <TabButton id="interventions" label="⚡ Interventions" isActive={activeTab === 'interventions'} onClick={setActiveTab}  />
-          <TabButton id="system-dynamics" label="🔄 System Dynamics" isActive={activeTab === 'system-dynamics'} onClick={setActiveTab}  />
-           <TabButton id="change-detection" label="🛰️ Change Detection" isActive={activeTab === 'change-detection'} onClick={(id:string) => {
-            if (id === 'change-detection') {
-              window.open('https://dssiitbhu.users.earthengine.app/view/changedetection', '_blank');
-              setActiveTab(id);
-            } else {
-              setActiveTab(id);
-            }
-          }} />
-        </div>
-      </div>
-        {/*right column:map section */}
-        <div ref={mapRef} className="w-full lg:w-1/2 animate-fadeIn"
-        
-        >
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-            
-            {/* ✅ DEFINITELY VISIBLE Map Header */}
-            <div 
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 flex justify-between items-center"
-              style={{ 
-                position: 'relative',
-                zIndex: 10,
-                display: 'flex !important',
-                visibility: 'visible',
-                opacity: 1
-              }}
-            >
-              <div>
-                <h2 className="text-xl font-bold">🌊 Varuna River Network Map</h2>
-                {/* <p className="text-blue-100 text-sm">Interactive visualization of 200km river network</p> */}
-              </div>
-              <div className="flex items-center space-x-3">
-                {/* Data Buttons */}
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && window.loadGeoJSON) {
-                        window.loadGeoJSON('rivers', 'varuna');
-                      }
-                    }}
-                    className="bg-blue-700/50 hover:bg-blue-600 px-3 py-1 rounded text-sm transition-colors border border-blue-500/30"
-                  >
-                    🌊 River
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && window.loadGeoJSON) {
-                        window.loadGeoJSON('watershed', 'varuna');
-                      }
-                    }}
-                    className="bg-green-700/50 hover:bg-green-600 px-3 py-1 rounded text-sm transition-colors border border-green-500/30"
-                  >
-                    🏞️ Watershed
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && window.loadGeoJSON) {
-                        window.loadGeoJSON('drains', 'varuna');
-                      }
-                    }}
-                    className="bg-cyan-700/50 hover:bg-cyan-600 px-3 py-1 rounded text-sm transition-colors border border-cyan-500/30"
-                  >
-                    🚰 Drains
-                  </button>
+        <div className="space-y-6 mb-8">
+          <div className="flex flex-col lg:flex-row gap-6 items-stretch">
+            {/* Left Side - Image Carousel */}
+            <div className="w-full lg:w-1/2 animate-fadeIn">
+              <ImageCarousel />
+            </div>
+            {/* Right Side - Map Section */}
+            <div ref={mapRef} className="w-full lg:w-1/2 animate-fadeIn" id="map-container">
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 flex justify-between items-center varuna-map-controls">
+                  <div>
+                    <h2 className="text-xl font-bold">🌊 Varuna River Network Map</h2>
+                  </div>
+                </div>
+                <div className="h-[600px] relative overflow-hidden">
+                  <VarunaMap
+                    sidebarCollapsed={sidebarCollapsed}
+                    showNotification={showNotification}
+                    selectedFilter={selectedFilter} // Sync with dashboard filters
+                  />
+                </div>
+                <div className="p-3 bg-gray-50 border-t text-center">
+                  <p className="text-xs text-gray-600">
+                    🗺️ Use controls to explore rivers and water quality data
+                  </p>
                 </div>
               </div>
             </div>
-            
-            {/* Clean Map Container */}
-            <div className="h-96 relative overflow-hidden">
-              <Map
-                sidebarCollapsed={true}
-                onFeatureClick={handleMapFeatureClick}
-                currentLayer={null}
-                activeFeature={null}
-                compassVisible={false}
-                gridVisible={false}
-                showNotification={handleMapNotification}
+          </div>
+          <div className="bg-white/70 backdrop-blur-lg p-6 rounded-2xl shadow-xl border border-white/20">
+            <div className="flex flex-wrap justify-center gap-4">
+              <TabButton id="overview" label="📊 Overview" isActive={activeTab === 'overview'} onClick={setActiveTab} />
+              <TabButton id="water-quality" label="💧 Water Quality" isActive={activeTab === 'water-quality'} onClick={setActiveTab} />
+              <TabButton id="pollution-sources" label="🏭 Pollution Sources" isActive={activeTab === 'pollution-sources'} onClick={setActiveTab} />
+              <TabButton id="predictions" label="🔮 Predictions" isActive={activeTab === 'predictions'} onClick={setActiveTab} />
+              <TabButton id="interventions" label="⚡ Interventions" isActive={activeTab === 'interventions'} onClick={setActiveTab} />
+              <TabButton id="system-dynamics" label="🔄 System Dynamics" isActive={activeTab === 'system-dynamics'} onClick={setActiveTab} />
+              <TabButton
+                id="change-detection"
+                label="🛰️ Change Detection"
+                isActive={activeTab === 'change-detection'}
+                onClick={(id: string) => {
+                  if (id === 'change-detection') {
+                    window.open('https://dssiitbhu.users.earthengine.app/view/changedetection', '_blank');
+                    setActiveTab(id);
+                  } else {
+                    setActiveTab(id);
+                  }
+                }}
               />
-            </div>
-            
-            {/* Info Footer */}
-            <div className="p-3 bg-gray-50 border-t text-center">
-              <p className="text-xs text-gray-600">
-                🗺️ Use buttons above to load data layers • Mouse to zoom/pan
-              </p>
             </div>
           </div>
         </div>
-       </div> 
       )}
-
-      {/* Enhanced Navigation Tabs */}
-      {/* ✅ Two-column layout: Buttons left, Map right */}
-      
-
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-          {/* Enhanced Key Metrics */}
+          {/* Key Metrics */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 col-span-full border border-white/20">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
@@ -1150,100 +917,163 @@ export default function VarunaRiverDashboard() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
               <div className="group p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-red-600 mb-2">
-                  <AnimatedCounter value={6.62} />
-                </div>
-                <div className="text-sm font-semibold text-red-800 mb-1">Worst BOD (mg/l)</div>
-                <div className="text-xs text-gray-600">Kutchehari Bridge</div>
+                <div className="text-3xl font-bold text-red-600 mb-2"><AnimatedCounter value={acidicCount} /></div>
+                <div className="text-sm font-semibold text-red-800 mb-1">Acidic pH Sites</div>
+                <div className="text-xs text-gray-600">pH &lt; 6.5 • {drainData.find(d => d.ph < 6.5)?.location || '—'}</div>
                 <div className="mt-3 w-full bg-red-200 rounded-full h-2">
-                  <div className="bg-red-500 h-2 rounded-full w-4/5"></div>
+                  <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(acidicCount / drainData.length) * 100 || 0}%` }}></div>
                 </div>
               </div>
-
               <div className="group p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-blue-600 mb-2">
-                  <AnimatedCounter value={4.1} />
-                </div>
-                <div className="text-sm font-semibold text-blue-800 mb-1">Lowest DO (mg/l)</div>
-                <div className="text-xs text-gray-600">Kutchehari Bridge</div>
+                <div className="text-3xl font-bold text-blue-600 mb-2"><AnimatedCounter value={lowDOCount} /></div>
+                <div className="text-sm font-semibold text-orange-800 mb-1">Low DO Sites</div>
+                <div className="text-xs text-gray-600">DO &lt; 4 mg/L • {drainData.find(d => d.do_mg_l < 4)?.location || '—'}</div>
                 <div className="mt-3 w-full bg-blue-200 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full w-3/5"></div>
+                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(lowDOCount / drainData.length) * 100 || 0}%` }}></div>
                 </div>
               </div>
-
-              <div className="group p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-orange-600 mb-2">
-                  <AnimatedCounter value={867} />
+              <div className="group p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <div className="text-3xl font-bold text-emerald-600 mb-2"><AnimatedCounter value={highBODCount} /></div>
+                <div className="text-sm font-semibold text-rose-800 mb-1">High BOD Sites</div>
+                <div className="text-xs text-gray-600">BOD &gt; 10 mg/L • {drainData.find(d => d.bod_mg_l > 10)?.location || '—'}</div>
+                <div className="mt-3 w-full bg-emerald-200 rounded-full h-2">
+                  <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${(highBODCount / drainData.length) * 100 || 0}%` }}></div>
                 </div>
+              </div>
+              <div className="group p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <div className="text-3xl font-bold text-purple-600 mb-2"><AnimatedCounter value={highCODCount} /></div>
+                <div className="text-sm font-semibold text-purple-800 mb-1">High COD Sites</div>
+                <div className="text-xs text-gray-600">COD &gt; 100 mg/L • {drainData.find(d => d.cod > 100)?.location || '—'}</div>
+                <div className="mt-3 w-full bg-purple-200 rounded-full h-2">
+                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(highCODCount / drainData.length) * 100 || 0}%` }}></div>
+                </div>
+              </div>
+              <div className="group p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                <div className="text-3xl font-bold text-orange-600 mb-2"><AnimatedCounter value={867} /></div>
                 <div className="text-sm font-semibold text-orange-800 mb-1">Small Industries</div>
                 <div className="text-xs text-gray-600">Varanasi District</div>
                 <div className="mt-3 w-full bg-orange-200 rounded-full h-2">
-                  <div className="bg-orange-500 h-2 rounded-full w-full"></div>
+                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: '100%' }}></div>
                 </div>
               </div>
-
               <div className="group p-6 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl border border-yellow-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-yellow-600 mb-2">
-                  <AnimatedCounter value={11} />
-                </div>
+                <div className="text-3xl font-bold text-yellow-600 mb-2"><AnimatedCounter value={11} /></div>
                 <div className="text-sm font-semibold text-yellow-800 mb-1">Untapped Drains</div>
                 <div className="text-xs text-gray-600">Need Connection</div>
                 <div className="mt-3 w-full bg-yellow-200 rounded-full h-2">
-                  <div className="bg-yellow-500 h-2 rounded-full w-2/3"></div>
-                </div>
-              </div>
-
-              <div className="group p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-emerald-600 mb-2">
-                  <AnimatedCounter value={9.13} />
-                </div>
-                <div className="text-sm font-semibold text-emerald-800 mb-1">MLD Discharge</div>
-                <div className="text-xs text-gray-600">Small Industries</div>
-                <div className="mt-3 w-full bg-emerald-200 rounded-full h-2">
-                  <div className="bg-emerald-500 h-2 rounded-full w-4/5"></div>
-                </div>
-              </div>
-
-              <div className="group p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="text-3xl font-bold text-purple-600 mb-2">
-                  ₹<AnimatedCounter value={22} />
-                </div>
-                <div className="text-sm font-semibold text-purple-800 mb-1">Cr Investment</div>
-                <div className="text-xs text-gray-600">Drain Connections</div>
-                <div className="mt-3 w-full bg-purple-200 rounded-full h-2">
-                  <div className="bg-purple-500 h-2 rounded-full w-3/4"></div>
+                  <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '66.67%' }}></div>
                 </div>
               </div>
             </div>
           </div>
-
           {/* Enhanced Quick Status */}
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
-            <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-              🚨 Critical Status
-            </h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-lg transition-all duration-300">
-                <span className="font-semibold text-gray-800">Kutchehari Bridge</span>
-                <span className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-full text-sm font-bold pulse-glow">
-                  CRITICAL
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 hover:shadow-lg transition-all duration-300">
-                <span className="font-semibold text-gray-800">Industrial Discharge</span>
-                <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                  HIGH
-                </span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-200 hover:shadow-lg transition-all duration-300">
-                <span className="font-semibold text-gray-800">Seasonal Variation</span>
-                <span className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                  MEDIUM
-                </span>
-              </div>
-            </div>
+             {/* Real-time Calculated Indices */}
+<div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
+  <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+    🚨 Critical Status - Calculated Indices
+  </h3>
+  <div className="space-y-4">
+    {(() => {
+      const worstSites = getWorstSites();
+     
+      if (!worstSites) {
+        return (
+          <div className="text-center text-gray-500 py-8">
+            <p>Loading data...</p>
           </div>
-
+        );
+      }
+      return (
+        <>
+          {/* Pollution Load Index */}
+          <div className="flex justify-between items-center p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-lg transition-all duration-300">
+            <div className="flex-1">
+              <span className="font-semibold text-gray-800 block">{worstSites.pollution.location}</span>
+              <span className="text-sm text-red-600 font-medium">
+                Pollution Load Index: {worstSites.pollution.score}
+              </span>
+            </div>
+            <span className={`text-white px-3 py-1 rounded-full text-sm font-bold ${
+              worstSites.pollution.level === 'EXTREME' ? 'bg-gradient-to-r from-red-600 to-red-700 pulse-glow' :
+              worstSites.pollution.level === 'HIGH' ? 'bg-gradient-to-r from-red-500 to-red-600 pulse-glow' :
+              worstSites.pollution.level === 'MODERATE' ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+              'bg-gradient-to-r from-yellow-500 to-yellow-600'
+            }`}>
+              {worstSites.pollution.level} POLLUTION
+            </span>
+          </div>
+          {/* Eutrophication Risk */}
+          <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 hover:shadow-lg transition-all duration-300">
+            <div className="flex-1">
+              <span className="font-semibold text-gray-800 block">{worstSites.eutrophication.location}</span>
+              <span className="text-sm text-green-600 font-medium">
+                Eutrophication Risk: {worstSites.eutrophication.score}
+              </span>
+            </div>
+            <span className={`text-white px-3 py-1 rounded-full text-sm font-bold ${
+              worstSites.eutrophication.level === 'EXTREME' ? 'bg-gradient-to-r from-red-600 to-red-700 pulse-glow' :
+              worstSites.eutrophication.level === 'HIGH' ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+              worstSites.eutrophication.level === 'MODERATE' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+              'bg-gradient-to-r from-green-500 to-green-600'
+            }`}>
+              {worstSites.eutrophication.level} EUTROPHICATION
+            </span>
+          </div>
+          {/* Bacterial Contamination Level */}
+          <div className="flex justify-between items-center p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-lg transition-all duration-300">
+            <div className="flex-1">
+              <span className="font-semibold text-gray-800 block">{worstSites.bacterial.location}</span>
+              <span className="text-sm text-purple-600 font-medium">
+                Bacterial Level: {worstSites.bacterial.score}
+                {worstSites.bacterial.level.includes('BOD-based') ? ' (estimated)' : ''}
+              </span>
+            </div>
+            <span className={`text-white px-3 py-1 rounded-full text-sm font-bold ${
+              worstSites.bacterial.level.includes('EXTREME') ? 'bg-gradient-to-r from-red-600 to-red-700 pulse-glow' :
+              worstSites.bacterial.level.includes('HIGH') ? 'bg-gradient-to-r from-purple-500 to-purple-600' :
+              worstSites.bacterial.level.includes('MODERATE') ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+              'bg-gradient-to-r from-blue-500 to-blue-600'
+            }`}>
+              {worstSites.bacterial.level.split(' ')[0]} BACTERIAL
+            </span>
+          </div>
+        </>
+      );
+    })()}
+  </div>
+  {/* Summary Statistics */}
+  <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
+    <div className="grid grid-cols-3 gap-4 text-center">
+      <div>
+        <div className="text-xl font-bold text-red-600">
+          {(() => {
+            const pollutionResults = drainData.map(calculatePollutionLoadIndex);
+            return pollutionResults.filter(r => r.level === 'HIGH' || r.level === 'EXTREME').length;
+          })()}
+        </div>
+        <div className="text-xs text-gray-600">High Pollution Sites</div>
+      </div>
+      <div>
+        <div className="text-xl font-bold text-green-600">
+          {(() => {
+            const eutrophicationResults = drainData.map(calculateEutrophicationRisk);
+            return eutrophicationResults.filter(r => r.level === 'HIGH' || r.level === 'EXTREME').length;
+          })()}
+        </div>
+        <div className="text-xs text-gray-600">Eutrophication Risk</div>
+      </div>
+      <div>
+        <div className="text-xl font-bold text-purple-600">
+          {(() => {
+            const bacterialResults = drainData.map(calculateBacterialContamination);
+            return bacterialResults.filter(r => r.level.includes('HIGH') || r.level.includes('EXTREME')).length;
+          })()}
+        </div>
+        <div className="text-xs text-gray-600">Bacterial Contamination</div>
+      </div>
+    </div>
+  </div>
+</div>
           {/* Enhanced District Comparison */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
@@ -1264,7 +1094,7 @@ export default function VarunaRiverDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="district" />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     border: 'none',
@@ -1276,12 +1106,15 @@ export default function VarunaRiverDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-
           {/* Enhanced Temporal Trend */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              📈 BOD Trend (12 Months)
+              📈 RAMESHWARA GHAT
             </h3>
+              <p className="text-xs text-gray-600 -mt-3 mb-6">
+                Based on quarterly progress report
+              </p>
+           
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={temporalData}>
                 <defs>
@@ -1293,7 +1126,7 @@ export default function VarunaRiverDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     border: 'none',
@@ -1307,7 +1140,6 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
       {activeTab === 'water-quality' && (
         <div className="space-y-8">
           {/* Enhanced Parameter Selection */}
@@ -1317,10 +1149,10 @@ export default function VarunaRiverDashboard() {
                 💧 Water Quality Analysis
               </h2>
               <div className="flex gap-4">
-                <select 
-                  value={selectedParameter} 
+                <select
+                  value={selectedParameter}
                   onChange={(e) => setSelectedParameter(e.target.value)}
-                  className="border-2 border-gray-200 rounded-xl px-4 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  className="border-2 border-gray-200 rounded-xl px-4 py-2 bg-white focus:ring-2 focus:ring-2 focus:blue-500 focus:border-blue-500 transition-all"
                 >
                   <option value="BOD">BOD (mg/l)</option>
                   <option value="COD">COD (mg/l)</option>
@@ -1328,23 +1160,15 @@ export default function VarunaRiverDashboard() {
                   <option value="pH">pH</option>
                   <option value="temp">Temperature (°C)</option>
                 </select>
-                <select 
-                  value={timeRange} 
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="border-2 border-gray-200 rounded-xl px-4 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                >
-                  <option value="12months">Last 12 Months</option>
-                  <option value="6months">Last 6 Months</option>
-                  <option value="3months">Last 3 Months</option>
-                </select>
               </div>
             </div>
-
             {/* Enhanced Temporal Chart */}
+           
+         
             <div className="mb-8">
               <h3 className="font-semibold mb-4 text-lg">Temporal Variation - {selectedParameter}</h3>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={temporalData}>
+                <AreaChart data={processedData}>
                   <defs>
                     <linearGradient id="parameterGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2563eb" stopOpacity={0.8}/>
@@ -1352,9 +1176,12 @@ export default function VarunaRiverDashboard() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="month" />
+                  <XAxis
+                    dataKey="label"
+                     tick={false}
+                  />
                   <YAxis />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: 'rgba(255, 255, 255, 0.95)',
                       border: 'none',
@@ -1362,10 +1189,10 @@ export default function VarunaRiverDashboard() {
                       boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
                     }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey={selectedParameter} 
-                    stroke="#2563eb" 
+                  <Area
+                    type="monotone"
+                    dataKey={selectedParameter}
+                    stroke="#2563eb"
                     strokeWidth={3}
                     fill="url(#parameterGradient)"
                   />
@@ -1373,7 +1200,6 @@ export default function VarunaRiverDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-
           {/* Enhanced Station-wise Comparison */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
@@ -1410,17 +1236,15 @@ export default function VarunaRiverDashboard() {
               </table>
             </div>
           </div>
-
           {/* NEW: Drain Water Quality Stations */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-
             <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               🚰 DRAIN WATER QUALITY STATIONS
             </h3>
              {/* Dropdown Filter */}
             <div className="text-sm">
-              
+             
               <select
                 value={selectedFilter || ''}
                 onChange={(e) =>
@@ -1429,15 +1253,39 @@ export default function VarunaRiverDashboard() {
                 className="appearance-none border border-blue-300 rounded-md px-3 py-2 bg-white hover:shadow-md hover:border-blue-400 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-8 transition-all duration-200"
               >
                 <option value="">All Sites</option>
-                <option value="acidic">24 Acidic pH Sites</option>
-                <option value="lowDO">32 Low DO Sites</option>
-                <option value="highBOD">51 High BOD Sites</option>
-                <option value="highCOD">27 High COD Sites</option>
-                <option value="coliform">38 Coliform Positive</option>
+                <option value="acidic"> Acidic pH Sites</option>
+                <option value="lowDO"> Low DO Sites</option>
+                <option value="highBOD"> High BOD Sites</option>
+                <option value="highCOD"> High COD Sites</option>
+                <option value="coliform"> Coliform Positive</option>
               </select>
+               {/* ✅ Show Map Button */}
+              <button
+                onClick={() => {
+                setShowMarkers(true); // ✅ Show markers on map
+                setTimeout(() => {
+                  const mapElement = document.getElementById("leaflet-map");
+                  if (mapElement) {
+                    const offset = -120; // ⬅️ scroll 120px above
+                    const top = mapElement.getBoundingClientRect().top + window.scrollY + offset;
+                    window.scrollTo({ top, behavior: "smooth" });
+                  }
+                }, 100); // wait slightly to ensure map renders
+              }}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200"
+              >
+                Show Map
+              </button>
+               <button
+                  onClick={() => {
+                  setShowMarkers(false); // ✅ trigger hiding
+                 }}
+                 className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200"
+                >
+                  Hide
+               </button>
             </div>
           </div>
-
             <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-700 font-medium">
                 📊 Showing {filteredDrainData.length} drain monitoring locations
@@ -1446,12 +1294,13 @@ export default function VarunaRiverDashboard() {
                 </span>
               </p>
             </div>
-            
+           
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
                     <th className="text-left p-3 font-semibold min-w-[200px]">Location</th>
+                    <th className="text-left p-3 font-semibold">Stream</th>
                     <th className="text-left p-3 font-semibold">pH</th>
                     <th className="text-left p-3 font-semibold">Temp</th>
                     <th className="text-left p-3 font-semibold">EC (μS/cm)</th>
@@ -1470,109 +1319,143 @@ export default function VarunaRiverDashboard() {
                 </thead>
                 <tbody>
                   {filteredDrainData.map((drain, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300">
-                      <td className="p-3 font-medium text-gray-800">{drain.Location}</td>
-                      <td className="p-3">
-                        <span className={`font-semibold ${
-                          drain.pH < 6.5 ? 'text-red-600' : 
-                          drain.pH > 8.5 ? 'text-red-600' : 
-                          'text-green-600'
-                        }`}>
-                          {drain.pH}
-                        </span>
-                      </td>
-                      <td className="p-3 font-semibold text-blue-600">{drain.Temperatur}</td>
-                      <td className="p-3">{drain.EC__S_cm_}</td>
-                      <td className="p-3">{drain.TDS_ppm_}</td>
-                      <td className="p-3">
-                        <span className={`font-semibold ${
-                          drain.DO_mg_L_ < 4 ? 'text-red-600' : 
-                          drain.DO_mg_L_ < 6 ? 'text-yellow-600' : 
-                          'text-green-600'
-                        }`}>
-                          {drain.DO_mg_L_}
-                        </span>
-                      </td>
-                      <td className="p-3">{drain.Turbidity_}</td>
-                      <td className="p-3">{drain.TSS_mg_l_}</td>
-                      <td className="p-3">
-                        <span className={`font-semibold ${
-                          drain.COD > 100 ? 'text-red-600' : 
-                          drain.COD > 50 ? 'text-yellow-600' : 
-                          'text-green-600'
-                        }`}>
-                          {drain.COD}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className={`font-semibold ${
-                          drain.BOD_mg_l_ > 10 ? 'text-red-600' : 
-                          drain.BOD_mg_l_ > 6 ? 'text-yellow-600' : 
-                          'text-green-600'
-                        }`}>
-                          {drain.BOD_mg_l_}
-                        </span>
-                      </td>
-                      <td className="p-3">{drain.TS_mg_l_}</td>
-                      <td className="p-3">{drain.Chloride_m}</td>
-                      <td className="p-3">{typeof drain.Nitrate === 'number' ? drain.Nitrate : 'N/A'}</td>
-                      <td className="p-3">
-                        <span className={`text-xs ${
-                          drain.Faecal_Col !== 'N/A' ? 'text-red-600 font-semibold bg-red-50 px-2 py-1 rounded' : 'text-gray-500'
-                        }`}>
-                          {drain.Faecal_Col}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className={`text-xs ${
-                          drain.Total_Coli !== 'N/A' ? 'text-red-600 font-semibold bg-red-50 px-2 py-1 rounded' : 'text-gray-500'
-                        }`}>
-                          {drain.Total_Coli}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+  <tr
+    key={index}
+    className="border-b border-gray-100 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 transition-all duration-300"
+  >
+    {/* 1 ─ Location */}
+    <td className="p-3 font-medium text-gray-800">{drain.location}</td>
+    <td className="p-3 font-medium text-gray-800">{drain.stream}</td>
+    {/* 2 ─ pH */}
+    <td className="p-3">
+      <span
+        className={`font-semibold ${
+          drain.ph < 6.5 ? 'text-red-600'
+          : drain.ph > 8.5 ? 'text-red-600'
+          : 'text-green-600'
+        }`}
+      >
+        {drain.ph}
+      </span>
+    </td>
+    {/* 3 ─ Temperature */}
+    <td className="p-3 font-semibold text-blue-600">
+      {drain.temp}°C
+    </td>
+    {/* 4 ─ EC, TDS */}
+    <td className="p-3">{drain.ec_us_cm}</td>
+    <td className="p-3">{drain.tds_ppm}</td>
+    {/* 5 ─ DO */}
+    <td className="p-3">
+      <span
+        className={`font-semibold ${
+          drain.do_mg_l < 4 ? 'text-red-600'
+          : drain.do_mg_l < 6 ? 'text-yellow-600'
+          : 'text-green-600'
+        }`}
+      >
+        {drain.do_mg_l}
+      </span>
+    </td>
+    {/* 6 ─ Turbidity, TSS */}
+    <td className="p-3">{drain.turbidity}</td>
+    <td className="p-3">{drain.tss_mg_l}</td>
+    {/* 7 ─ COD */}
+    <td className="p-3">
+      <span
+        className={`font-semibold ${
+          drain.cod > 100 ? 'text-red-600'
+          : drain.cod > 50 ? 'text-yellow-600'
+          : 'text-green-600'
+        }`}
+      >
+        {drain.cod}
+      </span>
+    </td>
+    {/* 8 ─ BOD */}
+    <td className="p-3">
+      <span
+        className={`font-semibold ${
+          drain.bod_mg_l > 10 ? 'text-red-600'
+          : drain.bod_mg_l > 6 ? 'text-yellow-600'
+          : 'text-green-600'
+        }`}
+      >
+        {drain.bod_mg_l}
+      </span>
+    </td>
+    {/* 9 ─ TS, Chloride, Nitrate */}
+    <td className="p-3">{drain.ts_mg_l}</td>
+    <td className="p-3">{drain.chloride}</td>
+    <td className="p-3">
+      {typeof drain.nitrate === 'number' ? drain.nitrate : 'N/A'}
+    </td>
+    {/* 10 ─ Faecal / Total Coliform */}
+    <td className="p-3">
+      <span
+        className={`text-xs ${
+          drain.faecal_col && drain.faecal_col !== 'N/A'
+            ? 'text-red-600 font-semibold bg-red-50 px-2 py-1 rounded'
+            : 'text-gray-500'
+        }`}
+      >
+        {drain.faecal_col ?? 'N/A'}
+      </span>
+    </td>
+    <td className="p-3">
+      <span
+        className={`text-xs ${
+          drain.total_col && drain.total_col !== 'N/A'
+            ? 'text-red-600 font-semibold bg-red-50 px-2 py-1 rounded'
+            : 'text-gray-500'
+        }`}
+      >
+        {drain.total_col ?? 'N/A'}
+      </span>
+    </td>
+  </tr>
+))}
                 </tbody>
               </table>
             </div>
-            
-            {/* Water Quality Summary for Drains */}
+           
+            {/* Water Quality summary for Drains */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                 <div className="text-2xl font-bold text-red-600">
-                  {drainWaterQualityData.filter(d => d.pH < 6.5).length}
+                  {drainData.filter(d => d.ph < 6.5).length}
                 </div>
                 <div className="text-sm font-semibold text-red-800">Acidic pH Sites</div>
                 <div className="text-xs text-red-600">pH &lt; 6.5</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                 <div className="text-2xl font-bold text-orange-600">
-                  {drainWaterQualityData.filter(d => d.DO_mg_L_ < 4).length}
+                  {drainData.filter(d => d.do_mg_l < 4).length}
                 </div>
                 <div className="text-sm font-semibold text-orange-800">Low DO Sites</div>
                 <div className="text-xs text-orange-600">DO &lt; 4 mg/L</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                 <div className="text-2xl font-bold text-red-600">
-                  {drainWaterQualityData.filter(d => d.BOD_mg_l_ > 10).length}
+                  {drainData.filter(d => d.bod_mg_l > 10).length}
                 </div>
                 <div className="text-sm font-semibold text-red-800">High BOD Sites</div>
                 <div className="text-xs text-red-600">BOD &gt; 10 mg/L</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                 <div className="text-2xl font-bold text-purple-600">
-                  {drainWaterQualityData.filter(d => d.COD > 100).length}
+                  {drainData.filter(d => d.cod > 100).length}
                 </div>
                 <div className="text-sm font-semibold text-purple-800">High COD Sites</div>
                 <div className="text-xs text-purple-600">COD &gt; 100 mg/L</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                 <div className="text-2xl font-bold text-red-600">
-                  {drainWaterQualityData.filter(d => d.Faecal_Col !== 'N/A' && d.Faecal_Col !== ' ').length}
+                  {drainData.filter(d => d.faecal_col && d.faecal_col !== 'N/A' && d.faecal_col.trim() !== '').length}
                 </div>
                 <div className="text-sm font-semibold text-red-800">Coliform Positive</div>
                 <div className="text-xs text-red-600">Bacterial Contamination</div>
@@ -1581,7 +1464,8 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
+       
+     
       {activeTab === 'pollution-sources' && (
         <div className="space-y-8">
           {/* Enhanced Industrial Sources */}
@@ -1618,7 +1502,7 @@ export default function VarunaRiverDashboard() {
                   ))}
                 </div>
               </div>
-
+             
               {/* Enhanced Pie Chart */}
               <div>
                 <h3 className="font-semibold mb-4 text-lg">Industry Type Distribution</h3>
@@ -1636,7 +1520,7 @@ export default function VarunaRiverDashboard() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: 'none',
@@ -1644,11 +1528,11 @@ export default function VarunaRiverDashboard() {
                         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
                       }}
                     />
-                    <Legend 
-                      verticalAlign="bottom" 
+                    <Legend
+                      verticalAlign="bottom"
                       height={50}
                        content={({payload}) => {
-                       
+                      
                        return (
                        <ul style={{ fontSize: '12px', listStyleType: 'none', padding: 0 }}>
                        {payload?.map((entry, index) => {
@@ -1668,80 +1552,182 @@ export default function VarunaRiverDashboard() {
               </div>
             </div>
           </div>
-
+        
           {/* Enhanced Drain Management */}
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 pb-12 border border-white/20">
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              🚰 Sewage Drain Status
+              🚰 Potential Pollution Sources
             </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h3 className="font-semibold mb-4 text-lg">Drain Connection Priority</h3>
-                <div className="space-y-4">
-                  {drainData.map((drain, index) => (
-                    <div key={index} className="border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300 transform hover:scale-102 bg-gradient-to-r from-white to-blue-50">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="font-semibold text-gray-800">{drain.name}</div>
-                        <div className="text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 rounded-full font-bold">
-                          Priority: {drain.priority}
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-3">
-                        <span>Status: <span className="font-medium">{drain.status}</span></span>
-                        <span>BOD Contribution: <span className="font-bold text-red-600">{drain.BOD_contribution}%</span></span>
-                      </div>
-                      <div className="mt-3">
-                        <span className={`text-xs px-3 py-1 rounded-full font-bold ${
-                          drain.pollution === 'Critical' ? 'bg-red-100 text-red-800' :
-                          drain.pollution === 'High' ? 'bg-orange-100 text-orange-800' :
-                          drain.pollution === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {drain.pollution} Pollution
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-semibold mb-4 text-lg">BOD Contribution by Source</h3>
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={drainData.filter(d => d.priority !== 'N/A')}>
-                    <defs>
-                      <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.4}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={120}
-                      fontSize={12}
-                      interval={0}
-                    />
-                    <YAxis />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        border: 'none',
-                        borderRadius: '12px',
-                        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
-                      }}
-                    />
-                    <Bar dataKey="BOD_contribution" fill="url(#barGradient)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+           
+               {/* ✅ Pollution Cards Section */}
+               <div>
+                 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                      {[
+             {
+            title: "Organic Pollution",
+            image: "https://dialogue.earth/content/uploads/2015/12/India-Ganga-pollution-scaled.jpg",
+            icon: "🧪",
+            value: (
+             <>
+             Safe Limit: BOD ≤ 3.00 mg/L<br />
+             (Highest Observed: {worstBOD.value} mg/L at {worstBOD.location})
+             </>
+            ),
+            description: "High organic load, likely from untreated sewage discharge. It promotes microbial growth, reduces dissolved oxygen, harms aquatic organisms, and contributes to water eutrophication.",
+            bgColor: "from-green-100 to-white",
+          },
+          {
+            title: "Pathogen Risk",
+            icon: "🦠",
+            image:"https://t4.ftcdn.net/jpg/08/42/76/07/360_F_842760775_8ccQDE8g6eKeuVy2jHffnZxU13MZrpEG.jpg",
+           value: (
+           <>
+             Safe Limit: Faecal Coliform ≤ 500 MPN/100mL <br />
+            (Highest Observed: {worstFaecalColiform.value} MPN at {worstFaecalColiform.location})
+           </>
+          ),
+            description: "High levels of faecal contamination from untreated sewage pose serious health hazards and risk of waterborne diseases.",
+            bgColor: "from-red-100 to-white",
+          },
+          {
+            title: "Chemical Pollution",
+            icon: "⚗️",
+            image:"https://static.vecteezy.com/system/resources/thumbnails/057/512/892/small_2x/close-up-of-a-barrel-with-green-leaking-toxic-waste-standing-in-nature-photo.jpg",
+            value: (
+            <>
+              Safe Limit: COD ≤ 30 mg/L, TSS ≤ 100 mg/L <br />
+              (Highest Observed: COD = {worstChemicalRisk.cod} mg/L, TSS = {worstChemicalRisk.tss} mg/L at {worstChemicalRisk.location})
+            </>
+           ),
+            description: "Chemical substances and solids — Presence of chemical residues like fertilizers, oils, or solvents alters water chemistry, harms aquatic life, and degrades water usability.",
+            bgColor: "from-yellow-100 to-white",
+          },
+          {
+            title: "Turbidity",
+            image:"https://ecoreportcard.org/site/assets/files/2218/chesterville_branch_turbidity.700x0.jpg",
+            icon: "🌫️",
+            value: (
+            <>
+              Safe Limit: Turbidity ≤ 25 NTU<br />
+              (Highest Observed: {worstTurbidity.value} NTU at {worstTurbidity.location})
+            </>
+           ),
+            description: "High turbidity indicates the presence of suspended solids such as silt, clay, organic matter, and microorganisms. It reduces light penetration, disrupts photosynthesis in aquatic plants.",
+            bgColor: "from-gray-100 to-white",
+          },
+          {
+            title: "Salinity / Conductivity",
+            image:"https://www.waterquality.gov.au/sites/default/files/images/salt.jpg",
+            icon: "🧂",
+            value: (
+            <>
+              Safe Limit: TDS = 500–1000 ppm, EC ≤ 1000 µS/cm<br />
+              (Highest Observed: TDS = {worstSalinity.tds} ppm, EC = {worstSalinity.ec} µS/cm at {worstSalinity.location})
+            </>
+           ),
+            description: "High TDS and EC suggest excess salts and ions, often from sewage or runoff, affecting water quality and aquatic life.",
+            bgColor: "from-blue-100 to-white",
+          },
+           {
+          title: "Nitrates from Agriculture & Sewage",
+          icon: "🌾",
+          image: "https://nexteel.in/wp-content/uploads/2025/04/Nitrate-Pollution-in-water-1024x576.jpg",
+          value: (
+          <>
+            Safe Limit: Nitrate ≤ 2.00 mg/L<br />
+            (Highest Observed: {worstNitrate.value} mg/L at {worstNitrate.location})
+          </>
+          ),
+          description: "Presence of nitrates from fertilizers and waste promotes excessive algae growth and harms aquatic ecosystems.",
+          bgColor: "from-lime-100 to-white",
+        },
+        {
+          title: "Algae Growth",
+          icon: "🌿",
+          image: " https://assets.telegraphindia.com/telegraph/5jamriver2.jpg",
+          value: (
+          <>
+            Safe Limit: Nitrate ≤ 2.00 mg/L & BOD ≤ 5.00 mg/L<br />
+            (Highest Observed: Nitrate = {worstAlgaeRisk.nitrate} mg/L, BOD = {worstAlgaeRisk.bod} mg/L at {worstAlgaeRisk.location})
+          </>
+          ),
+          description: "Triggered by excess nutrients like nitrates and phosphates — leads to oxygen depletion and aquatic death.",
+          bgColor: "from-emerald-100 to-white",
+        },
+        {
+          title: "Industrial Contaminants",
+          icon: "🧪",
+          image:"https://images.assettype.com/english-sentinelassam/import/wp-content/uploads/2019/01/industrial-wastewater.jpg",
+          value: (
+           <>
+            Safe Limit: COD ≤ 30 mg/L, TDS ≤ 1000 ppm<br />
+            (Highest Observed: COD = {worstIndustrial.cod} mg/L, TDS = {worstIndustrial.tds} ppm at {worstIndustrial.location})
+          </>
+          ),
+          description: "Toxic discharge from industries — bioaccumulates in fish and poses long-term health risks.",
+          bgColor: "from-indigo-100 to-white",
+        },
+        {
+          title: "Phosphates & Detergents",
+          icon: "🧼",
+          image:"https://asset.library.wisc.edu/1711.dl/ER5CSR223WOWA8F/M/h1380-2ce93.jpg",
+          value: (
+          <>
+            Safe Limit: BOD ≤ 5 mg/L, COD ≤ 30 mg/L<br />
+            (Highest Observed: BOD = {worstDetergentRisk.bod} mg/L, COD = {worstDetergentRisk.cod} mg/L at {worstDetergentRisk.location})
+          </>
+          ),
+          description: "Elevated COD and BOD suggest greywater discharge with detergents and phosphates, promoting algal growth and eutrophication.",
+          bgColor: "from-purple-100 to-white",
+        },
+        {
+          title: "Land Use & Waste Dumping",
+          icon: "🗑️",
+          image:"https://dialogue.earth/content/uploads/2021/12/2CMW2JH-1-scaled.jpg",
+          value: (
+          <>
+            Safe Limit: TSS ≤ 100 mg/L, Turbidity ≤ 25 NTU, TS ≤ 500 mg/L <br />
+            (Highest Observed: TSS = {worstLandDumping.tss} mg/L, Turbidity = {worstLandDumping.turbidity} NTU, TS = {worstLandDumping.ts} mg/L at {worstLandDumping.location})
+          </>
+          ),
+          description: "High turbidity and suspended solids suggest runoff and solid waste dumping, degrading river clarity and quality.",
+          bgColor: "from-rose-100 to-white",
+        },
+            ].map((item, index) => (
+            <div
+              key={index}
+              className={`w-[255px] h-[425px] flex flex-col justify-between rounded-2xl px-5 py-5 bg-gradient-to-br ${item.bgColor} shadow-md border border-gray-200 transform hover:scale-105 hover:shadow-2xl transition-transform duration-300 ease-in-out`}
+            >
+               {/* Top Half - Image or Icon */}
+          {item.image ? (
+            <div className="-mx-5 -mt-5">
+              <img
+                src={item.image}
+                alt={item.title}
+                className="w-full h-[140px] object-cover rounded-t-2xl"
+               
+              />
+            </div>
+          ) : (
+            <div className="h-[120px] w-full flex justify-center items-center">
+              <div className="text-4xl">{item.icon}</div>
+            </div>
+          )}
+              <div className="px-5 py-4 flex flex-col justify-between h-full">
+              <h4 className="text-lg font-bold text-gray-800">{item.title}</h4>
+              <p className="text-sm text-red-600 font-semibold">{item.value}</p>
+              <p className="text-xs text-gray-700 mt-2">{item.description}</p>
               </div>
             </div>
-          </div>
-        </div>
+          ))}
+                    </div>
+                  </div>
+               </div>
+             </div>
+         
+       
       )}
-
       {activeTab === 'predictions' && (
         <div className="space-y-8">
           {/* Enhanced Prediction Dashboard */}
@@ -1749,7 +1735,7 @@ export default function VarunaRiverDashboard() {
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               📊 Water Quality Trend Analysis
             </h2>
-            
+           
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Enhanced Forecast Chart */}
               <div>
@@ -1767,7 +1753,7 @@ export default function VarunaRiverDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: 'none',
@@ -1775,10 +1761,10 @@ export default function VarunaRiverDashboard() {
                         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
                       }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="BOD" 
-                      stroke="#2563eb" 
+                    <Line
+                      type="monotone"
+                      dataKey="BOD"
+                      stroke="#2563eb"
                       strokeWidth={3}
                       strokeDasharray="5 5"
                       dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
@@ -1786,7 +1772,7 @@ export default function VarunaRiverDashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-
+             
               {/* Enhanced Prediction Summary */}
               <div>
                 <h3 className="font-semibold mb-4 text-lg">Prediction Summary</h3>
@@ -1802,8 +1788,8 @@ export default function VarunaRiverDashboard() {
                         <span>Trend: <span className="font-medium">{pred.trend}</span></span>
                       </div>
                       <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-1000" 
+                        <div
+                          className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-1000"
                           style={{ width: `${pred.confidence}%` }}
                         ></div>
                       </div>
@@ -1813,13 +1799,12 @@ export default function VarunaRiverDashboard() {
               </div>
             </div>
           </div>
-
           {/* Enhanced Scenario Analysis */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               📊 Scenario Analysis
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 <h3 className="font-bold text-red-800 mb-3 text-lg">Worst Case Scenario</h3>
                 <p className="text-sm text-red-700 mb-4">No interventions implemented</p>
@@ -1828,7 +1813,7 @@ export default function VarunaRiverDashboard() {
                 </div>
                 <div className="text-sm text-red-600 font-medium">BOD by Dec 2025</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-yellow-200 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 <h3 className="font-bold text-yellow-800 mb-3 text-lg">Current Trajectory</h3>
                 <p className="text-sm text-yellow-700 mb-4">Limited interventions</p>
@@ -1837,7 +1822,7 @@ export default function VarunaRiverDashboard() {
                 </div>
                 <div className="text-sm text-yellow-600 font-medium">BOD by Dec 2025</div>
               </div>
-              
+             
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 <h3 className="font-bold text-green-800 mb-3 text-lg">Best Case Scenario</h3>
                 <p className="text-sm text-green-700 mb-4">All interventions successful</p>
@@ -1850,7 +1835,6 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
       {activeTab === 'interventions' && (
         <div className="space-y-8">
           {/* Enhanced Cost-Benefit Analysis */}
@@ -1858,7 +1842,7 @@ export default function VarunaRiverDashboard() {
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               ⚡ Intervention Cost-Benefit Analysis
             </h2>
-            
+           
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Enhanced ROI Chart */}
               <div>
@@ -1874,7 +1858,7 @@ export default function VarunaRiverDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="intervention" angle={-45} textAnchor="end" height={100} />
                     <YAxis />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: 'none',
@@ -1886,7 +1870,6 @@ export default function VarunaRiverDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-
               {/* Enhanced Impact vs Cost */}
               <div>
                 <h3 className="font-semibold mb-4 text-lg">Impact vs Cost Analysis</h3>
@@ -1905,7 +1888,7 @@ export default function VarunaRiverDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="intervention" hide />
                     <YAxis />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
                         border: 'none',
@@ -1920,7 +1903,6 @@ export default function VarunaRiverDashboard() {
               </div>
             </div>
           </div>
-
           {/* Enhanced Priority Matrix */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
@@ -1949,11 +1931,11 @@ export default function VarunaRiverDashboard() {
                       </div>
                     </div>
                   </div>
-                  
+                 
                   {/* Enhanced progress bar for visual impact */}
                   <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000" 
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000"
                       style={{ width: `${(intervention.impact / 30) * 100}%` }}
                     ></div>
                   </div>
@@ -1963,7 +1945,6 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
       {activeTab === 'system-dynamics' && (
         <div className="space-y-8">
           {/* Enhanced Mental Map Visualization */}
@@ -1971,7 +1952,7 @@ export default function VarunaRiverDashboard() {
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
               🔄 System Dynamics Models
             </h2>
-            
+           
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Enhanced Feedback Loops */}
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
@@ -1980,18 +1961,18 @@ export default function VarunaRiverDashboard() {
                   <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                     <h4 className="font-semibold text-red-800 mb-2">Reinforcing Loop: Encroachment ↔ Water Availability</h4>
                     <p className="text-sm text-red-700">
-                      Reduced water availability → More encroachment → Further capacity reduction → 
+                      Reduced water availability → More encroachment → Further capacity reduction →
                       Even less water availability
                     </p>
                   </div>
-                  
+                 
                   <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                     <h4 className="font-semibold text-blue-800 mb-2">Balancing Loop: Water Quality ↔ Extraction</h4>
                     <p className="text-sm text-blue-700">
                       Poor quality → Limited extraction → Less pressure → Potential for improvement
                     </p>
                   </div>
-                  
+                 
                   <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                     <h4 className="font-semibold text-green-800 mb-2">Tourism-Pollution Loop</h4>
                     <p className="text-sm text-green-700">
@@ -2000,7 +1981,6 @@ export default function VarunaRiverDashboard() {
                   </div>
                 </div>
               </div>
-
               {/* Enhanced System Components */}
               <div className="bg-gradient-to-br from-gray-50 to-green-50 rounded-xl p-6 border border-gray-200">
                 <h3 className="font-bold mb-4 text-lg">🧩 System Components</h3>
@@ -2033,7 +2013,6 @@ export default function VarunaRiverDashboard() {
               </div>
             </div>
           </div>
-
           {/* Enhanced Policy Scenarios */}
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
             <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
@@ -2058,7 +2037,7 @@ export default function VarunaRiverDashboard() {
                   </div>
                 </div>
               </div>
-              
+             
               <div className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-br from-white to-green-50">
                 <h3 className="font-bold mb-3 text-lg">Scenario B: Infrastructure Focus</h3>
                 <p className="text-sm text-gray-600 mb-4">Prioritize sewage infrastructure</p>
@@ -2077,7 +2056,7 @@ export default function VarunaRiverDashboard() {
                   </div>
                 </div>
               </div>
-              
+             
               <div className="border-2 border-gray-200 rounded-xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 bg-gradient-to-br from-white to-purple-50">
                 <h3 className="font-bold mb-3 text-lg">Scenario C: Integrated Approach</h3>
                 <p className="text-sm text-gray-600 mb-4">Balanced multi-sector intervention</p>
@@ -2100,8 +2079,7 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
-
-      {/* Enhanced Footer */}
+      {/* Footer */}
       <div className="mt-12 text-center bg-white/50 backdrop-blur-sm rounded-xl p-6 border border-white/20">
         <p className="text-gray-600 font-medium">Varuna River Management System | IIT (BHU) Varanasi | Smart Laboratory on Clean River</p>
       </div>

@@ -359,7 +359,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           seasonal_multipliers: seasonalMultipliers
         };
 
-        const response = await fetch('/basics/domestic_water_demand/', {
+        const response = await fetch('/django/domestic_water_demand/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
@@ -394,7 +394,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           seasonal_multipliers: floatingSeasonalMultipliers
         };
 
-        const floatingResponse = await fetch('/basics/floating_water_demand/', {
+        const floatingResponse = await fetch('/django/floating_water_demand/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
@@ -424,7 +424,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
       try {
           let institutionalResult: { [year: string]: number };///////fixing here
         if (institutionalInputMode === 'manual') {
-          const institutionalResponse = await fetch('/basics/institutional_water_demand/', {
+          const institutionalResponse = await fetch('/django/institutional_water_demand/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -474,7 +474,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
 
       setIsCalculating(true);
       try {
-        const response = await fetch('/basics/firefighting_water_demand/', {
+        const response = await fetch('/django/firefighting_water_demand/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -210,7 +210,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch('http://localhost:9000/basics/swrunoff', {
+      const response = await fetch('http://localhost:9000/django/swrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -270,7 +270,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch('http://localhost:9000/basics/stormwaterrunoff', {
+      const response = await fetch('http://localhost:9000/django/stormwaterrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -666,7 +666,7 @@ const handleCalculateSewage = async () => {
 
   try {
     const responses = await Promise.all(payloads.map(payload =>
-      fetch('/basics/sewage_calculation/', {
+      fetch('/django/sewage_calculation/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -3922,7 +3922,7 @@ const handleCalculateSewage = async () => {
             console.log('FormData created, uploading to API...');
 
             // Upload to your API
-            const uploadResponse = await fetch('http://localhost:9000/basics/pdf', {
+            const uploadResponse = await fetch('http://localhost:9000/django/pdf', {
               method: 'POST',
               body: formData,
             });
