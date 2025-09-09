@@ -17,7 +17,7 @@ import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
-import {TreatmentForm }from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Stp_area";
+import { TreatmentForm } from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Stp_area";
 import { api } from "@/services/api";
 import { TimerComponent } from "@/components/TimerComponent";
 import { useWebSocket } from "@/services/websocket";
@@ -37,20 +37,20 @@ const MainContent = () => {
     tableData,
   } = useCategory();
   const [reportLoading, setReportLoading] = useState(false);
-    const [taskId, setTaskId] = useState<string | null>(null);
-    const [pdfDownloaded, setPdfDownloaded] = useState(false);
-    const timerRef = useRef<{ stopTimer: () => void }>(null); // Move inside component
-  
-    const { messages, sendMessage, isConnected } = useWebSocket(
-      taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : '',
-      { 
-        reconnect: false,
-      }
-    );
-  const { selectionsLocked,displayRaster, confirmSelections, resetSelections,selectedDistrictsNames,selectedStateName,selectedTownsNames,selectedSubDistrictsNames,selectedTowns} =
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+  const timerRef = useRef<{ stopTimer: () => void }>(null); // Move inside component
+
+  const { messages, sendMessage, isConnected } = useWebSocket(
+    taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : '',
+    {
+      reconnect: false,
+    }
+  );
+  const { selectionsLocked, displayRaster, confirmSelections, resetSelections, selectedDistrictsNames, selectedStateName, selectedTownsNames, selectedSubDistrictsNames, selectedTowns } =
     useLocation();
 
-  const { setstpOperation ,isMapLoading, loading, stpOperation} = useMap();
+  const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -137,7 +137,7 @@ const MainContent = () => {
       });
     } else {
       setSubmitting(true);
-      
+
       const selectedData = [
         ...selectedCondition,
         ...selectedConstraint,
@@ -157,16 +157,16 @@ const MainContent = () => {
     <div className="min-h-screen bg-gray-50">
       {
         <WholeLoading
-        visible={loading || isMapLoading || stpOperation || reportLoading}
-        title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
-        message={
-          stpOperation
-            ? "Analyzing site priorities and generating results..."
-            : reportLoading
-            ? "Generating report, please wait..."
-            : "Fetching map data and initializing components..."
-        }
-      />
+          visible={loading || isMapLoading || stpOperation || reportLoading}
+          title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+          message={
+            stpOperation
+              ? "Analyzing site priorities and generating results..."
+              : reportLoading
+                ? "Generating report, please wait..."
+                : "Fetching map data and initializing components..."
+          }
+        />
       }
       <main className="px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
@@ -215,11 +215,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          submitting
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -284,44 +283,21 @@ const MainContent = () => {
                   />
                 </div>
               )}
-               
+
+
+              {tableData.length > 0 && (
+                <div className="flex justify-start mt-8">
+                  <TreatmentForm />
+                </div>
+              )
+              }
+
+
+
              
-                {tableData.length > 0 && (
-                  <div className="flex justify-start mt-8">
-                 <TreatmentForm />
-                 </div>
-               )
-                }
-          
-       
-                
-                 {tableData.length > 0 && (
-                                <div className="flex m-8 justify-center">
-                                  <TimerComponent
-                                    ref={timerRef}
-                                    duration={60}
-                                    label="Generate Report"
-                                    onTimeout={() => {
-                                      setTaskId(null);
-                                      setReportLoading(false);
-                                    }}
-                                    onStart={() => setReportLoading(true)}
-                                    onStop={() => {
-                                      setReportLoading(false);
-                                      if (pdfDownloaded) {
-                                        toast.success('Report downloaded successfully!');
-                                      }
-                                    }}
-                                    
-                                    triggerAction={handlereport}
-                                    className="bg-white rounded-lg shadow-md p-4"
-                                    buttonClassName="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                                  />
-                                </div>
-                              )}
-                            </section>
-                          </div>
- 
+            </section>
+          </div>
+
           {/* Map and Slider area - Now spans 4/12 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
             {/* Map Section with Larger Height */}
@@ -340,21 +316,19 @@ const MainContent = () => {
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "condition"
+                      className={`flex-1 py-2 font-medium ${activeTab === "condition"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Condition Influences
                     </button>
                     <button
                       onClick={() => setActiveTab("constraint")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "constraint"
+                      className={`flex-1 py-2 font-medium ${activeTab === "constraint"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Constraint Influences
                     </button>

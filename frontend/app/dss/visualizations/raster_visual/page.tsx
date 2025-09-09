@@ -113,7 +113,7 @@ const OpenLayersRasterViewer: React.FC = () => {
     if (!mapRef.current) return;
 
     const initialBaseLayer = new TileLayer({
-      source: baseMaps.osm.source(),
+      source: baseMaps.satellite.source(),
       zIndex: 0,
     });
 

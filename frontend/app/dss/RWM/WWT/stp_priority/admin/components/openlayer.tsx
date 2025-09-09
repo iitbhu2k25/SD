@@ -563,7 +563,7 @@ const Maping: React.FC = () => {
             onClick={() => setIsPanelOpen(!isPanelOpen)}
             className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20"
           >
-            <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
+            <Image src="/ayeopenlrslogo.svg" alt="Logo" width={32} height={32} />
           </button>
         </div>
 

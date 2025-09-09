@@ -105,9 +105,9 @@ const Navbar = (): JSX.Element => {
       ref={navRef}
       className={`${
         isSticky
-          ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-50"
+          ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-200"
           : "bg-opacity-10 bg-[#081F5C]"
-        } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-40`}
+        } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-200`}
     >
       <div className="container mx-auto px-4">
         {/* Mobile menu button */}
@@ -162,14 +162,14 @@ const Navbar = (): JSX.Element => {
                 className={navLinkClasses}
               >
                 GWM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
+                <span className="absolute top-[-15px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-100">
                   Ground Water Management
                 </span>
               </button>
               <ul
                 className={`${
                   openDropdowns.gwm ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-200`}
               >
                 {/* Groundwater Potential Assessment */}
                 <li
@@ -191,7 +191,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwPotential ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -232,7 +232,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwResource ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -281,7 +281,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwAquifer ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -338,7 +338,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.gwRiver ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -372,14 +372,14 @@ const Navbar = (): JSX.Element => {
                 className={navLinkClasses}
               >
                 RWM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
+                <span className="absolute top-[-15px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   River Water Management
                 </span>
               </button>
               <ul
                 className={`${
                   openDropdowns.rwm ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-200`}
               >
                 {/* Resource Estimation */}
                 <li
@@ -401,7 +401,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwEstimation ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -466,7 +466,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwFlood ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[320px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -515,7 +515,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwWaterBodies ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -572,7 +572,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.rwWasteWater ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -622,14 +622,14 @@ const Navbar = (): JSX.Element => {
                 className={navLinkClasses}
               >
                 WRM
-                <span className="absolute top-[-35px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
+                <span className="absolute top-[-15px] left-1/2 transform -translate-x-1/2 bg-orange-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 after:content-[''] after:absolute after:top-full after:left-1/2 after:ml-[-5px] after:border-[5px] after:border-solid after:border-t-blue-900 after:border-r-transparent after:border-b-transparent after:border-l-transparent z-10">
                   Water Resource Management
                 </span>
               </button>
               <ul
                 className={`${
                   openDropdowns.wrm ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[300px] p-3 z-200`}
               >
                 {/* Demand and Forecasting */}
                 <li
@@ -651,7 +651,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.wrmDemand ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -692,7 +692,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.wrmAllocation ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[220px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -732,7 +732,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.shsd ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[250px] p-3 z-200`}
               >
                 {/* Resource Management */}
                 <li
@@ -754,7 +754,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.shsdResource ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[360px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -803,7 +803,7 @@ const Navbar = (): JSX.Element => {
                   <ul
                     className={`${
                       openDropdowns.shsdImpact ? "block" : "hidden"
-                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                    } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[250px] lg:p-3 lg:ml-1 lg:z-200 ml-4`}
                   >
                     <li>
                       <Link
@@ -841,7 +841,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.activities ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[220px] p-3 z-200`}
               >
                 <li>
                   <Link
@@ -878,7 +878,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.reportandpublication ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[200px] p-3 z-200`}
               >
                 <li>
                   <Link
@@ -914,7 +914,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.visualization ? "block" : "hidden"
-                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+                } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
               >
                 <li>
                   <Link
@@ -965,7 +965,7 @@ const Navbar = (): JSX.Element => {
               <ul
                 className={`${
                   openDropdowns.user ? "block" : "hidden"
-                } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-50`}
+                } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
               >
                 <li>
                   <Link
