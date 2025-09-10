@@ -37,6 +37,8 @@
     "app/dss/rwm/wwt/stp_priority/admin/page.tsx"
 , "app/dss/rwm/wwt/stp_priority/users/page.tsx"  ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "public/videos/**/*",
+    "public/**/*.ts"
   ]
 }
