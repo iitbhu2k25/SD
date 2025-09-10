@@ -34,8 +34,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "middleware.ts",
-    "app/dss/RWM/WWT/stp_priority/admin/page.tsx"
-, "app/dss/RWM/WWT/stp_priority/users/page.tsx"  ],
+    "app/dss/rwm/wwt/stp_priority/admin/page.tsx"
+, "app/dss/rwm/wwt/stp_priority/users/page.tsx"  ],
   "exclude": [
     "node_modules"
   ]

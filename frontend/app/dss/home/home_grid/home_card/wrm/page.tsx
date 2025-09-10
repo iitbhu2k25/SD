@@ -186,7 +186,7 @@ export default function WRMPage() {
             Water Resource Management
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Effective Water Resource Management (WRM) ensures sustainable water supply, efficient demand forecasting, and equitable resource allocation. This module integrates data-driven approaches to optimize water availability, quality, and long-term planning.
+            Effective Water Resource Management (wrm) ensures sustainable water supply, efficient demand forecasting, and equitable resource allocation. This module integrates data-driven approaches to optimize water availability, quality, and long-term planning.
           </p>
           <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
         </div>

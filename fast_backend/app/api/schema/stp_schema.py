@@ -208,6 +208,8 @@ class StpSutabilityAdminReport(BaseModel):
         districts:list
         subDistricts: list
         towns:list
+        population:int
+        
     table:List[CsvData]
     place: str
     clip: List[int] = None

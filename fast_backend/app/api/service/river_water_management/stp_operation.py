@@ -547,7 +547,7 @@ class RasterProcess(VectorProcess):
 
     def clip_to_town_buffer(self, raster_path: str,clip:List[int]=None  ) -> str:
         try:
-            buffered_gdf = self.get_town_buffer(clip)
+            buffered_gdf =self.get_town_village(clip)
             geometry_for_mask = [mapping(geom) for geom in buffered_gdf.geometry]
             with rasterio.open(raster_path) as src:
                 out_image, out_transform = mask(dataset=src, shapes=geometry_for_mask, crop=True)
@@ -988,7 +988,8 @@ class STPSutabilityMapper:
         selected_villages =self.vector_process.get_town_village(clip)
         vector_name=self._temporory_vector(vector_temp_file=selected_villages)
         return selected_villages['ID'].tolist(),vector_name
-       
+    def town_to_villages(self,clip:List):
+        selected_villages =self.vector_process.get_town_village(clip)  
     def _get_raster_with_weight(self,db:db_dependency,payload:List):
         condition_raster,constraintion_raster=self._get_sutability_raster(db,payload)
         raster_path=[]
@@ -1024,7 +1025,7 @@ class STPSutabilityMapper:
                 "layer_name": layer_name,
                 "vector_name":vector_name,
                 "type": "raster",
-                "csv_path":csv_path,
+                "clip_villages":clip,
                 "csv_details":csv_details
             }
         return False

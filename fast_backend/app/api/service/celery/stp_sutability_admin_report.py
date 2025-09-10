@@ -415,7 +415,7 @@ class SpatialDataset(GeoConfig):
         self.village_path = self.villages_shapefile
         self.town_path = self.town_shapefile
     
-    def find_village(self,clip:list)->gpd.GeoDataFrame:
+    def find_sub_village(self,clip:list)->gpd.GeoDataFrame:
         try:
             if not clip:
                 raise ValidationError("Clip list cannot be empty")
@@ -432,7 +432,24 @@ class SpatialDataset(GeoConfig):
         except Exception as e:
             logger.error(f"Failed to filter villages: {e}")
             raise
-        
+    
+    def find_village(self,clip:list)->gpd.GeoDataFrame:
+        try:
+            if not clip:
+                raise ValidationError("Clip list cannot be empty")
+            
+            validate_file_exists(self.village_path, "Village file")
+            
+            gdf = gpd.read_file(self.village_path).to_crs(epsg=3857)
+            gdf = gdf[gdf['ID'].isin(clip)]
+            
+            if gdf.empty:
+                raise ValidationError(f"No village polygon found for clip IDs: {clip}")
+            
+            return gdf
+        except Exception as e:
+            logger.error(f"Failed to filter villages: {e}")
+            raise
     def find_towns(self,clip:list)->gpd.GeoDataFrame:
         try:
             if not clip:
@@ -561,7 +578,7 @@ class MapGenerator:
         try:
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_towns(clip=filtered_vector)
+            filtered = SpatialDataset().find_village(clip=filtered_vector)
             filtered_new = filtered.to_crs("EPSG:3857")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
@@ -781,7 +798,6 @@ class StpDocument:
             
             try:
 
-                # Generate PDF
                 pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data,location_data=location_data,weight_data=weight_data)
                 
                 logger.info(f"Report generated successfully: {pdf_path}")
@@ -974,9 +990,9 @@ class ReportGenerator:
             "",
             f"State: {location_data[0][1]}",
             f"District(s): {', '.join(location_data[1][1])}",
-            f"SubDistrict(s): {', '.join(location_data[2][1])}"
-            f"Towns: {', '.join(location_data[3][1])}"
-            f"Total population: {location_data[4][1]}"
+            f"SubDistrict(s): {', '.join(location_data[2][1])}",
+            f"Towns: {', '.join(location_data[3][1])}",
+            f"Total population: {location_data[4][1]}",
         ]
         content = "<br/>".join(lines)
 
@@ -1194,13 +1210,16 @@ class ReportGenerator:
             doc.title = self.config.title
             doc.author = self.config.author
             doc.subject = self.config.subject
-            
             # Build document sections
             self._add_title_page()
             self._add_executive_summary()
+            print("x3")
             self._add_study_area_overview(location_data=location_data)
+            print("x2")
             self._add_methodology_section()
+            print("x4")
             self._add_results_section(layer_names=layer_names) 
+            print("x5")
             self._add_references()
             
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 
@@ -1250,7 +1269,7 @@ def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:L
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
     }
 
-@app.task(bind=True,pydantic=True,name="stp_sutability_admin_generation_start")
+@app.task(bind=True,pydantic=True,name="stp_sutability_admin_generation_starts")
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
     pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
     return pdf_path

@@ -271,7 +271,7 @@ export default function RWMPage() {
             River Water Management
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Efficient River Water Management (RWM) is essential for sustainable water resource utilization, flood control, pollution management, and ecosystem preservation.
+            Efficient River Water Management (rwm) is essential for sustainable water resource utilization, flood control, pollution management, and ecosystem preservation.
           </p>
           <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
         </div>

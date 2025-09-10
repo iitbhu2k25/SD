@@ -402,7 +402,7 @@ class SpatialDataset:
     def __init__(self):
         self.village_path = Settings().villages_path
     
-    def find_village(self,clip:list)->gpd.GeoDataFrame:
+    def find_sub_village(self,clip:list)->gpd.GeoDataFrame:
         try:
             if not clip:
                 raise ValidationError("Clip list cannot be empty")
@@ -530,7 +530,7 @@ class MapGenerator:
         try:
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_village(clip=filtered_vector)
+            filtered = SpatialDataset().find_sub_village(clip=filtered_vector)
             filtered_new = filtered.to_crs("EPSG:3857")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
@@ -738,10 +738,7 @@ class StpDocument:
                 raise ValidationError("Layer names list cannot be empty")
             
             try:
-
-                # Generate PDF
                 pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data,location_data=location_data,weight_data=weight_data)
-                
                 logger.info(f"Report generated successfully: {pdf_path}")
                 return pdf_path
             except Exception as e:

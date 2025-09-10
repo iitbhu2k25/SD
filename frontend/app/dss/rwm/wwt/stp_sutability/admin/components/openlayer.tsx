@@ -58,7 +58,7 @@ const Mapping: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Context hooks
-  const { selectedSubDistricts, displayRaster, selectedTowns, setdisplay_raster } = useLocation();
+  const { displayRaster, selectedTowns, setdisplay_raster ,selectedVillages,setSelectedVillages} = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -353,7 +353,7 @@ const Mapping: React.FC = () => {
               layer_name: result.layer_name,
             };
             setTableData(result.csv_details);
-
+            setSelectedVillages(result.clip_villages);
             if (result.vector_name && result.vector_name !== "none") {
               setResultLayer(result.vector_name);
             }

@@ -1,73 +1,55 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  RiverSystemProvider,
-  useRiverSystem,
-} from "@/contexts/stp_sutability/users/DrainContext";
-import WholeLoading from "@/components/app_layout/newLoading";
-import {
-  CategoryProvider,
-  useCategory,
-} from "@/contexts/stp_sutability/admin/CategoryContext";
-import {
-  MapProvider,
-  useMap,
-} from "@/contexts/stp_sutability/users/DrainMapContext";
-import RiverSelector from "@/app/dss/RWM/WWT/stp_sutability/users/components/locations";
-import CategorySelector from "@/app/dss/RWM/WWT/stp_sutability/admin/components/Category";
-import MapView from "@/app/dss/RWM/WWT/stp_sutability/users/components/openlayer";
+import { LocationProvider } from "@/contexts/groundwaterIdent/LocationContext";
+import { CategoryProvider } from "@/contexts/groundwaterIdent/CategoryContext";
+import { MapProvider } from "@/contexts/groundwaterIdent/MapContext";
+import LocationSelector from "@/app/dss/gwm/pumping_location/components/locations";
+import CategorySelector from "@/app/dss/gwm/pumping_location/components/Category";
+import { useLocation } from "@/contexts/groundwaterIdent/LocationContext";
+import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
+import MapView from "@/app/dss/gwm/pumping_location/components/openlayer";
+import { useMap } from "@/contexts/groundwaterIdent/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import WholeLoading from "@/components/app_layout/newLoading";
 
 const MainContent = () => {
+  // Add submitting state
+  const [submitting, setSubmitting] = useState(false);
+
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
     "condition"
   );
-  const [submitting, setSubmitting] = useState(false);
-  const [showTier, setShowTier] = useState(false);
-  const { selectedCondition, selectedConstraint, setSelectedCategory } =
-    useCategory();
-  const [analysisMapImage, setAnalysisMapImage] = useState(null); // Store analysis map image
-  const {
-    rivers,
-    stretches,
-    drains,
-    catchments,
-    selectedRiver,
-    selectedStretches,
-    selectedDrains,
-    selectedCatchments,
-    totalArea,
-    totalCatchments,
-    selectionsLocked,
-    confirmSelections,
-    resetSelections,
-    tableData,
-  } = useRiverSystem();
 
-  const { setstpOperation, loading, isMapLoading, stpOperation } = useMap();
+  const {
+    selectedCondition,
+    selectedConstraint,
+    setSelectedCategory,
+    tableData,
+    
+  } = useCategory();
+
+  const { selectionsLocked, confirmSelections, resetSelections } =
+    useLocation();
+
+  const { setstpOperation ,isMapLoading, loading, stpOperation} = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
 
-  const handleConfirm = (selectedData: any) => {
-    const result = confirmSelections();
-    console.log("River system selections confirmed:", result);
-  };
-
-  const handleReset = () => {
-    resetSelections();
-    setShowCategories(false);
-  };
   const formatName = (fileName: string): string => {
     return fileName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
+  const handleReset = () => {
+    resetSelections();
+  };
+
   const handleSubmit = () => {
     if (selectedCondition.length < 1) {
       toast.error("Please select at least one condition category", {
@@ -75,9 +57,11 @@ const MainContent = () => {
       });
     } else {
       setSubmitting(true);
-
-      const selectedData = [...selectedCondition, ...selectedConstraint];
-      console.log("Selected data:", selectedData);
+      
+      const selectedData = [
+        ...selectedCondition,
+        ...selectedConstraint,
+      ]
       setSelectedCategory(selectedData);
       setstpOperation(true);
 
@@ -88,10 +72,15 @@ const MainContent = () => {
     }
   };
 
+
   return (
     <div className="min-h-screen bg-gray-50">
-
-       {
+     <header className=" grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
+        <div className="container mx-auto px-4">
+          <h1 className="text-5xl font-bold">Groundwater Pumping location</h1>
+        </div>
+      </header>
+      {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation}
           title={
@@ -105,54 +94,51 @@ const MainContent = () => {
         />
       }
       <main className="px-4 py-8">
-        {/* Changed from grid-cols-2 to grid-cols-3 to create a 2:1 ratio */}
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
-          {/* Main content area - Now spans 4/8 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
-            {/* Selection Components Section */}
+
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
                 <h2 className="text-xl font-semibold text-gray-800">
-                  River System Selection
+                  Selection Criteria
                 </h2>
-                {selectionsLocked && (
-                  <p className="text-sm text-green-600 mt-1">
-                    {totalCatchments} catchments selected • Total area:{" "}
-                    {totalArea.toFixed(2)} sq Km
-                  </p>
-                )}
               </div>
 
               <div className="p-6">
-                {/* River System Selection Components with improved styling */}
+                {/* Selection Components with improved styling */}
                 <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <RiverSelector
-                    onConfirm={handleConfirm}
-                    onReset={handleReset}
-                  />
+                  <LocationSelector />
                 </div>
 
                 {/* Categories Section - Only shown after confirmation */}
                 {showCategories && (
                   <div className="animate-fadeIn">
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="mb-4">
-                        <h3 className="text-lg font-medium text-gray-800 mb-2">
-                          Analysis Categories
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          Select the categories to analyze for the selected
-                          river catchments
-                        </p>
-                      </div>
                       <CategorySelector />
+                    </div>
+
+                    {/* Required selection indicator */}
+                    <div className="mb-4 text-sm text-red-600 font-medium flex items-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      At least one condition category must be selected
                     </div>
 
                     {/* Submit Button */}
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
-                        onClick={handleSubmit}
+                       
                         disabled={submitting}
                         className={`px-8 py-3 rounded-full font-medium shadow-md ${
                           submitting
@@ -208,18 +194,32 @@ const MainContent = () => {
                   </div>
                 )}
               </div>
+              {tableData.length > 0 && (
+                <div className="p-6 bg-white rounded-2xl shadow-md">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Village Analysis Information
+                  </h2>
+                  <DataTable
+                    columns={Village_columns}
+                    data={tableData}
+                    pagination
+                    responsive
+                    paginationPerPage={10}
+                    paginationRowsPerPageOptions={[5, 10, 20, 50]}
+                  />
+                </div>
+              )}
+               
+ 
             </section>
-
-            {/* River System Summary */}
-           
           </div>
 
-          {/* Map and Slider area - Now spans 4/8 columns on large screens */}
+          {/* Map and Slider area - Now spans 4/12 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
             {/* Map Section with Larger Height */}
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               {/* Larger Map Component */}
-              <div className="w-full p-4  md:min-h-[500px]">
+              <div className="w-full p-4 md:min-h-[500px]">
                 <MapView />
               </div>
             </section>
@@ -295,20 +295,21 @@ const MainContent = () => {
       </main>
       <ToastContainer />
     </div>
+
   );
 };
 
 // Main App component that provides the context
-const SutabilityDrain = () => {
+const Home = () => {
   return (
-    <RiverSystemProvider>
+    <LocationProvider>
       <CategoryProvider>
         <MapProvider>
           <MainContent />
         </MapProvider>
       </CategoryProvider>
-    </RiverSystemProvider>
+    </LocationProvider>
   );
 };
 
-export default SutabilityDrain;
+export default Home;

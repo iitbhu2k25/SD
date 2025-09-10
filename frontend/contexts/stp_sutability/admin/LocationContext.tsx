@@ -49,6 +49,7 @@ interface LocationContextType {
   selectedDistricts: number[];
   selectedSubDistricts: number[];
   selectedTowns: number[];
+  selectedVillages: number[];
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: clip_rasters[];
@@ -65,6 +66,7 @@ interface LocationContextType {
   setSelectedTowns: (townIds: number[]) => void;
   confirmSelections: () => SelectionsData | null;
   resetSelections: () => void;
+  setSelectedVillages: (villageIds: number[]) => void
 }
 
 // Props for the LocationProvider component
@@ -82,6 +84,7 @@ const LocationContext = createContext<LocationContextType>({
   selectedDistricts: [],
   selectedSubDistricts: [],
   selectedTowns: [],
+  selectedVillages: [],
   totalPopulation: 0,
   selectionsLocked: false,
   isLoading: false,
@@ -97,6 +100,7 @@ const LocationContext = createContext<LocationContextType>({
   setSelectedTowns: () => { },
   confirmSelections: () => null,
   resetSelections: () => { },
+  setSelectedVillages: () => { }
 });
 
 // Create the provider component
@@ -115,6 +119,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
   // State for additional information
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
+  const [selectedVillages, setSelectedVillages] =useState<number[]>([]);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
@@ -405,7 +410,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     selectedDistrictsNames,
     selectedSubDistrictsNames,
     selectedTownsNames,
-    setdisplay_raster
+    setdisplay_raster,
+    setSelectedVillages,
+    selectedVillages
   };
 
   return (

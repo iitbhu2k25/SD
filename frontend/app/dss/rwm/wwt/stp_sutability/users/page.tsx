@@ -4,19 +4,19 @@ import React, { useState, useEffect } from "react";
 import {
   RiverSystemProvider,
   useRiverSystem,
-} from "@/contexts/mar_sutability/users/DrainContext";
+} from "@/contexts/stp_sutability/users/DrainContext";
 import WholeLoading from "@/components/app_layout/newLoading";
 import {
   CategoryProvider,
   useCategory,
-} from "@/contexts/mar_sutability/admin/CategoryContext";
+} from "@/contexts/stp_sutability/admin/CategoryContext";
 import {
   MapProvider,
   useMap,
-} from "@/contexts/mar_sutability/users/DrainMapContext";
-import RiverSelector from "@/app/dss/GWM/Mar_sutability/users/components/locations";
-import CategorySelector from "@/app/dss/GWM/Mar_sutability/admin/components/Category";
-import MapView from "@/app/dss/GWM/Mar_sutability/users/components/openlayer";
+} from "@/contexts/stp_sutability/users/DrainMapContext";
+import RiverSelector from "@/app/dss/rwm/wwt/stp_sutability/users/components/locations";
+import CategorySelector from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Category";
+import MapView from "@/app/dss/rwm/wwt/stp_sutability/users/components/openlayer";
 import { CategorySlider } from "./components/weight_slider";
 import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";

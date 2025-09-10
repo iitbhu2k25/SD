@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/stp_priority/users/DrainContext";
-import { CategoryProvider } from "@/contexts/stp_priority/admin/CategoryContext";
-import { MapProvider } from "@/contexts/stp_priority/users/DrainMapContext";
-import RiverSelector from "@/app/dss/RWM/WWT/stp_priority/users/components/locations";
+import { RiverSystemProvider } from "@/contexts/groundwaterzone/users/DrainContext";
+import { CategoryProvider } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import { MapProvider } from "@/contexts/groundwaterzone/users/DrainMapContext";
+import RiverSelector from "@/app/dss/gwm/potential_zone/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
-import CategorySelector from "@/app/dss/RWM/WWT/stp_priority/admin/components/Category";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
-import MapView from "@/app/dss/RWM/WWT/stp_priority/users/components/openlayer";
-import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
+import CategorySelector from "@/app/dss/gwm/potential_zone/admin/components/Category";
+import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
+import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import MapView from "@/app/dss/gwm/potential_zone/users/components/openlayer";
+import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast, ToastContainer } from "react-toastify";
 import DataTable from "react-data-table-component";
@@ -18,7 +18,6 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import { useWebSocket } from "@/services/websocket";
-import { LAYER_NAMES } from "@/contexts/stp_priority/users/DrainMapContext";
 
 const MainContent = () => {
   const { selectedCategories, stpProcess } = useCategory();
@@ -43,7 +42,7 @@ const MainContent = () => {
     tableData,
   } = useRiverSystem();
 
-  const { setstpOperation, loading, isMapLoading, stpOperation ,setCatchmentLayer} = useMap();
+  const { setstpOperation, loading, isMapLoading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -56,8 +55,6 @@ const MainContent = () => {
 
   const handleReset = () => {
     resetSelections();
-    setCatchmentLayer(null);
-    LAYER_NAMES.CATCHMENT=null;
     setShowCategories(false);
   };
 
@@ -381,7 +378,7 @@ const MainContent = () => {
                 </section>
               )}
               <div className="flex m-8 justify-center">
-                {tableData.length > 0 && (
+                {/* {tableData.length > 0 && (
                   <div className="flex justify-start mt-8">
                     <button
                       type="button"
@@ -412,7 +409,7 @@ const MainContent = () => {
                       }
                     />
                   </div>
-                )}
+                )} */}
               </div>
             </section>
           </div>
@@ -450,7 +447,7 @@ const MainContent = () => {
 };
 
 // Main App component that provides the context
-const PriorityDrain = () => {
+const GWPZDrain = () => {
   return (
     <RiverSystemProvider>
       <CategoryProvider>
@@ -462,4 +459,4 @@ const PriorityDrain = () => {
   );
 };
 
-export default PriorityDrain;
+export default GWPZDrain;

@@ -210,7 +210,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch('http://localhost:9000/django/swrunoff', {
+      const response = await fetch('/django/swrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -270,7 +270,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch('http://localhost:9000/django/stormwaterrunoff', {
+      const response = await fetch('/django/stormwaterrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -3922,7 +3922,7 @@ const handleCalculateSewage = async () => {
             console.log('FormData created, uploading to API...');
 
             // Upload to your API
-            const uploadResponse = await fetch('http://localhost:9000/django/pdf', {
+            const uploadResponse = await fetch('/django/pdf', {
               method: 'POST',
               body: formData,
             });

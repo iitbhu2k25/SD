@@ -10,7 +10,7 @@ const gridItems = [
     imgSrc: "/Images/GridSection/gwm.webp",
     alt: "Ground Water Management",
     title: "Ground Water Management",
-    acronym: "GWM",
+    acronym: "gwm",
     description: "Advanced tools for sustainable groundwater resource management",
     color: "from-blue-400/30 to-blue-600/40"
   },
@@ -19,7 +19,7 @@ const gridItems = [
     imgSrc: "/Images/GridSection/rwm.jpeg",
     alt: "River Water Management",
     title: "River Water Management",
-    acronym: "RWM",
+    acronym: "rwm",
     description: "Integrated solutions for river ecosystems and flood control",
     color: "from-blue-400/30 to-blue-600/40"
   },
@@ -28,7 +28,7 @@ const gridItems = [
     imgSrc: "/Images/GridSection/wrm.jpg",
     alt: "Water Resource Management",
     title: "Water Resource Management",
-    acronym: "WRM",
+    acronym: "wrm",
     description: "Optimizing water supply and demand forecasting",
     color: "from-blue-400/30 to-blue-600/40"
   },

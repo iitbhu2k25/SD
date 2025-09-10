@@ -151,7 +151,7 @@ const Navbar = (): JSX.Element => {
               </Link>
             </li>
 
-            {/* GWM */}
+            {/* gwm */}
             <li
               className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("gwm", true)}
@@ -203,7 +203,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/GWM/Potential_zone"
+                        href="/dss/gwm/potential_zone"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         GW Potential Zone
@@ -301,7 +301,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/GWM/Mar_sutability"
+                        href="/dss/gwm/mar_sutability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         MAR site Suitability
@@ -361,7 +361,7 @@ const Navbar = (): JSX.Element => {
               </ul>
             </li>
 
-            {/* RWM */}
+            {/* rwm */}
             <li
               className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("rwm", true)}
@@ -584,7 +584,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/RWM/WWT/stp_priority"
+                        href="/dss/rwm/wwt/stp_priority"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         STP Priority
@@ -592,7 +592,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/RWM/WWT/stp_sutability"
+                        href="/dss/rwm/wwt/stp_sutability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         STP Suitability
@@ -611,7 +611,7 @@ const Navbar = (): JSX.Element => {
               </ul>
             </li>
 
-            {/* WRM */}
+            {/* wrm */}
             <li
               className="relative group flex-shrink-0"
               onMouseEnter={() => toggleDropdown("wrm", true)}
