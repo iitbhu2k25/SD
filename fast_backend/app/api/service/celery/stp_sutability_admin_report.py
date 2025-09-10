@@ -116,8 +116,8 @@ class ReportConfig:
 
 @dataclass
 class StaticTextData:
-    Distance_From_Builtup: str = ""
-    Distance_From_Waterbody: str = ""
+    Distance_from_Builtup: str = ""
+    Distance_from_Waterbody: str = ""
     Elevation: str = ""
     Geomorphology: str = ""
     Groundwater_Depth: str = "" 
@@ -135,6 +135,7 @@ class StaticTextData:
     Railway_constraint: str = ""
     STP_constraint: str = ""
     Water_Body_constraint: str = ""
+    STP_Sutability: str = ""
     
    
 @dataclass
@@ -753,8 +754,8 @@ class StpDocument:
             )
             
             static_data = StaticTextData(
-               Distance_From_Builtup="Maintaining an optimal distance from built-up areas is vital for minimizing public health risks and odor nuisances from STPs, while ensuring feasible connection tosewage networks (Mansouri et al., 2013). Siting too close to residential zones can cause discomfort and opposition, but excessive distance may raise infrastructural costs. Map for the distance from built-up",
-               Distance_From_Waterbody="",
+               Distance_from_Builtup="Maintaining an optimal distance from built-up areas is vital for minimizing public health risks and odor nuisances from STPs, while ensuring feasible connection tosewage networks (Mansouri et al., 2013). Siting too close to residential zones can cause discomfort and opposition, but excessive distance may raise infrastructural costs. Map for the distance from built-up",
+               Distance_from_Waterbody="",
                Elevation="Elevation governs the functionality of sewage flow and influences flooding potential at a site. Favorable elevation ensures gravity-based sewage conveyance and mitigates energy expenditure, while low or high elevation sites can complicate network design (Baquero-Rodríguez et al., 2022)",
                Geomorphology="Geomorphological stability is key for foundation reliability, impacts groundwater movement, and affects construction costs. Flat and stable terrains are preferred for STP siting as they lower risk of erosion or land subsidence (Chaabane et al., 2024).",
                Groundwater_Depth="",
@@ -1018,8 +1019,8 @@ class ReportGenerator:
             
             # Factor descriptions
             factors = [
-                ("Distance_From_Builtup", self.static_data.Distance_From_Builtup),
-                ("Distance_From_Waterbody", self.static_data.Distance_From_Waterbody),
+                ("Distance_from_Builtup", self.static_data.Distance_from_Builtup),
+                ("Distance_from_Waterbody", self.static_data.Distance_from_Waterbody),
                 ("Elevation",self.static_data.Elevation),
                 ("Geomorphology", self.static_data.Geomorphology),
                 ("Groundwater_Depth", self.static_data.Groundwater_Depth),
@@ -1219,7 +1220,6 @@ class ReportGenerator:
             self._add_methodology_section()
             print("x4")
             self._add_results_section(layer_names=layer_names) 
-            print("x5")
             self._add_references()
             
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 

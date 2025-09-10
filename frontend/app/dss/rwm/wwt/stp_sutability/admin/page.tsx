@@ -300,7 +300,7 @@ const MainContent = () => {
                                 <div className="flex m-8 justify-center">
                                   <TimerComponent
                                     ref={timerRef}
-                                    duration={60}
+                                    duration={100}
                                     label="Generate Report"
                                     onTimeout={() => {
                                       setTaskId(null);

@@ -3,6 +3,7 @@
 /frontend/.next/
 /frontend/.env
 /frontend/.yarn/
+/frontend/public
 /node_modules/
 ./node_modules/
 
