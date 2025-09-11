@@ -1173,7 +1173,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
 
 @app.task(bind=True,pydantic=True,name="stp_priority_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=50).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
