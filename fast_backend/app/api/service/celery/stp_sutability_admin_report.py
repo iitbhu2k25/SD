@@ -2,7 +2,8 @@ import os
 import io
 import uuid
 import logging
-from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
+from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak, Table, TableStyle
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from datetime import datetime
@@ -824,6 +825,7 @@ class ReportGenerator:
         self.dpi = max(50, min(dpi, 600))  # Constrain DPI
         self.iit_bhu_logo = f"{Settings().BASE_DIR}/media/images/iitbhu.png"
         self.slcr_logo = f"{Settings().BASE_DIR}/media/images/slcr.png"
+        self.methodology_figure = f"{Settings().BASE_DIR}/media/images/Flowchart_STP.png"
 
     def _draw_logos(self, canvas, doc):
         """Draw logos on every page."""
@@ -999,37 +1001,61 @@ class ReportGenerator:
 
         self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
     
-    def _add_methodology_section(self):
-        """Add methodology section."""
+
+    def _add_methodology_section(self,layer_names: List[str]):
+        """Add methodology section to the PDF."""
         try:
+            # 3. Database and Methodology
             self.elements.append(Paragraph("3. Database and Methodology", 
-                                         self.style_manager.styles['SectionHeader']))
-            
-            # Database subsection
+                                        self.style_manager.styles['SectionHeader']))
+
+            # 3.1 Database
             self.elements.append(Paragraph("3.1 Database", 
-                                         self.style_manager.styles['SubsectionHeader']))
-            
-            database_text = """
-            A range of spatial and non-spatial datasets were integrated for the STP
+                                        self.style_manager.styles['SubsectionHeader']))
+            database_text = """A range of spatial and non-spatial datasets were integrated for the STP
             prioritization analysis. All these factors are categorized within two groups; first one is the
-            conditioning factor, and second one is the constraint factor.
-            """
-            
+            conditioning factor, and second one is the constraint factor."""
             self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.1.1 Conditioning Factors
+            self.elements.append(Paragraph("3.1.1 Conditioning Factors", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            conditioning_text = """Conditioning factors are those factors that tell us about the suitability of the location, where any kind of treatment plant could be located. So, in this regard several factors were considered for the favorable place delineation."""
+            self.elements.append(Paragraph(conditioning_text, self.style_manager.styles['JustifiedBody']))
+
             
-            # Factor descriptions
             factors = [
                 ("Distance_from_Builtup", self.static_data.Distance_from_Builtup),
                 ("Distance_from_Waterbody", self.static_data.Distance_from_Waterbody),
-                ("Elevation",self.static_data.Elevation),
+                ("Elevation", self.static_data.Elevation),
                 ("Geomorphology", self.static_data.Geomorphology),
                 ("Groundwater_Depth", self.static_data.Groundwater_Depth),
                 ("Groundwater_Quality", self.static_data.Groundwater_Quality),
                 ("Land_Availability", self.static_data.Land_Availability),
-                ("Land_Use_Land_Cover",self.static_data.Land_Use_Land_Cover),
+                ("Land_Use_Land_Cover", self.static_data.Land_Use_Land_Cover),
                 ("Population_Density", self.static_data.Population_Density),
                 ("Slope", self.static_data.Slope),
                 ("Soil_Texture", self.static_data.Soil_Texture),
+            ]
+            factors_data = []
+            for factor_name, description in factors:
+                name = factor_name.replace("_", " ")
+                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+                if match:
+                    factors_data.append((name,
+                        description,
+                        match["file_path"]
+                    ))
+            self._add_fallback_elements(factors_data)
+            self.elements.append(Spacer(1, 15))
+
+            # 3.1.2 Constraint Factors
+            self.elements.append(Paragraph("3.1.2 Constraint Factors", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            constraint_text = """Constraint factors are those factors that tell us about the suitability of the location in binary terms, meaning which places are suitable for the STP construction and which are not. These factors are important to mask the unsuitable area where STP could not be located. So, in this regard several factors were considered for identifying the constraint zones."""
+            self.elements.append(Paragraph(constraint_text, self.style_manager.styles['JustifiedBody']))
+
+            constraint_factors = [
                 ("ASI_Sites_constraint", self.static_data.ASI_Sites_constraint),
                 ("Builtup_constraint", self.static_data.Builtup_constraint),
                 ("Flood_Plain_constraint", self.static_data.Flood_Plain_constraint),
@@ -1037,32 +1063,126 @@ class ReportGenerator:
                 ("Highway_constraint", self.static_data.Highway_constraint),
                 ("Railway_constraint", self.static_data.Railway_constraint),
                 ("STP_constraint", self.static_data.STP_constraint),
-                ("Water_Body_constraint", self.static_data.Water_Body_constraint)
+                ("Water_Body_constraint", self.static_data.Water_Body_constraint),
             ]
-            
-            for factor_name, description in factors:
-                if description.strip():
-                    self.elements.append(Paragraph(f"<b>{factor_name}:</b> {description}", 
-                                                 self.style_manager.styles['JustifiedBody']))
-            
-            # Methodology subsection
+            factors_data = []
+            for factor_name, description in constraint_factors:
+                name = factor_name.replace("_", " ")
+                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+                if match:
+                    factors_data.append((name,
+                        description,
+                        match["file_path"]
+                    ))
+            self._add_fallback_elements(factors_data)
+            self.elements.append(Spacer(1, 15))
+
+            # 3.2 Methodology
             self.elements.append(Paragraph("3.2 Methodology", 
-                                         self.style_manager.styles['SubsectionHeader']))
-            
-            methodology_text = """
-            <b>(a) Data Reclassification:</b> Each factor raster was reclassified into suitability scores ranging from 1 (least sutability) to 5 (highest sutability). The classification thresholds were derived based on standard guidelines and quantile statistics (Malczewski, 1999).<br/><br/>
-            <b>(b) Data Normalization:</b> To ensure comparability among heterogeneous datasets, min-max normalization was applied to all continuous variables. Categorical variables were mapped using fixed sutability schemes based on expert consultation.<br/><br/>
-            <b>(c) Confusion Matrix:</b> To validate the predictive robustness of the prioritization output, confusion matrices were generated by comparing known high-sutability sites (e.g., existing STPs or identified hotspots) with the predicted scores.<br/><br/>
-            <b>(d) Weighted Overlay:</b> A Weighted Linear Combination (WLC) model was used, integrating all the thematic layers. The final sutability score was computed using a weighted sum approach.<br/><br/>
-            """
-            
+                                        self.style_manager.styles['SubsectionHeader']))
+            methodology_text="""The methodology section details the systematic approach employed to process, analyze,
+            and integrate multiple spatial datasets for assessing STP site suitability using GIS and
+            remote sensing techniques. The workflow incorporates data preparation, transformation,
+            multi-criteria decision analysis (MCDA), and final suitability mapping. Working flowchart
+            of the stepwise methodology for the STP Site Suitability module is shown in the Figure 20
+            below:"""
             self.elements.append(Paragraph(methodology_text, self.style_manager.styles['JustifiedBody']))
-            self.elements.append(PageBreak())
             
+            # Methodology figure
+            figure = Image(self.methodology_figure)
+            self.elements.append(figure)
+
+            # 3.2.1 Pre-processing
+            self.elements.append(Paragraph("3.2.1 Pre-processing", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            preprocessing_text = """Pre-processing involves the preparation and conditioning of raw spatial data to ensure consistency, accuracy, and compatibility for analysis. All spatial datasets including satellite imagery, digital elevation models (SRTM), and ancillary vector data are projected into a common coordinate reference system to maintain spatial coherence; specifically, the WGS 1984 UTM Zone 44N projection system (EPSG: 32644) and at 30 m of spatial resolution is used to ensure precise georeferencing aligned with the study region. Maintaining spatial resolution integrity is critical; therefore, resampling techniques such as nearest neighbor are selectively applied to harmonize dataset resolutions without compromising data quality. Additional pre-processing steps include radiometric and geometric corrections for satellite imagery, DEM smoothing, and addressing missing data gaps."""
+            self.elements.append(Paragraph(preprocessing_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.2 Reclassification
+            self.elements.append(Paragraph("3.2.2 Reclassification", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            reclassification_text = """Reclassification transforms continuous and categorical input datasets into standardized suitability classes based on defined thresholds. For example, land use types may be reclassified into suitability categories such as 'Highly Suitable', 'Moderately Suitable', and 'Unsuitable' according to their environmental impact and construction feasibility. This step is critical to harmonize heterogeneous data scales and to facilitate integration in multi-criteria evaluation (Malczewski, 2006)."""
+            self.elements.append(Paragraph(reclassification_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.3 Normalization
+            self.elements.append(Paragraph("3.2.3 Normalization", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            normalization_text = """Normalization standardizes the reclassified parameters to a common numeric scale, typically ranging from 0 to 1, to enable unbiased comparison and combination of different criteria. A widely used approach in spatial decision support is fuzzy membership functions, which translate input variable values into membership grades reflecting degrees of suitability or preference. These functions capture uncertainty and gradual transitions between classes, improving the modeling of continuous environmental factors."""
+            self.elements.append(Paragraph(normalization_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4 Multi-Criteria Decision Analysis (MCDA)
+            self.elements.append(Paragraph("3.2.4 Multi-Criteria Decision Analysis (MCDA)", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            mcda_text = """Multi-Criteria Decision Analysis (MCDA) provides a structured approach for evaluating the suitability of Sewage Treatment Plants (STPs) based on multiple, often conflicting, criteria. In the context of wastewater treatment, MCDA facilitates objective decision-making by quantifying the influence of each parameter and integrating them into a unified assessment framework."""
+            self.elements.append(Paragraph(mcda_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.1 Parameter Influence
+            self.elements.append(Paragraph("3.2.4.1 Parameter Influence", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            param_influence_text = """The influence of each parameter is quantified to determine its relative impact on STP suitability. Parameters may include influent quality, treatment capacity, land requirement, cost, environmental impact, and regulatory compliance. The importance (weight) of each parameter is determined using methods such as Analytic Hierarchy Process (AHP) or expert elicitation in the subsequent steps."""
+            self.elements.append(Paragraph(param_influence_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.2 Pairwise Comparison Matrix (PCM)
+            self.elements.append(Paragraph("3.2.4.2 Pairwise Comparison Matrix (PCM)", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            pcm_text = """Within the MCDA-AHP framework, the pairwise comparison matrix serves as a key instrument for systematically evaluating the relative importance of each criterion in relation to the others. Decision-makers assign comparative scores to each criterion pair according to their influence, indicating the degree of preference for one over the other. These evaluations construct the matrix, which is then analyzed to calculate the weight assigned to each respective criterion. The logical consistency of these judgments is assessed using the Consistency Index (CI) and Consistency Ratio (CR). If the CR surpasses the commonly accepted threshold (usually 0.10), the pairwise comparisons are revisited and adjusted until satisfactory consistency is achieved (Saaty, 1980). This approach strengthens the objectivity, clarity, and robustness of the multi-criteria decision-making process."""
+            self.elements.append(Paragraph(pcm_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.3 Consistency Index and Criteria Weight
+            self.elements.append(Paragraph(
+            "3.2.4.3 Consistency Index and Criteria Weight", 
+            self.style_manager.styles['SubsectionHeader']
+            ))
+
+            consistency_text = """In AHP, the consistency index quantifies the logical consistency of pairwise 
+            comparison matrices. It is defined as:<br/><br/>
+
+                        <b>CI = (λ<sub>max</sub> - n) / (n - 1)</b><br/><br/>
+
+            Where:<br/>
+            - λ<sub>max</sub>: Principal eigenvalue of the comparison matrix<br/><br/>
+            
+            - n: Number of criteria<br/><br/>
+
+            A Consistency Ratio (CR) is also calculated to assess acceptability:<br/><br/>
+
+            <b>CR = CI / RI</b><br/><br/>
+
+            where RI is the Random Consistency Index, dependent on n. CR values less than 0.1 are generally considered acceptable.<br/><br/>
+
+            Again, RI was calculated as per the index provided by <b>Saaty, T.L., 1980 in Table 8</b>.<br/><br/>
+
+            In the present module, the weight of each condition factor was determined 
+            based on the CR value 0.073. The weight of each condition factor is shown in the table below.
+            """
+
+            self.elements.append(Paragraph(consistency_text, self.style_manager.styles['JustifiedBody']))
+            self.elements.append(Paragraph(
+                "3.2.4.4 Simple Additive Weighting (SAW) Method", 
+                self.style_manager.styles['SubsectionHeader']
+            ))
+
+            saw_text = """While, if the Simple Additive Weighting (SAW) method is used:<br/><br/>
+
+            <b>S<sub>j</sub> = Σ<sup>n</sup><sub>i=1</sub> ω<sub>i</sub> · S<sub>ij</sub></b><br/><br/>
+
+            Where:<br/>
+            <i>S<sub>j</sub></i>: Suitability score for alternative <i>j</i>,<br/>
+            <i>ω<sub>i</sub></i>: Weight of Criterion <i>i</i>,<br/>
+            <i>S<sub>ij</sub></i>: Normalized score of criterion <i>i</i> for alternative <i>j</i>
+            """
+
+            self.elements.append(Paragraph(saw_text, self.style_manager.styles['JustifiedBody']))
+
+
+
+
+            # Add page break
+            self.elements.append(PageBreak())
+
         except Exception as e:
             logger.error(f"Failed to add methodology section: {e}")
-
-    
+        
     def _add_fallback_elements(self, processed_factors: List[Tuple[str, str, str]]):
         try:
             for factor_title, static_text, figure_path in processed_factors:
@@ -1085,7 +1205,7 @@ class ReportGenerator:
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
-                            print("read image")
+            
                             image_bytes = io.BytesIO(f.read())
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
@@ -1100,27 +1220,26 @@ class ReportGenerator:
         try:
             self.elements.append(Paragraph("4. Results", self.style_manager.styles['SectionHeader']))
             
-            # sutability factors subsection
+            
             self.elements.append(Paragraph("4.1 STP sutability Factors", 
                                          self.style_manager.styles['SubsectionHeader']))
             
-            factors_text = """
-            The analysis reveals that factors such as downstream drain effect, proximity to polluted river segments, 
-            and population size exert the most significant influence on STP prioritization. Villages with high sewage 
-            potential but lacking treatment infrastructure clustered in specific zones.
+            factors_text = """The final STP Suitability map, provides a spatial visualization zones for
+            sewage treatment plant in ‘low’, ‘medium’, ‘high’ and ‘very high’ category, based on
+            integrated GIS analysis using multiple conditioning and constraint factors. This map clearly
+            distinguishes areas prioritized for construction, balancing environmental safeguards,
+            infrastructure accessibility, and regulatory compliance, thereby supporting strategic
+            decision-making for sustainable urban sanitation planning. Suitability values represented
+            on the map reflect the comprehensive assessment and overlay of weighted criteria, making
+            it a valuable tool for planners and policy makers to identify locations best aligned with
+            operational and environmental goals (Mansouri et al., 2013).
             """
             
             self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
 
             factors_data = []
-            for key, value in asdict(self.static_data).items():
-                name = key.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
-                if match:
-                    factors_data.append((name,
-                        value,
-                        match["file_path"]
-                    ))
+            for key, value in asdict(self.static_data.STP_Sutability).items():
+                print("xxx",key,"    vlvlvlv ",value)
             self._add_fallback_elements(factors_data)
             self.elements.append(Spacer(1, 15))
             
@@ -1129,7 +1248,14 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
 
-            # Weights table
+            weight_text="""he selected weights, calculated from above methodology, reflect the relative importance
+            of each criterion in determining optimal STP sites, ensuring that environmental,
+            infrastructural, and regulatory priorities are appropriately balanced. The MCDA results
+            offer a spatially explicit prioritization of areas, clearly distinguishing zones best suited for
+            STP construction from those that must be excluded due to constraints, supporting informed
+            and transparent decision-making for sewage infrastructure planning. Weight for the all
+            conditioning factors"""
+            self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
             if weights_table:
                 self.elements.append(weights_table)
@@ -1214,11 +1340,8 @@ class ReportGenerator:
             # Build document sections
             self._add_title_page()
             self._add_executive_summary()
-            print("x3")
             self._add_study_area_overview(location_data=location_data)
-            print("x2")
-            self._add_methodology_section()
-            print("x4")
+            self._add_methodology_section(layer_names=layer_names)
             self._add_results_section(layer_names=layer_names) 
             self._add_references()
             
@@ -1263,7 +1386,7 @@ def document_gen2(self,payload: StpSutabilityAdminReport):
 
 @app.task(bind=True,pydantic=True,name="stp_sutability_admin_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=5).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
