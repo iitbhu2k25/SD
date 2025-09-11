@@ -759,8 +759,8 @@ class StpDocument:
                Distance_from_Waterbody="",
                Elevation="Elevation governs the functionality of sewage flow and influences flooding potential at a site. Favorable elevation ensures gravity-based sewage conveyance and mitigates energy expenditure, while low or high elevation sites can complicate network design (Baquero-Rodríguez et al., 2022)",
                Geomorphology="Geomorphological stability is key for foundation reliability, impacts groundwater movement, and affects construction costs. Flat and stable terrains are preferred for STP siting as they lower risk of erosion or land subsidence (Chaabane et al., 2024).",
-               Groundwater_Depth="",
-               Groundwater_Quality="",
+               Groundwater_Depth="Deeper groundwater tables lower contamination risks from STPs; shallow water tables require additional protection to prevent leachate migration (Ahmadi et al., 2017).",
+               Groundwater_Quality="Assessment of groundwater quality ensures that siting minimizes environmental risks and promotes remediation in degraded areas, aligning with regulatory requirements for aquifer protection (Jia et al., 2022).",
                Land_Availability="",
                Land_Use_Land_Cover="Land use/land cover (LULC) considerations help minimize environmental impact and avoid areas of valuable agricultural, ecological, or recreational use, favoring vacant or industrial lands suitable for STPs (Deepa et al., 2012).",
                Population_Density="Population density guides site placement by highlighting areas with greater sewage volumes, ensuring efficient resource use, and facilitating public health benefits where the need is highest (Lehner et al., 2022).",
@@ -1089,7 +1089,7 @@ class ReportGenerator:
             self.elements.append(Paragraph(methodology_text, self.style_manager.styles['JustifiedBody']))
             
             # Methodology figure
-            figure = Image(self.methodology_figure)
+            figure = Image(self.methodology_figure, width=6*inch, height=4*inch)
             self.elements.append(figure)
 
             # 3.2.1 Pre-processing
@@ -1221,7 +1221,7 @@ class ReportGenerator:
             self.elements.append(Paragraph("4. Results", self.style_manager.styles['SectionHeader']))
             
             
-            self.elements.append(Paragraph("4.1 STP sutability Factors", 
+            self.elements.append(Paragraph("4.1 STP Suitability Map", 
                                          self.style_manager.styles['SubsectionHeader']))
             
             factors_text = """The final STP Suitability map, provides a spatial visualization zones for
@@ -1235,13 +1235,20 @@ class ReportGenerator:
             operational and environmental goals (Mansouri et al., 2013).
             """
             
-            self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
+            try:
+                factors_data = []
+                key = "STP_Sutability"
+                name=key.replace("_", " ")
+                match = next((d for d in layer_names if d.get("file_name") == key), None)
 
-            factors_data = []
-            for key, value in asdict(self.static_data.STP_Sutability).items():
-                print("xxx",key,"    vlvlvlv ",value)
-            self._add_fallback_elements(factors_data)
-            self.elements.append(Spacer(1, 15))
+           
+                if match:
+                    factors_data.append((name,factors_text, match["file_path"]))
+                self._add_fallback_elements(factors_data)
+                self.elements.append(Spacer(1, 15))
+            except Exception as e:
+                logger.error(f"Failed to add factors section: {e}")
+                print(e)
             
             # Weights details
             self.elements.append(Paragraph("4.2 Details of the Assigned Weights", 
@@ -1386,7 +1393,7 @@ def document_gen2(self,payload: StpSutabilityAdminReport):
 
 @app.task(bind=True,pydantic=True,name="stp_sutability_admin_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=5).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])
