@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { RiverSystemProvider } from "@/contexts/stp_priority/users/DrainContext";
 import { CategoryProvider } from "@/contexts/stp_priority/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_priority/users/DrainMapContext";
@@ -12,7 +12,7 @@ import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 import MapView from "@/app/dss/rwm/wwt/stp_priority/users/components/openlayer";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 import { CategorySlider } from "./components/weight_slider";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
@@ -24,6 +24,8 @@ const MainContent = () => {
   const { selectedCategories, stpProcess } = useCategory();
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+  const timerRef = useRef<{ stopTimer: () => void }>(null);
   const { messages, sendMessage, isConnected } = useWebSocket(
     taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : "",
     { reconnect: false }
@@ -43,7 +45,7 @@ const MainContent = () => {
     tableData,
   } = useRiverSystem();
 
-  const { setstpOperation, loading, isMapLoading, stpOperation ,setCatchmentLayer} = useMap();
+  const { setstpOperation, loading, isMapLoading, stpOperation, setCatchmentLayer } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -57,31 +59,36 @@ const MainContent = () => {
   const handleReset = () => {
     resetSelections();
     setCatchmentLayer(null);
-    LAYER_NAMES.CATCHMENT=null;
+    LAYER_NAMES.CATCHMENT = null;
     setShowCategories(false);
   };
 
-  useEffect(() => {
-    // Handle WebSocket message updates
-    if (!messages.length) return;
-
-    const last = messages[messages.length - 1];
-    try {
-      const parsed = JSON.parse(last);
-      if (parsed.status === "SUCCESS") {
-        toast.success("Report downloaded!");
-        sendMessage("SEND_FILE");
-      } else if (parsed.status === "FAILURE") {
-        toast.error("Report failed: " + parsed.error);
-      } else if (parsed.status === "ERROR") {
-        toast.error("WebSocket error: " + parsed.message);
-      }
-    } catch {
-      console.warn("Received non-JSON message:", last);
-    } finally {
-      setReportLoading(false);
-    }
-  }, [messages]);
+   useEffect(() => {
+     if (!messages.length || pdfDownloaded) return;
+     setReportLoading(true);
+     const last = messages[messages.length - 1];
+     try {
+       const parsed = JSON.parse(last);
+       if (parsed.status === 'SUCCESS') {
+         toast.success('Report generated successfully!');
+         sendMessage('SEND_FILE');
+         timerRef.current?.stopTimer(); // Stop timer on success
+         setPdfDownloaded(true);
+       } else if (parsed.status === 'FAILURE') {
+         toast.error(`Report failed: ${parsed.error || 'Unknown error'}`);
+         timerRef.current?.stopTimer(); // Stop timer on failure
+         setTaskId(null);
+       } else if (parsed.status === 'ERROR') {
+         toast.error(`WebSocket error: ${parsed.message || 'Unknown error'}`);
+         timerRef.current?.stopTimer(); // Stop timer on error
+         setTaskId(null);
+       }
+     } catch {
+       console.warn('Received non-JSON message:', last);
+     } finally {
+       setReportLoading(false);
+     }
+   }, [messages, sendMessage, pdfDownloaded]);
   const handleSubmit = () => {
     if (selectedCategories.length < 1) {
       toast.error("Please select at least one category", {
@@ -331,11 +338,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={stpProcess}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          stpProcess
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${stpProcess
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {!stpProcess && (
                           <>
@@ -444,7 +450,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-      <ToastContainer />
+
     </div>
   );
 };

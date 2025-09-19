@@ -10,7 +10,7 @@ import { validateField } from "@/components/authentication/validation";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuthStore } from "@/store/authStore";
-import { set } from "lodash";
+
 
 interface respData {
   is_verified: boolean;

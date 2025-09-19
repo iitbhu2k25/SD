@@ -18,7 +18,7 @@ import RiverSelector from "@/app/dss/rwm/wwt/stp_sutability/users/components/loc
 import CategorySelector from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Category";
 import MapView from "@/app/dss/rwm/wwt/stp_sutability/users/components/openlayer";
 import { CategorySlider } from "./components/weight_slider";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
@@ -293,7 +293,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-      <ToastContainer />
+   
     </div>
   );
 };

@@ -531,7 +531,7 @@ class MapGenerator:
         try:
             validate_file_exists(raster_path, "Raster file")
             validate_file_exists(sld_path, "SLD file") 
-            filtered = SpatialDataset().find_village(clip=filtered_vector)
+            filtered = SpatialDataset().find_village_from_catchment(clip=filtered_vector)
             filtered_new = filtered.to_crs("EPSG:3857")
             single_polygon = unary_union(filtered_new.geometry)
             validate_geodataframe(filtered, "Filtered vector")
@@ -1187,7 +1187,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
 
 @app.task(bind=True,pydantic=True,name="stp_priority_drain_currency_image")
 def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=200).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+    file_path=MapGenerator(dpi=50).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
     return{
         "file_path":file_path,
         "file_name":(os.path.splitext(os.path.basename(file_path))[0])

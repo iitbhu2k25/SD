@@ -188,7 +188,7 @@ const Maping: React.FC = () => {
   const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
 
   // Context hooks
-  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains } = useRiverSystem();
+  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains,selectionsLocked } = useRiverSystem();
   
   const {
     primaryLayer,
@@ -356,7 +356,7 @@ const Maping: React.FC = () => {
 
     selectInteraction.on('select', (event) => {
       const selectedFeatures = event.selected;
-      if (selectedFeatures.length > 0 ) {
+      if (selectedFeatures.length > 0 && selectionsLocked ) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
 
@@ -1037,7 +1037,7 @@ const Maping: React.FC = () => {
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setShowLegend(!showLegend)} className="text-gray-400 hover:text-gray-600">×</button>
+              
             </div>
             <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>

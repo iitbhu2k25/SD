@@ -14,7 +14,7 @@ import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 import MapView from "@/app/dss/rwm/wwt/stp_priority/admin/components/openlayer";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
-import { toast, ToastContainer } from "react-toastify";
+import { toast} from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
@@ -248,7 +248,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-      <ToastContainer />
+
     </div>
   );
 };

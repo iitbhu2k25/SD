@@ -21,9 +21,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <Header/>
           <main className="flex-1 flex flex-col w-full overflow-x-hidden">
             {children}
-            <ToastContainer
+            
+          </main>
+          <Footer/>
+          <ToastContainer
               position="top-right"
-              autoClose={3000}
+              autoClose={2000}
               hideProgressBar={false}
               newestOnTop={false}
               closeOnClick
@@ -31,11 +34,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
               pauseOnFocusLoss
               draggable
               pauseOnHover
-              className="mt-16 sm:mt-20" // Account for header height on mobile
-              toastClassName="text-sm sm:text-base" // Responsive text size
+              className="mt-16 sm:mt-20" 
+              toastClassName="text-sm sm:text-base" 
+              
             />
-          </main>
-          <Footer/>
       </body>
     </html>
   );

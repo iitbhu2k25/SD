@@ -58,7 +58,7 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Context hooks
-  const { displayRaster,setSelectedState ,setSelectedDistricts, setSelectedSubDistricts} = useLocation();
+  const { displayRaster,setSelectedState ,setSelectedDistricts, setSelectedSubDistricts,selectionsLocked} = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -230,11 +230,11 @@ const Maping: React.FC = () => {
       if (selectedFeatures.length > 0) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
-        if (geometry && geometry.getType().includes('Polygon')) {
+        if (geometry && geometry.getType().includes('Polygon') && selectionsLocked) {
           const stateCode = feature.get("State_Code")
           const districtCode= feature.get("district_c")
           const subdistrictCode= feature.get("subdis_cod")
-          console.log("Selected state code:", stateCode,"Selected district code:", districtCode,"Selected subdistrict code:", subdistrictCode);
+         
 
           if (subdistrictCode as number){
             setSelectedSubDistricts([subdistrictCode]);
@@ -563,7 +563,7 @@ const Maping: React.FC = () => {
             onClick={() => setIsPanelOpen(!isPanelOpen)}
             className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20"
           >
-            <Image src="/ayeopenlrslogo.svg" alt="Logo" width={32} height={32} />
+            <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
           </button>
         </div>
 
@@ -779,7 +779,7 @@ const Maping: React.FC = () => {
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setShowLegend(!showLegend)} className="text-gray-400 hover:text-gray-600">×</button>
+              
             </div>
             <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>
