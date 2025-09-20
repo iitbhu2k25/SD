@@ -70,9 +70,9 @@ const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature: any; 
   if (!hoveredFeature) return null;
 
   const featureName = hoveredFeature.get("name") || hoveredFeature.get("Name") || hoveredFeature.get("NAME") || "Unknown Feature";
-  
+
   return (
-    <div 
+    <div
       className="absolute z-50 bg-gray-900/90 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none transition-all duration-200 backdrop-blur-sm border border-gray-700"
       style={{
         left: `${mousePosition.x + 15}px`,
@@ -149,13 +149,13 @@ const Maping: React.FC = () => {
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const boundaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  
+
   // Individual layer refs for river system
   const riverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  
+
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
@@ -163,12 +163,12 @@ const Maping: React.FC = () => {
 
   // State management
   const [isLoading, setIsLoading] = useState(true);
-  const [featureCounts, setFeatureCounts] = useState({ 
-    primary: 0, 
-    river: 0, 
-    stretch: 0, 
-    drain: 0, 
-    catchment: 0 
+  const [featureCounts, setFeatureCounts] = useState({
+    primary: 0,
+    river: 0,
+    stretch: 0,
+    drain: 0,
+    catchment: 0
   });
   const [layerOpacity, setLayerOpacity] = useState(70);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -188,8 +188,8 @@ const Maping: React.FC = () => {
   const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
 
   // Context hooks
-  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains,selectionsLocked } = useRiverSystem();
-  
+  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked } = useRiverSystem();
+
   const {
     primaryLayer,
     riverLayer,
@@ -298,7 +298,12 @@ const Maping: React.FC = () => {
     }
   };
 
-  // Initialize map
+  useEffect(() => {
+    if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
+    if (selectionsLocked) {
+      selectInteractionRef.current.setActive(false);
+    }
+  }, [selectionsLocked]);
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -336,6 +341,10 @@ const Maping: React.FC = () => {
       view: new View({
         center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
         zoom: INITIAL_ZOOM,
+        minZoom: 4,
+        maxZoom: 18,
+        constrainResolution: true,
+        smoothExtentConstraint: true,
         enableRotation: true,
         constrainRotation: false,
       }),
@@ -356,7 +365,7 @@ const Maping: React.FC = () => {
 
     selectInteraction.on('select', (event) => {
       const selectedFeatures = event.selected;
-      if (selectedFeatures.length > 0 && selectionsLocked ) {
+      if (selectedFeatures.length > 0 ) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
 
@@ -367,7 +376,7 @@ const Maping: React.FC = () => {
           const village_id = feature.get('village_id')
 
           console.log("selected stretch", River_code, Stretch_id, Drain_no, village_id);
-          
+
           if (village_id as number) {
             setSelectedCatchments([village_id])
           }
@@ -394,10 +403,9 @@ const Maping: React.FC = () => {
       condition: pointerMove,
       style: new Style({
         stroke: new Stroke({ color: '#ffaa00', width: 2 }),
-        fill: new Fill({ color: 'rgba(255, 170, 0, 0.2)' })
+        fill: new Fill({ color: 'transparent' })
       }),
       filter: (feature, layer) => {
-        // Exclude boundary layer from hover interactions
         return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
       }
     });
@@ -469,11 +477,11 @@ const Maping: React.FC = () => {
     const boundaryVectorLayer = new VectorLayer({
       source: boundaryVectorSource,
       style: new Style({
-        stroke: new Stroke({ 
-          color: "#301934", 
-          width: 2 
+        stroke: new Stroke({
+          color: "#301934",
+          width: 2
         }),
-        fill: new Fill({ 
+        fill: new Fill({
           color: "rgba(48, 25, 52, 0.1)" // Very transparent fill for boundary
         })
       }),
@@ -545,11 +553,10 @@ const Maping: React.FC = () => {
     let wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
 
     if (layerFilter.filterField && layerFilter.filterValue && layerFilter.filterValue.length > 0) {
-      wfsUrl += `&CQL_FILTER=${layerFilter.filterField} IN (${
-        Array.isArray(layerFilter.filterValue)
+      wfsUrl += `&CQL_FILTER=${layerFilter.filterField} IN (${Array.isArray(layerFilter.filterValue)
           ? layerFilter.filterValue.map((v) => `'${v}'`).join(",")
           : `'${layerFilter.filterValue}'`
-      })`;
+        })`;
     }
 
     const vectorSource = new VectorSource({
@@ -649,7 +656,7 @@ const Maping: React.FC = () => {
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
-    
+
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
@@ -731,14 +738,16 @@ const Maping: React.FC = () => {
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
         {/* The Map */}
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
-        
+
         {/* Components */}
-        <GISCompass />
-        
+          <div className="hidden md:block">
+          <GISCompass />
+        </div>
+
         {/* Hover Tooltip */}
-        <HoverTooltip 
-          hoveredFeature={hoveredFeature} 
-          mousePosition={mousePosition} 
+        <HoverTooltip
+          hoveredFeature={hoveredFeature}
+          mousePosition={mousePosition}
         />
 
         {/* Header Panel */}
@@ -755,18 +764,17 @@ const Maping: React.FC = () => {
               <button
                 key={panel}
                 onClick={() => togglePanel(panel)}
-                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${
-                  activePanel === panel
+                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel
                     ? "bg-blue-100 text-blue-600 shadow-inner"
                     : "hover:bg-gray-100 text-gray-700"
-                }`}
+                  }`}
                 title={panel.charAt(0).toUpperCase() + panel.slice(1)}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d={panel === "layers" ? "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" :
-                     panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
-                     "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
+                      panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
+                        "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
                 </svg>
               </button>
             ))}
@@ -777,7 +785,7 @@ const Maping: React.FC = () => {
               title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d={!isFullScreen ? "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" : "M6 18L18 6M6 6l12 12"} />
               </svg>
             </button>
@@ -819,11 +827,10 @@ const Maping: React.FC = () => {
                 <button
                   key={key}
                   onClick={() => changeBaseMap(key)}
-                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2 ${
-                    selectedBaseMap === key
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2 ${selectedBaseMap === key
                       ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700"
                       : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
-                  }`}
+                    }`}
                 >
                   <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMap.icon} />
@@ -889,59 +896,53 @@ const Maping: React.FC = () => {
               {/* River Layers */}
               {Object.entries(featureCounts).map(([layerType, count]) => {
                 if (layerType === 'primary' || count === 0) return null;
-                
+
                 const colorConfig = LAYER_COLORS[layerType];
                 const isVisible = layerType === 'river' ? showRiverLayer :
-                                layerType === 'stretch' ? showStretchLayer :
-                                layerType === 'drain' ? showDrainLayer :
-                                layerType === 'catchment' ? showCatchmentLayer : true;
-                
+                  layerType === 'stretch' ? showStretchLayer :
+                    layerType === 'drain' ? showDrainLayer :
+                      layerType === 'catchment' ? showCatchmentLayer : true;
+
                 const toggleFunction = layerType === 'river' ? toggleRiverLayer :
-                                     layerType === 'stretch' ? toggleStretchLayer :
-                                     layerType === 'drain' ? toggleDrainLayer :
-                                     layerType === 'catchment' ? toggleCatchmentLayer : () => {};
+                  layerType === 'stretch' ? toggleStretchLayer :
+                    layerType === 'drain' ? toggleDrainLayer :
+                      layerType === 'catchment' ? toggleCatchmentLayer : () => { };
 
                 return (
-                  <div key={layerType} className={`p-4 rounded-xl border transition-all duration-300 ${
-                    isVisible 
+                  <div key={layerType} className={`p-4 rounded-xl border transition-all duration-300 ${isVisible
                       ? `bg-gradient-to-r from-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 to-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'emerald' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 border-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-200`
                       : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                  }`}>
+                    }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full mr-3 ${
-                          isVisible ? colorConfig.color.replace('#', 'bg-[') + ']' : 'bg-gray-400'
-                        }`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
-                        <span className={`font-semibold ${
-                          isVisible ? colorConfig.color.includes('DC2626') ? 'text-red-800' :
-                                    colorConfig.color.includes('059669') ? 'text-green-800' :
-                                    colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
-                                  : 'text-gray-600'
-                        }`}>
+                        <div className={`w-4 h-4 rounded-full mr-3 ${isVisible ? colorConfig.color.replace('#', 'bg-[') + ']' : 'bg-gray-400'
+                          }`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
+                        <span className={`font-semibold ${isVisible ? colorConfig.color.includes('DC2626') ? 'text-red-800' :
+                            colorConfig.color.includes('059669') ? 'text-green-800' :
+                              colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
+                            : 'text-gray-600'
+                          }`}>
                           {colorConfig.name}
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <span className={`text-xs px-3 py-1 rounded-full ${
-                          isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-200/80 text-red-800' :
-                                    colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
-                                    colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
-                                  : 'bg-gray-200/80 text-gray-700'
-                        }`}>
+                        <span className={`text-xs px-3 py-1 rounded-full ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-200/80 text-red-800' :
+                            colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
+                              colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
+                            : 'bg-gray-200/80 text-gray-700'
+                          }`}>
                           {count} features
                         </span>
                         <button
                           onClick={toggleFunction}
-                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
-                            isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :
-                                      colorConfig.color.includes('059669') ? 'bg-green-500' :
-                                      colorConfig.color.includes('7C2D12') ? 'bg-yellow-500' : 'bg-blue-500'
-                                    : 'bg-gray-300'
-                          }`}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :
+                              colorConfig.color.includes('059669') ? 'bg-green-500' :
+                                colorConfig.color.includes('7C2D12') ? 'bg-yellow-500' : 'bg-blue-500'
+                              : 'bg-gray-300'
+                            }`}
                         >
-                          <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
-                            isVisible ? 'translate-x-6' : ''
-                          }`} />
+                          <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isVisible ? 'translate-x-6' : ''
+                            }`} />
                         </button>
                       </div>
                     </div>
@@ -989,16 +990,15 @@ const Maping: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowTitles(!showTitles)}
-                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${
-                  showTitles 
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
                     ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
                     : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
-                }`}
+                  }`}
               >
                 <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
                 <span className="text-sm font-medium">Display Labels</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   setHoveredFeature(null);
@@ -1031,13 +1031,13 @@ const Maping: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {/* Legend */}
         {showLegend && legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              
+
             </div>
             <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>

@@ -448,7 +448,9 @@ const Mapping: React.FC = () => {
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
 
         {/* Components */}
-        <GISCompass />
+          <div className="hidden md:block">
+          <GISCompass />
+        </div> 
         <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
 
         {/* Header Panel */}

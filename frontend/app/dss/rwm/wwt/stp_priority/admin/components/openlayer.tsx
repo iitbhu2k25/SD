@@ -8,7 +8,7 @@ import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
-import { doubleClick, pointerMove,singleClick } from "ol/events/condition";
+import { doubleClick, pointerMove, singleClick } from "ol/events/condition";
 import Image from "next/image";
 
 import { fromLonLat } from "ol/proj";
@@ -24,7 +24,7 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import "ol/ol.css";
-import { baseMaps,GISCompass,HoverTooltip} from "@/components/MapComponents";
+import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
@@ -58,7 +58,7 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Context hooks
-  const { displayRaster,setSelectedState ,setSelectedDistricts, setSelectedSubDistricts,selectionsLocked} = useLocation();
+  const { displayRaster, setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -172,7 +172,13 @@ const Maping: React.FC = () => {
     return styles;
   };
 
-  // Initialize map
+  // Add this useEffect to handle interaction disabling based on selectionsLocked
+  useEffect(() => {
+    if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
+    if (selectionsLocked) {
+      selectInteractionRef.current.setActive(false);
+    }
+  }, [selectionsLocked]);
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -210,6 +216,10 @@ const Maping: React.FC = () => {
       view: new View({
         center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
         zoom: INITIAL_ZOOM,
+        minZoom: 4,
+        maxZoom: 18,
+        constrainResolution: true,
+        smoothExtentConstraint: true,
         enableRotation: true,
         constrainRotation: false,
       }),
@@ -222,7 +232,7 @@ const Maping: React.FC = () => {
         stroke: new Stroke({ color: '#ff0000', width: 3 }),
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
       }),
-      
+
     });
 
     selectInteraction.on('select', (event) => {
@@ -230,25 +240,25 @@ const Maping: React.FC = () => {
       if (selectedFeatures.length > 0) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
-        if (geometry && geometry.getType().includes('Polygon') && selectionsLocked) {
+        if (geometry && geometry.getType().includes('Polygon')) {
           const stateCode = feature.get("State_Code")
-          const districtCode= feature.get("district_c")
-          const subdistrictCode= feature.get("subdis_cod")
-         
+          const districtCode = feature.get("district_c")
+          const subdistrictCode = feature.get("subdis_cod")
 
-          if (subdistrictCode as number){
+
+          if (subdistrictCode as number) {
             setSelectedSubDistricts([subdistrictCode]);
           }
-          else if (districtCode as number){
+          else if (districtCode as number) {
             setSelectedDistricts([districtCode]);
-          }                                                   
+          }
           else if (stateCode) {
             setSelectedState(stateCode);
           } else {
             console.log("No state code found in polygon properties:", feature.getProperties());
           }
         }
-        
+
         // Clear selection after processing
         setTimeout(() => {
           selectInteraction.getFeatures().clear();
@@ -257,14 +267,14 @@ const Maping: React.FC = () => {
     });
 
     // Add Select interaction for hover
-    const hoverInteraction = new Select({
+
+     const hoverInteraction = new Select({
       condition: pointerMove,
       style: new Style({
         stroke: new Stroke({ color: '#ffaa00', width: 2 }),
-        fill: new Fill({ color: 'rgba(255, 170, 0, 0.2)' })
-      })
+        fill: new Fill({ color: 'transparent' })
+      }),
     });
-
     hoverInteraction.on('select', (event) => {
       const hoveredFeatures = event.selected;
       if (hoveredFeatures.length > 0) {
@@ -371,11 +381,10 @@ const Maping: React.FC = () => {
 
     setIsLoading(true);
 
-    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${
-      Array.isArray(LayerFilterValue)
-        ? LayerFilterValue.map((v) => `'${v}'`).join(",")
-        : `'${LayerFilterValue}'`
-    })`;
+    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+      ? LayerFilterValue.map((v) => `'${v}'`).join(",")
+      : `'${LayerFilterValue}'`
+      })`;
 
     const secondaryVectorSource = new VectorSource({
       url: secondaryWfsUrl,
@@ -422,7 +431,7 @@ const Maping: React.FC = () => {
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
-    
+
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
@@ -504,14 +513,17 @@ const Maping: React.FC = () => {
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
         {/* The Map */}
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
-        
-        {/* Components */}
-        <GISCompass />
-        
-       
-        <HoverTooltip 
-          hoveredFeature={hoveredFeature} 
-          mousePosition={mousePosition} 
+
+        <div className="hidden md:block">
+            <div className="hidden md:block">
+          <GISCompass />
+        </div>
+        </div>
+
+
+        <HoverTooltip
+          hoveredFeature={hoveredFeature}
+          mousePosition={mousePosition}
         />
 
         {/* Header Panel */}
@@ -528,18 +540,17 @@ const Maping: React.FC = () => {
               <button
                 key={panel}
                 onClick={() => togglePanel(panel)}
-                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${
-                  activePanel === panel
-                    ? "bg-blue-100 text-blue-600 shadow-inner"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
+                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel
+                  ? "bg-blue-100 text-blue-600 shadow-inner"
+                  : "hover:bg-gray-100 text-gray-700"
+                  }`}
                 title={panel.charAt(0).toUpperCase() + panel.slice(1)}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d={panel === "layers" ? "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" :
-                     panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
-                     "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
+                      panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
+                        "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
                 </svg>
               </button>
             ))}
@@ -550,7 +561,7 @@ const Maping: React.FC = () => {
               title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d={!isFullScreen ? "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" : "M6 18L18 6M6 6l12 12"} />
               </svg>
             </button>
@@ -579,11 +590,10 @@ const Maping: React.FC = () => {
                 <button
                   key={key}
                   onClick={() => changeBaseMap(key)}
-                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2 ${
-                    selectedBaseMap === key
-                      ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700"
-                      : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
-                  }`}
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2 ${selectedBaseMap === key
+                    ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
+                    }`}
                 >
                   <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMap.icon} />
@@ -632,28 +642,24 @@ const Maping: React.FC = () => {
             </div>
             <div className="space-y-3">
               {featureCounts.primary > 0 && (
-                <div className={`p-4 rounded-xl border ${
-                  featureCounts.secondary > 0 && showSecondaryLayer 
-                    ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200" 
-                    : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
-                }`}>
+                <div className={`p-4 rounded-xl border ${featureCounts.secondary > 0 && showSecondaryLayer
+                  ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+                  : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
+                  }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className={`w-4 h-4 ${
-                        featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
-                      } rounded-full mr-3`}></div>
-                      <span className={`font-semibold ${
-                        featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
-                      }`}>Primary Layer</span>
+                      <div className={`w-4 h-4 ${featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
+                        } rounded-full mr-3`}></div>
+                      <span className={`font-semibold ${featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
+                        }`}>Primary Layer</span>
                       {featureCounts.secondary > 0 && showSecondaryLayer && (
                         <span className="text-xs text-gray-500 ml-2">(Hidden when secondary shown)</span>
                       )}
                     </div>
-                    <span className={`text-xs px-3 py-1 rounded-full ${
-                      featureCounts.secondary > 0 && showSecondaryLayer 
-                        ? "bg-gray-200/80 text-gray-700" 
-                        : "bg-blue-200/80 text-blue-800"
-                    }`}>
+                    <span className={`text-xs px-3 py-1 rounded-full ${featureCounts.secondary > 0 && showSecondaryLayer
+                      ? "bg-gray-200/80 text-gray-700"
+                      : "bg-blue-200/80 text-blue-800"
+                      }`}>
                       {featureCounts.primary} features
                     </span>
                   </div>
@@ -695,7 +701,7 @@ const Maping: React.FC = () => {
                       <div className="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-purple-800">Raster Layer</span>
                     </div>
-                  
+
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-gray-700 mb-2">
@@ -728,16 +734,15 @@ const Maping: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowTitles(!showTitles)}
-                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${
-                  showTitles 
-                    ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
-                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
-                }`}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  }`}
               >
                 <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
                 <span className="text-sm font-medium">Display Titles</span>
               </button>
-              
+
               <button
                 onClick={() => {
                   setHoveredFeature(null);
@@ -768,18 +773,18 @@ const Maping: React.FC = () => {
                 <span className="text-sm font-medium">Home View</span>
               </button>
 
-             
+
             </div>
           </div>
         )}
-        
-        
+
+
         {/* Legend */}
         {showLegend && legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              
+
             </div>
             <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>

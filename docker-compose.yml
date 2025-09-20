@@ -45,8 +45,8 @@ services:
       - .fastdb.env
     volumes:
       - ./fast_backend:/home/app:z
-    command: gunicorn app.main:app --config gunicorn.conf.py --reload
-    #command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload
+    #command: gunicorn app.main:app --config gunicorn.conf.py --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload
     restart: always
     depends_on:
       - fast_db
@@ -105,7 +105,7 @@ services:
       - /bin/sh
       - -c
       - |
-        celery -A app.conf.celery  worker --loglevel=info -c 10 --pool=prefork 
+        celery -A app.conf.celery  worker --loglevel=info -c 8 --pool=prefork --max-tasks-per-child=50
     env_file:
       - .fastdb.env
    

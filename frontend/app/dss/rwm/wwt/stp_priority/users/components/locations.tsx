@@ -75,8 +75,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
   const handleConfirm = (): void => {
     if (selectedCatchments.length > 0 && !selectionsLocked) {
       const selectedData = confirmSelections();
-
-      // Call the onConfirm prop to notify parent component
+      
       if (onConfirm && selectedData) {
         onConfirm({
           stretches: selectedData.stretches,
