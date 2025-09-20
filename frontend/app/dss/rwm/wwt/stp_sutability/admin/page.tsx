@@ -17,10 +17,9 @@ import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
-import {TreatmentForm }from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Stp_area";
+import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Stp_area";
 import { api } from "@/services/api";
-import { TimerComponent } from "@/components/TimerComponent";
-import { useWebSocket } from "@/services/websocket";
+import PDFGenerationStatus from "@/components/PdfGeneration";
 
 const MainContent = () => {
   // Add submitting state
@@ -37,20 +36,13 @@ const MainContent = () => {
     tableData,
   } = useCategory();
   const [reportLoading, setReportLoading] = useState(false);
-    const [taskId, setTaskId] = useState<string | null>(null);
-    const [pdfDownloaded, setPdfDownloaded] = useState(false);
-    const timerRef = useRef<{ stopTimer: () => void }>(null); // Move inside component
-  
-    const { messages, sendMessage, isConnected } = useWebSocket(
-      taskId ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}` : '',
-      { 
-        reconnect: false,
-      }
-    );
-  const { selectionsLocked,displayRaster,selectedDistrictsNames,selectedStateName,selectedTownsNames,selectedSubDistrictsNames,selectedVillages,totalPopulation} =
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [showPdfStatus, setShowPdfStatus] = useState(false);
+
+  const { selectionsLocked, displayRaster, selectedDistrictsNames, selectedStateName, selectedTownsNames, selectedSubDistrictsNames, selectedVillages, totalPopulation } =
     useLocation();
 
-  const { setstpOperation ,isMapLoading, loading, stpOperation} = useMap();
+  const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -60,37 +52,13 @@ const MainContent = () => {
   const formatName = (fileName: string): string => {
     return fileName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
-  useEffect(() => {
-    if (!messages.length || pdfDownloaded) return;
-    setReportLoading(true);
-    const last = messages[messages.length - 1];
-    try {
-      const parsed = JSON.parse(last);
-      if (parsed.status === 'SUCCESS') {
-        toast.success('Report generated successfully!');
-        sendMessage('SEND_FILE');
-        timerRef.current?.stopTimer(); // Stop timer on success
-        setPdfDownloaded(true);
-      } else if (parsed.status === 'FAILURE') {
-        toast.error(`Report failed: ${parsed.error || 'Unknown error'}`);
-        timerRef.current?.stopTimer(); // Stop timer on failure
-        setTaskId(null);
-      } else if (parsed.status === 'ERROR') {
-        toast.error(`WebSocket error: ${parsed.message || 'Unknown error'}`);
-        timerRef.current?.stopTimer(); // Stop timer on error
-        setTaskId(null);
-      }
-    } catch {
-      console.warn('Received non-JSON message:', last);
-    } finally {
-      setReportLoading(false);
-    }
-  }, [messages, sendMessage, pdfDownloaded]);
 
-  const handlereport = async (startTimer: () => void, stopTimer: () => void) => {
+
+  const handlereport = async () => {
     try {
       setReportLoading(true);
-      startTimer();
+      setTaskId(null);
+      setShowPdfStatus(false);
       const locationData = {
         state: selectedStateName,
         districts: selectedDistrictsNames,
@@ -110,22 +78,20 @@ const MainContent = () => {
       const response = await api.post("/stp_operation/stp_sutability_admin_report", {
         body: data,
       });
-      if (response.status != 201) {
-        stopTimer();
-        setReportLoading(false);
+      if (response.status !== 201) {
         toast.error("Report failed", {
           position: "top-center",
         });
-        return null;
+        return;
       }
+
       toast.success("Report generation started");
       const task = response.message as Record<string, string>;
       setTaskId(task['task_id']);
-      setPdfDownloaded(false);
+      setShowPdfStatus(true);
     } catch (error) {
-      console.log("Report error", error);
+      console.error("Report error", error);
       toast.error("Failed to start report");
-      stopTimer();
     } finally {
       setReportLoading(false);
     }
@@ -137,19 +103,14 @@ const MainContent = () => {
         position: "top-center",
       });
     } else {
-      setSubmitting(true);
-      
+    
+
       const selectedData = [
         ...selectedCondition,
         ...selectedConstraint,
       ]
       setSelectedCategory(selectedData);
-      setstpOperation(true);
-
-      // Simulate processing completion (remove this in production with actual processing)
-      setTimeout(() => {
-        setSubmitting(false);
-      }, 2000);
+      setstpOperation(true)
     }
   };
 
@@ -158,16 +119,16 @@ const MainContent = () => {
     <div className="min-h-screen bg-gray-50">
       {
         <WholeLoading
-        visible={loading || isMapLoading || stpOperation || reportLoading}
-        title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
-        message={
-          stpOperation
-            ? "Analyzing site priorities and generating results..."
-            : reportLoading
-            ? "Generating report, please wait..."
-            : "Fetching map data and initializing components..."
-        }
-      />
+          visible={loading || isMapLoading || stpOperation || reportLoading}
+          title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+          message={
+            stpOperation
+              ? "Analyzing site priorities and generating results..."
+              : reportLoading
+                ? "Generating report, please wait..."
+                : "Fetching map data and initializing components..."
+          }
+        />
       }
       <main className="px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
@@ -216,11 +177,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          submitting
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -285,44 +245,51 @@ const MainContent = () => {
                   />
                 </div>
               )}
-               
-             
+              {tableData.length > 0 && (
+                <div className="flex justify-start mt-8">
+                  <TreatmentForm />
+                </div>
+              )
+              }
+            </section>
+              <div className="flex m-8 justify-center">
                 {tableData.length > 0 && (
                   <div className="flex justify-start mt-8">
-                 <TreatmentForm />
-                 </div>
-               )
-                }
-          
-       
-                
-                 {tableData.length > 0 && (
-                                <div className="flex m-8 justify-center">
-                                  <TimerComponent
-                                    ref={timerRef}
-                                    duration={100}
-                                    label="Generate Report"
-                                    onTimeout={() => {
-                                      setTaskId(null);
-                                      setReportLoading(false);
-                                    }}
-                                    onStart={() => setReportLoading(true)}
-                                    onStop={() => {
-                                      setReportLoading(false);
-                                      if (pdfDownloaded) {
-                                        toast.success('Report downloaded successfully!');
-                                      }
-                                    }}
-                                    
-                                    triggerAction={handlereport}
-                                    className="bg-white rounded-lg shadow-md p-4"
-                                    buttonClassName="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                                  />
-                                </div>
-                              )}
-                            </section>
-                          </div>
- 
+                    <button
+                      onClick={handlereport}
+                      disabled={reportLoading}
+                      className={`px-8 py-3 rounded-full font-medium shadow-md ${reportLoading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                        } flex items-center gap-2 transition duration-200`}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      {reportLoading ? "Starting..." : "Generate Report"}
+                    </button>
+                    <WholeLoading
+                      visible={reportLoading}
+                      title={"Generating report for STP priorities"}
+                      message={
+                        "Analyzing site priorities and generating results..."
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+          </div>
+
           {/* Map and Slider area - Now spans 4/12 columns on large screens */}
           <div className="lg:col-span-4 space-y-4">
             {/* Map Section with Larger Height */}
@@ -341,21 +308,19 @@ const MainContent = () => {
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "condition"
+                      className={`flex-1 py-2 font-medium ${activeTab === "condition"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Condition Influences
                     </button>
                     <button
                       onClick={() => setActiveTab("constraint")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "constraint"
+                      className={`flex-1 py-2 font-medium ${activeTab === "constraint"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Constraint Influences
                     </button>
@@ -402,7 +367,15 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-   
+             {showPdfStatus && taskId && (
+        <PDFGenerationStatus
+          taskId={taskId}
+          className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
+          autoClose={true}
+          closeDelay={3000}
+          enableAutoDownload={true}
+        />
+      )}
     </div>
 
   );

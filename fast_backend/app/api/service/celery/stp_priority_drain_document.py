@@ -1214,12 +1214,10 @@ def document_gen1(self,payload: StpPriorityDrainReport):
 
             time.sleep(1)
         
-        progress_recorder.set_progress(85, total, description="Images processed, generating PDF")
-        
         
         progress_recorder.set_progress(100, total, description="Complete")
         
-        # Cleanup Redis keys
+
         for i in range(total_images):
             redis_client.delete(f"image_complete:{self.request.id}:{i}")
         redis_client.delete(f"chord:{self.request.id}")
@@ -1234,7 +1232,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
 def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str],task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=10).make_image(
+        file_path = MapGenerator(dpi=100).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,

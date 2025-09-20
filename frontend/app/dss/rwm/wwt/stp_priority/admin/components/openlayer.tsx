@@ -154,7 +154,6 @@ const Maping: React.FC = () => {
       }));
     }
 
-    // Add labels when titles are enabled or for hover tooltip reference
     if (showTitles && zoom > 5 && featureName) {
       styles.push(new Style({
         text: new Text({
@@ -268,7 +267,7 @@ const Maping: React.FC = () => {
 
     // Add Select interaction for hover
 
-     const hoverInteraction = new Select({
+    const hoverInteraction = new Select({
       condition: pointerMove,
       style: new Style({
         stroke: new Stroke({ color: '#ffaa00', width: 2 }),

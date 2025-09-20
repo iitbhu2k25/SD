@@ -214,6 +214,10 @@ const Mapping: React.FC = () => {
       view: new View({
         center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
         zoom: INITIAL_ZOOM,
+        minZoom: 4,
+        maxZoom: 18,
+        constrainResolution: true,
+        smoothExtentConstraint: true,
         enableRotation: true,
         constrainRotation: false,
       }),
@@ -231,8 +235,8 @@ const Mapping: React.FC = () => {
       condition: pointerMove,
       style: new Style({
         stroke: new Stroke({ color: '#ffaa00', width: 2 }),
-        fill: new Fill({ color: 'rgba(255, 170, 0, 0.2)' })
-      })
+        fill: new Fill({ color: 'transparent' })
+      }),
     });
 
     hoverInteraction.on('select', (event) => {
@@ -548,113 +552,140 @@ const Mapping: React.FC = () => {
 
         {/* Layers Panel */}
         {activePanel === "layers" && (
-          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-800">Map Layers</h3>
-              <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
+  <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
+    <div className="flex justify-between items-center mb-4">
+      <h3 className="font-bold text-gray-800">Map Layers</h3>
+      <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
+    </div>
+    <div className="space-y-3">
+      {/* Primary Layer with conditional styling */}
+      {featureCounts.primary > 0 && (
+        <div className={`p-4 rounded-xl border ${featureCounts.secondary > 0 && showSecondaryLayer
+            ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+            : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
+          }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className={`w-4 h-4 rounded-full mr-3 ${featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
+                }`}></div>
+              <span className={`font-semibold ${featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
+                }`}>Primary Layer</span>
+              {featureCounts.secondary > 0 && showSecondaryLayer && (
+                <span className="text-xs text-gray-500 ml-2">(Hidden when secondary shown)</span>
+              )}
             </div>
-            <div className="space-y-3">
-              {/* Primary Layer with conditional styling */}
-              {featureCounts.primary > 0 && (
-                <div className={`p-4 rounded-xl border ${featureCounts.secondary > 0 && showSecondaryLayer
-                    ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                    : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
-                  }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 rounded-full mr-3 ${featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
-                        }`}></div>
-                      <span className={`font-semibold ${featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
-                        }`}>Primary Layer</span>
-                      {featureCounts.secondary > 0 && showSecondaryLayer && (
-                        <span className="text-xs text-gray-500 ml-2">(Hidden when secondary shown)</span>
-                      )}
-                    </div>
-                    <span className={`text-xs px-3 py-1 rounded-full ${featureCounts.secondary > 0 && showSecondaryLayer
-                        ? "bg-gray-200/80 text-gray-700"
-                        : "bg-blue-200/80 text-blue-800"
-                      }`}>
-                      {featureCounts.primary} features
-                    </span>
-                  </div>
-                </div>
-              )}
+            <span className={`text-xs px-3 py-1 rounded-full ${featureCounts.secondary > 0 && showSecondaryLayer
+                ? "bg-gray-200/80 text-gray-700"
+                : "bg-blue-200/80 text-blue-800"
+              }`}>
+              {featureCounts.primary} features
+            </span>
+          </div>
+        </div>
+      )}
 
-              {/* Secondary Layer with toggle */}
-              {featureCounts.secondary > 0 && (
-                <div className={`p-4 rounded-xl border ${showSecondaryLayer
-                    ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
-                    : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                  }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 rounded-full mr-3 ${showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
-                        }`}></div>
-                      <span className={`font-semibold ${showSecondaryLayer ? "text-green-800" : "text-gray-600"
-                        }`}>Secondary Layer</span>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${showSecondaryLayer
-                          ? "bg-green-200/80 text-green-800"
-                          : "bg-gray-200/80 text-gray-700"
-                        }`}>
-                        {featureCounts.secondary} features
-                      </span>
-                      <button
-                        onClick={() => {
-                          setShowSecondaryLayer(!showSecondaryLayer);
-                          if (secondaryLayerRef.current) {
-                            secondaryLayerRef.current.setVisible(!showSecondaryLayer);
-                          }
-                        }}
-                        className={`w-12 h-6 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
-                          } relative transition-all duration-300`}
-                        title={showSecondaryLayer ? "Hide secondary layer (show primary)" : "Show secondary layer (hide primary)"}
-                      >
-                        <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showSecondaryLayer ? "translate-x-6" : ""
-                          }`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Result Layer */}
-              {featureCounts.result > 0 && (
-                <div className="p-4 rounded-xl border bg-purple-50 border-purple-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 rounded-full mr-3 bg-purple-500"></div>
-                      <span className="font-semibold">Result Layer</span>
-                    </div>
-                    <span className="text-xs px-3 py-1 rounded-full bg-gray-200">{featureCounts.result} features</span>
-                  </div>
-                </div>
-              )}
-
-              {rasterLayerInfo && (
-                <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="font-semibold text-purple-800">Raster Layer</span>
-                  </div>
-                  <div className="flex justify-between text-xs mb-2">
-                    <span>Opacity</span>
-                    <span>{layerOpacity}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="5"
-                    max="95"
-                    step={10}
-                    value={layerOpacity}
-                    onChange={handleOpacityChange}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                  />
-                </div>
-              )}
+      {/* Secondary Layer with toggle */}
+      {featureCounts.secondary > 0 && (
+        <div className={`p-4 rounded-xl border ${showSecondaryLayer
+            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
+            : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+          }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className={`w-4 h-4 rounded-full mr-3 ${showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
+                }`}></div>
+              <span className={`font-semibold ${showSecondaryLayer ? "text-green-800" : "text-gray-600"
+                }`}>Secondary Layer</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className={`text-xs px-3 py-1 rounded-full ${showSecondaryLayer
+                  ? "bg-green-200/80 text-green-800"
+                  : "bg-gray-200/80 text-gray-700"
+                }`}>
+                {featureCounts.secondary} features
+              </span>
+              <button
+                onClick={() => {
+                  setShowSecondaryLayer(!showSecondaryLayer);
+                  if (secondaryLayerRef.current) {
+                    secondaryLayerRef.current.setVisible(!showSecondaryLayer);
+                  }
+                }}
+                className={`w-12 h-6 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
+                  } relative transition-all duration-300`}
+                title={showSecondaryLayer ? "Hide secondary layer (show primary)" : "Show secondary layer (hide primary)"}
+              >
+                <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showSecondaryLayer ? "translate-x-6" : ""
+                  }`} />
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Result Layer with toggle */}
+      {featureCounts.result > 0 && (
+        <div className={`p-4 rounded-xl border ${showResultLayer
+            ? "bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200"
+            : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+          }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className={`w-4 h-4 rounded-full mr-3 ${showResultLayer ? "bg-purple-500" : "bg-gray-400"
+                }`}></div>
+              <span className={`font-semibold ${showResultLayer ? "text-purple-800" : "text-gray-600"
+                }`}>Villages  Layer</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className={`text-xs px-3 py-1 rounded-full ${showResultLayer
+                  ? "bg-purple-200/80 text-purple-800"
+                  : "bg-gray-200/80 text-gray-700"
+                }`}>
+                {featureCounts.result} features
+              </span>
+              <button
+                onClick={() => {
+                  setShowResultLayer(!showResultLayer);
+                  if (resultLayerRef.current) {
+                    resultLayerRef.current.setVisible(!showResultLayer);
+                  }
+                }}
+                className={`w-12 h-6 rounded-full ${showResultLayer ? "bg-purple-500" : "bg-gray-300"
+                  } relative transition-all duration-300`}
+                title={showResultLayer ? "Hide result layer" : "Show result layer"}
+              >
+                <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showResultLayer ? "translate-x-6" : ""
+                  }`} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Raster Layer */}
+      {rasterLayerInfo && (
+        <div className="p-4 rounded-xl bg-purple-50 border border-purple-200">
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-semibold text-purple-800">Raster Layer</span>
+          </div>
+          <div className="flex justify-between text-xs mb-2">
+            <span>Opacity</span>
+            <span>{layerOpacity}%</span>
+          </div>
+          <input
+            type="range"
+            min="5"
+            max="95"
+            step={10}
+            value={layerOpacity}
+            onChange={handleOpacityChange}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+          />
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {/* Tools Panel */}
         {activePanel === "tools" && (
