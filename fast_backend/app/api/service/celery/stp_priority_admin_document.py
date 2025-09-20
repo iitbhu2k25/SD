@@ -1190,7 +1190,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
         
         progress_recorder.set_progress(20, total, description="Launching parallel image processing")
         
-        # Execute chord
+
         job = chord(group(tasks))(
             final_step.s(
                 table_data=table_data,
@@ -1235,7 +1235,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
     except Exception as e:
         logger.error(f"Task failed: {e}")
         progress_recorder.set_progress(total, total, description=f"Error: {str(e)}")
-        raise
+        raise STRPReportError(f"PDF generation failed: {e}")
 
 
 @app.task(bind=True,pydantic=True,name="stp_priority_currency_image")
@@ -1268,7 +1268,7 @@ def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:L
 @app.task(bind=True,pydantic=True,name="stp_priority_admin_generation_start")
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
     try:
-        # Update parent progress through Redis
+        
         redis_client.setex(
             f"pdf_generation:{parent_task_id}",
             3600,

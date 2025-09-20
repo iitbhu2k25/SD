@@ -57,7 +57,7 @@ class Stp_service:
             temp_path=STP_priority_crud(db).get_raster_path(i.file_name)
             temp_path=os.path.join(Settings().BASE_DIR+"/"+temp_path)
             temp_path = os.path.abspath(temp_path)
-            print("path is exist",os.path.exists(temp_path))
+
             raster_path.append(temp_path)
             raster_weights.append(float(i.weight))
         return raster_path,raster_weights

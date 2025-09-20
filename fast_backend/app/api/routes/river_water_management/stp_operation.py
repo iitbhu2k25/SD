@@ -101,7 +101,7 @@ async def get_report(chord_id:str):
         media_type="application/pdf"  
     )
 
-@router.websocket("/ws/tasks/{task_id}")
+@router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):
     await connection_manager.connect(websocket)
     try:
