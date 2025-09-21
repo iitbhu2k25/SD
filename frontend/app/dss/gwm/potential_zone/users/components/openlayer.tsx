@@ -1086,7 +1086,9 @@ const Maping: React.FC = () => {
         ref={containerRef}
       >
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
-        <GISCompass />
+          <div className="hidden md:block">
+          <GISCompass />
+        </div>
 
         {/* Enhanced Floating Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-3 sm:px-6 py-3 flex items-center space-x-2 sm:space-x-4 transition-all duration-300 ease-in-out border border-white/20">

@@ -136,16 +136,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       useCategory();
   
   const resetMapView = (): void => {
-    console.log("Map view reset requested");
+   
   };
 
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
+  
   };
   const zoomToFeature = (featureId: string, layerName: string): void => {
-
-    console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
 
   // Synchronize layers based on location selections

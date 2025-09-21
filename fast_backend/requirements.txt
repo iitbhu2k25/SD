@@ -51,3 +51,4 @@ websockets
 scipy
 jenkspy
 cartopy
+celery-progress

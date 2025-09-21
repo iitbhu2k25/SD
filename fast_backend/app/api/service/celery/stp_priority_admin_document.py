@@ -55,6 +55,10 @@ from rasterio.warp import calculate_default_transform, reproject
 import numpy as np
 import rasterio
 import matplotlib.pyplot as plt
+from celery_progress.backend import ProgressRecorder
+import time
+redis_client = Settings().redis_client
+
 
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
@@ -1148,38 +1152,136 @@ class ReportGenerator:
 
 @app.task(bind=True,pydantic=True,name="stp_priority_admin_document")
 def document_gen(self,payload: StpPriorityAdminReport):
-    unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
+    progress_recorder = ProgressRecorder(self)
+    total = 100
     try:
+        progress_recorder.set_progress(1, total, description="Starting task")
+        
+        unique_folder_path = f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
         table_data = [item.model_dump() for item in payload.table]
-        location_data =[item for item in payload.location]
-        weight_data= [["Factor", "Weight"]] + [[d.file_name, str(d.weight)] for d in payload.weight_data]
-        file_paths=StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
+        location_data = [item for item in payload.location]
+        weight_data = [["Factor", "Weight"]] + [[d.file_name, str(d.weight)] for d in payload.weight_data]
+        
+        progress_recorder.set_progress(5, total, description="Data loaded")
+        
+        file_paths = StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
+        
+        progress_recorder.set_progress(15, total, description="Raster data downloaded")
+        
+
         tasks = []
-        for item in file_paths:
+        total_images = len(file_paths)
+        
+        for idx, item in enumerate(file_paths):
             file_name = os.path.basename(item["raster_path"])
-            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ","_"))  
+            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ", "_"))
+            
             tasks.append(
-            celery_currency_image.s(
-            file_path=file_path,
-            raster_path=item["raster_path"],
-            sld_path=item["sld_path"],
-            clip=payload.clip ) 
+                celery_currency_image.s(
+                    file_path=file_path,
+                    raster_path=item["raster_path"],
+                    sld_path=item["sld_path"],
+                    clip=payload.clip,
+                    task_index=idx,
+                    total_tasks=total_images,
+                    parent_task_id=self.request.id
+                )
+            )
+        
+        progress_recorder.set_progress(20, total, description="Launching parallel image processing")
+        
+
+        job = chord(group(tasks))(
+            final_step.s(
+                table_data=table_data,
+                location_data=location_data,
+                weight_data=weight_data,
+                parent_task_id=self.request.id
+            )
         )
-        job = chord(group(tasks))(final_step.s(table_data=table_data,location_data=location_data,weight_data=weight_data))
+        
+     
+        redis_client.setex(
+            f"chord:{self.request.id}",
+            3600,  
+            job.id
+        )
+        while not job.ready():
+            completed_count = 0
+            for i in range(total_images):
+                if redis_client.get(f"image_complete:{self.request.id}:{i}"):
+                    completed_count += 1
+            
+            progress_pct = 20 + int((completed_count / total_images) * 60)
+            progress_recorder.set_progress(
+                progress_pct,
+                total,
+                description=f"Processing images: {completed_count}/{total_images} complete"
+            )
+
+            time.sleep(1)
+        
+        progress_recorder.set_progress(100, total, description="Complete")
+        
+        # Cleanup Redis keys
+        for i in range(total_images):
+            redis_client.delete(f"image_complete:{self.request.id}:{i}")
+        redis_client.delete(f"chord:{self.request.id}")
         return {"chord_id": job.id}
+        
     except Exception as e:
-        logger.error(f"Failed to load raster data: {e}")
+        logger.error(f"Task failed: {e}")
+        progress_recorder.set_progress(total, total, description=f"Error: {str(e)}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
+
 @app.task(bind=True,pydantic=True,name="stp_priority_currency_image")
-def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str])-> dict:
-    file_path=MapGenerator(dpi=50).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
-    return{
-        "file_path":file_path,
-        "file_name":(os.path.splitext(os.path.basename(file_path))[0])
-    }
+def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, 
+                          parent_task_id: str) -> dict:
+    try:
+        file_path = MapGenerator(dpi=10).make_image(
+            file_path=file_path,
+            raster_path=raster_path,
+            sld_path=sld_path,
+            filtered_vector=clip
+        )
+
+        redis_client.setex(
+            f"image_complete:{parent_task_id}:{task_index}",
+            3600,
+            "1"
+        )
+        
+        return {
+            "file_path": file_path,
+            "file_name": os.path.splitext(os.path.basename(file_path))[0]
+        }
+    except Exception as e:
+        logger.error(f"Image processing failed for task {task_index}: {e}")
+        raise
+
+
 
 @app.task(bind=True,pydantic=True,name="stp_priority_admin_generation_start")
-def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list)->None:
-    pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
-    return pdf_path
+def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
+    try:
+        
+        redis_client.setex(
+            f"pdf_generation:{parent_task_id}",
+            3600,
+            "started"
+        )
+        
+        pdf_path = StpDocument().report_generator(
+            layer_names=results,
+            csv_data=table_data,
+            location_data=location_data,
+            weight_data=weight_data
+        )
+        
+        redis_client.delete(f"pdf_generation:{parent_task_id}")
+        
+        return pdf_path
+    except Exception as e:
+        logger.error(f"PDF generation failed: {e}")
+        raise

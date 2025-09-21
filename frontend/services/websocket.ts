@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 
 export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);
@@ -15,7 +15,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
 
     socket.onopen = () => {
       setIsConnected(true);
-      console.log('[WebSocket] Connected');
+      console.log('[WebSocket] Connected to:', url);
     };
 
     socket.onmessage = (event) => {
@@ -30,9 +30,9 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
           a.href = url;
           a.download = 'report.pdf';
           a.click();
-          URL.revokeObjectURL(url); // Clean up immediately
+          URL.revokeObjectURL(url);
           toast.success('Report downloaded successfully!');
-          socket.close(); // Close WebSocket after download
+          socket.close(); // Close WebSocket after binary PDF download
         } catch (error) {
           console.log('Error downloading PDF:', error);
           toast.error('Failed to download report');
@@ -43,8 +43,8 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     socket.onclose = () => {
       setIsConnected(false);
       console.log('[WebSocket] Disconnected');
-      if (options?.reconnect) {
-        reconnectInterval.current = setTimeout(connect, 3000); // Retry in 3s
+      if (options?.reconnect && !reconnectInterval.current) {
+        reconnectInterval.current = setTimeout(connect, 3000);
       }
     };
 
@@ -55,19 +55,32 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     };
   }, [url, options?.reconnect]);
 
+ const disconnect = useCallback(() => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      console.log('[WebSocket] Manually disconnecting');
+      socketRef.current.close();
+    }
+    socketRef.current = null;
+    setIsConnected(false);
+    setMessages([]);
+    if (reconnectInterval.current) {
+      clearTimeout(reconnectInterval.current);
+      reconnectInterval.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     connect();
     return () => {
-      socketRef.current?.close();
-      if (reconnectInterval.current) clearTimeout(reconnectInterval.current);
+      disconnect();
     };
-  }, [connect]);
+  }, [connect, disconnect]);
 
   const sendMessage = useCallback((message: string) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(message);
     } else {
-      console.warn('[WebSocket] Not connected');
+      console.log('[WebSocket] Not connected');
       toast.warn('Cannot send message: WebSocket not connected');
     }
   }, []);
@@ -76,5 +89,6 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     messages,
     sendMessage,
     isConnected,
+    disconnect,
   };
 }

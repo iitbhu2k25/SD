@@ -7,6 +7,7 @@ interface RequestOptions {
   params?: Record<string, string | number>;
   body?: any;
   authToken?: string; // optional override
+  responseType?: 'json' | 'blob' | 'text'; // ⬅️ new
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -25,9 +26,8 @@ async function request<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<{ status: number; message: T }> {
-  const { headers = {}, params, body, authToken } = options;
+  const { headers = {}, params, body, authToken, responseType = 'json' } = options;
 
-  // ✅ get token from Zustand if not explicitly passed
   const token = authToken ?? useAuthStore.getState().accessToken;
 
   const url = `${BASE_URL}${endpoint}${buildQuery(params)}`;
@@ -35,7 +35,7 @@ async function request<T>(
   const res = await fetch(url, {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(responseType === 'json' ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -43,7 +43,14 @@ async function request<T>(
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  const responseData = (await res.json()) as T;
+  let responseData: any;
+  if (responseType === 'blob') {
+    responseData = await res.blob();
+  } else if (responseType === 'text') {
+    responseData = await res.text();
+  } else {
+    responseData = await res.json();
+  }
 
   if (!res.ok) {
     throw {

@@ -154,9 +154,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   }, []);
 
 
-  useEffect(() => {
-  console.log("lol",OptStpArea)
-}, [findArea])
+
   
   // Calculate weights for all selected categories
   const calculateWeights = (categories: SelectRasterLayer[]): SelectRasterLayer[] => {

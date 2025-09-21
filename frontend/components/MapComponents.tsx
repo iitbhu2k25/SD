@@ -1,7 +1,7 @@
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 export const GISCompass = () => (
-  <div className="absolute left-20 top-4 z-20 p-3 rounded-lg transition-all duration-300 ease-in-out animate-fade-in">
+  <div className="absolute left-20 top-1  p-3 rounded-lg transition-all duration-300 ease-in-out animate-fade-in">
     <div className="flex flex-col items-center">
       <svg width="80" height="80" viewBox="0 0 100 100">
         <circle cx="50" cy="50" r="48" fill="white" stroke="#ddd" strokeWidth="1" />

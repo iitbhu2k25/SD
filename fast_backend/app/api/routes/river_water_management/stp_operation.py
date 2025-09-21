@@ -1,17 +1,20 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_sutability_Area,Stp_Area,STPCategory,StpSutabilityAdminReport,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STP_sutability_Area,Stp_Area,STPCategory,StpSutabilityAdminReport,StpSutabilityDrainReport,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper,STP_Area
 from app.api.service.celery.stp_priority_admin_document import document_gen
 from app.api.service.celery.stp_priority_drain_document import document_gen1
 from app.api.service.celery.stp_sutability_admin_report import document_gen2
+from app.api.service.celery.stp_sutability_drain_report import document_gen3
 from app.conf.ws_config import ConnectionManager
 from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
+from fastapi.responses import FileResponse
 from celery.result import AsyncResult
 import asyncio
 from app.conf.celery import app 
 from app.utils.exception import validate
+from pathlib import Path
 
 connection_manager=ConnectionManager()
 router=APIRouter()
@@ -44,6 +47,11 @@ async def stp_priority_drain_report(payload:StpPriorityDrainReport):
     task_id= document_gen1.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
  
+ 
+ 
+ 
+ 
+# stp sutability
 @router.get("/get_sutability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPSutabilityOutput])
 @validate
 async def get_raster_sutability(db:db_dependency,category:str,all_data: bool = False):
@@ -64,15 +72,15 @@ async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
 
 @router.post("/stp_sutability_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def stp_priority_drain_report(payload:StpSutabilityAdminReport):
+async def stp_sutability_admin_report(payload:StpSutabilityAdminReport):
     task_id= document_gen2.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
-# @router.post("/stp_priority_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
-# @validate
-# async def stp_priority_drain_report(payload:StpPriorityDrainReport):
-#     task_id= document_gen1.delay(payload=payload.model_dump())
-#     return celery_id(task_id=task_id.id)
+@router.post("/stp_sutability_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@validate
+async def stp_sutability_drain_report(payload:StpSutabilityDrainReport):
+    task_id= document_gen3.delay(payload=payload.model_dump())
+    return celery_id(task_id=task_id.id)
 
 
 @router.get("/get_stp_sutability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)
@@ -86,64 +94,86 @@ async def stp_sutability_area(db:db_dependency):
 async def stp_sutability_area(db:db_dependency,payload:STP_sutability_Area):
     return STP_Area().stp_area_finding(db,payload)
 
+@router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)
+@validate
+async def get_report(chord_id:str):
+    file_path = AsyncResult(chord_id).get()      
+    file_path = Path(file_path)
+    if not file_path.exists():
+        return {"error": "File not found"}
+    return FileResponse(
+        path=file_path,
+        filename=file_path.name,
+        media_type="application/pdf"  
+    )
+
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):
     await connection_manager.connect(websocket)
     try:
-        # Wait for task result
         while True:
-            parent_result = AsyncResult(task_id, app=app)
-            if not parent_result.ready():
-                await asyncio.sleep(2)
-                continue
-            try:
-                result_data = parent_result.get(timeout=5)
-                chord_id = result_data['chord_id']
-            except Exception as e:
-                print("xxx",str(e))
-                await websocket.send_json({
-                    "status": "ERROR",
-                    "message": f"Failed to get chord_id: {str(e)}"
-                })
+            result = AsyncResult(task_id)
+            if result.state == 'PENDING':
+                progress_data = {
+                    'state': 'PENDING',
+                    'progress': 0,
+                    'total': 100,
+                    'description': 'Task pending...'
+                }
+            
+            elif result.state == 'FAILURE':
+                error_msg = str(result.info) if result.info else 'Unknown error'
+                progress_data = {
+                    'state': 'FAILURE',
+                    'progress': 100,
+                    'total': 100,
+                    'description': f'Failed: {error_msg}'
+                }
+                await websocket.send_json(progress_data)
                 break
-
-            chord_result = AsyncResult(chord_id, app=app)
-            while not chord_result.ready():
-                await asyncio.sleep(2)
-
-            if chord_result.successful():
-                file_path = chord_result.get()
-                await websocket.send_json({
-                    "status": "SUCCESS",
-                    "message": "Report is ready. Send 'SEND_FILE' to receive it."
-                })
-
-                # Wait for client to say "SEND_FILE"
-                data = await websocket.receive_text()
-                if data == "SEND_FILE":
-                    try:
-                        with open(file_path, "rb") as f:
-                            await websocket.send_bytes(f.read())
-                    except FileNotFoundError:
-                        await websocket.send_json({
-                            "status": "ERROR",
-                            "message": "File not found"
-                        })
-                connection_manager.disconnect(websocket)
+            
+            elif result.state == 'SUCCESS':
+                progress_data = {
+                    'state': 'SUCCESS',
+                    'progress': 100,
+                    'total': 100,
+                    'description': 'Complete',
+                    'result': result.result['chord_id']
+                }
+                await websocket.send_json(progress_data)
+                break
+            
             else:
-                await websocket.send_json({
-                    "status": "FAILURE",
-                    "error": str(chord_result.result)
-                })
+                if result.info and isinstance(result.info, dict):
+                    progress_data = {
+                        'state': result.state,
+                        'progress': result.info.get('current', 0),
+                        'total': result.info.get('total', 100),
+                        'description': result.info.get('description', 'Processing...')
+                    }
+                else:
 
-            break
-
+                    progress_data = {
+                        'state': result.state,
+                        'progress': 50,
+                        'total': 100,
+                        'description': f'State: {result.state}'
+                    }
+            
+            await websocket.send_json(progress_data)
+            await asyncio.sleep(0.5)
+    
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket)
-
+    
     except Exception as e:
-        await websocket.send_json({
-            "status": "ERROR",
-            "message": str(e)
-        })
+        try:
+            await websocket.send_json({
+                'state': 'ERROR',
+                'progress': 0,
+                'total': 100,
+                'description': f'Error: {str(e)}'
+            })
+        except:
+            pass
         connection_manager.disconnect(websocket)

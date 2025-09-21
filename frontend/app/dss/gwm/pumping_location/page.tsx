@@ -11,7 +11,7 @@ import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
 import MapView from "@/app/dss/gwm/pumping_location/components/openlayer";
 import { useMap } from "@/contexts/groundwaterIdent/MapContext";
 import { CategorySlider } from "./components/weight_slider";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
@@ -293,7 +293,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-      <ToastContainer />
+   
     </div>
 
   );

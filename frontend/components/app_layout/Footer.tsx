@@ -13,7 +13,7 @@ export default function Footer() {
 
     { src: "/Images/footer/iit_delhi_logo.png", alt: "IIT Delhi" },
     { src: "/Images/footer/IIT_Madras_Logo.svg.png", alt: "IIT Madras" },
-     { src: "/Images/footer/japapng", alt: "japan" },
+     { src: "/Images/footer/japan.svg", alt: "japan" },
 
   ];
 
