@@ -22,6 +22,9 @@ import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Stp_area";
+import { api } from "@/services/api";
+import PDFGenerationStatus from "@/components/PdfGeneration";
 
 const MainContent = () => {
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
@@ -31,19 +34,20 @@ const MainContent = () => {
   const [showTier, setShowTier] = useState(false);
   const { selectedCondition, selectedConstraint, setSelectedCategory } =
     useCategory();
+  const [reportLoading, setReportLoading] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [showPdfStatus, setShowPdfStatus] = useState(false);
   const [analysisMapImage, setAnalysisMapImage] = useState(null); // Store analysis map image
   const {
-    rivers,
-    stretches,
-    drains,
-    catchments,
-    selectedRiver,
-    selectedStretches,
-    selectedDrains,
     selectedCatchments,
+    selectedCatchmentsNames,
+    selectedStreachNames,
+    selectedDrainsNames,
+    selectedRiverName,
     totalArea,
     totalCatchments,
     selectionsLocked,
+    displayRaster,
     confirmSelections,
     resetSelections,
     tableData,
@@ -68,6 +72,48 @@ const MainContent = () => {
   const formatName = (fileName: string): string => {
     return fileName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   };
+
+  const handlereport = async () => {
+    try {
+      setReportLoading(true);
+      setTaskId(null);
+      setShowPdfStatus(false);
+      const locationData = {
+        River: selectedRiverName,
+        Stretch: selectedStreachNames,
+        Drain: selectedDrainsNames,
+        Catchment: selectedCatchmentsNames,
+      };
+      const data = {
+        table: tableData,
+        raster: displayRaster,
+        place: "Drain",
+        clip: selectedCatchments,
+        location: locationData,
+        weight_data: selectedCondition,
+        non_weight_data: selectedConstraint,
+      };
+      const response = await api.post("/stp_operation/stp_sutability_drain_report", {
+        body: data,
+      });
+      if (response.status !== 201) {
+        toast.error("Report failed", {
+          position: "top-center",
+        });
+        return;
+      }
+
+      toast.success("Report generation started");
+      const task = response.message as Record<string, string>;
+      setTaskId(task['task_id']);
+      setShowPdfStatus(true);
+    } catch (error) {
+      console.error("Report error", error);
+      toast.error("Failed to start report");
+    } finally {
+      setReportLoading(false);
+    }
+  };
   const handleSubmit = () => {
     if (selectedCondition.length < 1) {
       toast.error("Please select at least one condition category", {
@@ -91,7 +137,7 @@ const MainContent = () => {
   return (
     <div className="min-h-screen bg-gray-50">
 
-       {
+      {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation}
           title={
@@ -154,11 +200,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          submitting
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -208,10 +253,67 @@ const MainContent = () => {
                   </div>
                 )}
               </div>
+              {tableData.length > 0 && (
+                <div className="p-6 bg-white rounded-2xl shadow-md">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Village Analysis Information
+                  </h2>
+                  <DataTable
+                    columns={Village_columns}
+                    data={tableData}
+                    pagination
+                    responsive
+                    paginationPerPage={10}
+                    paginationRowsPerPageOptions={[5, 10, 20, 50]}
+                  />
+                </div>
+              )}
+              {tableData.length > 0 && (
+                <div className="flex justify-start mt-8">
+                  <TreatmentForm />
+                </div>
+              )
+              }
             </section>
 
-            {/* River System Summary */}
-           
+
+            <div className="flex m-8 justify-center">
+              {tableData.length > 0 && (
+                <div className="flex justify-start mt-8">
+                  <button
+                    onClick={handlereport}
+                    disabled={reportLoading}
+                    className={`px-8 py-3 rounded-full font-medium shadow-md ${reportLoading
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                      } flex items-center gap-2 transition duration-200`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    {reportLoading ? "Starting..." : "Generate Report"}
+                  </button>
+                  <WholeLoading
+                    visible={reportLoading}
+                    title={"Generating report for STP priorities"}
+                    message={
+                      "Analyzing site priorities and generating results..."
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
 
           {/* Map and Slider area - Now spans 4/8 columns on large screens */}
@@ -232,21 +334,19 @@ const MainContent = () => {
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "condition"
+                      className={`flex-1 py-2 font-medium ${activeTab === "condition"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Condition Influences
                     </button>
                     <button
                       onClick={() => setActiveTab("constraint")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "constraint"
+                      className={`flex-1 py-2 font-medium ${activeTab === "constraint"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Constraint Influences
                     </button>
@@ -293,7 +393,15 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-   
+             {showPdfStatus && taskId && (
+        <PDFGenerationStatus
+          taskId={taskId}
+          className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
+          autoClose={true}
+          closeDelay={3000}
+          enableAutoDownload={true}
+        />
+      )}
     </div>
   );
 };

@@ -217,3 +217,18 @@ class StpSutabilityAdminReport(BaseModel):
     location: LocationData
     weight_data: List[weight_insight]
     non_weight_data: List[weight_insight]
+    
+class StpSutabilityDrainReport(BaseModel):
+
+    class LocationData(BaseModel):
+        River:str
+        Drain: list
+        Stretch: list
+        Catchment: list
+    table:List[CsvData]
+    place: str
+    clip: List[int] = None
+    raster: List[DataItem] = None
+    location: LocationData
+    weight_data: List[weight_insight]
+    non_weight_data: List[weight_insight]
