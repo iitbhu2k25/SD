@@ -1002,6 +1002,7 @@ class ReportGenerator:
         content = "<br/>".join(lines)
 
         self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
+        self.elements.append(PageBreak())
     
 
     def _add_methodology_section(self,layer_names: List[str]):
@@ -1177,9 +1178,6 @@ class ReportGenerator:
             self.elements.append(Paragraph(saw_text, self.style_manager.styles['JustifiedBody']))
 
 
-
-
-            # Add page break
             self.elements.append(PageBreak())
 
         except Exception as e:
@@ -1257,7 +1255,7 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
 
-            weight_text="""he selected weights, calculated from above methodology, reflect the relative importance
+            weight_text="""The selected weights, calculated from above methodology, reflect the relative importance
             of each criterion in determining optimal STP sites, ensuring that environmental,
             infrastructural, and regulatory priorities are appropriately balanced. The MCDA results
             offer a spatially explicit prioritization of areas, clearly distinguishing zones best suited for

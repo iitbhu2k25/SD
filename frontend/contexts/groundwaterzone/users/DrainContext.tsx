@@ -58,6 +58,7 @@ interface RiverSystemContextType {
   drains: Drain[];
   catchments: Catchment[];
   selectedRiver: number | null;
+  setSelectedRiver: (riverCode: number) => void;
   selectedStretches: number[];
   selectedDrains: number[];
   selectedCatchments: number[];
@@ -97,6 +98,7 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   drains: [],
   catchments: [],
   selectedRiver: null,
+    setSelectedRiver: () => {},
   selectedStretches: [],
   selectedDrains: [],
   selectedCatchments: [],
@@ -469,6 +471,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     drains,
     catchments,
     selectedRiver,
+    setSelectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,

@@ -929,6 +929,7 @@ class ReportGenerator:
         content = "<br/>".join(lines)
 
         self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
+        self.elements.append(PageBreak())
     
     def _add_methodology_section(self):
         """Add methodology section."""

@@ -81,10 +81,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReportConfig:
     """Configuration for report generation with validation."""
-    title: str = "Comprehensive Report on the STP Priority"
+    title: str = "Comprehensive Report on the Groundwater Potential Zone "
     author: str = "IIT BHU"
-    subject: str = "STP Priority Analysis"
-    output_filename: str = field(default_factory=lambda: f"STP_Priority_Report_{uuid.uuid4()}.pdf")
+    subject: str = "Groundwater Potential Zone Analysis"
+    output_filename: str = field(default_factory=lambda: f"GWPZ_Report_{uuid.uuid4()}.pdf")
     page_size: Tuple = A4
     margins: Optional[Dict[str, float]] = None
     output_folder: Optional[str] = None
@@ -117,15 +117,19 @@ class ReportConfig:
 
 @dataclass
 class StaticTextData:
-    Downstream_Effect_of_Drain: str = ""
-    Drainage_Distance: str = ""
-    Groundwater_Depth: str = ""
-    Groundwater_Quality: str = ""
+    Drainage_Density: str = ""
+    Elevation: str = ""
+    Geomorphology: str = ""
+    Groundwater_Recharge: str = ""
+    Groundwater_Table: str = ""
+    Lineament_Density: str = ""
     LULC: str = ""
-    Major_City_Risk: str = ""
-    Population: str = ""
-    Proximity_River_Quality: str = ""
-    STP_Priority: str = ""
+    NDVI: str = ""
+    Rainfall: str = ""
+    Slope: str = ""
+    Soil_Texture: str = ""
+    TPI: str = ""
+    Ground_water_Potential: str = ""
 
     
 @dataclass
@@ -702,22 +706,29 @@ class StpDocument:
         """Generate static PDF with error handling."""
         try:
             config = ReportConfig(
-                title="Comprehensive Report on the STP Priority",
+                title="Comprehensive Report on the  Groundwater Potential Zone <br/>(GWPZ)",
                 author="IIT BHU",
                 output_folder=str(self.document_path)
             )
             
             static_data = StaticTextData(
-                Downstream_Effect_of_Drain="This factor identifies locations where untreated sewage could severely impact downstream populations and ecosystems. Drains were analyzed using flow direction and accumulation models to quantify their potential downstream influence (cf. Esri, 2020; Paul & Meyer, 2001).",
-                Drainage_Distance="Drainage distance was calculated using Euclidean and cost-distance algorithms to determine village proximity to the nearest major drain. Villages located closer to these drains are prioritized to reduce unregulated discharge (USEPA, 2004).",
-                Groundwater_Depth="Depth-to-groundwater data were used to assess contamination risk. Shallow aquifers are more vulnerable to pollution, especially where STPs are absent or underperforming (CGWB, 2022)",
-                Groundwater_Quality="Groundwater quality data were used to identify areas of potential contamination. Aquifers with poor groundwater quality were given greater priority (CGWB, 2022).",
-                LULC="The influence of land use was examined using classified satellite imagery to identify dense built-up zones, agricultural fields, and open areas. Urban clusters with high impervious surfaces were given greater priority due to higher sewage production and runoff (Anderson et al., 1976; NRSC, 2021).",
-                Major_City_Risk="Villages in close proximity to major cities are at higher risk of pollution load migration and infrastructure overload. This proximity buffer was used to highlight peri-urban villages lacking STPs but within the influence zone of major urban nodes.",
-                Population="Population data were sourced from Census 2011 and projected using appropriate demographic models. Higher population zones were weighted more heavily under the assumption of greater sewage load (National Commission on Population, 2019).",
-                Proximity_River_Quality="Proximity to poor-quality river segments (based on BOD and DO from CPCB datasets) was considered a critical factor. Villages draining into these segments were prioritized for immediate intervention to mitigate ecological degradation (CPCB, 2020).",
+                Drainage_Density = "Drainage density refers to the total length of streams per unit area, derived from DEMbased flow accumulation models. Regions with high drainage density exhibit efficient runoff removal, reducing infiltration capacity and limiting groundwater recharge. On the other hand, low drainage density indicates subdued runoff, increasing infiltration and recharge potential. Drainage density is also related to lithology and permeability, as highly fractured terrains may develop dense drainage but still support recharge. This parameter therefore reflects the balance between runoff concentration and groundwater percolation. Integrating drainage density helps distinguish recharge-prone valleys from runoff-dominated hilly terrains (Magesh et al., 2012; Chowdhury et al., 2009).",
+                Elevation = "Elevation and slope derived from a DEM play a vital role in hydrological analysis as they control runoff, infiltration, and watershed delineation. Areas with higher elevation and steep slopes generally favor runoff, resulting in reduced infiltration opportunities. Conversely, lower elevation zones with gentle slopes promote water stagnation and infiltration, enhancing recharge potential. Elevation data also helps in identifying depressions, valleys, and floodplains where aquifers are more likely to be recharged. DEM-based slope and topographic indices are widely used in groundwater studies to identify suitable recharge zones. Thus, DEM provides the foundational layer for delineating hydrological processes in groundwater modeling (Machiwal et al., 2011; Jha et al., 2007).",
+                Geomorphology = "Geomorphological features such as pediplains, alluvial plains, valley fills, and structural hills directly reflect hydrogeological conditions. Features like pediments and buried pediplains often serve as productive groundwater zones due to enhanced infiltration and storage. In contrast, structural hills and ridges are poor groundwater potential zones because of shallow weathered layers and high runoff. Alluvial plains and floodplains typically contain thick, unconsolidated sediments, making them excellent aquifer zones. Geomorphological mapping thus provides direct evidence of recharge and storage conditions of an area. Incorporating this layer helps in classifying terrains based on groundwater favorability (Krishnamurthy et al., 1996; Chowdhury et al., 2009). ",
+                Groundwater_Recharge = "Recharge estimation quantifies the replenishment of aquifers through rainfall infiltration, seepage from rivers, and percolation from irrigation return flows. The water table fluctuation method and specific yield approaches are commonly used for recharge estimation. High recharge zones are more sustainable for groundwater development, while low recharge areas require conservation or artificial recharge interventions. Recharge mapping integrates multiple parameters such as rainfall, soil, and geomorphology to assess sustainability. Thus, groundwater recharge is a critical layer that validates and refines the overall groundwater potential zonation output. It provides a measure of the aquifer’s resilience to extraction and long-term sustainability (Healy & Cook, 2002; Patra et al., 2018).",
+                Groundwater_Table = "Depth-to-water level data provides direct evidence of aquifer storage and availability. Shallow water tables typically indicate higher groundwater potential, while deeper water tables reflect limited storage or over-extraction. Seasonal fluctuations in water levels also provide insights into recharge and extraction dynamics. Areas with consistent shallow water tables may serve as priority zones for groundwater development, while declining trends highlight over-stressed aquifers. Groundwater table mapping also allows validation of potential zonation derived from indirect indicators. This parameter therefore acts as both a diagnostic and validation tool in GWPZ studies (Singh et al., 2013; CGWB, 2014).",
+                Lineament_Density = "Lineaments represent linear features such as faults, fractures, and joints, which act as conduits for groundwater movement. Areas with high lineament density generally have greater secondary porosity, enhancing infiltration and storage. Lineament density mapping helps to identify zones of structural weakness where recharge and groundwater flow are more pronounced. In hard rock terrains, groundwater availability is almost entirely controlled by fracture and fault zones. Hence, mapping lineaments provides valuable input for identifying recharge-prone areas in crystalline rock formations. This layer is particularly important for groundwater exploration in semiarid and hard-rock terrains (Edet et al., 1998; Sander, 2007).",
+                LULC = "LULC strongly influences the hydrological cycle by controlling infiltration, runoff, and evapotranspiration. Vegetated surfaces such as forests and agricultural lands enhance infiltration and groundwater recharge, while built-up areas limit infiltration and increase surface runoff. Water bodies act as recharge sources where seepage occurs, while barren lands may either promote infiltration or runoff depending on soil and slope conditions. LULC also provides indirect information on anthropogenic extraction pressure, as agricultural zones generally rely on groundwater irrigation. Seasonal changes in cropping intensity and urban expansion alter recharge and extraction dynamics over time. Therefore, LULC classification is vital for evaluating the human– natural interactions affecting groundwater systems (Kumar et al., 2014; Rahmati et al., 2015)",
+                NDVI = "NDVI is derived from remote sensing data and indicates vegetation density and vigor. Higher NDVI values are generally associated with increased infiltration and reduced surface runoff due to better canopy cover and root structures. Dense vegetation also enhances soil organic matter and porosity, indirectly improving recharge potential.  Conversely, low NDVI areas with sparse vegetation are more prone to runoff and less infiltration. NDVI also serves as a proxy for evapotranspiration demand, linking vegetation growth with water use. Thus, NDVI is an important ecological indicator for groundwater zonation studies (Panda et al., 2010; Magesh et al., 2012).",
+                Rainfall = "Rainfall is the primary source of groundwater recharge, contributing to both direct infiltration and surface water percolation. Areas receiving high rainfall generally have greater recharge potential, provided the terrain and soil conditions permit infiltration. Long-term rainfall records are crucial to capture spatial variability and inter-annual fluctuations influencing recharge. Rainfall also influences runoff, evapotranspiration, and soil moisture balance, making it a fundamental input in groundwater modeling. Interpolation of rainfall station data allows spatial mapping of recharge potential across the study area. Hence, rainfall data forms the baseline for evaluating recharge-driven zonation (Nag & Ghosh, 2013; Kumar et al., 2007).",
+                Slope = "",
+                Soil_Texture = "Soil texture governs infiltration rates, soil moisture retention, and percolation into deeper strata. Coarse-textured soils such as sandy and loamy soils allow rapid infiltration, enhancing groundwater recharge, while fine-textured clay soils restrict water movement. Soil depth also influences recharge, as deeper profiles promote greater percolation compared to shallow rocky soils. Soil permeability, porosity, and hydraulic conductivity directly impact the availability of groundwater recharge zones. In agricultural areas, soil also determines irrigation water demand, influencing the balance between extraction and recharge. Hence, soil mapping is crucial in groundwater studies to identify zones with high infiltration capacity (Das & Pardeshi, 2018; Todd &Mays, 2005)",
+                TPI = "",
+                Ground_water_Potential= "The final GWPZ map (Figure 14) provides a spatial representation of areas classified into very low, low, moderate, high, and very high groundwater potential categories, based on the integrated GIS–AHP analysis of multiple conditioning factors. This map distinctly highlights zones with higher recharge and storage capacity, offering critical insights for groundwater development, artificial recharge, and sustainable resource management. The classified zonation supports strategic decision-making for water resource planners, enabling prioritization of interventions such as well drilling, recharge structure placement, and conservation initiatives. The potential values depicted on the map reflect the cumulative weighted influence of geomorphology, drainage density, soil, lineament density,rainfall, and other relevant parameters, ensuring a comprehensive evaluation of groundwater availability. Thus, the GWPZ map serves as a valuable decision-support tool for policymakers, engineers, and stakeholders engaged in sustainable groundwater management (cf. Jha et al., 2007; Magesh et al., 2012)."
+
+
             )
-            
+                           
             table_data = TableData(village_raw_data=csv_data,weights_table=weight_data)
             generator = ReportGenerator(config, static_data, table_data)
             return generator.generate_report(layer_names=folder_path,location_data=location_data)
@@ -909,11 +920,30 @@ class ReportGenerator:
                                          self.style_manager.styles['SectionHeader']))
             
             summary_text = """
-            This report presents a geospatial and multi-criteria analysis for prioritizing villages and towns 
-            for the development or upgrading of Sewage Treatment Plants (STPs). The analysis integrates 
-            environmental, infrastructural, and demographic indicators to identify high-need areas within 
-            the study region. The outcomes are intended to support policy makers and urban planners in 
-            aligning sanitation interventions with SDG 6 targets on water and sanitation access.
+            This report presents a GIS-based multi-criteria evaluation (MCE) framework for
+            groundwater potential zonation (GWPZ). The module integrates all those layers which are
+            mentioned in the CPHEEO manual for the groundwater potential zonation, and some
+            additional layers to provide the robust result. Thus, ten thematic raster layers topography
+            (DEM, slope, drainage density), soil and geomorphology, land use/land cover (LULC),
+            rainfall, vegetation index (NDVI), lineament and fracture density, groundwater table depth,
+            and recharge estimate to generate a composite groundwater potential map. The outputs
+            serve as a decision-support tool for water resource managers, planners, and policymakers,
+            guiding interventions such as site selection for recharge structures, irrigation well planning,
+            and water conservation measures tailored to local hydrogeological conditions. Importantly,
+            the module supports the achievement of Sustainable Development Goal (SDG) 6: “Ensure
+            availability and sustainable management of water and sanitation for all”, especially Target
+            6.4, which emphasizes sustainable withdrawals and water-use efficiency to combat water
+            scarcity (United Nations, 2015). By strengthening groundwater management, the module
+            also contributes to SDG 2 (Zero Hunger) through agricultural water security, SDG 11
+            (Sustainable Cities and Communities) via resilient water infrastructure, and SDG 13
+            (Climate Action) by enhancing adaptation to climate variability.
+            The effectiveness of GIS-MCE techniques in groundwater potential zonation has been
+            demonstrated in several studies across India and globally (Jha, Chowdary, & Chowdhury,
+            2007; Magesh, Chandrasekar, & Soundranayagam, 2012; Rahmati, Nazari Samani,
+            Mahmoodi, & Mahdavi, 2016). By embedding this module into the broader Decision
+            Support System (DSS), the present work provides a reliable scientific basis for integrated
+            water resources management (IWRM), ensuring equitable and sustainable utilization of
+            groundwater resources in the study region.
             """
             
             self.elements.append(Paragraph(summary_text, self.style_manager.styles['JustifiedBody']))
@@ -941,8 +971,9 @@ class ReportGenerator:
         content = "<br/>".join(lines)
 
         self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
+        self.elements.append(PageBreak())
     
-    def _add_methodology_section(self):
+    def _add_methodology_section(self,layer_names: List[str]):
         """Add methodology section."""
         try:
             self.elements.append(Paragraph("3. Database and Methodology", 
@@ -953,46 +984,140 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
             database_text = """
-            A range of spatial and non-spatial datasets were integrated for the STP prioritization analysis. 
-            The following thematic layers were used:
+            A range of spatial and non-spatial datasets were integrated for the analysis
+            of the groundwater potential zonation. Details of these factors are mentioned below:
             """
             
             self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
             
-            # Factor descriptions
+
             factors = [
-                ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
-                ("Drainage Distance", self.static_data.Drainage_Distance),
-                ("Groundwater Depth", self.static_data.Groundwater_Depth),
-                ("Groundwater Quality", self.static_data.Groundwater_Quality),
+                ("Drainage_Density", self.static_data.Drainage_Density),
+                ("Elevation", self.static_data.Elevation),
+                ("Groundwater_Recharge", self.static_data.Groundwater_Recharge),
+                ("Groundwater_Table", self.static_data.Groundwater_Table),
+                ("Lineament_Density", self.static_data.Lineament_Density),
                 ("LULC", self.static_data.LULC),
-                ("Major City Risk", self.static_data.Major_City_Risk),
-                ("Population", self.static_data.Population),
-                ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
+                ("NDVI", self.static_data.NDVI),
+                ("Rainfall", self.static_data.Rainfall),
+                ("Slope", self.static_data.Slope),
+                ("Soil_Texture", self.static_data.Soil_Texture),
+                ("TPI", self.static_data.TPI),
+                ("Ground_water_Potential", self.static_data.Ground_water_Potential),
             ]
             
+            factors_data = []
             for factor_name, description in factors:
-                if description.strip():
-                    self.elements.append(Paragraph(f"<b>{factor_name}:</b> {description}", 
-                                                 self.style_manager.styles['JustifiedBody']))
-            
+                name = factor_name.replace("_", " ")
+                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+                if match:
+                    factors_data.append((name,
+                        description,
+                        match["file_path"]
+                    ))
+            self._add_fallback_elements(factors_data)
+            self.elements.append(Spacer(1, 15))
             # Methodology subsection
             self.elements.append(Paragraph("3.2 Methodology", 
                                          self.style_manager.styles['SubsectionHeader']))
             
             methodology_text = """
-            <b>(a) Data Reclassification:</b> Each factor raster was reclassified into suitability scores ranging from 1 (least priority) to 5 (highest priority). The classification thresholds were derived based on standard guidelines and quantile statistics (Malczewski, 1999).<br/><br/>
-            <b>(b) Data Normalization:</b> To ensure comparability among heterogeneous datasets, min-max normalization was applied to all continuous variables. Categorical variables were mapped using fixed priority schemes based on expert consultation.<br/><br/>
-            <b>(c) Confusion Matrix:</b> To validate the predictive robustness of the prioritization output, confusion matrices were generated by comparing known high-priority sites (e.g., existing STPs or identified hotspots) with the predicted scores.<br/><br/>
-            <b>(d) Weighted Overlay:</b> A Weighted Linear Combination (WLC) model was used, integrating all the thematic layers. The final priority score was computed using a weighted sum approach.<br/><br/>
+            The methodology section details the systematic approach employed to process, analyze,
+            and integrate multiple spatial datasets for assessing groundwater potential zonation using
+            GIS and remote sensing techniques. The workflow incorporates data preparation,
+            transformation, multi-criteria decision analysis (MCDA), and final potentiality mapping.
+            Working flowchart of the stepwise methodology for this module is shown in the Figure 13
+            below:
             """
             
             self.elements.append(Paragraph(methodology_text, self.style_manager.styles['JustifiedBody']))
-            self.elements.append(PageBreak())
             
+            self.elements.append(Paragraph("3.2.1 Pre-processing", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            preprocessing_text = """Pre-processing involves the preparation and conditioning of raw spatial data to ensure consistency, accuracy, and compatibility for analysis. All spatial datasets including satellite imagery, digital elevation models (SRTM), and ancillary vector data are projected into a common coordinate reference system to maintain spatial coherence; specifically, the WGS 1984 UTM Zone 44N projection system (EPSG: 32644) and at 30 m of spatial resolution is used to ensure precise georeferencing aligned with the study region. Maintaining spatial resolution integrity is critical; therefore, resampling techniques such as nearest neighbor are selectively applied to harmonize dataset resolutions without compromising data quality. Additional pre-processing steps include radiometric and geometric corrections for satellite imagery, DEM smoothing, and addressing missing data gaps."""
+            self.elements.append(Paragraph(preprocessing_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.2 Reclassification
+            self.elements.append(Paragraph("3.2.2 Reclassification", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            reclassification_text = """Reclassification transforms continuous and categorical input datasets into standardized suitability classes based on defined thresholds. For example, land use types may be reclassified into suitability categories such as 'Highly Suitable', 'Moderately Suitable', and 'Unsuitable' according to their environmental impact and construction feasibility. This step is critical to harmonize heterogeneous data scales and to facilitate integration in multi-criteria evaluation (Malczewski, 2006)."""
+            self.elements.append(Paragraph(reclassification_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.3 Normalization
+            self.elements.append(Paragraph("3.2.3 Normalization", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            normalization_text = """Normalization standardizes the reclassified parameters to a common numeric scale, typically ranging from 0 to 1, to enable unbiased comparison and combination of different criteria. A widely used approach in spatial decision support is fuzzy membership functions, which translate input variable values into membership grades reflecting degrees of suitability or preference. These functions capture uncertainty and gradual transitions between classes, improving the modeling of continuous environmental factors."""
+            self.elements.append(Paragraph(normalization_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4 Multi-Criteria Decision Analysis (MCDA)
+            self.elements.append(Paragraph("3.2.4 Multi-Criteria Decision Analysis (MCDA)", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            mcda_text = """Multi-Criteria Decision Analysis (MCDA) provides a structured approach for evaluating the suitability of groundwater potential zonation based on multiple, often conflicting, criteria. In the context of wastewater treatment, MCDA facilitates objective decision-making by quantifying the influence of each parameter and integrating them into a unified assessment framework."""
+            self.elements.append(Paragraph(mcda_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.1 Parameter Influence
+            self.elements.append(Paragraph("3.2.4.1 Parameter Influence", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            param_influence_text = """The influence of each parameter is quantified to determine its relative impact on groundwater potential zonation. Parameters may include influent quality, treatment capacity, land requirement, cost, environmental impact, and regulatory compliance. The importance (weight) of each parameter is determined using methods such as Analytic Hierarchy Process (AHP) or expert elicitation in the subsequent steps."""
+            self.elements.append(Paragraph(param_influence_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.2 Pairwise Comparison Matrix (PCM)
+            self.elements.append(Paragraph("3.2.4.2 Pairwise Comparison Matrix (PCM)", 
+                                        self.style_manager.styles['SubsectionHeader']))
+            pcm_text = """Within the MCDA-AHP framework, the pairwise comparison matrix serves as a key instrument for systematically evaluating the relative importance of each criterion in relation to the others. Decision-makers assign comparative scores to each criterion pair according to their influence, indicating the degree of preference for one over the other. These evaluations construct the matrix, which is then analyzed to calculate the weight assigned to each respective criterion. The logical consistency of these judgments is assessed using the Consistency Index (CI) and Consistency Ratio (CR). If the CR surpasses the commonly accepted threshold (usually 0.10), the pairwise comparisons are revisited and adjusted until satisfactory consistency is achieved (Saaty, 1980). This approach strengthens the objectivity, clarity, and robustness of the multi-criteria decision-making process."""
+            self.elements.append(Paragraph(pcm_text, self.style_manager.styles['JustifiedBody']))
+
+            # 3.2.4.3 Consistency Index and Criteria Weight
+            self.elements.append(Paragraph(
+            "3.2.4.3 Consistency Index and Criteria Weight", 
+            self.style_manager.styles['SubsectionHeader']
+            ))
+
+            consistency_text = """In AHP, the consistency index quantifies the logical consistency of pairwise 
+            comparison matrices. It is defined as:<br/><br/>
+
+                        <b>CI = (λ<sub>max</sub> - n) / (n - 1)</b><br/><br/>
+
+            Where:<br/>
+            - λ<sub>max</sub>: Principal eigenvalue of the comparison matrix<br/><br/>
+            
+            - n: Number of criteria<br/><br/>
+
+            A Consistency Ratio (CR) is also calculated to assess acceptability:<br/><br/>
+
+            <b>CR = CI / RI</b><br/><br/>
+
+            where RI is the Random Consistency Index, dependent on n. CR values less than 0.1 are generally considered acceptable.<br/><br/>
+
+            Again, RI was calculated as per the index provided by <b>Saaty, T.L., 1980 in Table 8</b>.<br/><br/>
+
+            In the present module, the weight of each condition factor was determined 
+            based on the CR value 0.073. The weight of each condition factor is shown in the table below.
+            """
+
+            self.elements.append(Paragraph(consistency_text, self.style_manager.styles['JustifiedBody']))
+            self.elements.append(Paragraph(
+                "3.2.4.4 Simple Additive Weighting (SAW) Method", 
+                self.style_manager.styles['SubsectionHeader']
+            ))
+
+            saw_text = """While, if the Simple Additive Weighting (SAW) method is used:<br/><br/>
+
+            <b>S<sub>j</sub> = Σ<sup>n</sup><sub>i=1</sub> ω<sub>i</sub> · S<sub>ij</sub></b><br/><br/>
+
+            Where:<br/>
+            <i>S<sub>j</sub></i>: Suitability score for alternative <i>j</i>,<br/>
+            <i>ω<sub>i</sub></i>: Weight of Criterion <i>i</i>,<br/>
+            <i>S<sub>ij</sub></i>: Normalized score of criterion <i>i</i> for alternative <i>j</i>
+            """
+
+            self.elements.append(Paragraph(saw_text, self.style_manager.styles['JustifiedBody']))
+
+            self.elements.append(PageBreak())
+
         except Exception as e:
             logger.error(f"Failed to add methodology section: {e}")
-
+      
     
     def _add_fallback_elements(self, processed_factors: List[Tuple[str, str, str]]):
         try:
@@ -1032,35 +1157,47 @@ class ReportGenerator:
             self.elements.append(Paragraph("4. Results", self.style_manager.styles['SectionHeader']))
             
             # Priority factors subsection
-            self.elements.append(Paragraph("4.1 STP Priority Factors", 
+            self.elements.append(Paragraph("4.1 Details of the Assigned Weights:", 
                                          self.style_manager.styles['SubsectionHeader']))
             
             factors_text = """
-            The analysis reveals that factors such as downstream drain effect, proximity to polluted river segments, 
-            and population size exert the most significant influence on STP prioritization. Villages with high sewage 
-            potential but lacking treatment infrastructure clustered in specific zones.
+            The selected weights, derived through the Analytic Hierarchy Process (AHP), represent the
+            relative significance of each thematic layer in controlling groundwater occurrence and
+            recharge potential. These weights ensure that critical factors such as geomorphology, soil
+            texture, lineament density, and rainfall are appropriately emphasized in the multi-criteria
+            evaluation. The MCDA results provide a spatially explicit prioritization of groundwater
+            potential zones, effectively distinguishing areas into very high, high, moderate, low, and
+            very low categories. This zonation supports informed, transparent, and scientifically robust
+            decision-making for groundwater exploration, development, and management.
             """
             
-            self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
-
-            factors_data = []
-            for key, value in asdict(self.static_data).items():
-                name = key.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
+            try:
+                factors_data = []
+                key = "Ground_water_Potential"
+                name=key.replace("_", " ")
+                match = next((d for d in layer_names if d.get("file_name") == key), None)
                 if match:
-                    factors_data.append((name,
-                        value,
-                        match["file_path"]
-                    ))
-            self._add_fallback_elements(factors_data)
-            self.elements.append(Spacer(1, 15))
+                    factors_data.append((name,factors_text, match["file_path"]))
+                self._add_fallback_elements(factors_data)
+                self.elements.append(Spacer(1, 15))
+            except Exception as e:
+                logger.error(f"Failed to add factors section: {e}")
+                print(e)
             
             # Weights details
             self.elements.append(Paragraph("4.2 Details of the Assigned Weights", 
                                          self.style_manager.styles['SubsectionHeader']))
             
 
-            # Weights table
+            weight_text="""The selected weights, derived through the Analytic Hierarchy Process (AHP), represent the
+            relative significance of each thematic layer in controlling groundwater occurrence and
+            recharge potential. These weights ensure that critical factors such as geomorphology, soil
+            texture, lineament density, and rainfall are appropriately emphasized in the multi-criteria
+            evaluation. The MCDA results provide a spatially explicit prioritization of groundwater
+            potential zones, effectively distinguishing areas into very high, high, moderate, low, and
+            very low categories. This zonation supports informed, transparent, and scientifically robust
+            decision-making for groundwater exploration, development, and management."""
+            self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
             if weights_table:
                 self.elements.append(weights_table)
@@ -1090,19 +1227,31 @@ class ReportGenerator:
             self.elements.append(Paragraph("5. References", self.style_manager.styles['SectionHeader']))
             
             references = [
-                "Anderson, J.R., Hardy, E.E., Roach, J.T., & Witmer, R.E. (1976). A Land Use and Land Cover Classification System for Use with Remote Sensor Data. USGS Professional Paper 964.",
-                "Central Pollution Control Board (CPCB). (2020). River Water Quality Assessment – Annual Report.",
-                "CGWB. (2022). Groundwater Yearbook – India 2021–22. Central Ground Water Board, Ministry of Jal Shakti.",
-                "Esri. (2020). Understanding Drainage Patterns Using Flow Direction and Accumulation.",
-                "Malczewski, J. (1999). GIS and Multicriteria Decision Analysis. John Wiley & Sons.",
-                "National Commission on Population. (2019). Population Projections for India and States 2011–2036. Ministry of Health & Family Welfare.",
-                "USEPA. (2004). Primer for Municipal Wastewater Treatment Systems."
+                "CGWB. (2014). Ground Water Year Book – India 2013–14. Central Ground Water Board, Ministry of Water Resources, Government of India.",
+                "Chowdhury, A., Jha, M. K., & Chowdary, V. M. (2009). Delineation of groundwater recharge zones and identification of artificial recharge sites in West Medinipur district, West Bengal, using remote sensing and GIS. Hydrogeology Journal, 17(6), 1199–1212. https://doi.org/10.1007/s10040-009-0446-6",
+                "Das, S., & Pardeshi, S. D. (2018). Morphometric analysis of watershed in semi-arid region: A remote sensing and GIS perspective. Applied Water Science, 8(7), 1–16. https://doi.org/10.1007/s13201-018-0810-4",
+                "Edet, A., Okereke, C. S., Teme, S. C., & Esu, E. O. (1998). Application of remote sensing data to groundwater exploration: A case study of the Cross River State, SE Nigeria. Hydrogeology Journal, 6(3), 394–404. https://doi.org/10.1007/s100400050157",
+                "Healy, R. W., & Cook, P. G. (2002). Using groundwater levels to estimate recharge. Hydrogeology Journal, 10(1), 91–109. https://doi.org/10.1007/s10040-001-0178-0",
+                "Jha, M. K., Chowdary, V. M., & Chowdhury, A. (2007). Groundwater assessment in Salboni Block, West Bengal (India) using remote sensing, geographical information system and multi-criteria decision analysis techniques. Hydrogeology Journal, 15(7), 1397–1410. https://doi.org/10.1007/s10040-007-0160-7",
+                "Krishnamurthy, J., Mani, A., Jayaraman, V., & Manivel, M. (1996). Groundwater resources development in hard rock terrain—An approach using remote sensing and GIS techniques. International Journal of Applied Earth Observation and Geoinformation, 18(3), 173–183. https://doi.org/10.1016/0924-2716(95)00015-1",
+                "Kumar, C. P., Singh, R. D., & Seethapathi, P. V. (2007). Assessment of natural groundwater recharge in Upper Ganga Canal Command area. Hydrological Sciences Journal, 52(2), 292–304. https://doi.org/10.1623/hysj.52.2.292",
+                "Kumar, T., Jha, M. K., & Chowdary, V. M. (2014). Assessment of groundwater potential zones in a semi-arid region of India using remote sensing, GIS and MCDM techniques. Water Resources Management, 28(8), 2179–2196. https://doi.org/10.1007/s11269-014-0598-9",
+                "Machiwal, D., Jha, M. K., & Mal, B. C. (2011). Assessment of groundwater potential in a semi-arid region of India using remote sensing, GIS and MCDM techniques. Water Resources Management, 25(5), 1359–1386. https://doi.org/10.1007/s11269-010-9749-y",
+                "Magesh, N. S., Chandrasekar, N., & Soundranayagam, J. P. (2012). Delineation of groundwater potential zones in Theni district, Tamil Nadu, using remote sensing, GIS and MIF techniques. Geoscience Frontiers, 3(2), 189–196. https://doi.org/10.1016/j.gsf.2011.10.007",
+                "Panda, R. K., Kumar, R., & Mohanty, S. (2010). Delineation of groundwater potential zones in Mahanadi Basin, Orissa using remote sensing and GIS. International Journal of Remote Sensing, 31(1), 1–20. https://doi.org/10.1080/01431160903263980",
+                "Patra, S., Mishra, P., Mahapatra, S. C., & Mahalik, G. (2018). Estimation of groundwater recharge using water table fluctuation method: A case study in Odisha, India. Journal of the Geological Society of India, 92(4), 457–462. https://doi.org/10.1007/s12594-018-1070-3",
+                "Rahmati, O., Nazari Samani, A., Mahmoodi, M., & Mahdavi, M. (2015). Groundwater potential mapping at Kurdistan region of Iran using analytic hierarchy process and GIS. Arabian Journal of Geosciences, 8(8), 7059–7071. https://doi.org/10.1007/s12517-014-1669-y",
+                "Sander, P. (2007). Lineaments in groundwater exploration: A review of applications and limitations. Hydrogeology Journal, 15(1), 71–74. https://doi.org/10.1007/s10040-006-0138-6",
+                "Singh, S. K., Panda, R. K., & Satapathy, D. R. (2013). Delineation of groundwater potential zones in Orissa, India using remote sensing and GIS. International Journal of Earth Sciences and Engineering, 6(1), 30–40.",
+                "United Nations. (2015). Transforming our world: The 2030 agenda for sustainable development. United Nations General Assembly. https://sdgs.un.org/2030agenda"
             ]
+
             
             for i, ref in enumerate(references, 1):
                 self.elements.append(Paragraph(f"{i}. {ref}", self.style_manager.styles['JustifiedBody']))
         except Exception as e:
             logger.error(f"Failed to add references: {e}")
+
 
     def _cleanup_temp_images(self):
         """Clean up temporary image files after PDF generation."""
@@ -1144,8 +1293,8 @@ class ReportGenerator:
             self._add_title_page()
             self._add_executive_summary()
             self._add_study_area_overview(location_data=location_data)
-            self._add_methodology_section()
-            self._add_results_section(layer_names=layer_names)  # Uncomment when gdf is available
+            self._add_methodology_section(layer_names=layer_names)
+            self._add_results_section(layer_names=layer_names)  
             self._add_references()
             
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 
@@ -1162,8 +1311,8 @@ class ReportGenerator:
             raise STRPReportError(f"Report generation failed: {e}")
 
 
-@app.task(bind=True,pydantic=True,name="stp_priority_drain_document_gen")
-def document_gen1(self,payload: StpPriorityDrainReport):
+@app.task(bind=True,pydantic=True,name="GWPZ_drain_document_gen")
+def document_gen5(self,payload: StpPriorityDrainReport):
     progress_recorder = ProgressRecorder(self)
     total = 100
    
@@ -1182,7 +1331,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
             file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
             file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ","_"))  
             tasks.append(
-            celery_currency_image1.s(
+            celery_currency_image5.s(
             file_path=file_path,
             raster_path=item["raster_path"],
             sld_path=item["sld_path"],
@@ -1193,7 +1342,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
             ) 
         )
         progress_recorder.set_progress(20, total, description="Launching parallel image processing")
-        job = chord(group(tasks))(final_step1.s(table_data=table_data,location_data=location_data,weight_data=weight_data,parent_task_id=self.request.id))
+        job = chord(group(tasks))(final_step5.s(table_data=table_data,location_data=location_data,weight_data=weight_data,parent_task_id=self.request.id))
         redis_client.setex(
             f"chord:{self.request.id}",
             3600,  
@@ -1228,8 +1377,8 @@ def document_gen1(self,payload: StpPriorityDrainReport):
         progress_recorder.set_progress(total, total, description=f"Error: {str(e)}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
-@app.task(bind=True,pydantic=True,name="stp_priority_drain_currency_image")
-def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str],task_index: int, total_tasks: int, 
+@app.task(bind=True,pydantic=True,name="GWPZ_drain_currency_image")
+def celery_currency_image5(self,file_path:str,raster_path:str,sld_path:str,clip:List[str],task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
         file_path = MapGenerator(dpi=100).make_image(
@@ -1254,8 +1403,8 @@ def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:
         raise
    
 
-@app.task(bind=True,pydantic=True,name="stp_priority_drain_generation_start")
-def final_step1(self,results: List[dict],table_data:list,location_data:list,weight_data:list,parent_task_id: str)->None:
+@app.task(bind=True,pydantic=True,name="GWPZ_drain_generation_start")
+def final_step5(self,results: List[dict],table_data:list,location_data:list,weight_data:list,parent_task_id: str)->None:
     try:
         redis_client.setex(
             f"pdf_generation:{parent_task_id}",

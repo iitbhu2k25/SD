@@ -131,7 +131,7 @@ class StaticTextData:
     Slope: str = ""
     Soil_Texture: str = ""
     TPI: str = ""
-    GWPZ: str = ""
+    Ground_water_Potential: str = ""
 
     
 @dataclass
@@ -707,7 +707,7 @@ class StpDocument:
         """Generate static PDF with error handling."""
         try:
             config = ReportConfig(
-                title="Comprehensive Report on the  Groundwater Potential Zone (GWPZ)",
+                title="Comprehensive Report on the  Groundwater Potential Zone <br/>(GWPZ)",
                 author="IIT BHU",
                 output_folder=str(self.document_path)
             )
@@ -725,7 +725,7 @@ class StpDocument:
                 Slope = "",
                 Soil_Texture = "Soil texture governs infiltration rates, soil moisture retention, and percolation into deeper strata. Coarse-textured soils such as sandy and loamy soils allow rapid infiltration, enhancing groundwater recharge, while fine-textured clay soils restrict water movement. Soil depth also influences recharge, as deeper profiles promote greater percolation compared to shallow rocky soils. Soil permeability, porosity, and hydraulic conductivity directly impact the availability of groundwater recharge zones. In agricultural areas, soil also determines irrigation water demand, influencing the balance between extraction and recharge. Hence, soil mapping is crucial in groundwater studies to identify zones with high infiltration capacity (Das & Pardeshi, 2018; Todd &Mays, 2005)",
                 TPI = "",
-                GWPZ = "The final GWPZ map (Figure 14) provides a spatial representation of areas classified into very low, low, moderate, high, and very high groundwater potential categories, based on the integrated GIS–AHP analysis of multiple conditioning factors. This map distinctly highlights zones with higher recharge and storage capacity, offering critical insights for groundwater development, artificial recharge, and sustainable resource management. The classified zonation supports strategic decision-making for water resource planners, enabling prioritization of interventions such as well drilling, recharge structure placement, and conservation initiatives. The potential values depicted on the map reflect the cumulative weighted influence of geomorphology, drainage density, soil, lineament density,rainfall, and other relevant parameters, ensuring a comprehensive evaluation of groundwater availability. Thus, the GWPZ map serves as a valuable decision-support tool for policymakers, engineers, and stakeholders engaged in sustainable groundwater management (cf. Jha et al., 2007; Magesh et al., 2012)."
+                Ground_water_Potential= "The final GWPZ map (Figure 14) provides a spatial representation of areas classified into very low, low, moderate, high, and very high groundwater potential categories, based on the integrated GIS–AHP analysis of multiple conditioning factors. This map distinctly highlights zones with higher recharge and storage capacity, offering critical insights for groundwater development, artificial recharge, and sustainable resource management. The classified zonation supports strategic decision-making for water resource planners, enabling prioritization of interventions such as well drilling, recharge structure placement, and conservation initiatives. The potential values depicted on the map reflect the cumulative weighted influence of geomorphology, drainage density, soil, lineament density,rainfall, and other relevant parameters, ensuring a comprehensive evaluation of groundwater availability. Thus, the GWPZ map serves as a valuable decision-support tool for policymakers, engineers, and stakeholders engaged in sustainable groundwater management (cf. Jha et al., 2007; Magesh et al., 2012)."
 
 
             )
@@ -959,8 +959,9 @@ class ReportGenerator:
         content = "<br/>".join(lines)
 
         self.elements.append(Paragraph(content, self.style_manager.styles['JustifiedBody']))
+        self.elements.append(PageBreak())
     
-    def _add_methodology_section(self):
+    def _add_methodology_section(self,layer_names: List[str]):
         """Add methodology section."""
         try:
             self.elements.append(Paragraph("3. Database and Methodology", 
@@ -977,27 +978,33 @@ class ReportGenerator:
             
             self.elements.append(Paragraph(database_text, self.style_manager.styles['JustifiedBody']))
             
-            # Factor descriptions
+
             factors = [
-                ("Drainage Density", self.static_data.Downstream_Effect_of_Drain),
-                ("Elevation", self.static_data.Drainage_Distance),
-                ("Groundwater_Recharge", self.static_data.Groundwater_Depth),
-                ("Groundwater_Table", self.static_data.Groundwater_Quality),
-                ("Lineament_Density", self.static_data.LULC),
-                ("LULC", self.static_data.Major_City_Risk),
-                ("NDVI", self.static_data.Population),
-                ("Rainfall", self.static_data.Proximity_River_Quality),
-                ("Slope", self.static_data.Proximity_River_Quality),
-                ("Soil_Texture", self.static_data.Proximity_River_Quality),
-                ("TPI", self.static_data.Proximity_River_Quality),
-                ("GWPZ", self.static_data.Proximity_River_Quality),
+                ("Drainage_Density", self.static_data.Drainage_Density),
+                ("Elevation", self.static_data.Elevation),
+                ("Groundwater_Recharge", self.static_data.Groundwater_Recharge),
+                ("Groundwater_Table", self.static_data.Groundwater_Table),
+                ("Lineament_Density", self.static_data.Lineament_Density),
+                ("LULC", self.static_data.LULC),
+                ("NDVI", self.static_data.NDVI),
+                ("Rainfall", self.static_data.Rainfall),
+                ("Slope", self.static_data.Slope),
+                ("Soil_Texture", self.static_data.Soil_Texture),
+                ("TPI", self.static_data.TPI),
+                ("Ground_water_Potential", self.static_data.Ground_water_Potential),
             ]
             
+            factors_data = []
             for factor_name, description in factors:
-                if description.strip():
-                    self.elements.append(Paragraph(f"<b>{factor_name}:</b> {description}", 
-                                                 self.style_manager.styles['JustifiedBody']))
-            
+                name = factor_name.replace("_", " ")
+                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+                if match:
+                    factors_data.append((name,
+                        description,
+                        match["file_path"]
+                    ))
+            self._add_fallback_elements(factors_data)
+            self.elements.append(Spacer(1, 15))
             # Methodology subsection
             self.elements.append(Paragraph("3.2 Methodology", 
                                          self.style_manager.styles['SubsectionHeader']))
@@ -1094,10 +1101,6 @@ class ReportGenerator:
 
             self.elements.append(Paragraph(saw_text, self.style_manager.styles['JustifiedBody']))
 
-
-
-
-            # Add page break
             self.elements.append(PageBreak())
 
         except Exception as e:
@@ -1156,26 +1159,33 @@ class ReportGenerator:
             decision-making for groundwater exploration, development, and management.
             """
             
-            self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
-
-            factors_data = []
-            for key, value in asdict(self.static_data).items():
-                name = key.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
+            try:
+                factors_data = []
+                key = "Ground_water_Potential"
+                name=key.replace("_", " ")
+                match = next((d for d in layer_names if d.get("file_name") == key), None)
                 if match:
-                    factors_data.append((name,
-                        value,
-                        match["file_path"]
-                    ))
-            self._add_fallback_elements(factors_data)
-            self.elements.append(Spacer(1, 15))
+                    factors_data.append((name,factors_text, match["file_path"]))
+                self._add_fallback_elements(factors_data)
+                self.elements.append(Spacer(1, 15))
+            except Exception as e:
+                logger.error(f"Failed to add factors section: {e}")
+                print(e)
             
             # Weights details
             self.elements.append(Paragraph("4.2 Details of the Assigned Weights", 
                                          self.style_manager.styles['SubsectionHeader']))
             
 
-            # Weights table
+            weight_text="""The selected weights, derived through the Analytic Hierarchy Process (AHP), represent the
+            relative significance of each thematic layer in controlling groundwater occurrence and
+            recharge potential. These weights ensure that critical factors such as geomorphology, soil
+            texture, lineament density, and rainfall are appropriately emphasized in the multi-criteria
+            evaluation. The MCDA results provide a spatially explicit prioritization of groundwater
+            potential zones, effectively distinguishing areas into very high, high, moderate, low, and
+            very low categories. This zonation supports informed, transparent, and scientifically robust
+            decision-making for groundwater exploration, development, and management."""
+            self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
             if weights_table:
                 self.elements.append(weights_table)
@@ -1205,14 +1215,25 @@ class ReportGenerator:
             self.elements.append(Paragraph("5. References", self.style_manager.styles['SectionHeader']))
             
             references = [
-                "Anderson, J.R., Hardy, E.E., Roach, J.T., & Witmer, R.E. (1976). A Land Use and Land Cover Classification System for Use with Remote Sensor Data. USGS Professional Paper 964.",
-                "Central Pollution Control Board (CPCB). (2020). River Water Quality Assessment – Annual Report.",
-                "CGWB. (2022). Groundwater Yearbook – India 2021–22. Central Ground Water Board, Ministry of Jal Shakti.",
-                "Esri. (2020). Understanding Drainage Patterns Using Flow Direction and Accumulation.",
-                "Malczewski, J. (1999). GIS and Multicriteria Decision Analysis. John Wiley & Sons.",
-                "National Commission on Population. (2019). Population Projections for India and States 2011–2036. Ministry of Health & Family Welfare.",
-                "USEPA. (2004). Primer for Municipal Wastewater Treatment Systems."
+                "CGWB. (2014). Ground Water Year Book – India 2013–14. Central Ground Water Board, Ministry of Water Resources, Government of India.",
+                "Chowdhury, A., Jha, M. K., & Chowdary, V. M. (2009). Delineation of groundwater recharge zones and identification of artificial recharge sites in West Medinipur district, West Bengal, using remote sensing and GIS. Hydrogeology Journal, 17(6), 1199–1212. https://doi.org/10.1007/s10040-009-0446-6",
+                "Das, S., & Pardeshi, S. D. (2018). Morphometric analysis of watershed in semi-arid region: A remote sensing and GIS perspective. Applied Water Science, 8(7), 1–16. https://doi.org/10.1007/s13201-018-0810-4",
+                "Edet, A., Okereke, C. S., Teme, S. C., & Esu, E. O. (1998). Application of remote sensing data to groundwater exploration: A case study of the Cross River State, SE Nigeria. Hydrogeology Journal, 6(3), 394–404. https://doi.org/10.1007/s100400050157",
+                "Healy, R. W., & Cook, P. G. (2002). Using groundwater levels to estimate recharge. Hydrogeology Journal, 10(1), 91–109. https://doi.org/10.1007/s10040-001-0178-0",
+                "Jha, M. K., Chowdary, V. M., & Chowdhury, A. (2007). Groundwater assessment in Salboni Block, West Bengal (India) using remote sensing, geographical information system and multi-criteria decision analysis techniques. Hydrogeology Journal, 15(7), 1397–1410. https://doi.org/10.1007/s10040-007-0160-7",
+                "Krishnamurthy, J., Mani, A., Jayaraman, V., & Manivel, M. (1996). Groundwater resources development in hard rock terrain—An approach using remote sensing and GIS techniques. International Journal of Applied Earth Observation and Geoinformation, 18(3), 173–183. https://doi.org/10.1016/0924-2716(95)00015-1",
+                "Kumar, C. P., Singh, R. D., & Seethapathi, P. V. (2007). Assessment of natural groundwater recharge in Upper Ganga Canal Command area. Hydrological Sciences Journal, 52(2), 292–304. https://doi.org/10.1623/hysj.52.2.292",
+                "Kumar, T., Jha, M. K., & Chowdary, V. M. (2014). Assessment of groundwater potential zones in a semi-arid region of India using remote sensing, GIS and MCDM techniques. Water Resources Management, 28(8), 2179–2196. https://doi.org/10.1007/s11269-014-0598-9",
+                "Machiwal, D., Jha, M. K., & Mal, B. C. (2011). Assessment of groundwater potential in a semi-arid region of India using remote sensing, GIS and MCDM techniques. Water Resources Management, 25(5), 1359–1386. https://doi.org/10.1007/s11269-010-9749-y",
+                "Magesh, N. S., Chandrasekar, N., & Soundranayagam, J. P. (2012). Delineation of groundwater potential zones in Theni district, Tamil Nadu, using remote sensing, GIS and MIF techniques. Geoscience Frontiers, 3(2), 189–196. https://doi.org/10.1016/j.gsf.2011.10.007",
+                "Panda, R. K., Kumar, R., & Mohanty, S. (2010). Delineation of groundwater potential zones in Mahanadi Basin, Orissa using remote sensing and GIS. International Journal of Remote Sensing, 31(1), 1–20. https://doi.org/10.1080/01431160903263980",
+                "Patra, S., Mishra, P., Mahapatra, S. C., & Mahalik, G. (2018). Estimation of groundwater recharge using water table fluctuation method: A case study in Odisha, India. Journal of the Geological Society of India, 92(4), 457–462. https://doi.org/10.1007/s12594-018-1070-3",
+                "Rahmati, O., Nazari Samani, A., Mahmoodi, M., & Mahdavi, M. (2015). Groundwater potential mapping at Kurdistan region of Iran using analytic hierarchy process and GIS. Arabian Journal of Geosciences, 8(8), 7059–7071. https://doi.org/10.1007/s12517-014-1669-y",
+                "Sander, P. (2007). Lineaments in groundwater exploration: A review of applications and limitations. Hydrogeology Journal, 15(1), 71–74. https://doi.org/10.1007/s10040-006-0138-6",
+                "Singh, S. K., Panda, R. K., & Satapathy, D. R. (2013). Delineation of groundwater potential zones in Orissa, India using remote sensing and GIS. International Journal of Earth Sciences and Engineering, 6(1), 30–40.",
+                "United Nations. (2015). Transforming our world: The 2030 agenda for sustainable development. United Nations General Assembly. https://sdgs.un.org/2030agenda"
             ]
+
             
             for i, ref in enumerate(references, 1):
                 self.elements.append(Paragraph(f"{i}. {ref}", self.style_manager.styles['JustifiedBody']))
@@ -1259,7 +1280,7 @@ class ReportGenerator:
             self._add_title_page()
             self._add_executive_summary()
             self._add_study_area_overview(location_data=location_data)
-            self._add_methodology_section()
+            self._add_methodology_section(layer_names=layer_names)
             self._add_results_section(layer_names=layer_names) 
             self._add_references()
             

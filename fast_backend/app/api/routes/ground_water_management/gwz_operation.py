@@ -5,7 +5,8 @@ from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMa
 from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,Gwzp_service,GWLI_service
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
+from app.api.service.celery.gwz_drain_document import document_gen5
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,StpPriorityDrainReport,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -29,11 +30,11 @@ async def gwz_admin_report(payload:StpPriorityAdminReport):
     task_id= document_gen4.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
-# @router.post("/gwz_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
-# @validate
-# async def gwz_drain_report(payload:StpPriorityDrainReport):
-#     task_id= document_gen1.delay(payload=payload.model_dump())
-#     return celery_id(task_id=task_id.id)
+@router.post("/gwz_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@validate
+async def gwz_drain_report(payload:StpPriorityDrainReport):
+    task_id= document_gen5.delay(payload=payload.model_dump())
+    return celery_id(task_id=task_id.id)
  
  
 
