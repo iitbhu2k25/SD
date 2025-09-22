@@ -888,7 +888,7 @@ class ReportGenerator:
             self.elements.append(Spacer(1, 1.5*inch))
             title = Paragraph(self.config.title, self.style_manager.styles['CustomTitle'])
             subtitle = Paragraph(
-                "A Geospatial and Multi-Criteria Analysis for Prioritizing Sewage Treatment Infrastructure",
+                "A Geospatial and Multi-Criteria Analysis for Groundwater Zone Prioritization",
                 self.style_manager.styles['Heading2']
             )
             
