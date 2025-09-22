@@ -270,14 +270,7 @@ const VideoSection: React.FC<HLSVideoPlayerProps> = ({
   return (
     <section className="py-4 sm:py-8 md:py-12 lg:py-16 px-3 sm:px-4 md:px-6">
       <div className="w-full max-w-7xl mx-auto">
-        {/* Section Header */}
-        <div className="text-center mb-6 sm:mb-8 md:mb-12">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 mb-2 sm:mb-4">
-            <span className="bg-gradient-to-r from-sky-400 to-blue-700 bg-clip-text text-transparent">
-              Featured Video
-            </span>
-          </h2>
-        </div>
+        
 
         {/* Video Container - Fixed fullscreen aspect ratio */}
         <div className={`relative bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-lg sm:shadow-xl md:shadow-2xl overflow-hidden transform hover:scale-[1.01] sm:hover:scale-[1.02] transition-all duration-300 ${

@@ -5,7 +5,6 @@ import React, {
   useState,
   useEffect,
   ReactNode,
-  use,
 } from "react";
 import { api } from "@/services/api";
 
@@ -60,6 +59,7 @@ interface LocationContextType {
   setSelectedSubDistricts: (subDistrictIds: number[]) => void;
   confirmSelections: () => SelectionsData | null;
   resetSelections: () => void;
+  setSelectedState: (stateId: number | null) => void;
 }
 
 // Props for the LocationProvider component
@@ -88,6 +88,7 @@ const LocationContext = createContext<LocationContextType>({
   setSelectedSubDistricts: () => { },
   confirmSelections: () => null,
   resetSelections: () => { },
+   setSelectedState: () => { },
 });
 
 // Create the provider component
@@ -317,7 +318,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setdisplay_raster,
     selectedStateName,
     selectedDistrictsNames,
-    selectedSubDistrictsNames
+    selectedSubDistrictsNames,
+    setSelectedState
   };
 
   return (

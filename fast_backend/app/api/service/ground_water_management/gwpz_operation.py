@@ -592,7 +592,8 @@ class GWAPriorityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-    
+        self.vectorProcess=VectorProcess()
+        
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
             raster_path=Gwzp_service.get_GWA_Priority_visual(db)
@@ -607,8 +608,7 @@ class GWAPriorityMapper:
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 unique_store_name = Unique_name.unique_name(self.config.raster_store)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_name=Unique_name.unique_name(layer_name)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)   
+                geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
