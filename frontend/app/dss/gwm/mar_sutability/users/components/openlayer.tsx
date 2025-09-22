@@ -374,7 +374,7 @@ const Maping: React.FC = () => {
 
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
+   
   };
 
   // Layer toggle functions
@@ -790,7 +790,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    console.log("Creating layer with filter:", layerFilter);
+   
 
     let wfsUrl =
       `/geoserver/api/wfs?` +
@@ -811,7 +811,7 @@ const Maping: React.FC = () => {
           ? layerFilter.filterValue.map((v) => `'${v}'`).join(",")
           : `'${layerFilter.filterValue}'`
       })`;
-      console.log(`Applied filter for ${layerName}:`, layerFilter);
+   
     } else {
       console.log(`No filter applied for ${layerName} - showing all features`);
     }
@@ -844,7 +844,7 @@ const Maping: React.FC = () => {
 
     const handleFeaturesLoaded = (event: any): void => {
       const numFeatures = event.features ? event.features.length : 0;
-      console.log(`Loaded ${numFeatures} features for ${layerName}`);
+   
 
       if (hasSelections && numFeatures > 0) {
         const extent = vectorSource.getExtent();
@@ -1004,8 +1004,6 @@ const Maping: React.FC = () => {
         }
 
         const result = await resp.json();
-        console.log("STP operation result:", result);
-
         if (result && result.status === "success") {
           const append_data = {
             file_name: "mar_sutability",
@@ -1059,8 +1057,7 @@ const Maping: React.FC = () => {
 
   // Handle raster layer display
   useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
-
+   
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
@@ -1116,7 +1113,7 @@ const Maping: React.FC = () => {
         map.addLayer(newLayer);
         map.renderSync();
         setRasterLoading(false);
-        console.log(`Raster layer added: ${fullLayerName}`);
+      
       }, 100);
     } catch (error: any) {
       console.log("Error setting up raster layer:", error);
@@ -1127,14 +1124,14 @@ const Maping: React.FC = () => {
 
   // Handle radio layer selection
   useEffect(() => {
-    console.log("traster name", displayRaster);
+   
     displayRaster.map((item: any) => {
       if (item.file_name == selectedradioLayer) {
-        console.log("selected items", item);
+  
         setRasterLayerInfo(item);
       }
     });
-    console.log("new update data", displayRaster);
+  
   }, [selectedradioLayer]);
 
   // Handle opacity change
@@ -1148,7 +1145,7 @@ const Maping: React.FC = () => {
 
   // Clear raster layers when displayRaster changes
   useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
+   
 
     if (!mapInstanceRef.current) return;
 

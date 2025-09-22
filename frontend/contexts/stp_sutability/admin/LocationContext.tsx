@@ -231,7 +231,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         }
 
         const data = await response.message as SubDistrict[];
-        console.log("data", data)
+       
         const subDistrictData = data.map((subDistrict: SubDistrict) => ({
           id: subDistrict.id,
           name: subDistrict.name,
@@ -298,7 +298,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         }
 
         const data = await response.message as Towns[];
-        console.log("nerw data ", data)
         const townData = data.map((town: Towns) => ({
           id: town.id,
           name: town.name,

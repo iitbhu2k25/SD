@@ -189,26 +189,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
-    console.log("Map view reset requested");
+
   };
 
   // Function to zoom to a specific feature
   const zoomToFeature = (featureId: string, layerName: string): void => {
-    console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
+  
   };
   const { selectedCategories, setStpProcess } = useCategory();
   // Synchronize layers based on river system selections with hierarchical filtering
   const syncLayersWithRiverSystem = useCallback((): void => {
-    console.log("Syncing layers with river system (hierarchical filtering)...", {
-      selectedRiver,
-      selectedStretches,
-      selectedDrains,
-      selectedCatchments,
-    });
+    
 
     setIsMapLoading(true);
 
-    // Check if we have any selections
+
     const hasAnySelections = !!(
       selectedRiver ||
       (selectedStretches && selectedStretches.length > 0) ||
@@ -230,10 +225,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "River_Code",
         filterValue: [selectedRiver]
       });
-      console.log("River filter applied for river:", selectedRiver);
     } else {
       setRiverFilter({ filterField: null, filterValue: null });
-      console.log("River filter cleared - showing all rivers");
+     
     }
 
     // 2. Stretch Filter - Hierarchical logic
@@ -243,18 +237,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "Drain_No",
         filterValue: selectedDrains
       });
-      console.log("Stretch filter applied for specific stretches:", selectedStretches);
+     
     } else if (selectedRiver) {
       // If only river is selected, filter stretches by river
       setStretchFilter({
         filterField: "River_Code", // Assuming stretches have a River_Code field
         filterValue: [selectedRiver]
       });
-      console.log("Stretch filter applied for river:", selectedRiver);
+    
     } else {
-      // No selection - show all stretches
       setStretchFilter({ filterField: null, filterValue: null });
-      console.log("Stretch filter cleared - showing all stretches");
     }
 
     // 3. Drain Filter - Hierarchical logic
@@ -264,25 +256,23 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "Drain_No",
         filterValue: selectedDrains
       });
-      console.log("Drain filter applied for specific drains:", selectedDrains);
+    
     } else if (selectedStretches && selectedStretches.length > 0) {
       // If stretches are selected, filter drains by stretch IDs
       setDrainFilter({
         filterField: "Stretch_ID", // Assuming drains have a Stretch_ID field
         filterValue: selectedStretches
       });
-      console.log("Drain filter applied for stretches:", selectedStretches);
     } else if (selectedRiver) {
       // If only river is selected, filter drains by river
       setDrainFilter({
         filterField: "River_Code", // Assuming drains have a River_Code field
         filterValue: [selectedRiver]
       });
-      console.log("Drain filter applied for river:", selectedRiver);
+     
     } else {
-      // No selection - show all drains
       setDrainFilter({ filterField: null, filterValue: null });
-      console.log("Drain filter cleared - showing all drains");
+     
     }
 
     // 4. Catchment Filter - Keep original logic (independent)
@@ -291,10 +281,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "village_id",
         filterValue: selectedCatchments
       });
-      console.log("Catchment filter applied for catchments:", selectedCatchments);
+   
     } else {
       setCatchmentFilter({ filterField: null, filterValue: null });
-      console.log("Catchment filter cleared - showing all catchments");
+     
     }
 
     setIsMapLoading(false);
@@ -307,7 +297,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   }, [syncLayersWithRiverSystem]);
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
   };
   useEffect(() => {
     if (!stpOperation) return;
@@ -322,9 +311,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         clip: selectedCatchments,
         place: "Drain",
       });
-
-      console.log("Sending STP request for:", bodyPayload);
-
       try {
         const resp = await fetch(
           "/api/stp_operation/stp_priority",
@@ -340,8 +326,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         }
 
         const result = await resp.json();
-        console.log("STP operation result:", result);
-
         if (result) {
           const append_data = {
             file_name: "STP_Priority",
@@ -368,12 +352,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           handleLayerSelection(append_data.file_name)
           setShowLegend(true);
         } else {
-          console.log("STP operation did not return success:", result);
           setError(`STP operation failed: ${result.status || "Unknown error"}`);
           setRasterLoading(false);
         }
       } catch (error: any) {
-        console.log("Error performing STP operation:", error);
         setError(`Error communicating with STP service: ${error.message}`);
         setRasterLoading(false);
         setShowTable(false);

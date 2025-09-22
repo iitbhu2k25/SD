@@ -373,7 +373,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           setRasterLoading(false);
         }
       } catch (error: any) {
-        console.log("Error performing STP operation:", error);
         setError(`Error communicating with STP service: ${error.message}`);
         setRasterLoading(false);
         setShowTable(false);

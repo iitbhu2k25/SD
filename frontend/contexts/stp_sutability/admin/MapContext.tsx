@@ -92,9 +92,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
-    // This is a placeholder - the actual implementation
-    // will happen in the Map component that consumes this context
-    console.log("Map view reset requested");
   };
 
   // Function to zoom to a specific feature

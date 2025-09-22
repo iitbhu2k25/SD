@@ -115,7 +115,7 @@ const MainContent = () => {
         { body: data }
       );
       if (response.status != 201) {
-        console.log("report false");
+
         setReportLoading(false);
         toast.error("Report failed", {
           position: "top-center",

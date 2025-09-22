@@ -247,11 +247,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           handleLayerSelection(append_data.file_name);
           setShowLegend(true);
         } else {
-          console.log("STP operation did not return success:", result);
           setRasterLoading(false);
         }
       } catch (error: any) {
-        console.log("Error performing STP operation:", error);
+      
         setError(`Error communicating with STP service: ${error.message}`);
         setRasterLoading(false);
         setShowTable(false);

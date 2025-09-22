@@ -255,7 +255,7 @@ export default function VarunaRiverDashboard() {
   const pathname = usePathname(); // ✅ Using App Router hook
   // ✅ NEW: Map notification handler
   const showNotification = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    console.log(`${type.toUpperCase()}: ${title} - ${message}`);
+   
   };
   // Calculate Pollution Load Index
   const calculatePollutionLoadIndex = (data: DrainRecord): { score: number; level: string; location: string } => {
