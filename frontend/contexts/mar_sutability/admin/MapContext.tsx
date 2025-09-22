@@ -92,14 +92,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
-    // This is a placeholder - the actual implementation
-    // will happen in the Map component that consumes this context
-    console.log("Map view reset requested");
+  
   };
 
   // Function to zoom to a specific feature
   const zoomToFeature = (featureId: string, layerName: string): void => {
-    console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
 
   // Synchronize layers based on location selections

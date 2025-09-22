@@ -87,7 +87,7 @@ const MainContent = () => {
         { body: data }
       )
       if (response.status != 201) {
-        console.log("report false")
+      
         setReportLoading(false);
         toast.error("Report failed", {
           position: "top-center",
@@ -98,7 +98,6 @@ const MainContent = () => {
       const task = response.message as Record<string, string>
       setTaskId(task['task_id'])
     } catch (error) {
-      console.log("Report error", error);
       toast.error("Failed to start report");
     }
     finally {

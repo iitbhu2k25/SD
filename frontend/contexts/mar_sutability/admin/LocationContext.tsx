@@ -255,7 +255,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchvillages = async () => {
       setIsLoading(true);
       try {
-        console.log("selectedSubDistricts", selectedSubDistricts)
         const response = await api.post("/location/get_villages/", {
           body: {
             subdis_code: [selectedSubDistricts],

@@ -76,16 +76,13 @@ const Mapping: React.FC = () => {
   } = useLocation();
 
   useEffect(() => {
-    console.log("selectedSubDistricts", isPanelOpen);
-  }, [isPanelOpen]);
-  useEffect(() => {
     displayRaster.map((item: any) => {
       if (item.file_name == selectedradioLayer) {
-        console.log("selected items", item);
+       
         setRasterLayerInfo(item);
       }
     });
-    console.log("new update data", displayRaster);
+   
   }, [selectedradioLayer]);
   // Use the map context
   const {
@@ -144,7 +141,7 @@ const Mapping: React.FC = () => {
 
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
+   
   };
 
 
@@ -596,34 +593,28 @@ const Mapping: React.FC = () => {
 
 
 useEffect(() => {
-  console.log('Secondary layer useEffect triggered:', {
-    secondaryLayer,
-    rasterLayerInfo: !!rasterLayerInfo,
-    mapExists: !!mapInstanceRef.current
-  });
+  
 
   if (!mapInstanceRef.current) {
-    console.log('Map not ready, skipping secondary layer setup');
+   
     return;
   }
 
   // Always remove existing secondary layer first
   if (secondaryLayerRef.current) {
-    console.log('Removing existing secondary layer');
     mapInstanceRef.current.removeLayer(secondaryLayerRef.current);
     secondaryLayerRef.current = null;
   }
 
   // Reset states when no secondary layer
   if (!secondaryLayer) {
-    console.log('No secondary layer specified, clearing states');
     setSecondaryFeatureCount(0);
     setSecondaryLayerLoading(false);
     updateLoadingState();
     return;
   }
 
-  console.log('Setting up new secondary layer:', secondaryLayer);
+
   setSecondaryLayerLoading(true);
 
   // Construct WFS URL for secondary layer
@@ -644,7 +635,6 @@ useEffect(() => {
     secondaryWfsUrl += `&CQL_FILTER=${LayerFilter} IN (${values})`;
   }
 
-  console.log('Secondary layer URL:', secondaryWfsUrl);
 
   const secondaryVectorStyle = (feature: { getGeometry: () => any; get: (arg0: string) => any; }, resolution: number) => {
     const geometry = feature.getGeometry();
@@ -748,10 +738,7 @@ useEffect(() => {
   // Success handler
   const handleSecondaryFeaturesLoaded = (event: { target: { getFeatures: () => any; }; }) => {
     const features = event.target.getFeatures();
-    const numFeatures = features ? features.length : 0;
-    
-    console.log(`Secondary layer loaded: ${numFeatures} features`);
-    
+    const numFeatures = features ? features.length : 0;    
     setSecondaryFeatureCount(numFeatures);
     setSecondaryLayerLoading(false);
     updateLoadingState();
@@ -782,9 +769,6 @@ useEffect(() => {
   // Add event listeners
   secondaryVectorSource.on("featuresloaderror", handleSecondaryFeaturesError);
   secondaryVectorSource.on("featuresloadend", handleSecondaryFeaturesLoaded);
-
-  // Add layer to map immediately (don't wait for raster conditions)
-  console.log('Adding secondary layer to map');
   mapInstanceRef.current.addLayer(secondaryVectorLayer);
   secondaryLayerRef.current = secondaryVectorLayer;
 
@@ -797,7 +781,6 @@ useEffect(() => {
 
   // Cleanup function
   return () => {
-    console.log('Cleaning up secondary layer event listeners');
     secondaryVectorSource.un("featuresloaderror", handleSecondaryFeaturesError);
     secondaryVectorSource.un("featuresloadend", handleSecondaryFeaturesLoaded);
   };
@@ -852,9 +835,7 @@ useEffect(() => {
         
         // Handle vector layer update FIRST, before raster
         if (result.vector_name && result.vector_name !== "none") {
-          console.log("Setting new secondary layer:", result.vector_name);
-
-          setResultLayer(result.vector_name);
+              setResultLayer(result.vector_name);
         }
 
         let newData;
@@ -902,15 +883,14 @@ useEffect(() => {
     delete layersRef.current[id];
   });
 
-  // If there's no raster layer info, we're done after clearing
+ 
   if (!rasterLayerInfo) {
-    console.log("No raster layer info available");
     setRasterLoading(false);
     setLegendUrl(null);
     return;
   }
 
-  // Now add the raster layer if we have the necessary information
+
   try {
   
     const layerUrl = "/geoserver/api/wms";
@@ -920,10 +900,7 @@ useEffect(() => {
 
     const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
-    console.log("Creating WMS source with:", {
-      url: layerUrl,
-      layers: fullLayerName,
-    });
+
 
     const wmsSource = new ImageWMS({
       url: layerUrl,
@@ -963,10 +940,10 @@ useEffect(() => {
       map.renderSync();
 
       setRasterLoading(false);
-      console.log(`Raster layer added: ${fullLayerName}`);
+     
     }, 100);
   } catch (error: any) {
-    console.log("Error setting up raster layer:", error);
+  
     setError(`Error setting up raster layer: ${error.message}`);
     setRasterLoading(false);
   }

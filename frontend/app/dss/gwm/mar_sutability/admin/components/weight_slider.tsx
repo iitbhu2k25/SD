@@ -30,7 +30,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
 
   // Format file name for display - actually implement formatting logic
   const formatName = (fileName: string): string => {
-    console.log(fileName);
+   
     return fileName
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase())

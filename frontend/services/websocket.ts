@@ -15,7 +15,6 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
 
     socket.onopen = () => {
       setIsConnected(true);
-      console.log('[WebSocket] Connected to:', url);
     };
 
     socket.onmessage = (event) => {
@@ -42,14 +41,14 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
 
     socket.onclose = () => {
       setIsConnected(false);
-      console.log('[WebSocket] Disconnected');
+    
       if (options?.reconnect && !reconnectInterval.current) {
         reconnectInterval.current = setTimeout(connect, 3000);
       }
     };
 
     socket.onerror = (error) => {
-      console.log('[WebSocket] Error:', error);
+      //console.log('[WebSocket] Error:', error);
       socket.close();
       toast.error('WebSocket connection error');
     };
@@ -57,7 +56,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
 
  const disconnect = useCallback(() => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      console.log('[WebSocket] Manually disconnecting');
+     
       socketRef.current.close();
     }
     socketRef.current = null;
@@ -80,7 +79,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(message);
     } else {
-      console.log('[WebSocket] Not connected');
+     
       toast.warn('Cannot send message: WebSocket not connected');
     }
   }, []);

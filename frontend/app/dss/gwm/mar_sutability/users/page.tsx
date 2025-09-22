@@ -58,7 +58,7 @@ const MainContent = () => {
 
   const handleConfirm = (selectedData: any) => {
     const result = confirmSelections();
-    console.log("River system selections confirmed:", result);
+  
   };
 
   const handleReset = () => {
@@ -77,7 +77,7 @@ const MainContent = () => {
       setSubmitting(true);
 
       const selectedData = [...selectedCondition, ...selectedConstraint];
-      console.log("Selected data:", selectedData);
+     
       setSelectedCategory(selectedData);
       setstpOperation(true);
 

@@ -37,7 +37,7 @@ const Maping: React.FC = () => {
   const [primaryLayerLoading, setPrimaryLayerLoading] = useState<boolean>(true);
   const [secondaryLayerLoading, setSecondaryLayerLoading] =
     useState<boolean>(false);
-  
+
   const [primaryFeatureCount, setPrimaryFeatureCount] = useState<number>(0);
   const [secondaryFeatureCount, setSecondaryFeatureCount] = useState<number>(0);
   const [layerOpacity, setLayerOpacity] = useState<number>(70);
@@ -51,13 +51,11 @@ const Maping: React.FC = () => {
   const [showLayerList, setShowLayerList] = useState<boolean>(false);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false); 
-  
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   const { selectedSubDistricts, displayRaster, setdisplay_raster } =
     useLocation();
-  useEffect(() => {
-    console.log("selectedSubDistricts", isPanelOpen);
-  }, [isPanelOpen]);
+
 
   const {
     primaryLayer,
@@ -111,7 +109,7 @@ const Maping: React.FC = () => {
   const openlayertoggle = () => {
     setIsPanelOpen(!isPanelOpen);
   };
-  
+
 
   // Toggle secondary layer visibility
   const toggleSecondaryLayer = () => {
@@ -512,10 +510,9 @@ const Maping: React.FC = () => {
       `typeName=${defaultWorkspace}:${secondaryLayer}&` +
       "outputFormat=application/json&" +
       "srsname=EPSG:3857&" +
-      `CQL_FILTER=${LayerFilter} IN (${
-        Array.isArray(LayerFilterValue)
-          ? LayerFilterValue.map((v) => `'${v}'`).join(",")
-          : `'${LayerFilterValue}'`
+      `CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+        ? LayerFilterValue.map((v) => `'${v}'`).join(",")
+        : `'${LayerFilterValue}'`
       })`;
 
     const secondaryVectorStyle = (feature: any, resolution: number) => {
@@ -679,19 +676,14 @@ const Maping: React.FC = () => {
         }
       }
     };
-  }, [secondaryLayer, LayerFilter, LayerFilterValue,showTitles]);
-
-  // Combined useEffect for STP operation and raster layer display
- 
+  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
 
   useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
 
     if (!mapInstanceRef.current) return;
-
     const map = mapInstanceRef.current;
 
-    // Remove all WMS/raster layers
+
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
       delete layersRef.current[id];
@@ -739,10 +731,10 @@ const Maping: React.FC = () => {
         map.addLayer(newLayer);
         map.renderSync();
         setRasterLoading(false);
-        console.log(`Raster layer added: ${fullLayerName}`);
+
       }, 100);
     } catch (error: any) {
-      console.log("Error setting up raster layer:", error);
+
       setError(`Error setting up raster layer: ${error.message}`);
       setRasterLoading(false);
     }
@@ -751,11 +743,11 @@ const Maping: React.FC = () => {
   useEffect(() => {
     displayRaster.map((item: any) => {
       if (item.file_name == selectedradioLayer) {
-        console.log("selected items", item);
+
         setRasterLayerInfo(item);
       }
     });
-    console.log("new update data", displayRaster);
+
   }, [selectedradioLayer]);
 
   // Handle opacity change
@@ -779,7 +771,6 @@ const Maping: React.FC = () => {
     return "bottom-16 right-16";
   };
   useEffect(() => {
-    console.log("rasterLayerInfo", rasterLayerInfo);
 
     if (!mapInstanceRef.current) return;
 
@@ -810,7 +801,7 @@ const Maping: React.FC = () => {
       >
         {/* The Map */}
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
-          <div className="hidden md:block">
+        <div className="hidden md:block">
           <GISCompass />
         </div>
 
@@ -837,11 +828,10 @@ const Maping: React.FC = () => {
           <div className="flex space-x-1 sm:space-x-2">
             <button
               onClick={() => togglePanel("layers")}
-              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${
-                activePanel === "layers"
+              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === "layers"
                   ? "bg-blue-100 text-blue-600 shadow-inner"
                   : "hover:bg-gray-100 text-gray-700"
-              }`}
+                }`}
               title="Layers"
             >
               <svg
@@ -861,11 +851,10 @@ const Maping: React.FC = () => {
 
             <button
               onClick={() => togglePanel("basemap")}
-              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${
-                activePanel === "basemap"
+              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === "basemap"
                   ? "bg-blue-100 text-blue-600 shadow-inner"
                   : "hover:bg-gray-100 text-gray-700"
-              }`}
+                }`}
               title="Base Maps"
             >
               <svg
@@ -885,11 +874,10 @@ const Maping: React.FC = () => {
 
             <button
               onClick={() => togglePanel("tools")}
-              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${
-                activePanel === "tools"
+              className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === "tools"
                   ? "bg-blue-100 text-blue-600 shadow-inner"
                   : "hover:bg-gray-100 text-gray-700"
-              }`}
+                }`}
               title="Tools"
             >
               <svg
@@ -1091,11 +1079,10 @@ const Maping: React.FC = () => {
                 <button
                   key={key}
                   onClick={() => changeBaseMap(key)}
-                  className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl transition-all duration-200 border-2 ${
-                    selectedBaseMap === key
+                  className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl transition-all duration-200 border-2 ${selectedBaseMap === key
                       ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700 transform scale-105 shadow-lg"
                       : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300 hover:scale-102"
-                  }`}
+                    }`}
                 >
                   <svg
                     className="w-6 h-6 sm:w-8 sm:h-8 mb-2"
@@ -1180,49 +1167,43 @@ const Maping: React.FC = () => {
               {/* Secondary Layer with Enhanced Toggle */}
               {secondaryFeatureCount > 0 && (
                 <div
-                  className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${
-                    showSecondaryLayer
+                  className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-md ${showSecondaryLayer
                       ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
                       : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div
-                        className={`w-4 h-4 ${
-                          showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
-                        } rounded-full mr-3 shadow-sm transition-colors duration-300`}
+                        className={`w-4 h-4 ${showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
+                          } rounded-full mr-3 shadow-sm transition-colors duration-300`}
                       ></div>
                       <span
-                        className={`font-semibold ${
-                          showSecondaryLayer
+                        className={`font-semibold ${showSecondaryLayer
                             ? "text-green-800"
                             : "text-gray-600"
-                        }`}
+                          }`}
                       >
                         Secondary Layer
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
                       <span
-                        className={`text-xs px-3 py-1 rounded-full font-medium ${
-                          showSecondaryLayer
+                        className={`text-xs px-3 py-1 rounded-full font-medium ${showSecondaryLayer
                             ? "bg-green-200/80 text-green-800"
                             : "bg-gray-200/80 text-gray-700"
-                        }`}
+                          }`}
                       >
                         {secondaryFeatureCount} features
                       </span>
                       <button
                         onClick={toggleSecondaryLayer}
-                        className={`w-12 h-6 rounded-full ${
-                          showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
-                        } relative transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 hover:scale-105`}
+                        className={`w-12 h-6 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
+                          } relative transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-400 hover:scale-105`}
                       >
                         <span
-                          className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${
-                            showSecondaryLayer ? "translate-x-6" : ""
-                          }`}
+                          className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out ${showSecondaryLayer ? "translate-x-6" : ""
+                            }`}
                         />
                       </button>
                     </div>
@@ -1242,11 +1223,10 @@ const Maping: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setShowLegend(!showLegend)}
-                      className={`text-xs px-3 py-2 rounded-full transition-all duration-200 font-medium ${
-                        showLegend
+                      className={`text-xs px-3 py-2 rounded-full transition-all duration-200 font-medium ${showLegend
                           ? "bg-purple-200/80 text-purple-800 shadow-inner"
                           : "bg-white/80 text-purple-700 hover:bg-purple-100/80"
-                      }`}
+                        }`}
                     >
                       {showLegend ? "Hide Legend" : "Show Legend"}
                     </button>
@@ -1373,11 +1353,10 @@ const Maping: React.FC = () => {
 
               <button
                 onClick={() => setShowLayerList(!showLayerList)}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 border hover:scale-105 hover:shadow-md ${
-                  showLayerList
+                className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 border hover:scale-105 hover:shadow-md ${showLayerList
                     ? "bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 border-blue-200"
                     : "bg-gradient-to-br from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 text-gray-700 border-gray-200 hover:border-gray-300"
-                }`}
+                  }`}
               >
                 <svg
                   className="w-8 h-8 mb-2"
@@ -1518,44 +1497,38 @@ const Maping: React.FC = () => {
               {/* Enhanced Secondary Layer Toggle in Layer List */}
               {secondaryFeatureCount > 0 && (
                 <div
-                  className={`flex items-center p-3 rounded-lg border transition-all duration-200 ${
-                    showSecondaryLayer
+                  className={`flex items-center p-3 rounded-lg border transition-all duration-200 ${showSecondaryLayer
                       ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200"
                       : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                  }`}
+                    }`}
                 >
                   <div
-                    className={`w-3 h-3 ${
-                      showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
-                    } rounded-full mr-3 shadow-sm transition-colors duration-300`}
+                    className={`w-3 h-3 ${showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
+                      } rounded-full mr-3 shadow-sm transition-colors duration-300`}
                   ></div>
                   <span
-                    className={`text-xs font-semibold flex-grow ${
-                      showSecondaryLayer ? "text-green-800" : "text-gray-600"
-                    }`}
+                    className={`text-xs font-semibold flex-grow ${showSecondaryLayer ? "text-green-800" : "text-gray-600"
+                      }`}
                   >
                     Secondary Layer
                   </span>
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        showSecondaryLayer
+                      className={`text-xs px-2 py-1 rounded-full font-medium ${showSecondaryLayer
                           ? "bg-green-200/80 text-green-800"
                           : "bg-gray-200/80 text-gray-700"
-                      }`}
+                        }`}
                     >
                       {secondaryFeatureCount}
                     </span>
                     <button
                       onClick={toggleSecondaryLayer}
-                      className={`w-10 h-5 rounded-full ${
-                        showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
-                      } relative transition-all duration-300 ease-in-out focus:outline-none hover:scale-105`}
+                      className={`w-10 h-5 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
+                        } relative transition-all duration-300 ease-in-out focus:outline-none hover:scale-105`}
                     >
                       <span
-                        className={`block w-4 h-4 mt-0.5 mx-0.5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ease-in-out ${
-                          showSecondaryLayer ? "translate-x-5" : ""
-                        }`}
+                        className={`block w-4 h-4 mt-0.5 mx-0.5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ease-in-out ${showSecondaryLayer ? "translate-x-5" : ""
+                          }`}
                       />
                     </button>
                   </div>
@@ -1618,11 +1591,10 @@ const Maping: React.FC = () => {
                     <button
                       key={key}
                       onClick={() => changeBaseMap(key)}
-                      className={`p-2 rounded-lg text-xs transition-all duration-200 border ${
-                        selectedBaseMap === key
+                      className={`p-2 rounded-lg text-xs transition-all duration-200 border ${selectedBaseMap === key
                           ? "bg-blue-500 text-white font-semibold border-blue-600 shadow-md"
                           : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                     >
                       {baseMap.name.substring(0, 4)}
                     </button>

@@ -94,9 +94,9 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
-        console.log("Condition Data:", data);
+      
         
-        // Enhance the categories with default icons and colors if not provided
+        
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
@@ -118,9 +118,6 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
-        console.log("Condition Data:", data);
-        
-        // Enhance the categories with default icons and colors if not provided
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
@@ -136,12 +133,11 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchArea = async ()=>{
       try{
         const response = await api.get("/stp_operation/get_stp_sutability_area") 
-        console.log(response.status)
+
         if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Stp_area[];
-        console.log("xx",data)
         SetStpArea(data)
       }catch(err){}
     }
