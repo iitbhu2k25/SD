@@ -4,12 +4,12 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import ImageLayer from "ol/layer/Image";
-import VectorLayer from "ol/layer/Vector";
-import VectorSource from "ol/source/Vector";
+import VectorTileLayer from "ol/layer/VectorTile";
+import VectorTileSource from "ol/source/VectorTile";
 import ImageWMS from "ol/source/ImageWMS";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
-import GeoJSON from "ol/format/GeoJSON";
+import MVT from "ol/format/MVT";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls, ScaleLine, MousePosition, ZoomToExtent, FullScreen } from "ol/control";
 import { Style, Fill, Stroke } from "ol/style";
@@ -18,6 +18,7 @@ import "ol/ol.css";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
 import { baseMaps } from "@/components/MapComponents";
+
 // TypeScript interfaces
 interface BaseMap {
   name: string;
@@ -43,7 +44,7 @@ const OpenLayersRasterViewer: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const rasterLayerRef = useRef<ImageLayer<ImageWMS> | null>(null);
-  const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const vectorLayerRef = useRef<VectorTileLayer | null>(null);
   const baseLayerRef = useRef<TileLayer<OSM | XYZ> | null>(null);
 
   // State
@@ -80,17 +81,16 @@ const OpenLayersRasterViewer: React.FC = () => {
     };
     fetchModules();
   }, []);
+
   // Constants
   const GEOSERVER_URL = "/geoserver/api/wms";
-  const GEOSERVER_WFS_URL = "/geoserver/api/wfs";
+  const GEOSERVER_MVT_URL = "/geoserver/api/gwc/service/tms/1.0.0"; // MVT endpoint
   const Vector_workspace = "vector_work";
   const Raster_workspace = "raster_visualization";
   const FIXED_VECTOR_LAYER = "STP_State";
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 23.5937;
   const INITIAL_ZOOM = 5;
-
-
 
   // Filter rasters
   const filteredRasters: (RasterLayer & { module: string })[] = [];
@@ -108,6 +108,7 @@ const OpenLayersRasterViewer: React.FC = () => {
         });
     }
   }
+
   // Initialize map and vector layer together
   useEffect(() => {
     if (!mapRef.current) return;
@@ -162,34 +163,38 @@ const OpenLayersRasterViewer: React.FC = () => {
 
     mapInstanceRef.current = map;
 
-    // Load vector layer after map initialization
-    const wfsUrl = `${GEOSERVER_WFS_URL}?service=WFS&version=1.1.0&request=GetFeature&typeName=${Vector_workspace}:${FIXED_VECTOR_LAYER}&outputFormat=application/json&srsname=EPSG:3857`;
+    // Load MVT vector layer after map initialization
+    const mvtUrl = `${GEOSERVER_MVT_URL}/${Vector_workspace}:${FIXED_VECTOR_LAYER}@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf`;
 
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
+    const vectorTileSource = new VectorTileSource({
+      format: new MVT(),
+      url: mvtUrl,
+      maxZoom: 22,
     });
 
-    const vectorLayer = new VectorLayer({
-      source: vectorSource,
+    const vectorTileLayer = new VectorTileLayer({
+      source: vectorTileSource,
       style: new Style({
         stroke: new Stroke({
           color: "#3b82f6",
           width: 3,
           lineJoin: "round",
         }),
-
+        fill: new Fill({ color: 'transparent' })
       }),
       zIndex: 5,
     });
 
     // Add vector layer to map
-    map.addLayer(vectorLayer);
-    vectorLayerRef.current = vectorLayer;
+    map.addLayer(vectorTileLayer);
+    vectorLayerRef.current = vectorTileLayer;
 
     // Handle vector source errors
-    vectorSource.on('featuresloaderror', () => {
-      setError('Failed to load vector layer');
+   
+
+    // Optional: Add success handler
+    vectorTileSource.on('tileloadend', () => {
+      console.log('MVT tiles loaded successfully');
     });
 
     return () => {
@@ -341,7 +346,7 @@ const OpenLayersRasterViewer: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">GIS Viewer</h1>
-              <p className="text-blue-100 text-sm">Vector & Raster Layers</p>
+              <p className="text-blue-100 text-sm">Vector Tiles & Raster Layers</p>
             </div>
           </div>
         </div>
@@ -717,4 +722,4 @@ const OpenLayersRasterViewer: React.FC = () => {
   );
 };
 
-export default OpenLayersRasterViewer;            
+export default OpenLayersRasterViewer;
