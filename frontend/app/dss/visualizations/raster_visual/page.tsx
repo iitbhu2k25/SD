@@ -189,8 +189,7 @@ const OpenLayersRasterViewer: React.FC = () => {
     map.addLayer(vectorTileLayer);
     vectorLayerRef.current = vectorTileLayer;
 
-    // Handle vector source errors
-   
+
 
     // Optional: Add success handler
     vectorTileSource.on('tileloadend', () => {
