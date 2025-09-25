@@ -1,29 +1,29 @@
 import sys
 import os
-from pathlib import Path
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(BASE_DIR)
 from app.api.service.script_svc.geoserver_svc import create_workspace,create_vector_stores,upload_shapefile
 from app.api.service.geoserver import Geoserver
 import pandas as pd
-import time
 import uuid
-state_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'state', 'STP_State.zip')
-district_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'district', 'STP_district.zip')
-subdistrict_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'subdistrict', 'STP_subdistrict.zip')
-villages_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp', 'villages', 'STP_Village.zip')
-river_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'River', 'Rivers.zip')
-stretch_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Stretches', 'Stretches.zip')
-drain_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Drains', 'Drain.zip')
-drain_buffer_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Drain_Suitability', 'Drain_Suitability.zip')
-boundry_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Boundary', 'Boundary.zip')
-town_zip = os.path.join(BASE_DIR, 'media', 'Rajat_data', 'shape_stp','Drain_stp', 'Town', 'Town.zip')
+BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIRR = os.path.join(BASE_DIR,'media', 'Rajat_data')
+sys.path.append(BASE_DIRR)
 
-stp_priority = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_stp", "stp_priority_visual_raster.csv")
-stp_sutability = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_stp", "stp_sutability_visual_raster.csv")
-groundwater_identification = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "gwli_visual.csv")
-groundwater_zone = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "gwz_visual.csv")
-mar_sutability = os.path.join(BASE_DIR, "media", "Rajat_data", "csv_file_visually", "mar_sutability_visual_raster.csv")
+state_zip = os.path.join(BASE_DIRR, 'shape_stp', 'state', 'STP_State.zip')
+district_zip = os.path.join(BASE_DIRR,  'shape_stp', 'district', 'STP_district.zip')
+subdistrict_zip = os.path.join(BASE_DIRR,  'shape_stp', 'subdistrict', 'STP_subdistrict.zip')
+villages_zip = os.path.join(BASE_DIRR,  'shape_stp', 'villages', 'STP_Village.zip')
+river_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'River', 'Rivers.zip')
+stretch_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Stretches', 'Stretches.zip')
+drain_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Drains', 'Drain.zip')
+drain_buffer_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Drain_Suitability', 'Drain_Suitability.zip')
+boundry_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Boundary', 'Boundary.zip')
+town_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Town', 'Town.zip')
+
+stp_priority = os.path.join(BASE_DIRR, "csv_file_stp", "stp_priority_visual_raster.csv")
+stp_sutability = os.path.join(BASE_DIRR,  "csv_file_stp", "stp_sutability_visual_raster.csv")
+groundwater_identification = os.path.join(BASE_DIRR,  "csv_file_stp", "gwli_visual.csv")
+groundwater_zone = os.path.join(BASE_DIRR,  "csv_file_stp", "gwz_visual.csv")
+mar_sutability = os.path.join(BASE_DIRR,  "csv_file_stp", "mar_sutability_visual_raster.csv")
 
 
 csv_files = [

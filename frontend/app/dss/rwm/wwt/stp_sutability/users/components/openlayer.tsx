@@ -463,7 +463,7 @@ const Maping: React.FC = () => {
           const resp = await fetch("/api/stp_operation/stp_sutability", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: selectedCategory, clip: selectedCatchments, place: "Drain" }),
+            body: JSON.stringify({ data: selectedCategory, clip: selectedCatchments, place: "Drain",drain_clip:selectedDrains }),
           });
 
           if (!resp.ok) throw new Error(`STP operation failed: ${resp.status}`);

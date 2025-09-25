@@ -995,7 +995,7 @@ class STPSutabilityMapper:
         raster_path=[]
         raster_weights=[]
         if payload.place == "Drain":
-            elevation_value=4
+            elevation_value=Stp_drain_new_crud(db).get_sum_elevation(payload.drain_clip)/len(payload.drain_clip)
         else: 
             elevation_value=Stp_towns_crud(db).get_sum_elevation(payload.clip)/len(payload.clip)
         for i in condition_raster:

@@ -51,7 +51,7 @@ class Stp_towns_crud(CrudBase):
     def get_sum_elevation(self,town_id:list,all_data:bool=True):
         query = self.db.query(func.sum(self.Model.elevation)).filter(
         self.Model.id.in_(town_id))
-        total_elevation = query.scalar()  # Returns the sum as a single value
+        total_elevation = query.scalar() 
         return total_elevation
         
     def get_towns(self,subdistrict:list,all_data:bool=True):
@@ -98,6 +98,13 @@ class Stp_drain_new_crud(CrudBase):
     def get_drains_class(self,drain_no:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(self.Model.Drain_No.in_(drain_no))
         return self._pagination(query,all_data)
+    
+    def get_sum_elevation(self,drain_id:list,all_data:bool=True):
+        query = self.db.query(func.sum(self.Model.Elevation)).filter(
+        self.Model.id.in_(drain_id))
+        total_elevation = query.scalar() 
+        return total_elevation
+    
 class Stp_catchment_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_Catchment):
         super().__init__(db,Model)

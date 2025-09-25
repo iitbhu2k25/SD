@@ -120,7 +120,7 @@ const MainContent = () => {
       {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation || reportLoading}
-          title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+          title={stpOperation ? "Analyzing STP sutability" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
           message={
             stpOperation
               ? "Analyzing site priorities and generating results..."

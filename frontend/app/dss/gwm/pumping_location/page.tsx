@@ -84,7 +84,7 @@ const MainContent = () => {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation}
           title={
-            stpOperation ? "Analyzing STP priorities" : "Loading Resources"
+            stpOperation ? "Analyzing pumping zones" : "Loading Resources"
           }
           message={
             stpOperation

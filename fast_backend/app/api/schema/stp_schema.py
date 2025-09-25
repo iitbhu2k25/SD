@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from typing import Annotated,List
+from typing import Annotated,List,Optional
 
 
 class Stp_response(BaseModel):
@@ -75,6 +75,7 @@ class STPSutabilityInput(BaseModel):
     clip: List[int] = None
     all_data: bool = True
     place: str = None
+    drain_clip:Optional[List[int]]=None
     class Config:
         from_attributes = True
 

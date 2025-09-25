@@ -119,7 +119,7 @@ const MainContent = () => {
     <div className="min-h-screen bg-gray-50">
       <WholeLoading
         visible={loading || isMapLoading || stpOperation || reportLoading}
-        title={stpOperation ? "Analyzing STP priorities" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+        title={stpOperation ? "Analyzing potential zones" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
         message={
           stpOperation
             ? "Analyzing site priorities and generating results..."

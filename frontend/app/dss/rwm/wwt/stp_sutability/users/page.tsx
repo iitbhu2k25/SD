@@ -37,7 +37,6 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
-  const [analysisMapImage, setAnalysisMapImage] = useState(null); // Store analysis map image
   const {
     selectedCatchments,
     selectedCatchmentsNames,
@@ -141,7 +140,7 @@ const MainContent = () => {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation}
           title={
-            stpOperation ? "Analyzing STP priorities" : "Loading Resources"
+            stpOperation ? "Analyzing STP sutability" : "Loading Resources"
           }
           message={
             stpOperation

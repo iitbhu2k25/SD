@@ -8,7 +8,7 @@ from app.api.service.celery.stp_priority_drain_document import document_gen1
 from app.api.service.celery.stp_sutability_admin_report import document_gen2
 from app.api.service.celery.stp_sutability_drain_report import document_gen3
 from app.conf.ws_config import ConnectionManager
-from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
+from fastapi import  WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from celery.result import AsyncResult
 import asyncio

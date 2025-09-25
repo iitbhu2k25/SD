@@ -21,9 +21,10 @@ docker-compose.override.yml
 postgres_data/
 db_data/
 
-fast_backend/app/static
-fast_backend/temp
-fast_backend/media
+/fast_backend/app/static
+/fast_backend/temp
+/fast_backend/media
+/fast_backend/media.zip
 # Build files
 /build/
 /dist/
