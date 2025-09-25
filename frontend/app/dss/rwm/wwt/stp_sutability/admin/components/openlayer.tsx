@@ -58,15 +58,13 @@ const Mapping: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Context hooks
-  const { displayRaster, selectedTowns, setdisplay_raster ,selectedVillages,setSelectedVillages} = useLocation();
+  const { displayRaster, selectedTowns, setdisplay_raster ,setSelectedVillages} = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
     LayerFilter,
     LayerFilterValue,
-    geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
     setstpOperation,
     stpOperation,
     resultLayer,

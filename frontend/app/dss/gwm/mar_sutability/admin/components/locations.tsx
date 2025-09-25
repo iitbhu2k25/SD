@@ -194,13 +194,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
         >
           Confirm
         </button>
-        <button 
-          className="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-          onClick={handleReset}
-          disabled={isLoading}
-        >
-          Reset
-        </button>
+        
       </div>
       
       {/* Loading indicator */}

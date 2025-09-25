@@ -143,10 +143,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.INDIA);
   const [boundarylayer, setboundarylayer] = useState<string | null>(LAYER_NAMES.BOUNDARY);
-  const [riverLayer, setRiverLayer] = useState<string | null>(LAYER_NAMES.RIVER); // Always load river layer
-  const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); // Always load stretch layer
-  const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); // Always load drain layer
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); // Always load catchment layer
+  const [riverLayer, setRiverLayer] = useState<string | null>(LAYER_NAMES.RIVER); 
+  const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); 
+  const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); 
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); 
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(true);
