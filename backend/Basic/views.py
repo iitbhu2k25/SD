@@ -9,7 +9,8 @@ import tempfile
 from .service import *
 from django.db.models import Sum, Q
 from .models import PopulationCohort
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+import numpy as np
 import os
 import json
 import geopandas as gpd
@@ -22,6 +23,19 @@ from .swrunoff import swrunoffView
 from rest_framework.permissions import AllowAny 
 import tempfile
 from rest_framework.parsers import MultiPartParser, FormParser
+import io
+from typing import List
+import matplotlib.pyplot as plt
+from matplotlib_scalebar.scalebar import ScaleBar  # pip install matplotlib-scalebar
+import matplotlib.ticker as mticker 
+from rest_framework.parsers import JSONParser
+import contextily as ctx
+import base64
+from datetime import datetime
+from pyproj import Transformer
+import matplotlib.patches as mpatches
+
+
 
 
 logger = logging.getLogger(__name__)
@@ -654,7 +668,6 @@ class FirefightingWaterDemandCalculationAPIView(APIView):
                 result[method] = method_result
         
         return Response(result, status=status.HTTP_200_OK)
-
 
 #for cohort 
 class CohortView(APIView):
@@ -1866,6 +1879,213 @@ class pdftotemp(APIView):
 
 
 ####################
+
+
+
+
+#############################################
+
+
+try:
+    import contextily as ctx
+    CONTEXTILY_AVAILABLE = True
+except Exception:
+    CONTEXTILY_AVAILABLE = False
+
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch
+from matplotlib_scalebar.scalebar import ScaleBar
+from pyproj import Transformer
+import numpy as np
+import io, os, base64, uuid
+from datetime import datetime
+from django.http import JsonResponse
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.parsers import JSONParser
+
+
+class BasicStudyAreaMap(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
+
+    temp_media_dir = "media/temp_maps"
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+        if not data or "village_codes" not in data:
+            return JsonResponse({"error": "Provide 'village_codes' list in JSON body."}, status=400)
+
+        village_codes = data["village_codes"]
+        if not isinstance(village_codes, list) or len(village_codes) == 0:
+            return JsonResponse({"error": "'village_codes' must be a non-empty list."}, status=400)
+
+        shp_path = "media/basic_shape/Final_Village/Edited2.shp"
+        try:
+            gdf = gpd.read_file(shp_path)
+        except Exception as e:
+            return JsonResponse({"error": f"Failed to read shapefile: {e}"}, status=500)
+
+        if "village_co" not in gdf.columns:
+            return JsonResponse({"error": "Shapefile does not contain 'village_co' field."}, status=500)
+
+        gdf["village_co"] = gdf["village_co"].astype(str).str.strip()
+        target_codes = [str(c).strip() for c in village_codes]
+        sel = gdf[gdf["village_co"].isin(target_codes)]
+
+        if sel.empty:
+            return JsonResponse({"error": "No matching village codes found in shapefile."}, status=404)
+
+        # Bounds in lat/lon
+        sel_latlon = sel.to_crs(epsg=4326)
+        minx, miny, maxx, maxy = sel_latlon.total_bounds
+
+        # Project to Web Mercator
+        sel_3857 = sel.to_crs(epsg=3857)
+        xmin, ymin, xmax, ymax = sel_3857.total_bounds
+
+        # Wider figure (landscape)
+        fig, ax = plt.subplots(1, 1, figsize=(22, 12), dpi=300)  # wider!
+        fig.patch.set_facecolor('white')
+
+        # Add buffer to reduce zoom
+        span_x = xmax - xmin
+        span_y = ymax - ymin
+        buffer_x = max(span_x * 0.12, 2000)
+        buffer_y = max(span_y * 0.12, 2000)
+
+        xlim = (xmin - buffer_x, xmax + buffer_x)
+        ylim = (ymin - buffer_y, ymax + buffer_y)
+
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+
+        # Light basemap
+        if CONTEXTILY_AVAILABLE:
+            try:
+                ctx.add_basemap(
+                    ax,
+                    source=ctx.providers.CartoDB.Positron,
+                    crs=sel_3857.crs.to_string(),
+                    zoom=12,
+                    alpha=1.0
+                )
+            except Exception as e:
+                print(f"⚠️ Could not add basemap: {e}")
+
+        # Plot villages on top
+        sel_3857.plot(
+            ax=ax,
+            edgecolor="black",
+            facecolor="lightgreen",
+            alpha=0.55,
+            linewidth=1.25,
+            zorder=5
+        )
+
+        # Axis labels and title
+        ax.set_xlabel("Longitude (°E)", fontsize=14, fontweight='bold')
+        ax.set_ylabel("Latitude (°N)", fontsize=14, fontweight='bold')
+        ax.set_title("Study Area Map", fontsize=18, fontweight='bold', pad=16)
+
+        # Tick labels
+        num_ticks = 6
+        x_ticks_3857 = np.linspace(*xlim, num_ticks)
+        y_ticks_3857 = np.linspace(*ylim, num_ticks)
+
+        transformer = Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
+        mid_y = (ylim[0] + ylim[1]) / 2.0
+        mid_x = (xlim[0] + xlim[1]) / 2.0
+
+        x_labels = [f"{transformer.transform(x, mid_y)[0]:.3f}°E" for x in x_ticks_3857]
+        y_labels = [f"{transformer.transform(mid_x, y)[1]:.3f}°N" for y in y_ticks_3857]
+
+        ax.set_xticks(x_ticks_3857)
+        ax.set_xticklabels(x_labels, fontsize=10, rotation=45, ha='right')
+
+        ax.set_yticks(y_ticks_3857)
+        ax.set_yticklabels(y_labels, fontsize=10, rotation=0, va='center')
+
+        # Grid
+        ax.grid(True, alpha=0.35, linestyle='--', linewidth=0.5, zorder=1)
+
+        # North arrow
+        arrow = FancyArrowPatch(
+            posA=(0.95, 0.12),
+            posB=(0.95, 0.26),
+            transform=ax.transAxes,
+            arrowstyle='-|>',
+            mutation_scale=18,
+            linewidth=2,
+            color='black',
+            zorder=100
+        )
+        ax.add_patch(arrow)
+        ax.text(0.95, 0.275, "N", transform=ax.transAxes, ha='center', va='bottom',
+                fontsize=14, fontweight='bold', zorder=101)
+
+        # Scale bar
+        scalebar = ScaleBar(
+            dx=1,
+            units="m",
+            location="lower right",
+            length_fraction=0.25,
+            height_fraction=0.02,
+            box_alpha=0.8,
+            color="black",
+            font_properties={'size': 12, 'weight': 'bold'}
+        )
+        ax.add_artist(scalebar)
+
+        # Equal aspect
+        ax.set_aspect('equal', adjustable='box')
+
+        plt.tight_layout()
+
+        # Save PNG
+        buf = io.BytesIO()
+        plt.savefig(
+            buf,
+            format="png",
+            dpi=300,
+            bbox_inches="tight",
+            facecolor=fig.get_facecolor(),
+            pad_inches=0.3
+        )
+        plt.close(fig)
+        buf.seek(0)
+
+        # Save file
+        os.makedirs(self.temp_media_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        filename = f"village_map_{timestamp}_{unique_id}.png"
+        file_path = os.path.join(self.temp_media_dir, filename)
+
+        with open(file_path, 'wb') as f:
+            f.write(buf.getbuffer())
+
+        # Convert to base64
+        buf.seek(0)
+        b64_string = base64.b64encode(buf.read()).decode("utf-8")
+        map_base64 = f"data:image/png;base64,{b64_string}"
+
+        return JsonResponse({
+            "filename": filename,
+            "map_base64": map_base64,
+            "bounds": {
+                "min_longitude": minx,
+                "max_longitude": maxx,
+                "min_latitude": miny,
+                "max_latitude": maxy
+            },
+            "map_center": {
+                "longitude": (minx + maxx) / 2,
+                "latitude": (miny + maxy) / 2
+            }
+        })
+
 
 
 #############################################

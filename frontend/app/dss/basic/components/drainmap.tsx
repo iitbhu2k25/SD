@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import isEqual from 'lodash/isEqual';
@@ -74,6 +74,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 }) => {
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const basinLayerRef = useRef<L.GeoJSON | null>(null);
     const riverLayerRef = useRef<L.GeoJSON | null>(null);
     const stretchLayerRef = useRef<L.GeoJSON | null>(null);
@@ -105,7 +106,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const isMapLoading = loading || catchmentLoading;
     useEffect(() => {
         if (mapContainerRef.current && !mapRef.current) {
-            console.log("Initializing map...");
+            //console.log("Initializing map...");
             try {
                 mapRef.current = L.map(mapContainerRef.current, {
                     center: [23.5937, 80.9629], // Center of India
@@ -154,11 +155,41 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     metric: true
                 }).addTo(mapRef.current);
 
+                // Fullscreen control (top-left)
+                const FullscreenLeafletControl = L.Control.extend({
+                    onAdd: () => {
+                        const container = L.DomUtil.create('div', 'leaflet-control-fullscreen');
+                        const button = L.DomUtil.create('button', 'fullscreen-button', container);
+                        button.innerHTML = isFullscreen ? '⤡' : '⤢';
+                        button.title = isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen';
+                        Object.assign(button.style, {
+                            background: 'white',
+                            border: '2px solid rgba(0,0,0,0.2)',
+                            borderRadius: '4px',
+                            width: '30px',
+                            height: '30px',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            lineHeight: '1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            boxShadow: '0 1px 5px rgba(0,0,0,0.4)',
+                        } as CSSStyleDeclaration);
+                        button.onmouseover = () => (button.style.backgroundColor = '#f4f4f4');
+                        button.onmouseout = () => (button.style.backgroundColor = 'white');
+                        L.DomEvent.on(button, 'click', L.DomEvent.stopPropagation);
+                        L.DomEvent.on(button, 'click', toggleFullscreen);
+                        return container;
+                    }
+                });
+                const fsControl = new FullscreenLeafletControl({ position: 'topleft' } as any);
+                fsControl.addTo(mapRef.current!);
 
 
                 fetchAllData();
             } catch (err) {
-                console.log("Error initializing map:", err);
+                //console.error("Error initializing map:", err);
                 setError("Failed to initialize map");
             }
         }
@@ -166,12 +197,21 @@ const DrainMap: React.FC<DrainMapProps> = ({
         return () => {
             clearLabelLayers();
             if (mapRef.current) {
-                console.log("Cleaning up map...");
+                //console.log("Cleaning up map...");
                 mapRef.current.remove();
                 mapRef.current = null;
             }
         };
     }, []);
+
+    useEffect(() => {
+        const btn = mapContainerRef.current?.querySelector('.leaflet-control-fullscreen .fullscreen-button') as HTMLButtonElement | null;
+        if (btn) {
+            btn.innerHTML = isFullscreen ? '⤡' : '⤢';
+            btn.title = isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen';
+        }
+    }, [isFullscreen]);
+
 
 
     useEffect(() => {
@@ -182,30 +222,30 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
 
     useEffect(() => {
-        console.log('DrainMap useEffect triggered with:', {
-            villageChangeSource,
-            globalVillageChangeSource: window.villageChangeSource,
-            dropdownLockUntil: window.dropdownLockUntil,
-            dropdownUpdateInProgress: window.dropdownUpdateInProgress,
-            finalDropdownSelection: window.finalDropdownSelection,
-            intersectedVillagesLength: intersectedVillages.length,
-            currentTime: Date.now()
-        });
+        // console.log('DrainMap useEffect triggered with:', {
+        //     villageChangeSource,
+        //     globalVillageChangeSource: window.villageChangeSource,
+        //     dropdownLockUntil: window.dropdownLockUntil,
+        //     dropdownUpdateInProgress: window.dropdownUpdateInProgress,
+        //     finalDropdownSelection: window.finalDropdownSelection,
+        //     intersectedVillagesLength: intersectedVillages.length,
+        //     currentTime: Date.now()
+        // });
 
         // ENHANCED: Handle final dropdown selection with timestamp checking FIRST
         if (window.finalDropdownSelection) {
             const selectionAge = Date.now() - window.finalDropdownSelection.timestamp;
             const isRecentSelection = selectionAge < 5000; // 5 seconds
 
-            console.log('Final dropdown selection found:', {
-                selectionAge,
-                isRecentSelection,
-                lastProcessed: lastProcessedDropdownRef.current,
-                selectionTimestamp: window.finalDropdownSelection.timestamp
-            });
+            // console.log('Final dropdown selection found:', {
+            //     selectionAge,
+            //     isRecentSelection,
+            //     lastProcessed: lastProcessedDropdownRef.current,
+            //     selectionTimestamp: window.finalDropdownSelection.timestamp
+            // });
 
             if (isRecentSelection && window.finalDropdownSelection.timestamp > lastProcessedDropdownRef.current) {
-                console.log('Applying final dropdown selection to map');
+                //console.log('Applying final dropdown selection to map');
                 lastProcessedDropdownRef.current = window.finalDropdownSelection.timestamp;
 
                 const finalSelectedIds = new Set(window.finalDropdownSelection.selectedIds);
@@ -216,7 +256,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                 // CRITICAL: Force update village layer styling immediately
                 if (villageLayerRef.current) {
-                    console.log('Updating village layer styling for dropdown selection:', finalSelectedIds.size, 'selected');
+                    //console.log('Updating village layer styling for dropdown selection:', finalSelectedIds.size, 'selected');
                     villageLayerRef.current.eachLayer((layer: any) => {
                         const layerShapeId = layer.feature?.properties?.shapeID?.toString();
                         if (layerShapeId) {
@@ -227,7 +267,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
                 return;
             } else if (!isRecentSelection) {
-                console.log('Clearing old final dropdown selection');
+                //console.log('Clearing old final dropdown selection');
                 window.finalDropdownSelection = undefined;
             }
         }
@@ -239,16 +279,16 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
         // Only skip if there's an active lock, not just because it's from dropdown
         if (isDropdownLocked || isDropdownUpdating) {
-            console.log('Skipping DrainMap useEffect - dropdown operation in progress', {
-                isDropdownLocked,
-                isDropdownUpdating
-            });
+            // console.log('Skipping DrainMap useEffect - dropdown operation in progress', {
+            //     isDropdownLocked,
+            //     isDropdownUpdating
+            // });
             return;
         }
 
         // Process external village changes (from map interaction or prop updates)
         if (intersectedVillages && intersectedVillages.length > 0) {
-            console.log("DrainMap processing intersectedVillages from external source");
+            //console.log("DrainMap processing intersectedVillages from external source");
 
             const incomingSelectedIds = new Set(
                 intersectedVillages
@@ -261,20 +301,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
             const incomingSelectedArray = [...incomingSelectedIds].sort();
 
             if (!isEqual(currentSelectedArray, incomingSelectedArray)) {
-                console.log("Updating DrainMap selectedVillageIds from external source:", {
-                    current: currentSelectedArray.length,
-                    incoming: incomingSelectedArray.length
-                });
+                // console.log("Updating DrainMap selectedVillageIds from external source:", {
+                //     current: currentSelectedArray.length,
+                //     incoming: incomingSelectedArray.length
+                // });
 
                 setSelectedVillageIds(incomingSelectedIds);
 
                 // Update village layer styling if it exists
 
             } else {
-                console.log("DrainMap village selection unchanged, skipping update");
+                //console.log("DrainMap village selection unchanged, skipping update");
             }
         } else if (intersectedVillages && intersectedVillages.length === 0) {
-            console.log("Clearing village selection in DrainMap");
+            //console.log("Clearing village selection in DrainMap");
             setSelectedVillageIds(new Set());
 
             // Clear all village styling if layer exists
@@ -292,7 +332,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     useEffect(() => {
         if (villageLayerRef.current) {
-            console.log('selectedVillageIds changed, updating village layer styling:', selectedVillageIds.size, 'selected');
+            //console.log('selectedVillageIds changed, updating village layer styling:', selectedVillageIds.size, 'selected');
             villageLayerRef.current.eachLayer((layer: any) => {
                 const layerShapeId = layer.feature?.properties?.shapeID?.toString();
                 if (layerShapeId) {
@@ -307,7 +347,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     useEffect(() => {
         if (mapRef.current) {
-            console.log(`River selection changed to: ${selectedRiver}`);
+            //console.log(`River selection changed to: ${selectedRiver}`);
 
             // Highlight the selected river on the map
             if (riversData && riverLayerRef.current) {
@@ -329,7 +369,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     useEffect(() => {
         if (selectedStretch && mapRef.current) {
-            console.log(`Stretch selection changed to: ${selectedStretch}`);
+            //console.log(`Stretch selection changed to: ${selectedStretch}`);
             // Highlight the selected stretch on the map
             if (stretchesData && stretchLayerRef.current) {
                 highlightSelectedStretch(selectedStretch);
@@ -341,7 +381,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     // Add this useEffect to watch for selected drains changes
     useEffect(() => {
         if (selectedDrains.length > 0 && mapRef.current) {
-            console.log(`Drains selection changed to: ${selectedDrains.join(', ')}`);
+            //console.log(`Drains selection changed to: ${selectedDrains.join(', ')}`);
             // Highlight the selected drains on the map
             if (drainsData && drainLayerRef.current) {
                 highlightSelectedDrains();
@@ -392,6 +432,43 @@ const DrainMap: React.FC<DrainMapProps> = ({
         }
     }, [mapRef.current]);
 
+
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange as any);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange as any);
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as any);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange as any);
+            document.removeEventListener('MSFullscreenChange', handleFullscreenChange as any);
+        };
+    }, []);
+
+
+    const toggleFullscreen = useCallback(() => {
+        const el = mapContainerRef.current;
+        if (!document.fullscreenElement) {
+            if (el?.requestFullscreen) {
+                el.requestFullscreen()
+                    .then(() => setIsFullscreen(true))
+                    .catch((err) => console.error('Error entering fullscreen:', err));
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen()
+                    .then(() => setIsFullscreen(false))
+                    .catch((err) => console.error('Error exiting fullscreen:', err));
+            }
+        }
+    }, []);
+
+
     // Toggle catchment layer visibility
     const toggleCatchmentVisibility = () => {
         if (!mapRef.current) return;
@@ -413,7 +490,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         if (mapRef.current && labelLayersRef.current.length > 0) {
             labelLayersRef.current.forEach(layer => mapRef.current?.removeLayer(layer));
             labelLayersRef.current = [];
-            console.log("Cleared label layers");
+           // console.log("Cleared label layers");
         }
     };
 
@@ -423,11 +500,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
         if (villageData && showVillage) {
             // Show village layer by calling updateVillageLayer
-            console.log("Showing village layer...");
+            //console.log("Showing village layer...");
             updateVillageLayer(villageData);
         } else if (villageLayerRef.current) {
             // Hide village layer but preserve selection state
-            console.log("Hiding village layer, preserving selection state:", Array.from(selectedVillageIds));
+            // console.log("Hiding village layer, preserving selection state:", Array.from(selectedVillageIds));
             mapRef.current.removeLayer(villageLayerRef.current);
             villageLayerRef.current = null;
         }
@@ -451,7 +528,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const zoomToFeature = (featureType: 'river' | 'stretch' | 'drain' | 'catchment', featureId: string) => {
         if (!mapRef.current) return;
 
-        console.log(`Zooming to ${featureType} with ID: ${featureId}`);
+        //console.log(`Zooming to ${featureType} with ID: ${featureId}`);
 
         try {
             let targetLayer: L.GeoJSON | null = null;
@@ -474,7 +551,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             }
 
             if (!targetLayer) {
-                console.warn(`Cannot zoom: ${featureType} layer not available`);
+                //console.warn(`Cannot zoom: ${featureType} layer not available`);
                 return;
             }
 
@@ -495,7 +572,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             });
 
             if (featureBounds && (featureBounds as L.LatLngBounds).isValid()) {
-                console.log(`Zooming to bounds of ${featureType}: ${featureId}`);
+                //console.log(`Zooming to bounds of ${featureType}: ${featureId}`);
                 mapRef.current.fitBounds(featureBounds, {
                     padding: [50, 50],
                     maxZoom: 14,
@@ -503,10 +580,10 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                 });
             } else {
-                console.warn(`No valid bounds found for ${featureType}: ${featureId}`);
+                //console.warn(`No valid bounds found for ${featureType}: ${featureId}`);
             }
         } catch (error) {
-            console.log(`Error zooming to ${featureType}:`, error);
+            //console.error(`Error zooming to ${featureType}:`, error);
         }
     };
 
@@ -566,7 +643,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const highlightSelectedRiver = (riverId: string) => {
         const map = mapRef.current;
         if (!map || !riverLayerRef.current || !riversData) {
-            console.log("Cannot highlight river: map, layer or data missing");
+            //console.log("Cannot highlight river: map, layer or data missing");
             return;
         }
 
@@ -604,16 +681,16 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     }
                 }
             });
-            console.log("Highlighted river:", riverId);
+            //console.log("Highlighted river:", riverId);
         } catch (err) {
-            console.log("Error highlighting river:", err);
+            //console.error("Error highlighting river:", err);
         }
     };
 
     // Add this function to highlight the selected stretch
     const highlightSelectedStretch = (stretchId: string) => {
         if (!mapRef.current || !stretchLayerRef.current) {
-            console.log("Cannot highlight stretch: map, layer or data missing");
+            //console.log("Cannot highlight stretch: map, layer or data missing");
             return;
         }
 
@@ -661,20 +738,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             });
 
-            console.log("Highlighted stretch:", stretchId);
+            //console.log("Highlighted stretch:", stretchId);
         } catch (err) {
-            console.log("Error highlighting stretch:", err);
+            //console.error("Error highlighting stretch:", err);
         }
     };
 
     const resetAllStretchStyles = () => {
         if (!mapRef.current || !stretchLayerRef.current) {
-            console.log("Cannot reset stretch styles: map or layer missing");
+            //console.log("Cannot reset stretch styles: map or layer missing");
             return;
         }
 
         try {
-            console.log("Resetting all stretch styles to default");
+            //console.log("Resetting all stretch styles to default");
 
             stretchLayerRef.current.eachLayer((layer: any) => {
                 if (layer.feature?.properties) {
@@ -694,7 +771,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             }
 
         } catch (err) {
-            console.log("Error resetting stretch styles:", err);
+            //console.error("Error resetting stretch styles:", err);
         }
     };
 
@@ -703,7 +780,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         setCatchmentLoading(true);
         setError(null);
         try {
-            console.log("Starting data fetch...");
+            //console.log("Starting data fetch...");
             await Promise.all([
                 fetchBasin(),
                 fetchRivers(),
@@ -715,7 +792,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 await fetchStretchesByRiver(selectedRiver);
             }
         } catch (err) {
-            console.log("Error fetching data:", err);
+            //console.error("Error fetching data:", err);
             setError("Failed to load map data");
         } finally {
             setLoading(false);
@@ -725,62 +802,62 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     const fetchBasin = async () => {
         try {
-            console.log("Fetching basin data...");
+            //console.log("Fetching basin data...");
             const response = await fetch('/django/basin/');
-            console.log("Basin response status:", response.status);
+            //console.log("Basin response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch basin: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log("Basin data:", data);
+            //console.log("Basin data:", data);
             if (data.features?.length > 0) {
-                console.log(`Received ${data.features.length} basin features`);
+                //console.log(`Received ${data.features.length} basin features`);
             } else {
-                console.warn("No basin features received");
+                //console.warn("No basin features received");
             }
             setBasinData(data);
             if (mapRef.current) {
                 updateBasinLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching basin:", error);
+            //console.error("Error fetching basin:", error);
             setError(`Basin: ${error.message}`);
         }
     };
 
     const fetchRivers = async () => {
         try {
-            console.log("Fetching rivers...");
+            //console.log("Fetching rivers...");
             const response = await fetch('/django/rivers/');
-            console.log("Rivers response status:", response.status);
+            //console.log("Rivers response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch rivers: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log("Rivers data:", data);
+            //console.log("Rivers data:", data);
             if (data.features?.length > 0) {
-                console.log(`Received ${data.features.length} river features`);
+                //console.log(`Received ${data.features.length} river features`);
             } else {
-                console.warn("No river features received");
+                //console.warn("No river features received");
             }
             setRiversData(data);
             if (mapRef.current) {
                 updateRiversLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching rivers:", error);
+            //console.error("Error fetching rivers:", error);
             setError(`Rivers: ${error.message}`);
         }
     };
 
     const highlightRiverStretches = (riverId: string, riverStretchIds: string[]) => {
         if (!mapRef.current || !stretchLayerRef.current) {
-            console.log("Cannot highlight river stretches: map or layer missing");
+            //console.log("Cannot highlight river stretches: map or layer missing");
             return;
         }
 
         try {
-            console.log(`Highlighting ${riverStretchIds.length} stretches for river ${riverId}`);
+            //console.log(`Highlighting ${riverStretchIds.length} stretches for river ${riverId}`);
 
             stretchLayerRef.current.eachLayer((layer: any) => {
                 if (layer.feature?.properties) {
@@ -844,7 +921,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (err) {
-            console.log("Error highlighting river stretches:", err);
+            //console.error("Error highlighting river stretches:", err);
         }
     };
 
@@ -852,20 +929,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchStretchesByRiver = async (riverId: string) => {
         setCatchmentLoading(true);
         try {
-            console.log(`Fetching stretches for river ${riverId}...`);
+            //console.log(`Fetching stretches for river ${riverId}...`);
             const response = await fetch('/django/river-stretched/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ River_ID: parseInt(riverId, 10) })
             });
-            console.log("Stretches response status:", response.status);
+            //console.log("Stretches response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch stretches: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log("Stretches data:", data);
+            //console.log("Stretches data:", data);
             if (data.features?.length > 0) {
-                console.log(`Received ${data.features.length} stretch features`);
+                //console.log(`Received ${data.features.length} stretch features`);
                 // Update stretchesData with river-specific stretches
                 setStretchesData(data);
                 // Update the stretch layer with the new data
@@ -878,7 +955,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 );
                 highlightRiverStretches(riverId, riverStretchIds);
             } else {
-                console.warn("No stretch features received for selected river");
+                //console.warn("No stretch features received for selected river");
                 setStretchesData(null);
                 if (stretchLayerRef.current && mapRef.current) {
                     mapRef.current.removeLayer(stretchLayerRef.current);
@@ -886,7 +963,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching stretches:", error);
+            //console.error("Error fetching stretches:", error);
             setError(`Stretches: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -895,47 +972,47 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     const fetchAllDrains = async () => {
         try {
-            console.log("Fetching drains...");
+            //console.log("Fetching drains...");
             const response = await fetch('/django/drain/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
             });
-            console.log("Drains response status:", response.status);
+            //console.log("Drains response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch drains: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log("Drains data:", data);
+            //console.log("Drains data:", data);
             if (data.features?.length > 0) {
-                console.log(`Received ${data.features.length} drain features`);
+                //console.log(`Received ${data.features.length} drain features`);
             } else {
-                console.warn("No drain features received");
+                //console.warn("No drain features received");
             }
             setDrainsData(data);
             if (mapRef.current) {
                 updateDrainsLayer(data);
             }
         } catch (error: any) {
-            console.log("Error fetching drains:", error);
+            //console.error("Error fetching drains:", error);
             setError(`Drains: ${error.message}`);
         }
     };
 
     const fetchAllStretches = async () => {
         try {
-            console.log("Fetching all stretches...");
+            //console.log("Fetching all stretches...");
             const response = await fetch('/django/all-stretches/');
-            console.log("All stretches response status:", response.status);
+            //console.log("All stretches response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch stretches: ${response.statusText}`);
             }
             const data = await response.json();
-            console.log("All stretches data:", data);
+           // console.log("All stretches data:", data);
             if (data.features?.length > 0) {
-                console.log(`Received ${data.features.length} stretch features`);
+                //console.log(`Received ${data.features.length} stretch features`);
             } else {
-                console.warn("No stretch features received");
+               // console.warn("No stretch features received");
             }
             setStretchesData(data);
             if (mapRef.current) {
@@ -945,12 +1022,12 @@ const DrainMap: React.FC<DrainMapProps> = ({
                         createStretchLabels(data);
                     }
                 } catch (labelError) {
-                    console.log("Error creating stretch labels:", labelError);
+                    //console.error("Error creating stretch labels:", labelError);
                     // Don't let label errors prevent the map from loading
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching all stretches:", error);
+            //console.error("Error fetching all stretches:", error);
             setError(`Stretches: ${error.message}`);
         }
     };
@@ -960,7 +1037,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchCatchmentsByDrains = async (drainIds: string[]) => {
         setCatchmentLoading(true);
         try {
-            console.log(`Fetching catchments and villages for drains: ${drainIds}...`);
+            //console.log(`Fetching catchments and villages for drains: ${drainIds}...`);
             const response = await fetch('/django/catchment_village/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -974,7 +1051,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             const data = await response.json();
 
             // Create a map of village data from village_geojson
-            console.log('Raw intersected villages from API:', data.intersected_villages?.length || 0);
+            //console.log('Raw intersected villages from API:', data.intersected_villages?.length || 0);
 
             // Process villages and handle duplicates (same village intersecting multiple drains)
             const villageMap = new Map<string, IntersectedVillage>();
@@ -1006,11 +1083,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
             // Log duplicate information
             const duplicates = Array.from(duplicateCount.entries()).filter(([_, count]) => count > 1);
             if (duplicates.length > 0) {
-                console.log('Found duplicate villages:', duplicates);
+                //console.log('Found duplicate villages:', duplicates);
             }
 
             const villagesWithSelection = Array.from(villageMap.values());
-            console.log(`Processed villages: ${(data.intersected_villages || []).length} raw -> ${villagesWithSelection.length} unique`);
+            //console.log(`Processed villages: ${(data.intersected_villages || []).length} raw -> ${villagesWithSelection.length} unique`);
             setIntersectedVillages(villagesWithSelection);
 
             const villageIds: Set<string> = new Set(villagesWithSelection.map((v: { shapeID: { toString: () => any; }; }) => v.shapeID.toString()));
@@ -1020,7 +1097,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             if (data.village_geojson?.features?.length > 0) {
                 setVillageData(data.village_geojson);
                 if (mapRef.current && showVillage) {
-                    console.log("Village layer will be created via useEffect");
+                    //console.log("Village layer will be created via useEffect");
                 }
             } else {
                 setVillageData(null);
@@ -1051,7 +1128,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            console.log("Error fetching catchments and villages:", error);
+            //console.error("Error fetching catchments and villages:", error);
             setError(`Catchments and Villages: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -1060,13 +1137,13 @@ const DrainMap: React.FC<DrainMapProps> = ({
     // Add this function to update the catchment layer
     const updateCatchmentsLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating catchment layer...");
+        //console.log("Updating catchment layer...");
         if (catchmentLayerRef.current) {
             mapRef.current.removeLayer(catchmentLayerRef.current);
             catchmentLayerRef.current = null;
         }
         if (!data?.features?.length) {
-            console.warn("No catchment features to display");
+            //console.warn("No catchment features to display");
             return;
         }
         try {
@@ -1084,7 +1161,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     layer.bindPopup(`Catchment: ${catchmentName}<br>Drain No: ${drainNo}`);
                 },
             }).addTo(mapRef.current);
-            console.log(`Catchment layer added with ${data.features.length} features`);
+            //console.log(`Catchment layer added with ${data.features.length} features`);
 
             // Auto-zoom to catchment
             if (mapRef.current && catchmentLayerRef.current) {
@@ -1102,20 +1179,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 villageLayerRef.current.bringToFront();
             }
         } catch (error) {
-            console.log("Error updating catchment layer:", error);
+            //console.error("Error updating catchment layer:", error);
             setError("Failed to display catchments");
         }
     };
 
     const updateBasinLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating basin layer...");
+        //console.log("Updating basin layer...");
         if (basinLayerRef.current) {
             mapRef.current.removeLayer(basinLayerRef.current);
             basinLayerRef.current = null;
         }
         if (!data?.features?.length) {
-            console.warn("No basin features to display");
+            //console.warn("No basin features to display");
             return;
         }
         try {
@@ -1138,7 +1215,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
             // Make sure basin is at the back of all layers
             basinLayerRef.current.bringToBack();
-            console.log(`Basin layer added with ${data.features.length} features`);
+            //console.log(`Basin layer added with ${data.features.length} features`);
 
             // Zoom to basin
             if (mapRef.current && basinLayerRef.current) {
@@ -1151,20 +1228,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating basin layer:", error);
+            //console.error("Error updating basin layer:", error);
             setError("Failed to display basin");
         }
     };
 
     const updateRiversLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating rivers layer...");
+        //console.log("Updating rivers layer...");
         if (riverLayerRef.current) {
             mapRef.current.removeLayer(riverLayerRef.current);
             riverLayerRef.current = null;
         }
         if (!data?.features?.length) {
-            console.warn("No river features to display");
+            //console.warn("No river features to display");
             return;
         }
         try {
@@ -1189,7 +1266,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     layer.bindPopup(`River: ${riverName}`);
                 },
             }).addTo(mapRef.current);
-            console.log(`Rivers layer added with ${data.features.length} features`);
+            //console.log(`Rivers layer added with ${data.features.length} features`);
 
             // Zoom to rivers layer if basin is not available
             if (mapRef.current && riverLayerRef.current && !basinLayerRef.current) {
@@ -1202,14 +1279,14 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating rivers layer:", error);
+            //console.error("Error updating rivers layer:", error);
             setError("Failed to display rivers");
         }
     };
 
     const updateStretchesLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating stretches layer...");
+        //console.log("Updating stretches layer...");
 
         // Remove the existing layer
         if (stretchLayerRef.current) {
@@ -1221,11 +1298,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
         try {
             clearLabelLayers();
         } catch (error) {
-            console.log("Error clearing label layers:", error);
+            //console.error("Error clearing label layers:", error);
         }
 
         if (!data?.features?.length) {
-            console.warn("No stretch features to display");
+            //console.warn("No stretch features to display");
             return;
         }
 
@@ -1264,7 +1341,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     layer.bindPopup(`Stretch: ${stretchId}<br>River: ${riverName}`);
                 },
             }).addTo(mapRef.current);
-            console.log(`Stretches layer added with ${data.features.length} features`);
+            //console.log(`Stretches layer added with ${data.features.length} features`);
 
             // Create labels if enabled
             try {
@@ -1272,7 +1349,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     createStretchLabels(data);
                 }
             } catch (labelError) {
-                console.log("Error creating stretch labels:", labelError);
+                //console.error("Error creating stretch labels:", labelError);
             }
 
             // If a specific stretch is already selected, highlight it
@@ -1291,18 +1368,18 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating stretches layer:", error);
+            //console.error("Error updating stretches layer:", error);
             setError("Failed to display stretches");
         }
     };
 
     const createStretchLabels = (data: GeoJSONFeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Creating stretch labels...");
+        //console.log("Creating stretch labels...");
         clearLabelLayers();
 
         if (!data?.features?.length) {
-            console.warn("No stretch features for labeling");
+            //console.warn("No stretch features for labeling");
             return;
         }
 
@@ -1338,9 +1415,9 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             });
 
-            console.log(`Created ${labelLayersRef.current.length} stretch labels`);
+            //console.log(`Created ${labelLayersRef.current.length} stretch labels`);
         } catch (error) {
-            console.log("Error creating stretch labels:", error);
+            //console.error("Error creating stretch labels:", error);
         }
     };
 
@@ -1384,18 +1461,18 @@ const DrainMap: React.FC<DrainMapProps> = ({
     // Toggle village selection - Updated function
     const toggleVillageSelection = (shapeId: string) => {
         if (selectionsLocked) {
-            console.log('Village selection is locked, ignoring click');
+            //console.log('Village selection is locked, ignoring click');
             return;
         }
 
         // Check for any ongoing dropdown operations
         if (window.dropdownUpdateInProgress ||
             (window.dropdownLockUntil && Date.now() < window.dropdownLockUntil)) {
-            console.log('Dropdown operation in progress, ignoring map click');
+            //console.log('Dropdown operation in progress, ignoring map click');
             return;
         }
 
-        console.log("Toggle village selection for ID:", shapeId);
+        //console.log("Toggle village selection for ID:", shapeId);
 
         // Set enhanced flags to indicate this is a map change
         window.villageChangeSource = 'map';
@@ -1432,7 +1509,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         // Notify parent component with a slight delay to ensure state consistency
         setTimeout(() => {
             if (onVillagesChange) {
-                console.log('DrainMap calling onVillagesChange with map source');
+                //console.log('DrainMap calling onVillagesChange with map source');
                 onVillagesChange(updatedVillages);
             }
         }, 10);
@@ -1449,9 +1526,9 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     const updateVillageLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating village layer with data:", data);
-        console.log("Current selectedVillageIds:", Array.from(selectedVillageIds));
-        console.log("Selections locked:", selectionsLocked);
+        //console.log("Updating village layer with data:", data);
+        //console.log("Current selectedVillageIds:", Array.from(selectedVillageIds));
+        //console.log("Selections locked:", selectionsLocked);
 
         // Remove the existing layer from the map
         if (villageLayerRef.current) {
@@ -1459,7 +1536,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         }
 
         if (!data?.features?.length) {
-            console.warn("No village features to display");
+            //console.warn("No village features to display");
             villageLayerRef.current = null;
             return;
         }
@@ -1470,7 +1547,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 style: (feature) => {
                     const shapeId = feature?.properties?.shapeID?.toString();
                     const isSelected = selectedVillageIds.has(shapeId);
-                    console.log(`Styling village ${shapeId}, selected=${isSelected}, locked=${selectionsLocked}`);
+                    //console.log(`Styling village ${shapeId}, selected=${isSelected}, locked=${selectionsLocked}`);
                     return {
                         color: isSelected ? 'red' : '#999',
                         weight: 2,
@@ -1520,7 +1597,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                 }
                             }
                         } catch (error) {
-                            console.warn('Error setting cursor on village mouseover:', error);
+                            //console.warn('Error setting cursor on village mouseover:', error);
                         }
                     });
 
@@ -1539,7 +1616,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                 mapRef.current.getContainer().style.cursor = '';
                             }
                         } catch (error) {
-                            console.warn('Error resetting cursor on village mouseout:', error);
+                            ///console.warn('Error resetting cursor on village mouseout:', error);
                         }
                     });
 
@@ -1551,7 +1628,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                             const villageId = feature.properties.shapeID;
                             if (villageId) {
-                                console.log(`Village clicked: ${villageId}`);
+                               // console.log(`Village clicked: ${villageId}`);
                                 toggleVillageSelection(villageId);
                             }
                         });
@@ -1571,7 +1648,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                     mapRef.current.getContainer().style.cursor = 'pointer';
                                 }
                             } catch (error) {
-                                console.warn('Error setting cursor on village mouseover:', error);
+                                //console.warn('Error setting cursor on village mouseover:', error);
                             }
                         });
 
@@ -1588,7 +1665,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                     mapRef.current.getContainer().style.cursor = '';
                                 }
                             } catch (error) {
-                                console.warn('Error resetting cursor on village mouseout:', error);
+                                //console.warn('Error resetting cursor on village mouseout:', error);
                             }
                         });
                     } else {
@@ -1606,7 +1683,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                     mapRef.current.getContainer().style.cursor = 'not-allowed';
                                 }
                             } catch (error) {
-                                console.warn('Error setting not-allowed cursor:', error);
+                                //console.warn('Error setting not-allowed cursor:', error);
                             }
                         });
 
@@ -1623,14 +1700,14 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                     mapRef.current.getContainer().style.cursor = '';
                                 }
                             } catch (error) {
-                                console.warn('Error resetting cursor on village mouseout:', error);
+                               // console.warn('Error resetting cursor on village mouseout:', error);
                             }
                         });
                     }
                 },
             }).addTo(mapRef.current);
 
-            console.log(`Village layer added with ${data.features.length} features, locked: ${selectionsLocked}`);
+            //console.log(`Village layer added with ${data.features.length} features, locked: ${selectionsLocked}`);
             villageLayerRef.current.bringToFront(); // Ensure villages are on top
 
             // If no catchment bounds available, zoom to villages
@@ -1644,20 +1721,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            console.log("Error updating village layer:", error);
+            //console.error("Error updating village layer:", error);
             setError("Failed to display villages");
         }
     };
 
     const updateDrainsLayer = (data: FeatureCollection) => {
         if (!mapRef.current) return;
-        console.log("Updating drains layer...");
+        //console.log("Updating drains layer...");
         if (drainLayerRef.current) {
             mapRef.current.removeLayer(drainLayerRef.current);
             drainLayerRef.current = null;
         }
         if (!data?.features?.length) {
-            console.warn("No drain features to display");
+            //console.warn("No drain features to display");
             return;
         }
         try {
@@ -1682,7 +1759,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     layer.bindPopup(`Drain: ${drainNo}`);
                 },
             }).addTo(mapRef.current);
-            console.log(`Drains layer added with ${data.features.length} features`);
+            //console.log(`Drains layer added with ${data.features.length} features`);
 
             // Auto-zoom to drains if no other layers are available
             if (!basinLayerRef.current && !riverLayerRef.current && !stretchLayerRef.current) {
@@ -1699,14 +1776,14 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 highlightSelectedDrains();
             }
         } catch (error) {
-            console.log("Error updating drains layer:", error);
+            //console.error("Error updating drains layer:", error);
             setError("Failed to display drains");
         }
     };
 
     const highlightSelectedDrains = () => {
         if (!mapRef.current || !drainLayerRef.current || !drainsData) {
-            console.log("Cannot highlight drains: map, layer or data missing");
+           // console.log("Cannot highlight drains: map, layer or data missing");
             return;
         }
         try {
@@ -1747,9 +1824,9 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     }
                 }
             });
-            console.log("Highlighted drains:", selectedDrains);
+           // console.log("Highlighted drains:", selectedDrains);
         } catch (err) {
-            console.log("Error highlighting drains:", err);
+            //console.error("Error highlighting drains:", err);
         }
     };
 
@@ -1782,9 +1859,10 @@ const DrainMap: React.FC<DrainMapProps> = ({
         <div className={`map-container ${className || ''} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
             <div
                 ref={mapContainerRef}
-                className="drain-map border-4 z-[100] border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full relative"
+                className={`drain-map border-4 z-[100] border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full ${isFullscreen ? 'h-screen rounded-none border-0' : 'h-full'} relative`}
                 style={{ background: 'rgb(255, 255, 255)' }}
             >
+
                 {/* Legend moved inside map as overlay */}
                 <div className="absolute top-2 left-15 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
                     <div className="flex flex-wrap gap-2 text-xs">
@@ -1875,6 +1953,8 @@ const DrainMap: React.FC<DrainMapProps> = ({
                         )}
                     </div>
                 )}
+
+                
                 {loading && (
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
                         <div className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
@@ -1933,6 +2013,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                             Loading .......
                             Please be patient
                         </div>
+                        
                     </div>
                 )}
             </div>

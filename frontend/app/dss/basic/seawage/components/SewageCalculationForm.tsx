@@ -1,3 +1,4 @@
+//frontend\app\dss\basic\seawage\components\SewageCalculationForm.tsx
 'use client';
 import React, { useState, useMemo, useEffect, JSX } from 'react';
 import { jsPDF } from "jspdf";
@@ -235,7 +236,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       }
 
     } catch (error) {
-      console.log('Error fetching storm water data:', error);
+      //console.error('Error fetching storm water data:', error);
       setStormWaterError(`Failed to fetch storm water data: ${(error as Error).message}`);
     }
     finally {
@@ -284,7 +285,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       const result = await response.json();
       setStormWaterResult(result);
     } catch (error) {
-      console.log('Error calculating storm water runoff:', error);
+      //console.error('Error calculating storm water runoff:', error);
       setStormWaterError(`Failed to calculate storm water runoff: ${(error as Error).message}`);
     }
     finally {
@@ -307,16 +308,16 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
 
   // --- NEW: Initialize drain items from selected drains in drain mode ---
   useEffect(() => {
-    console.log('SewageCalculationForm useEffect triggered:', {
-      sourceMode,
-      selectedRiverData: selectedRiverData ? 'present' : 'null',
-      windowSelectedRiverData: window.selectedRiverData ? 'present' : 'null',
-      windowAllDrains: window.selectedRiverData?.allDrains?.length || 0
-    });
+    // console.log('SewageCalculationForm useEffect triggered:', {
+    //   sourceMode,
+    //   selectedRiverData: selectedRiverData ? 'present' : 'null',
+    //   windowSelectedRiverData: window.selectedRiverData ? 'present' : 'null',
+    //   windowAllDrains: window.selectedRiverData?.allDrains?.length || 0
+    // });
 
     // FIXED: Only proceed if sourceMode is actually 'drain'
     if (sourceMode === 'drain') {
-      console.log('Processing drain mode initialization...');
+      //console.log('Processing drain mode initialization...');
 
       // FIXED: Since window.selectedRiverData has the data, use it primarily
       let drainData = null;
@@ -324,12 +325,12 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       // Priority 1: window.selectedRiverData.allDrains (this has your data)
       if (window.selectedRiverData?.allDrains && window.selectedRiverData.allDrains.length > 0) {
         drainData = window.selectedRiverData.allDrains;
-        console.log('Using window.selectedRiverData.allDrains:', drainData);
+        //console.log('Using window.selectedRiverData.allDrains:', drainData);
       }
       // Priority 2: selectedRiverData prop
       else if (selectedRiverData?.allDrains && selectedRiverData.allDrains.length > 0) {
         drainData = selectedRiverData.allDrains;
-        console.log('Using selectedRiverData prop:', drainData);
+        //console.log('Using selectedRiverData prop:', drainData);
       }
       // Priority 3: window.selectedRiverData.drains as fallback
       else if (window.selectedRiverData?.drains && window.selectedRiverData.drains.length > 0) {
@@ -339,11 +340,11 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           stretch: 'Unknown Stretch',
           drainNo: d.id.toString()
         }));
-        console.log('Using window.selectedRiverData.drains as fallback:', drainData);
+        //console.log('Using window.selectedRiverData.drains as fallback:', drainData);
       }
 
       if (drainData && drainData.length > 0) {
-        console.log('Creating drain items from data:', drainData);
+        //console.log('Creating drain items from data:', drainData);
 
         const newDrainItems: DrainItem[] = drainData.map((drain: any) => ({
           id: drain.id.toString(), // This should be "33" from your debug
@@ -351,18 +352,18 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           discharge: '', // Start with empty discharge
         }));
 
-        console.log('New drain items created:', newDrainItems);
+        //console.log('New drain items created:', newDrainItems);
 
         // Always update in drain mode to ensure correct data
         setDrainCount(drainData.length);
         setDrainItems(newDrainItems);
 
-        console.log('Updated drainCount and drainItems');
+        //console.log('Updated drainCount and drainItems');
       } else {
-        console.log('No drain data found for initialization');
+        //console.log('No drain data found for initialization');
       }
     } else {
-      console.log('Not in drain mode, sourceMode is:', sourceMode);
+      //console.log('Not in drain mode, sourceMode is:', sourceMode);
     }
   }, [sourceMode, selectedRiverData]);
 
@@ -416,7 +417,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
           const windowIds = windowDrains.map((d: any) => d.id.toString()).sort();
 
           if (!isEqual(currentIds, windowIds)) {
-            console.log('Updating drain structure while preserving discharge values');
+            //console.log('Updating drain structure while preserving discharge values');
 
             const newDrainItems: DrainItem[] = windowDrains.map((drain: any) => {
               const existingItem = drainItems.find(existing => existing.id === drain.id.toString());
@@ -474,10 +475,10 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       } else if (waterSupplyResult && waterSupplyResult[sampleYear]) {
         popBasedValue = waterSupplyResult[sampleYear];
       }
-      console.log('perCapitaConsumption', perCapitaConsumption);
-      console.log('seasonalMultipliers', seasonalMultipliers);
-      console.log('floatingSeasonalDemands', floatingSeasonalDemands);
-      console.log('waterDemandResults', waterDemandResults);
+      // console.log('perCapitaConsumption', perCapitaConsumption);
+      // console.log('seasonalMultipliers', seasonalMultipliers);
+      // console.log('floatingSeasonalDemands', floatingSeasonalDemands);
+      // console.log('waterDemandResults', waterDemandResults);
       // Calculate drain-based sewage value
       if (totalDrainDischarge > 0) {
         const referencePopulation = (window as any).population2025 || computedPopulation["2025"] || computedPopulation[Object.keys(computedPopulation)[0]];
@@ -516,17 +517,17 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         firefightingBasedValue = (window as any).firefightingWaterDemand[method][sampleYear] * 0.8;
       }
 
-      console.log('Auto-selecting peak flow source:', {
-        popBasedValue,
-        drainBasedValue,
-        waterBasedValue,
-        floatingBasedValue,
-        institutionalBasedValue,
-        firefightingBasedValue,
-        domesticLoadMethod,
-        totalDrainDischarge,
-        totalSupplyInput
-      });
+      // console.log('Auto-selecting peak flow source:', {
+      //   popBasedValue,
+      //   drainBasedValue,
+      //   waterBasedValue,
+      //   floatingBasedValue,
+      //   institutionalBasedValue,
+      //   firefightingBasedValue,
+      //   domesticLoadMethod,
+      //   totalDrainDischarge,
+      //   totalSupplyInput
+      // });
 
       // Select the method with highest value
       // Calculate floating-based sewage value
@@ -570,7 +571,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
   };
 
   const handleDrainItemChange = (index: number, field: keyof DrainItem, value: string | number) => {
-    console.log(`🔧 Drain item change - Index: ${index}, Field: ${field}, Value: ${value}, Type: ${typeof value}`);
+    //console.log(`🔧 Drain item change - Index: ${index}, Field: ${field}, Value: ${value}, Type: ${typeof value}`);
 
     const newDrainItems = [...drainItems];
 
@@ -578,129 +579,129 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
       // Handle discharge field specifically
       if (value === '' || value === null || value === 'helvetica') {
         newDrainItems[index].discharge = '';
-        console.log(`✅ Set discharge to empty for drain ${index}`);
+        //console.log(`✅ Set discharge to empty for drain ${index}`);
       } else {
         const numValue = typeof value === 'string' ? parseFloat(value) : value;
         if (!isNaN(numValue)) {
           newDrainItems[index].discharge = numValue;
-          console.log(`✅ Set discharge to ${numValue} for drain ${index}`);
+          //console.log(`✅ Set discharge to ${numValue} for drain ${index}`);
         } else {
-          console.warn(`⚠️ Invalid discharge value: ${value}`);
+          //console.warn(`⚠️ Invalid discharge value: ${value}`);
           newDrainItems[index].discharge = '';
         }
       }
     } else {
       // Handle other fields (id, name)
       newDrainItems[index][field] = value as string;
-      console.log(`✅ Set ${field} to ${value} for drain ${index}`);
+      //console.log(`✅ Set ${field} to ${value} for drain ${index}`);
     }
 
-    console.log('Updated drain items:', newDrainItems);
+    //console.log('Updated drain items:', newDrainItems);
     setDrainItems(newDrainItems);
   };
 
   // Rest of your existing handlers and functions remain the same...
-const handleCalculateSewage = async () => {
-  setError(null);
-  setWaterSupplyResult(null);
-  setDomesticSewageResult(null);
-  setShowPeakFlow(true);
-  setShowRawSewage(false);
+  const handleCalculateSewage = async () => {
+    setError(null);
+    setWaterSupplyResult(null);
+    setDomesticSewageResult(null);
+    setShowPeakFlow(true);
+    setShowRawSewage(false);
 
-  let hasError = false;
-  const payloads: any[] = [];
+    let hasError = false;
+    const payloads: any[] = [];
 
-  // --- Water Supply Payload (OPTIONAL) ---
-  // Only add water supply payload if user has provided water supply input
-  if (totalSupplyInput !== '' && Number(totalSupplyInput) > 0) {
-    payloads.push({
-      method: 'water_supply',
-      total_supply: Number(totalSupplyInput),
-      drain_items: drainItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        discharge: typeof item.discharge === 'number' ? item.discharge : 0
-      })),
-      total_drain_discharge: totalDrainDischarge
-    });
-  }
+    // --- Water Supply Payload (OPTIONAL) ---
+    // Only add water supply payload if user has provided water supply input
+    if (totalSupplyInput !== '' && Number(totalSupplyInput) > 0) {
+      payloads.push({
+        method: 'water_supply',
+        total_supply: Number(totalSupplyInput),
+        drain_items: drainItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          discharge: typeof item.discharge === 'number' ? item.discharge : 0
+        })),
+        total_drain_discharge: totalDrainDischarge
+      });
+    }
 
-  // --- Domestic Sewage Payload (REQUIRED) ---
-  if (!domesticLoadMethod) {
-    setError(prev => prev ? `${prev} Please select a domestic sewage sector method. ` : 'Please select a domestic sewage sector method. ');
-    hasError = true;
-  } else {
-    const payload: any = {
-      method: 'domestic_sewage',
-      load_method: domesticLoadMethod,
-      drain_items: drainItems.map(item => ({
-        id: item.id,
-        name: item.name,
-        discharge: typeof item.discharge === 'number' ? item.discharge : 0
-      })),
-      total_drain_discharge: totalDrainDischarge
-    };
-    
-    if (domesticLoadMethod === 'manual') {
-      if (domesticSupplyInput === '' || Number(domesticSupplyInput) <= 0) {
-        setError(prev => prev ? `${prev} Invalid domestic supply. ` : 'Invalid domestic supply. ');
-        hasError = true;
-      } else {
-        payload.domestic_supply = Number(domesticSupplyInput);
+    // --- Domestic Sewage Payload (REQUIRED) ---
+    if (!domesticLoadMethod) {
+      setError(prev => prev ? `${prev} Please select a domestic sewage sector method. ` : 'Please select a domestic sewage sector method. ');
+      hasError = true;
+    } else {
+      const payload: any = {
+        method: 'domestic_sewage',
+        load_method: domesticLoadMethod,
+        drain_items: drainItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          discharge: typeof item.discharge === 'number' ? item.discharge : 0
+        })),
+        total_drain_discharge: totalDrainDischarge
+      };
+
+      if (domesticLoadMethod === 'manual') {
+        if (domesticSupplyInput === '' || Number(domesticSupplyInput) <= 0) {
+          setError(prev => prev ? `${prev} Invalid domestic supply. ` : 'Invalid domestic supply. ');
+          hasError = true;
+        } else {
+          payload.domestic_supply = Number(domesticSupplyInput);
+          payloads.push(payload);
+        }
+      } else if (domesticLoadMethod === 'modeled') {
+        payload.unmetered_supply = Number(unmeteredSupplyInput);
+        payload.computed_population = computedPopulation;
         payloads.push(payload);
       }
-    } else if (domesticLoadMethod === 'modeled') {
-      payload.unmetered_supply = Number(unmeteredSupplyInput);
-      payload.computed_population = computedPopulation;
-      payloads.push(payload);
     }
-  }
 
-  // Check if we have at least one payload to process
-  if (payloads.length === 0) {
-    setError('Please provide either water supply input or select a domestic sewage method with required inputs.');
-    hasError = true;
-  }
+    // Check if we have at least one payload to process
+    if (payloads.length === 0) {
+      setError('Please provide either water supply input or select a domestic sewage method with required inputs.');
+      hasError = true;
+    }
 
-  if (hasError) return;
+    if (hasError) return;
 
-  try {
-    const responses = await Promise.all(payloads.map(payload =>
-      fetch('/django/sewage_calculation/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-    ));
+    try {
+      const responses = await Promise.all(payloads.map(payload =>
+        fetch('/django/sewage_calculation/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      ));
 
-    for (let i = 0; i < responses.length; i++) {
-      const response = responses[i];
-      if (!response.ok) {
-        const err = await response.json();
-        setError(prev => prev ? `${prev} ${err.error || 'Error calculating sewage.'} ` : err.error || 'Error calculating sewage.');
-        continue;
-      }
-      const data = await response.json();
-      if (payloads[i].method === 'water_supply') {
-        setWaterSupplyResult(data.sewage_demand);
-      } else if (payloads[i].method === 'domestic_sewage') {
-        if (payloads[i].load_method === 'manual') {
-          setDomesticSewageResult(data.sewage_demand);
-        } else {
-          setDomesticSewageResult(data.sewage_result);
+      for (let i = 0; i < responses.length; i++) {
+        const response = responses[i];
+        if (!response.ok) {
+          const err = await response.json();
+          setError(prev => prev ? `${prev} ${err.error || 'Error calculating sewage.'} ` : err.error || 'Error calculating sewage.');
+          continue;
+        }
+        const data = await response.json();
+        if (payloads[i].method === 'water_supply') {
+          setWaterSupplyResult(data.sewage_demand);
+        } else if (payloads[i].method === 'domestic_sewage') {
+          if (payloads[i].load_method === 'manual') {
+            setDomesticSewageResult(data.sewage_demand);
+          } else {
+            setDomesticSewageResult(data.sewage_result);
+          }
         }
       }
-    }
 
-    // Show peak flow section if we have any sewage results
-    if (waterSupplyResult || domesticSewageResult || payloads.length > 0) {
-      setShowPeakFlow(true);
+      // Show peak flow section if we have any sewage results
+      if (waterSupplyResult || domesticSewageResult || payloads.length > 0) {
+        setShowPeakFlow(true);
+      }
+    } catch (error) {
+      //console.error(error);
+      setError('Error connecting to backend.');
     }
-  } catch (error) {
-    console.log(error);
-    setError('Error connecting to backend.');
-  }
-};
+  };
 
   const handlePeakFlowMethodToggle = (method: keyof typeof peakFlowMethods) => {
     setPeakFlowMethods({
@@ -1126,274 +1127,274 @@ const handleCalculateSewage = async () => {
     setShowRawSewage(true);
   };
 
- const handleCalculateTreatmentCapacity = () => {
-  if (!sewageTreatmentCapacity || sewageTreatmentCapacity <= 0) {
-    alert('Please enter a valid sewage treatment capacity.');
-    return;
-  }
-
-  if (!selectedTreatmentMethod) {
-    alert('Please select a treatment method.');
-    return;
-  }
-
-  // Check if we have computed population data
-  if (!computedPopulation || Object.keys(computedPopulation).length === 0) {
-    alert('Population data not available. Please ensure population forecasting is completed first.');
-    return;
-  }
-
-  // Get sewage result based on method - prioritize domesticSewageResult
-  const sewageResult = domesticSewageResult || waterSupplyResult;
-
-  if (!sewageResult) {
-    alert('Sewage calculation data not available. Please calculate sewage first.');
-    return;
-  }
-
-  console.log('Treatment Capacity Calculation:', {
-    sewageTreatmentCapacity,
-    selectedTreatmentMethod,
-    computedPopulation,
-    sewageResult,
-    domesticLoadMethod
-  });
-
-  const treatmentRows = Object.keys(computedPopulation).map((year) => {
-    const popVal = computedPopulation[year] || 0;
-
-    // Calculate the combined domestic sewage (same as in sewage generation table)
-    let combinedDomesticSewage;
-    if (domesticLoadMethod === 'manual') {
-      // Manual case - calculate combined domestic sewage
-      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
-      const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
-      const populationBasedSewage = referencePopulation > 0
-        ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
-        : (typeof sewageResult === 'number' ? sewageResult : 0);
-
-      // Add floating sewage
-      const floatingSewage = (() => {
-        if (waterDemandResults?.floating?.[year]) {
-          return waterDemandResults.floating[year] * 0.8;
-        }
-        if (waterDemandResults?.floating?.base_demand?.[year]) {
-          return waterDemandResults.floating.base_demand[year] * 0.8;
-        }
-        if ((window as any).floatingWaterDemand?.[year]) {
-          return (window as any).floatingWaterDemand[year] * 0.8;
-        }
-        if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
-          return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      // Add institutional sewage
-      const institutionalSewage = (() => {
-        if (waterDemandResults?.institutional?.[year]) {
-          return waterDemandResults.institutional[year] * 0.8;
-        }
-        if ((window as any).institutionalWaterDemand?.[year]) {
-          return (window as any).institutionalWaterDemand[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      // Add firefighting sewage
-      const firefightingSewage = (() => {
-        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
-        if (waterDemandResults?.firefighting?.[method]?.[year]) {
-          return waterDemandResults.firefighting[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
-          return (window as any).firefightingWaterDemand[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
-          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      combinedDomesticSewage = populationBasedSewage + floatingSewage + institutionalSewage ;
-    } else {
-      // Modeled case - calculate combined domestic sewage
-      const domesticSewageValue = typeof sewageResult === 'number' ? sewageResult : (sewageResult[year] || 0);
-
-      // Add floating sewage
-      const floatingSewage = (() => {
-        if (waterDemandResults?.floating?.[year]) {
-          return waterDemandResults.floating[year] * 0.8;
-        }
-        if (waterDemandResults?.floating?.base_demand?.[year]) {
-          return waterDemandResults.floating.base_demand[year] * 0.8;
-        }
-        if ((window as any).floatingWaterDemand?.[year]) {
-          return (window as any).floatingWaterDemand[year] * 0.8;
-        }
-        if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
-          return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      // Add institutional sewage
-      const institutionalSewage = (() => {
-        if (waterDemandResults?.institutional?.[year]) {
-          return waterDemandResults.institutional[year] * 0.8;
-        }
-        if ((window as any).institutionalWaterDemand?.[year]) {
-          return (window as any).institutionalWaterDemand[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      // Add firefighting sewage
-      const firefightingSewage = (() => {
-        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
-        if (waterDemandResults?.firefighting?.[method]?.[year]) {
-          return waterDemandResults.firefighting[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
-          return (window as any).firefightingWaterDemand[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
-          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
-        }
-        return 0;
-      })();
-
-      combinedDomesticSewage = domesticSewageValue + floatingSewage + institutionalSewage ;
+  const handleCalculateTreatmentCapacity = () => {
+    if (!sewageTreatmentCapacity || sewageTreatmentCapacity <= 0) {
+      alert('Please enter a valid sewage treatment capacity.');
+      return;
     }
 
-    // Get base sewage flow for the year
-    let avgSewFlow = 0;
-
-    // Handle different peak flow sources
-    if (peakFlowSewageSource === 'drain_based' && totalDrainDischarge > 0) {
-      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
-      avgSewFlow = referencePopulation > 0
-        ? (popVal / referencePopulation) * totalDrainDischarge
-        : totalDrainDischarge;
-    } else if (peakFlowSewageSource === 'water_based' && Number(totalSupplyInput) > 0) {
-      const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
-      avgSewFlow = referencePopulation > 0
-        ? (popVal / referencePopulation) * Number(totalSupplyInput) * 0.80
-        : Number(totalSupplyInput) * 0.80;
-    } else if (peakFlowSewageSource === 'floating_sewage') {
-      const floatingSewage = (() => {
-        if (waterDemandResults?.floating?.[year]) {
-          return waterDemandResults.floating[year] * 0.8;
-        }
-        if ((window as any).floatingWaterDemand?.[year]) {
-          return (window as any).floatingWaterDemand[year] * 0.8;
-        }
-        return 0;
-      })();
-      avgSewFlow = floatingSewage;
-    } else if (peakFlowSewageSource === 'institutional_sewage') {
-      const institutionalSewage = (() => {
-        if (waterDemandResults?.institutional?.[year]) {
-          return waterDemandResults.institutional[year] * 0.8;
-        }
-        if ((window as any).institutionalWaterDemand?.[year]) {
-          return (window as any).institutionalWaterDemand[year] * 0.8;
-        }
-        return 0;
-      })();
-      avgSewFlow = institutionalSewage;
-    } else if (peakFlowSewageSource === 'firefighting_sewage') {
-      const firefightingSewage = (() => {
-        const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
-        if (waterDemandResults?.firefighting?.[method]?.[year]) {
-          return waterDemandResults.firefighting[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
-          return (window as any).firefightingWaterDemand[method][year] * 0.8;
-        }
-        if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
-          return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
-        }
-        return 0;
-      })();
-      avgSewFlow = firefightingSewage;
-    } else {
-      // Default to combined domestic sewage (same as displayed in sewage generation table)
-      avgSewFlow = combinedDomesticSewage;
+    if (!selectedTreatmentMethod) {
+      alert('Please select a treatment method.');
+      return;
     }
 
-    // Calculate peak flow based on selected treatment method
-    let peakSewageGeneration;
-    if (selectedTreatmentMethod === 'cpheeo') {
-      peakSewageGeneration = avgSewFlow * getCPHEEOFactor(popVal);
-    } else if (selectedTreatmentMethod === 'harmon') {
-      peakSewageGeneration = avgSewFlow * getHarmonFactor(popVal);
-    } else if (selectedTreatmentMethod === 'babbitt') {
-      peakSewageGeneration = avgSewFlow * getBabbittFactor(popVal);
-    } else {
-      peakSewageGeneration = avgSewFlow;
+    // Check if we have computed population data
+    if (!computedPopulation || Object.keys(computedPopulation).length === 0) {
+      alert('Population data not available. Please ensure population forecasting is completed first.');
+      return;
     }
 
-    // Calculate gap (Treatment Capacity - Sewage Generation)
-    const gap = Number(sewageTreatmentCapacity) - peakSewageGeneration;
-    const status = gap >= 0 ? 'Sufficient' : 'Deficit';
-    const statusColor = gap >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+    // Get sewage result based on method - prioritize domesticSewageResult
+    const sewageResult = domesticSewageResult || waterSupplyResult;
 
-    console.log(`Year ${year}:`, {
-      population: popVal,
-      avgSewFlow,
-      peakSewageGeneration,
-      treatmentCapacity: Number(sewageTreatmentCapacity),
-      gap,
-      status
+    if (!sewageResult) {
+      alert('Sewage calculation data not available. Please calculate sewage first.');
+      return;
+    }
+
+    // console.log('Treatment Capacity Calculation:', {
+    //   sewageTreatmentCapacity,
+    //   selectedTreatmentMethod,
+    //   computedPopulation,
+    //   sewageResult,
+    //   domesticLoadMethod
+    // });
+
+    const treatmentRows = Object.keys(computedPopulation).map((year) => {
+      const popVal = computedPopulation[year] || 0;
+
+      // Calculate the combined domestic sewage (same as in sewage generation table)
+      let combinedDomesticSewage;
+      if (domesticLoadMethod === 'manual') {
+        // Manual case - calculate combined domestic sewage
+        const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+        const multiplier = (135 + Number(unmeteredSupplyInput)) / 1000000;
+        const populationBasedSewage = referencePopulation > 0
+          ? ((popVal / referencePopulation) * Number(domesticSupplyInput)) * multiplier * 0.80
+          : (typeof sewageResult === 'number' ? sewageResult : 0);
+
+        // Add floating sewage
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if (waterDemandResults?.floating?.base_demand?.[year]) {
+            return waterDemandResults.floating.base_demand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+            return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add institutional sewage
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add firefighting sewage
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        combinedDomesticSewage = populationBasedSewage + floatingSewage + institutionalSewage;
+      } else {
+        // Modeled case - calculate combined domestic sewage
+        const domesticSewageValue = typeof sewageResult === 'number' ? sewageResult : (sewageResult[year] || 0);
+
+        // Add floating sewage
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if (waterDemandResults?.floating?.base_demand?.[year]) {
+            return waterDemandResults.floating.base_demand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.base_demand?.[year]) {
+            return (window as any).floatingWaterDemand.base_demand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add institutional sewage
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        // Add firefighting sewage
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+
+        combinedDomesticSewage = domesticSewageValue + floatingSewage + institutionalSewage;
+      }
+
+      // Get base sewage flow for the year
+      let avgSewFlow = 0;
+
+      // Handle different peak flow sources
+      if (peakFlowSewageSource === 'drain_based' && totalDrainDischarge > 0) {
+        const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+        avgSewFlow = referencePopulation > 0
+          ? (popVal / referencePopulation) * totalDrainDischarge
+          : totalDrainDischarge;
+      } else if (peakFlowSewageSource === 'water_based' && Number(totalSupplyInput) > 0) {
+        const referencePopulation = (window as any).population2025 || computedPopulation["2025"];
+        avgSewFlow = referencePopulation > 0
+          ? (popVal / referencePopulation) * Number(totalSupplyInput) * 0.80
+          : Number(totalSupplyInput) * 0.80;
+      } else if (peakFlowSewageSource === 'floating_sewage') {
+        const floatingSewage = (() => {
+          if (waterDemandResults?.floating?.[year]) {
+            return waterDemandResults.floating[year] * 0.8;
+          }
+          if ((window as any).floatingWaterDemand?.[year]) {
+            return (window as any).floatingWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = floatingSewage;
+      } else if (peakFlowSewageSource === 'institutional_sewage') {
+        const institutionalSewage = (() => {
+          if (waterDemandResults?.institutional?.[year]) {
+            return waterDemandResults.institutional[year] * 0.8;
+          }
+          if ((window as any).institutionalWaterDemand?.[year]) {
+            return (window as any).institutionalWaterDemand[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = institutionalSewage;
+      } else if (peakFlowSewageSource === 'firefighting_sewage') {
+        const firefightingSewage = (() => {
+          const method = waterDemandResults?.selectedFirefightingMethod || 'kuchling';
+          if (waterDemandResults?.firefighting?.[method]?.[year]) {
+            return waterDemandResults.firefighting[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.[method]?.[year]) {
+            return (window as any).firefightingWaterDemand[method][year] * 0.8;
+          }
+          if ((window as any).firefightingWaterDemand?.kuchling?.[year]) {
+            return (window as any).firefightingWaterDemand.kuchling[year] * 0.8;
+          }
+          return 0;
+        })();
+        avgSewFlow = firefightingSewage;
+      } else {
+        // Default to combined domestic sewage (same as displayed in sewage generation table)
+        avgSewFlow = combinedDomesticSewage;
+      }
+
+      // Calculate peak flow based on selected treatment method
+      let peakSewageGeneration;
+      if (selectedTreatmentMethod === 'cpheeo') {
+        peakSewageGeneration = avgSewFlow * getCPHEEOFactor(popVal);
+      } else if (selectedTreatmentMethod === 'harmon') {
+        peakSewageGeneration = avgSewFlow * getHarmonFactor(popVal);
+      } else if (selectedTreatmentMethod === 'babbitt') {
+        peakSewageGeneration = avgSewFlow * getBabbittFactor(popVal);
+      } else {
+        peakSewageGeneration = avgSewFlow;
+      }
+
+      // Calculate gap (Treatment Capacity - Sewage Generation)
+      const gap = Number(sewageTreatmentCapacity) - peakSewageGeneration;
+      const status = gap >= 0 ? 'Sufficient' : 'Deficit';
+      const statusColor = gap >= 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+
+      // console.log(`Year ${year}:`, {
+      //   population: popVal,
+      //   avgSewFlow,
+      //   peakSewageGeneration,
+      //   treatmentCapacity: Number(sewageTreatmentCapacity),
+      //   gap,
+      //   status
+      // });
+
+      return {
+        year,
+        population: popVal,
+        treatmentCapacity: Number(sewageTreatmentCapacity),
+        sewageGeneration: peakSewageGeneration,
+        gap: gap,
+        status: status,
+        statusColor: statusColor
+      };
     });
 
-    return {
-      year,
-      population: popVal,
-      treatmentCapacity: Number(sewageTreatmentCapacity),
-      sewageGeneration: peakSewageGeneration,
-      gap: gap,
-      status: status,
-      statusColor: statusColor
-    };
-  });
+    //console.log('All treatment rows:', treatmentRows);
 
-  console.log('All treatment rows:', treatmentRows);
-
-  const tableJSX = (
-    <table className="min-w-full border-collapse border border-gray-300">
-      <thead>
-        <tr>
-          <th className="border px-2 py-1 bg-gray-100">Year</th>
-          <th className="border px-2 py-1 bg-gray-100">Population</th>
-          <th className="border px-2 py-1 bg-gray-100">Sewage Treatment Capacity (MLD)</th>
-          <th className="border px-2 py-1 bg-gray-100">Sewage Generation ({selectedTreatmentMethod.toUpperCase()}) (MLD)</th>
-          <th className="border px-2 py-1 bg-gray-100">Gap (MLD)</th>
-          <th className="border px-2 py-1 bg-gray-100">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {treatmentRows.map((row, idx) => (
-          <tr key={idx}>
-            <td className="border px-2 py-1">{row.year}</td>
-            <td className="border px-2 py-1">{row.population.toLocaleString()}</td>
-            <td className="border px-2 py-1">{row.treatmentCapacity.toFixed(2)}</td>
-            <td className="border px-2 py-1">{row.sewageGeneration.toFixed(2)}</td>
-            <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
-              {row.gap >= 0 ? '+' : ''}{row.gap.toFixed(2)}
-            </td>
-            <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
-              {row.status}
-            </td>
+    const tableJSX = (
+      <table className="min-w-full border-collapse border border-gray-300">
+        <thead>
+          <tr>
+            <th className="border px-2 py-1 bg-gray-100">Year</th>
+            <th className="border px-2 py-1 bg-gray-100">Population</th>
+            <th className="border px-2 py-1 bg-gray-100">Sewage Treatment Capacity (MLD)</th>
+            <th className="border px-2 py-1 bg-gray-100">Sewage Generation ({selectedTreatmentMethod.toUpperCase()}) (MLD)</th>
+            <th className="border px-2 py-1 bg-gray-100">Gap (MLD)</th>
+            <th className="border px-2 py-1 bg-gray-100">Status</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+        </thead>
+        <tbody>
+          {treatmentRows.map((row, idx) => (
+            <tr key={idx}>
+              <td className="border px-2 py-1">{row.year}</td>
+              <td className="border px-2 py-1">{row.population.toLocaleString()}</td>
+              <td className="border px-2 py-1">{row.treatmentCapacity.toFixed(2)}</td>
+              <td className="border px-2 py-1">{row.sewageGeneration.toFixed(2)}</td>
+              <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
+                {row.gap >= 0 ? '+' : ''}{row.gap.toFixed(2)}
+              </td>
+              <td className={`border px-2 py-1 font-medium ${row.statusColor}`}>
+                {row.status}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
 
-  setTreatmentCapacityTable(tableJSX);
-};
+    setTreatmentCapacityTable(tableJSX);
+  };
 
 
 
@@ -1500,7 +1501,7 @@ const handleCalculateSewage = async () => {
                   type="number"
                   value={item.discharge === '' ? '' : item.discharge}
                   onChange={(e) => {
-                    console.log(`🎯 Discharge input change for drain ${index}:`, e.target.value);
+                    //console.log(`🎯 Discharge input change for drain ${index}:`, e.target.value);
                     handleDrainItemChange(index, 'discharge', e.target.value);
                   }}
                   className="w-20 border rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1508,11 +1509,11 @@ const handleCalculateSewage = async () => {
                   step="0.01"
                   placeholder="0.00"
                   onFocus={(e) => {
-                    console.log(`🎯 Discharge input focused for drain ${index}`);
+                    ///console.log(`🎯 Discharge input focused for drain ${index}`);
                     e.target.select(); // Select all text when focused
                   }}
                   onBlur={(e) => {
-                    console.log(`🎯 Discharge input blurred for drain ${index}:`, e.target.value);
+                    //console.log(`🎯 Discharge input blurred for drain ${index}:`, e.target.value);
                   }}
                 />
               </td>
@@ -1574,9 +1575,9 @@ const handleCalculateSewage = async () => {
             el.style.setProperty(prop, rgb);
 
             // Log for debugging
-            console.log(`Converted ${prop} from ${value} to ${rgb} on element`, el);
+            //console.log(`Converted ${prop} from ${value} to ${rgb} on element`, el);
           } catch (err) {
-            console.warn(`Failed to convert color ${value} for property ${prop}:`, err);
+            //console.warn(`Failed to convert color ${value} for property ${prop}:`, err);
             // Fallback to a safe color
             el.style.setProperty(prop, 'rgb(0, 0, 0)');
           }
@@ -1589,462 +1590,38 @@ const handleCalculateSewage = async () => {
   };
 
 
-  const captureMap = async () => {
+  const fetchMapFromAPI = async (villageCodes: number[]): Promise<string | null> => {
     try {
-      console.log('Starting map capture process...');
+      //console.log('Fetching map from API with village codes:', villageCodes);
 
-      // Try multiple selectors to find the map container
-      const mapSelectors = [
-        '.map-container .leaflet-container',
-        '.admin-map .leaflet-container',
-        '.drain-map .leaflet-container',
-        '.leaflet-container',
-        '[class*="leaflet-container"]'
-      ];
-
-      let mapContainer: Element | null = null;
-
-      // Try each selector until we find the map
-      for (const selector of mapSelectors) {
-        mapContainer = document.querySelector(selector);
-        if (mapContainer) {
-          console.log(`Found map container with selector: ${selector}`);
-          break;
-        }
-      }
-
-      if (!mapContainer) {
-        console.warn('Map container not found with any selector');
-        return null;
-      }
-
-      // Get the map instance for real coordinates if possible
-      let mapInstance: L.Map | null = null;
-      const mapElement = mapContainer as any;
-
-      if (mapElement._leaflet_map) {
-        mapInstance = mapElement._leaflet_map;
-      } else if (mapContainer.parentElement && (mapContainer.parentElement as any)._leaflet_map) {
-        mapInstance = (mapContainer.parentElement as any)._leaflet_map;
-      }
-
-      const mapRect = mapContainer.getBoundingClientRect();
-      const mapWidth = Math.max(mapRect.width, 400);
-      const mapHeight = Math.max(mapRect.height, 300);
-
-      // Define margins for the enhanced map
-      const topMargin = 55;
-      const bottomMargin = 55;
-      const leftMargin = 75;
-      const rightMargin = 75;
-
-      const totalWidth = mapWidth + leftMargin + rightMargin;
-      const totalHeight = mapHeight + topMargin + bottomMargin;
-
-      console.log(`Capturing map - Original: ${mapWidth}x${mapHeight}, Final: ${totalWidth}x${totalHeight}`);
-
-      // HIDE UI OVERLAYS BEFORE CAPTURE
-      const overlaysToHide = [
-        '.leaflet-control-container',
-        '.leaflet-control',
-        '.leaflet-control-zoom',
-        '.leaflet-control-attribution',
-        '.leaflet-control-layers',
-        '.leaflet-control-scale',
-        '.absolute.top-2.left-12', // Legend overlay
-        '[class*="absolute"][class*="top-"]', // Any absolute positioned overlays
-      ];
-
-      const hiddenElements: { element: HTMLElement; originalDisplay: string }[] = [];
-
-      // Hide overlays
-      overlaysToHide.forEach(selector => {
-        const elements = mapContainer!.querySelectorAll(selector);
-        elements.forEach(el => {
-          const htmlEl = el as HTMLElement;
-          if (htmlEl.style.display !== 'none') {
-            hiddenElements.push({
-              element: htmlEl,
-              originalDisplay: htmlEl.style.display || ''
-            });
-            htmlEl.style.display = 'none';
-          }
-        });
-      });
-
-      // Also hide elements outside the map container but in the map wrapper
-      const mapWrapper = mapContainer.parentElement;
-      if (mapWrapper) {
-        const wrapperOverlays = mapWrapper.querySelectorAll('.absolute, [class*="absolute"]');
-        wrapperOverlays.forEach(el => {
-          const htmlEl = el as HTMLElement;
-          if (htmlEl.style.display !== 'none' && !mapContainer!.contains(htmlEl)) {
-            hiddenElements.push({
-              element: htmlEl,
-              originalDisplay: htmlEl.style.display || ''
-            });
-            htmlEl.style.display = 'none';
-          }
-        });
-      }
-
-      // Convert OKLCH colors for compatibility
-      convertOklchToRgb(mapContainer as HTMLElement);
-
-      // Wait a moment for display changes to take effect
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Capture only the map tiles and vector layers (no UI overlays)
-      const blob = await domToImage.toBlob(mapContainer, {
-        bgcolor: "#ffffff",
-        width: mapWidth,
-        height: mapHeight,
-        quality: 10,
-        cacheBust: true,
-        filter: (node: any) => {
-          if (!(node instanceof Element)) return false;
-
-          const tagName = node.tagName?.toLowerCase();
-          const className = node.className || '';
-
-          // Skip script and style elements
-          if (['script', 'style', 'noscript'].includes(tagName)) {
-            return false;
-          }
-
-          // Skip all Leaflet control elements
-          if (className.includes && (
-            className.includes('leaflet-control') ||
-            className.includes('leaflet-bar') ||
-            className.includes('leaflet-touch') ||
-            className.includes('absolute')
-          )) {
-            return false;
-          }
-
-          // Skip attribution and other UI elements
-          if (node.getAttribute && (
-            node.getAttribute('class')?.includes('leaflet-control') ||
-            node.getAttribute('class')?.includes('absolute')
-          )) {
-            return false;
-          }
-
-          return true;
+      const response = await fetch('/django/studyareamap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        onclone: (clonedDoc: any, element: any) => {
-          try {
-            console.log('Processing cloned document...');
-
-            // Remove all control elements from the clone
-            const controlElements = element.querySelectorAll(
-              '.leaflet-control-container, .leaflet-control, .absolute, [class*="absolute"], [class*="leaflet-control"]'
-            );
-
-            controlElements.forEach((el: any) => {
-              if (el.parentNode) {
-                el.parentNode.removeChild(el);
-              }
-            });
-
-            // Force RGB colors on remaining elements
-            const allElements = element.querySelectorAll('*');
-            allElements.forEach((el: any) => {
-              const colorProps = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke'];
-              colorProps.forEach(prop => {
-                const currentValue = el.style.getPropertyValue(prop);
-                if (!currentValue || currentValue.includes('oklch') || currentValue === 'transparent') {
-                  let safeColor = 'rgb(128, 128, 128)';
-
-                  if (prop === 'backgroundColor') safeColor = 'rgb(255, 255, 255)';
-                  else if (prop === 'color') safeColor = 'rgb(0, 0, 0)';
-                  else if (prop.includes('border')) safeColor = 'rgb(200, 200, 200)';
-
-                  el.style.setProperty(prop, safeColor, 'important');
-                }
-              });
-
-              // Handle SVG elements specifically
-              if (el.tagName && (el.tagName.toLowerCase() === 'svg' || el.tagName.toLowerCase() === 'path')) {
-                el.style.setProperty('fill', 'rgb(0, 100, 200)', 'important');
-                el.style.setProperty('stroke', 'rgb(0, 0, 0)', 'important');
-              }
-            });
-
-            console.log('Cloned document processing complete');
-          } catch (err) {
-            console.warn('Error in onclone processing:', err);
-          }
-        }
-      } as any);
-
-
-      // RESTORE HIDDEN OVERLAYS
-      hiddenElements.forEach(({ element, originalDisplay }) => {
-        element.style.display = originalDisplay;
+        body: JSON.stringify({
+          village_codes: villageCodes.map(String) // Convert to strings as API expects
+        }),
       });
 
-      // Create a canvas from the blob
-      const blobUrl = URL.createObjectURL(blob);
-      const img = new Image();
-      const mapCanvas = document.createElement('canvas');
-      const mapCtx = mapCanvas.getContext('2d');
-
-      if (!mapCtx) {
-        throw new Error("Failed to get 2D context from canvas.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${response.status} - ${errorText}`);
       }
 
-      // Return a promise that resolves when the image is loaded
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => {
-          mapCanvas.width = img.width;
-          mapCanvas.height = img.height;
-          mapCtx.drawImage(img, 0, 0);
-          URL.revokeObjectURL(blobUrl);
-          resolve();
-        };
-        img.onerror = reject;
-        img.src = blobUrl;
-      });
+      const data = await response.json();
 
-      // Create final canvas with grid and labels
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = totalWidth;
-      finalCanvas.height = totalHeight;
-      const ctx = finalCanvas.getContext('2d');
-
-      if (!ctx) {
-        throw new Error('Could not get canvas context');
+      if (data.map_base64) {
+        //console.log('Map successfully retrieved from API');
+        //console.log('Map bounds:', data.bounds);
+        return data.map_base64; // This already includes the data:image/png;base64, prefix
+      } else {
+        throw new Error('No map_base64 in API response');
       }
-
-      // Fill background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, totalWidth, totalHeight);
-
-      // Draw border around the entire image
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      ctx.strokeRect(5, 5, totalWidth - 10, totalHeight - 10);
-
-      // Draw the map in the center
-      ctx.drawImage(mapCanvas, leftMargin, topMargin, mapWidth, mapHeight);
-
-      // Draw border around the map
-      ctx.strokeStyle = '#333333';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(leftMargin, topMargin, mapWidth, mapHeight);
-
-      // Add grid lines
-      ctx.strokeStyle = '#cccccc';
-      ctx.lineWidth = 0.5;
-      ctx.setLineDash([2, 2]);
-
-      const gridSpacing = Math.min(mapWidth, mapHeight) / 8;
-
-      // Draw vertical grid lines
-      for (let x = leftMargin + gridSpacing; x < leftMargin + mapWidth; x += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(x, topMargin);
-        ctx.lineTo(x, topMargin + mapHeight);
-        ctx.stroke();
-      }
-
-      // Draw horizontal grid lines
-      for (let y = topMargin + gridSpacing; y < topMargin + mapHeight; y += gridSpacing) {
-        ctx.beginPath();
-        ctx.moveTo(leftMargin, y);
-        ctx.lineTo(leftMargin + mapWidth, y);
-        ctx.stroke();
-      }
-
-      // Reset line dash for coordinates
-      ctx.setLineDash([]);
-
-      // Add coordinate labels
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 12px Arial, sans-serif';
-
-      // Get real coordinates if available
-      let coordinates = {
-        north: 25.0,
-        south: 22.0,
-        east: 82.0,
-        west: 79.0
-      };
-
-      if (mapInstance) {
-        try {
-          const bounds = mapInstance.getBounds();
-          coordinates = {
-            north: bounds.getNorth(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            west: bounds.getWest()
-          };
-          console.log('Using real map coordinates:', coordinates);
-        } catch (error) {
-          console.warn('Could not get real coordinates, using defaults');
-        }
-      }
-
-      // East coordinates at bottom
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-
-      for (let i = 0; i <= 4; i++) {
-        const relX = i / 4;
-        const x = leftMargin + mapWidth * relX;
-        const y = totalHeight - bottomMargin + 10;
-
-        const lng = coordinates.west + (coordinates.east - coordinates.west) * relX;
-        const coordText = `${lng.toFixed(2)}°E`;
-
-        // Background for label
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        const textMetrics = ctx.measureText(coordText);
-        const textWidth = textMetrics.width;
-        ctx.fillRect(x - textWidth / 2 - 4, y - 2, textWidth + 8, 18);
-
-        // Border for label
-        ctx.strokeStyle = '#cccccc';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x - textWidth / 2 - 4, y - 2, textWidth + 8, 18);
-
-        // Text
-        ctx.fillStyle = '#000000';
-        ctx.fillText(coordText, x, y + 2);
-
-        // Draw tick mark
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x, topMargin + mapHeight);
-        ctx.lineTo(x, topMargin + mapHeight + 8);
-        ctx.stroke();
-      }
-
-      // North coordinates on left side
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-
-      for (let i = 0; i <= 4; i++) {
-        const relY = i / 4;
-        const x = leftMargin - 10;
-        const y = topMargin + mapHeight * relY;
-
-        const lat = coordinates.north - (coordinates.north - coordinates.south) * relY;
-        const coordText = `${lat.toFixed(2)}°N`;
-
-        // Background for label
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        const textMetrics = ctx.measureText(coordText);
-        const textWidth = textMetrics.width;
-        ctx.fillRect(x - textWidth - 4, y - 9, textWidth + 8, 18);
-
-        // Border for label
-        ctx.strokeStyle = '#cccccc';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x - textWidth - 4, y - 9, textWidth + 8, 18);
-
-        // Text
-        ctx.fillStyle = '#000000';
-        ctx.fillText(coordText, x, y);
-
-        // Draw tick mark
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(leftMargin, y);
-        ctx.lineTo(leftMargin - 8, y);
-        ctx.stroke();
-      }
-
-      // Add title
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 16px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-
-      const titleText = sourceMode === 'admin'
-        ? 'Administrative Area Map'
-        : sourceMode === 'drain'
-          ? 'Drainage Network Map'
-          : 'Study Area Map';
-
-      ctx.fillText(titleText, totalWidth / 2, 15);
-
-      // Add north arrow
-      const arrowX = totalWidth - 50;
-      const arrowY = 50;
-
-      ctx.fillStyle = '#333333';
-      ctx.beginPath();
-      ctx.moveTo(arrowX, arrowY - 15);
-      ctx.lineTo(arrowX - 8, arrowY + 5);
-      ctx.lineTo(arrowX + 8, arrowY + 5);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.font = 'bold 14px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('N', arrowX, arrowY + 25);
-
-      // Add scale information if available
-      if (mapInstance) {
-        try {
-          const zoom = mapInstance.getZoom();
-          ctx.font = '10px Arial, sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillStyle = '#666666';
-          ctx.fillText(`Zoom Level: ${zoom}`, leftMargin + 10, topMargin + mapHeight - 10);
-        } catch (error) {
-          console.warn('Could not get zoom level');
-        }
-      }
-
-      // Convert to data URL
-      return new Promise<string | null>((resolve) => {
-        finalCanvas.toBlob((blob) => {
-          if (blob) {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          } else {
-            resolve(null);
-          }
-        }, 'image/png', 1.0);
-      });
-
     } catch (error) {
-      console.log('Failed to capture map:', error);
+      //console.error('Failed to fetch map from API:', error);
       return null;
     }
-  };
-
-  const captureMapWithRetry = async (maxRetries = 3) => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        console.log(`Map capture attempt ${i + 1}/${maxRetries}`);
-        const result = await captureMap();
-        if (result) {
-          console.log('Map captured successfully');
-          return result;
-        }
-
-        // Wait a bit before retrying
-        if (i < maxRetries - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      } catch (error) {
-        console.log(`Map capture attempt ${i + 1} failed:`, error);
-        if (i === maxRetries - 1) {
-          console.log('All map capture attempts failed');
-          return null;
-        }
-      }
-    }
-    return null;
   };
 
   const handle1pdfDownload = async () => {
@@ -2065,7 +1642,7 @@ const handleCalculateSewage = async () => {
         const leftLogoPromise = new Promise((resolve, reject) => {
           iitLogo.onload = () => resolve(true);
           iitLogo.onerror = () => reject(false);
-          iitLogo.src = "/images/export/logo_iitbhu.png";
+          iitLogo.src = "/Images/export/logo_iitbhu.png";
         });
 
         const rightLogo = new Image();
@@ -2073,14 +1650,14 @@ const handleCalculateSewage = async () => {
         const rightLogoPromise = new Promise((resolve, reject) => {
           rightLogo.onload = () => resolve(true);
           rightLogo.onerror = () => reject(false);
-          rightLogo.src = "/images/export/right1_slcr.png";
+          rightLogo.src = "/Images/export/right1_slcr.png";
         });
 
         await Promise.all([leftLogoPromise, rightLogoPromise]);
         doc.addImage(iitLogo, 'PNG', 14, 5, 25, 25);
         doc.addImage(rightLogo, 'PNG', pageWidth - 39, 5, 25, 25);
       } catch (err) {
-        console.log("Failed to load logos:", err);
+        //console.error("Failed to load logos:", err);
       }
     };
 
@@ -2292,62 +1869,47 @@ const handleCalculateSewage = async () => {
             addParagraph("The geographic extent of the study area is displayed in Figure 1, showing administrative boundaries including villages, sub-districts, and districts. This administrative base is crucial for linking population data and infrastructural indicators to spatial units for localized planning.");
           }
 
-          // Map Capture
-          const waitForMapReady = async (timeout = 3000): Promise<boolean> => {
-            const startTime = Date.now();
-            while (Date.now() - startTime < timeout) {
-              const mapContainer = document.querySelector('.admin-map .leaflet-container, .drain-map .leaflet-container');
-              if (mapContainer) {
-                const leafletMap = (mapContainer as any)._leaflet_map;
-                const mapReady = leafletMap && leafletMap._loaded;
-                const customReady = (window as any).mapReady;
-                const noLoadingOverlay = !document.querySelector('.animate-pulse');
-                const tilesLoaded = !document.querySelector('.leaflet-tile-loaded[src=""]');
-                if (mapReady && customReady && noLoadingOverlay && tilesLoaded) {
-                  console.log('Map is fully ready for capture');
-                  await new Promise(resolve => setTimeout(resolve, 500));
-                  return true;
-                }
+         
+          // Map Capture from API
+          const villageCodesForMap = villages_props?.map(v => v.id) || [];
+          //console.log('Fetching map for village codes:', villageCodesForMap);
+
+          if (villageCodesForMap.length > 0) {
+            const mapImage = await fetchMapFromAPI(villageCodesForMap);
+
+            if (mapImage) {
+              const maxMapWidth = pageWidth - 28;
+              const mapAspectRatio = 1.0; // Adjust if needed based on your API output
+              const mapWidth = Math.min(maxMapWidth, 180);
+              const mapHeight = mapWidth / mapAspectRatio;
+
+              if (yPos + mapHeight + 20 > pageHeight - bottomMargin) {
+                doc.addPage();
+                yPos = 20;
               }
-              await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            console.warn('Map ready timeout exceeded');
-            return false;
-          };
 
-          console.log('Waiting for map to be ready...');
-          const mapReady = await waitForMapReady();
-          if (!mapReady) {
-            console.warn('Map may not be fully loaded');
-          }
+              const mapX = (pageWidth - mapWidth) / 2;
+              doc.addImage(mapImage, 'PNG', mapX, yPos, mapWidth, mapHeight);
+              yPos += mapHeight + 10;
 
-          const mapImage = await captureMapWithRetry();
-          if (mapImage) {
-            const maxMapWidth = pageWidth - 28;
-            const mapAspectRatio = 1.2;
-            const mapWidth = Math.min(maxMapWidth, 180);
-            const mapHeight = mapWidth / mapAspectRatio;
-            if (yPos + mapHeight + 20 > pageHeight - bottomMargin) {
-              doc.addPage();
-              yPos = 20;
-            }
+              doc.setFontSize(8);
+              doc.setFont('helvetica', 'italic');
+              doc.text('Figure 1: Study Area Map', pageWidth / 2, yPos, { align: 'center' });
+              yPos += 10;
 
-            const mapX = (pageWidth - mapWidth) / 2;
-            doc.addImage(mapImage, 'PNG', mapX, yPos, mapWidth, mapHeight);
-            yPos += mapHeight + 10;
-
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'italic');
-            doc.text('Figure 1: Study Area Map', pageWidth / 2, yPos, { align: 'center' });
-            yPos += 10;
-            if (yPos > pageHeight - bottomMargin) {
-              doc.addPage();
-              yPos = 20;
+              if (yPos > pageHeight - bottomMargin) {
+                doc.addPage();
+                yPos = 20;
+              }
+            } else {
+              doc.setFontSize(10);
+              doc.setFont('helvetica', 'italic');
+              addParagraph('Map not available - API request failed. Please ensure the map service is running.');
             }
           } else {
             doc.setFontSize(10);
             doc.setFont('helvetica', 'italic');
-            addParagraph('Map not available - Please ensure the map is loaded before generating the report');
+            addParagraph('Map not available - No village data selected.');
           }
 
           // Methodology
@@ -2583,7 +2145,7 @@ const handleCalculateSewage = async () => {
               yPos = (doc as any).lastAutoTable?.finalY + 5;
               // yPos = updateYPosWithPageBreak(doc, yPos, 0);
             } catch (error) {
-              console.log("Error adding village table:", error);
+              //console.error("Error adding village table:", error);
               yPos = updateYPosWithPageBreak(doc, yPos, 5);
             }
           }
@@ -2600,7 +2162,7 @@ const handleCalculateSewage = async () => {
           try {
             // Get population forecasting results from window
             const populationResults = (window as any).populationForecastResults;
-            console.log('Population results for PDF:', populationResults);
+            //console.log('Population results for PDF:', populationResults);
 
             if (populationResults && Object.keys(populationResults).length > 0) {
               // addParagraph("Population forecasting has been carried out using multiple methods to provide comprehensive demographic projections. The following table shows the forecasted population for different years using various forecasting methodologies:");
@@ -2631,8 +2193,8 @@ const handleCalculateSewage = async () => {
                 Object.keys(populationResults[method]).length > 0
               );
 
-              console.log('Years found:', populationYears);
-              console.log('Methods found:', availableMethods);
+              //console.log('Years found:', populationYears);
+              //console.log('Methods found:', availableMethods);
 
               if (populationYears.length > 0 && availableMethods.length > 0) {
                 // Create table headers
@@ -2735,13 +2297,14 @@ const handleCalculateSewage = async () => {
             }
 
           } catch (error) {
-            console.log("Error adding population forecasting data:", error);
+            //console.error("Error adding population forecasting data:", error);
             addParagraph("Error occurred while processing population forecasting data.");
             yPos += 10;
           }
 
           //----------------------------------------------------------
 
+          // 4. Water Demand Analysis
           // 4. Water Demand Analysis
           if (yPos > 230) {
             doc.addPage();
@@ -2760,15 +2323,31 @@ const handleCalculateSewage = async () => {
             if (Object.keys(waterDemandData).length > 0) {
               const waterDemandYears = Object.keys(waterDemandData).sort();
               if (waterDemandYears.length > 0) {
-                const waterDemandRows = waterDemandYears.map(year => [
-                  year,
-                  Math.round(computedPopulation[year] || 0).toLocaleString(),
-                  (domesticWaterDemand[year] || 0).toFixed(2),
-                  (floatingWaterDemand[year] || 0).toFixed(2),
-                  (institutionalWaterDemand[year] || 0).toFixed(2),
-                  (firefightingDemand.kuchling?.[year] || 0).toFixed(2),
-                  (waterDemandData[year] || 0).toFixed(2)
-                ]);
+                const waterDemandRows = waterDemandYears.map(year => {
+                  // Use base_demand for floating water demand
+                  const floatingDemand = floatingWaterDemand?.base_demand?.[year] ||
+                    floatingWaterDemand?.[year] || 0;
+
+                  // Use base_demand for domestic water demand
+                  const domesticDemand = domesticWaterDemand?.base_demand?.[year] ||
+                    domesticWaterDemand?.[year] || 0;
+
+                  // Use the selected method or default to Kuchling (capital K)
+                  const firefightingMethod = waterDemandResults?.selectedFirefightingMethod || 'Kuchling';
+                  const firefightingValue = firefightingDemand?.[firefightingMethod]?.[year] ||
+                    firefightingDemand?.Kuchling?.[year] || 0;
+
+                  return [
+                    year,
+                    Math.round(computedPopulation[year] || 0).toLocaleString(),
+                    domesticDemand.toFixed(2),
+                    floatingDemand.toFixed(2),
+                    (institutionalWaterDemand[year] || 0).toFixed(2),
+                    firefightingValue.toFixed(2),
+                    (waterDemandData[year] || 0).toFixed(2)
+                  ];
+                });
+
                 autoTable(doc, {
                   head: [['Year', 'Forecasted Population', 'Domestic Water Demand (MLD)', 'Floating Water Demand (MLD)', 'Institutional Water Demand (MLD)', 'Firefighting Demand (Kuchling) (MLD)', 'Total Water Demand (MLD)']],
                   body: waterDemandRows,
@@ -2798,7 +2377,7 @@ const handleCalculateSewage = async () => {
               addParagraph("Water demand data not available");
             }
           } catch (error) {
-            console.log("Error adding water demand data:", error);
+            //console.error("Error adding water demand data:", error);
             yPos += 5;
           }
 
@@ -3077,7 +2656,7 @@ const handleCalculateSewage = async () => {
               addParagraph("Water supply data not available");
             }
           } catch (error) {
-            console.log("Error adding water supply data:", error);
+            //console.error("Error adding water supply data:", error);
             yPos += 5;
           }
 
@@ -3907,19 +3486,19 @@ const handleCalculateSewage = async () => {
           }
 
           try {
-            console.log('Starting PDF upload process...');
+            //console.log('Starting PDF upload process...');
 
             // Generate PDF as blob for upload
             const pdfBlob = doc.output('blob');
             const fileName = `Comprehensive_Sewage_Generation_Report_${Date.now()}.pdf`;
 
-            console.log('PDF blob created:', pdfBlob.size, 'bytes');
+            //console.log('PDF blob created:', pdfBlob.size, 'bytes');
 
             // Create FormData for upload
             const formData = new FormData();
             formData.append('pdf_file', pdfBlob, fileName);
 
-            console.log('FormData created, uploading to API...');
+            //console.log('FormData created, uploading to API...');
 
             // Upload to your API
             const uploadResponse = await fetch('/django/pdf', {
@@ -3927,11 +3506,11 @@ const handleCalculateSewage = async () => {
               body: formData,
             });
 
-            console.log('Upload response status:', uploadResponse.status);
+            //console.log('Upload response status:', uploadResponse.status);
 
             if (uploadResponse.ok) {
               const uploadResult = await uploadResponse.json();
-              console.log('PDF uploaded successfully:', uploadResult);
+              //console.log('PDF uploaded successfully:', uploadResult);
 
               // Show success message
               setTimeout(() => {
@@ -3939,28 +3518,28 @@ const handleCalculateSewage = async () => {
               }, 100);
             } else {
               const errorText = await uploadResponse.text();
-              console.log('Upload failed:', uploadResponse.status, errorText);
+              //console.error('Upload failed:', uploadResponse.status, errorText);
               setTimeout(() => {
                 // alert('PDF generated successfully, but upload to server failed. Check console for details.');
               }, 100);
             }
           } catch (uploadError) {
-            console.log('Upload error:', uploadError);
+           // console.error('Upload error:', uploadError);
             setTimeout(() => {
               //alert('PDF generated successfully, but upload to server failed. Check console for details.');
             }, 100);
           }
 
           // Keep the original download functionality
-          console.log('Starting PDF download...');
+         // console.log('Starting PDF download...');
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");
-          console.log('PDF download initiated');
+         // console.log('PDF download initiated');
 
 
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");
         } // End of try block
       } catch (error) {
-        console.log("Error generating report:", error);
+        //console.error("Error generating report:", error);
       }
       finally {
         setIsDownloading(false);

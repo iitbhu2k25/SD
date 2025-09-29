@@ -1,3 +1,5 @@
+matplotlib_scalebar
+contextily
 rasterstats
 tqdm
 statsmodels>=0.13.0

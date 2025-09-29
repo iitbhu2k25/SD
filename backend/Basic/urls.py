@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import StormwaterRunoffView, UploadShapefile, pdftotemp, swrunoffView, ShapefileDataAPI, VillagePopulationRawSQL, VillagePopulationAPI, VillagesCatchmentIntersection, AllStretches, Catchments, BasinAPI, RiverMapAPI, RiverStretched, Drain, CohortView, Locations_stateAPI,Locations_districtAPI,Locations_subdistrictAPI,Locations_villageAPI,Time_series,Demographic,SewageCalculation,WaterSupplyCalculationAPI,DomesticWaterDemandCalculationAPIView,FloatingWaterDemandCalculationAPIView,InstitutionalWaterDemandCalculationAPIView,FirefightingWaterDemandCalculationAPIView
+from .views import BasicStudyAreaMap, StormwaterRunoffView, UploadShapefile, pdftotemp, swrunoffView, ShapefileDataAPI, VillagePopulationRawSQL, VillagePopulationAPI, VillagesCatchmentIntersection, AllStretches, Catchments, BasinAPI, RiverMapAPI, RiverStretched, Drain, CohortView, Locations_stateAPI,Locations_districtAPI,Locations_subdistrictAPI,Locations_villageAPI,Time_series,Demographic,SewageCalculation,WaterSupplyCalculationAPI,DomesticWaterDemandCalculationAPIView,FloatingWaterDemandCalculationAPIView,InstitutionalWaterDemandCalculationAPIView,FirefightingWaterDemandCalculationAPIView
 urlpatterns = [
     path("state",Locations_stateAPI.as_view(),name="states"),
     path("district",Locations_districtAPI.as_view(),name="districts"),
@@ -33,6 +33,7 @@ urlpatterns = [
     path("upload-shapefile", UploadShapefile.as_view(), name="upload-shapefile"),
     path('swrunoff', swrunoffView.as_view(), name='get_data'),
     path('stormwaterrunoff', StormwaterRunoffView.as_view(), name='get_data'), 
+    path('studyareamap', BasicStudyAreaMap.as_view(), name='get_data'),
     path('pdf', pdftotemp.as_view(), name='pdf-to-temp'),
 ]
 

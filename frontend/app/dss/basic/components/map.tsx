@@ -25,6 +25,65 @@ interface MapProps {
   onLoadingChange?: (isLoading: boolean) => void;
 }
 
+// Fullscreen Button Component
+function FullscreenControl({ isFullscreen, onToggleFullscreen }: {
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
+}) {
+  const map = useMap();
+  
+  useEffect(() => {
+    const fullscreenControl = L.Control.extend({
+      onAdd: function() {
+        const container = L.DomUtil.create('div', 'leaflet-control-fullscreen');
+        const button = L.DomUtil.create('button', 'fullscreen-button', container);
+        
+        button.innerHTML = isFullscreen ? 
+          '⤡' : // Exit fullscreen icon
+          '⤢'; // Enter fullscreen icon
+          
+        button.title = isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen';
+        button.style.cssText = `
+          background: white;
+          border: 2px solid rgba(0,0,0,0.2);
+          border-radius: 4px;
+          width: 30px;
+          height: 30px;
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+        `;
+        
+        button.onmouseover = () => {
+          button.style.backgroundColor = '#f4f4f4';
+        };
+        
+        button.onmouseout = () => {
+          button.style.backgroundColor = 'white';
+        };
+        
+        L.DomEvent.on(button, 'click', L.DomEvent.stopPropagation);
+        L.DomEvent.on(button, 'click', onToggleFullscreen);
+        
+        return container;
+      }
+    });
+    
+    const control = new fullscreenControl({ position: 'topleft' });
+    control.addTo(map);
+    
+    return () => {
+      map.removeControl(control);
+    };
+  }, [map, isFullscreen, onToggleFullscreen]);
+  
+  return null;
+}
+
 // Create a separate component to handle map updates
 function MapLayers({
   selectedState,
@@ -34,6 +93,8 @@ function MapLayers({
   subDistrictData,
   onLocationSelect,
   onLoadingChange,
+  isFullscreen,
+  onToggleFullscreen,
 }: {
   selectedState?: string;
   selectedDistricts?: string[];
@@ -49,6 +110,8 @@ function MapLayers({
     totalPopulation?: number;
   }) => void;
   onLoadingChange?: (isLoading: boolean) => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }) {
   const map = useMap();
 
@@ -136,7 +199,7 @@ function MapLayers({
         }
       }
     } catch (error) {
-      console.log('Error zooming to feature bounds:', error);
+      //console.error('Error zooming to feature bounds:', error);
     }
   };
 
@@ -188,48 +251,48 @@ function MapLayers({
   // Cleanup functions
   const cleanupDistrictLayers = () => {
     if (districtLayersRef.current) {
-      console.log('FORCE REMOVING district layers');
+      //console.log('FORCE REMOVING district layers');
       try {
         map.removeLayer(districtLayersRef.current);
         districtLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing district layers:', error);
+        //console.error('Error removing district layers:', error);
       }
     }
   };
 
   const cleanupSubDistrictLayers = () => {
     if (subDistrictLayersRef.current) {
-      console.log('FORCE REMOVING sub-district layers');
+     //console.log('FORCE REMOVING sub-district layers');
       try {
         map.removeLayer(subDistrictLayersRef.current);
         subDistrictLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing sub-district layers:', error);
+        //console.error('Error removing sub-district layers:', error);
       }
     }
   };
 
   const cleanupVillageLayers = () => {
     if (villageLayersRef.current) {
-      console.log('FORCE REMOVING village layers');
+     // console.log('FORCE REMOVING village layers');
       try {
         map.removeLayer(villageLayersRef.current);
         villageLayersRef.current = null;
       } catch (error) {
-        console.log('Error removing village layers:', error);
+       // console.error('Error removing village layers:', error);
       }
     }
   };
 
   const cleanupStateLayer = () => {
     if (stateLayerRef.current) {
-      console.log('FORCE REMOVING state layer');
+     // console.log('FORCE REMOVING state layer');
       try {
         map.removeLayer(stateLayerRef.current);
         stateLayerRef.current = null;
       } catch (error) {
-        console.log('Error removing state layer:', error);
+        //console.error('Error removing state layer:', error);
       }
     }
   };
@@ -265,9 +328,9 @@ function MapLayers({
   // Handle state changes
   useEffect(() => {
     if (selectedState !== prevStateRef.current) {
-      console.log(
-        '*** STATE CHANGED: Forcing cleanup of district, subdistrict, and village layers ***'
-      );
+      // console.log(
+      //   '*** STATE CHANGED: Forcing cleanup of district, subdistrict, and village layers ***'
+      // );
       cleanupDistrictLayers();
       cleanupSubDistrictLayers();
       cleanupVillageLayers();
@@ -284,9 +347,9 @@ function MapLayers({
     const prevDistrictsJSON = JSON.stringify(prevDistrictsRef.current || []);
     const currentDistrictsJSON = JSON.stringify(selectedDistricts || []);
     if (prevDistrictsJSON !== currentDistrictsJSON) {
-      console.log(
-        '*** DISTRICTS CHANGED: Forcing cleanup of subdistrict and village layers ***'
-      );
+      // console.log(
+      //   '*** DISTRICTS CHANGED: Forcing cleanup of subdistrict and village layers ***'
+      // );
       cleanupSubDistrictLayers();
       cleanupVillageLayers();
       setIsLoadingSubDistricts(false);
@@ -301,7 +364,7 @@ function MapLayers({
     const prevSubDistrictsJSON = JSON.stringify(prevSubDistrictsRef.current || []);
     const currentSubDistrictsJSON = JSON.stringify(selectedSubDistricts || []);
     if (prevSubDistrictsJSON !== currentSubDistrictsJSON) {
-      console.log('*** SUBDISTRICTS CHANGED: Forcing cleanup of village layers ***');
+      //console.log('*** SUBDISTRICTS CHANGED: Forcing cleanup of village layers ***');
       cleanupVillageLayers();
       setIsLoadingVillages(false);
       prevSubDistrictsRef.current = selectedSubDistricts;
@@ -314,7 +377,7 @@ function MapLayers({
     const prevVillagesJSON = JSON.stringify(prevVillagesRef.current || []);
     const currentVillagesJSON = JSON.stringify(selectedVillages || []);
     if (prevVillagesJSON !== currentVillagesJSON) {
-      console.log('*** VILLAGES CHANGED ***');
+      //console.log('*** VILLAGES CHANGED ***');
       cleanupVillageLayers();
       prevVillagesRef.current = selectedVillages;
       updateLocationData();
@@ -328,11 +391,11 @@ function MapLayers({
     const fetchBaseMap = async () => {
       try {
         setIsLoadingBase(true);
-        console.log('Fetching base map for India from GeoServer');
+        //console.log('Fetching base map for India from GeoServer');
 
         // GeoServer WFS endpoint for India layer (GeoJSON output)
         const WFS_URL =
-          '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
+          '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json';
 
         const response = await fetch(WFS_URL, {
           method: 'GET',
@@ -343,7 +406,7 @@ function MapLayers({
         }
 
         const data = await response.json();
-        console.log('Base map data received from GeoServer');
+        //console.log('Base map data received from GeoServer');
 
         if (
           !data ||
@@ -392,16 +455,16 @@ function MapLayers({
                 map.fitBounds(bounds);
                 currentZoomLevelRef.current = map.getZoom(); // Store initial zoom
               } else {
-                console.warn('Invalid bounds for base map layer');
+                //console.warn('Invalid bounds for base map layer');
               }
             } catch (error) {
-              console.log('Error fitting map to bounds:', error);
+              //console.error('Error fitting map to bounds:', error);
             }
             setIsLoadingBase(false);
           }
         });
       } catch (error) {
-        console.log('Error fetching or rendering base map:', error);
+        //console.error('Error fetching or rendering base map:', error);
         if (isMounted) {
           setIsLoadingBase(false);
         }
@@ -419,7 +482,6 @@ function MapLayers({
     };
   }, [map]);
 
-
   // Fetch state data from GeoServer
   useEffect(() => {
     if (!selectedState) {
@@ -435,7 +497,7 @@ function MapLayers({
     setIsLoadingState(true);
     const fetchStateData = async () => {
       try {
-        console.log('Fetching state data for:', selectedState);
+        //console.log('Fetching state data for:', selectedState);
         
         const formattedStateCode = selectedState.toString().padStart(2, "0");
         const cqlFilter = `state_code = '${formattedStateCode}'`;
@@ -451,7 +513,7 @@ function MapLayers({
         }
 
         const data = await response.json();
-        console.log('State data received from GeoServer');
+        //console.log('State data received from GeoServer');
 
         if (
           !data ||
@@ -499,16 +561,16 @@ function MapLayers({
                 map.fitBounds(bounds);
                 currentZoomLevelRef.current = map.getZoom();
               } else {
-                console.warn('Invalid bounds for state layer');
+                //console.warn('Invalid bounds for state layer');
               }
             } catch (error) {
-              console.log('Error fitting map to state layer bounds:', error);
+              //console.error('Error fitting map to state layer bounds:', error);
             }
           }
           setIsLoadingState(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering state data:', error);
+        //console.error('Error fetching or rendering state data:', error);
         setIsLoadingState(false);
       }
     };
@@ -537,18 +599,18 @@ function MapLayers({
         const cqlFilter = `DISTRICT_C IN (${districtCodes})`;
         const url = createWFSUrl('B_district', cqlFilter);
 
-        console.log('Fetching district data with filter:', cqlFilter);
+        //console.log('Fetching district data with filter:', cqlFilter);
         const response = await fetch(url);
 
         if (!response.ok) {
           alert('We have data only for Uttar Pradesh.');
-          console.log('Failed to fetch district data:', response.status);
+          //console.error('Failed to fetch district data:', response.status);
           setIsLoadingDistricts(false);
           return;
         }
 
         const data = await response.json();
-        console.log('District data received from GeoServer');
+        //console.log('District data received from GeoServer');
 
         if (
           !data ||
@@ -596,12 +658,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to district layer bounds:', error);
+            //console.error('Error fitting map to district layer bounds:', error);
           }
           setIsLoadingDistricts(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering district data:', error);
+        //console.error('Error fetching or rendering district data:', error);
         setIsLoadingDistricts(false);
       }
     };
@@ -633,20 +695,20 @@ function MapLayers({
         const cqlFilter = `SUBDIS_COD IN (${subdistrictCodes})`;
         const url = createWFSUrl('B_subdistrict', cqlFilter);
 
-        console.log('Fetching subdistrict data with filter:', cqlFilter);
+        //console.log('Fetching subdistrict data with filter:', cqlFilter);
         const response = await fetch(url);
 
         if (!response.ok) {
-          console.log('Failed to fetch subdistrict data:', response.status);
+          //console.error('Failed to fetch subdistrict data:', response.status);
           setIsLoadingSubDistricts(false);
           return;
         }
 
         const data = await response.json();
-        console.log('SubDistrict data received from GeoServer');
+        //console.log('SubDistrict data received from GeoServer');
 
         if (!data || !data.features || data.features.length === 0) {
-          console.warn('No valid subdistrict data received');
+          //console.warn('No valid subdistrict data received');
           setIsLoadingSubDistricts(false);
           return;
         }
@@ -671,12 +733,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to sub-district layer bounds:', error);
+            //console.error('Error fitting map to sub-district layer bounds:', error);
           }
           setIsLoadingSubDistricts(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering sub-district data:', error);
+        //console.error('Error fetching or rendering sub-district data:', error);
         setIsLoadingSubDistricts(false);
       }
     };
@@ -702,20 +764,20 @@ function MapLayers({
         const cqlFilter = `vlcode IN (${villageCodes})`;
         const url = createWFSUrl('Village', cqlFilter);
 
-        console.log('Fetching village data with filter:', cqlFilter);
+        //console.log('Fetching village data with filter:', cqlFilter);
         const response = await fetch(url);
 
         if (!response.ok) {
-          console.log('Failed to fetch village data:', response.status);
+          //console.error('Failed to fetch village data:', response.status);
           setIsLoadingVillages(false);
           return;
         }
 
         const data = await response.json();
-        console.log('Village data received from GeoServer');
+        //console.log('Village data received from GeoServer');
 
         if (!data || !data.features || data.features.length === 0) {
-          console.warn('No valid village data received');
+          //console.warn('No valid village data received');
           setIsLoadingVillages(false);
           return;
         }
@@ -797,12 +859,12 @@ function MapLayers({
               currentZoomLevelRef.current = map.getZoom();
             }
           } catch (error) {
-            console.log('Error fitting map to village layer bounds:', error);
+            //console.error('Error fitting map to village layer bounds:', error);
           }
           setIsLoadingVillages(false);
         });
       } catch (error) {
-        console.log('Error fetching or rendering village data:', error);
+        //console.error('Error fetching or rendering village data:', error);
         setIsLoadingVillages(false);
       }
     };
@@ -828,6 +890,10 @@ function MapLayers({
 
   return (
     <>
+      <FullscreenControl 
+        isFullscreen={isFullscreen} 
+        onToggleFullscreen={onToggleFullscreen} 
+      />
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
           <div className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
@@ -869,13 +935,14 @@ export default function Map({
   onLocationSelect,
   onLoadingChange,
 }: MapProps) {
-  console.log('Map component rendering with selectedState:', selectedState);
-  console.log('Map component rendering with selectedDistricts:', selectedDistricts);
-  console.log('Map component rendering with selectedSubDistricts:', selectedSubDistricts);
-  console.log('Map component rendering with selectedVillages:', selectedVillages);
+  // console.log('Map component rendering with selectedState:', selectedState);
+  // console.log('Map component rendering with selectedDistricts:', selectedDistricts);
+  // console.log('Map component rendering with selectedSubDistricts:', selectedSubDistricts);
+  // console.log('Map component rendering with selectedVillages:', selectedVillages);
 
   // State to track if component is mounted (client-side)
   const [isMounted, setIsMounted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Fix Leaflet icon issues
   useEffect(() => {
@@ -891,6 +958,49 @@ export default function Map({
     }
   }, []);
 
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      const mapElement = document.querySelector('.map-container');
+      if (mapElement?.requestFullscreen) {
+        mapElement.requestFullscreen().then(() => {
+          setIsFullscreen(true);
+        }).catch((err) => {
+          console.error('Error entering fullscreen:', err);
+        });
+      }
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => {
+          setIsFullscreen(false);
+        }).catch((err) => {
+          console.error('Error exiting fullscreen:', err);
+        });
+      }
+    }
+  }, []);
+
+  // Listen for fullscreen changes (e.g., when user presses ESC)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   // Don't render map until component is mounted (client-side)
   if (!isMounted) {
     return (
@@ -901,15 +1011,18 @@ export default function Map({
   }
 
   function setMapError(arg0: string | null) {
-    console.log('Map error:', arg0);
+    console.error('Map error:', arg0);
   }
 
   return (
-    <div className={`map-container ${className || ''} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
+    <div 
+      className={`map-container ${className || ''} ${isFullscreen ? 'fixed inset-0 z-[9999] bg-white' : 'h-full'}`} 
+      style={{ background: 'rgb(255, 255, 255)' }}
+    >
       <MapContainer
         center={[22.9734, 78.6569]}
         zoom={5}
-        className="admin-map z-[100] border-4 border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full "
+        className={`admin-map z-[100] border-4 border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full ${isFullscreen ? 'h-screen rounded-none border-0' : 'h-full'}`}
         worldCopyJump={true}
         maxBoundsViscosity={1.0}
         minZoom={2}
@@ -917,11 +1030,11 @@ export default function Map({
         doubleClickZoom={true}
         style={{ background: 'rgb(255, 255, 255)' }}
         whenReady={() => {
-          console.log('Map container is ready');
+          //console.log('Map container is ready');
         }}
       >
         {/* Legend moved inside map as overlay */}
-        <div className="absolute top-2 left-12 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
+        <div className={`absolute ${isFullscreen ? 'top-4 left-16' : 'top-2 left-12'} z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300`}>
           <div className="flex flex-wrap gap-2 text-xs">
             <div className="flex items-center space-x-1">
               <span className="w-3 h-2 inline-block" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
@@ -992,8 +1105,17 @@ export default function Map({
           subDistrictData={subDistrictData}
           onLocationSelect={onLocationSelect}
           onLoadingChange={onLoadingChange}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
       </MapContainer>
+
+      {/* Fullscreen exit hint */}
+      {isFullscreen && (
+        <div className="absolute top-4 right-18 z-[1001] bg-black bg-opacity-70 text-white px-3 py-2 rounded-lg text-sm">
+          Press <kbd className="bg-white text-black px-1 rounded">ESC</kbd> or click the fullscreen button to exit
+        </div>
+      )}
     </div>
   );
 }

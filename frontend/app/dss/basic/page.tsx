@@ -13,6 +13,7 @@ import Sewage from "./seawage/page"
 import SewageCalculationForm from "./seawage/components/SewageCalculationForm";
 import WaterSupplyForm from "./water_supply/components/WaterSupplyForm";
 import WaterDemandForm from "./water_demand/components/WaterDemandForm";
+import { AiOutlineInfoCircle } from "react-icons/ai";
 
 
 const Map = dynamic(() => import("./components/map"), {
@@ -163,9 +164,9 @@ const Basic: React.FC = () => {
     winter: 0.90
   });
   // Add these state variables with your other state declarations
-const [waterDemandResults, setWaterDemandResults] = useState<any>(null);
-const [floatingSeasonalDemands, setFloatingSeasonalDemands] = useState<any>(null);
-const [domesticSeasonalDemands, setDomesticSeasonalDemands] = useState<any>(null);
+  const [waterDemandResults, setWaterDemandResults] = useState<any>(null);
+  const [floatingSeasonalDemands, setFloatingSeasonalDemands] = useState<any>(null);
+  const [domesticSeasonalDemands, setDomesticSeasonalDemands] = useState<any>(null);
 
   // Refs for LocationSelector
   const stateRef = useRef<string>('');
@@ -211,7 +212,7 @@ const [domesticSeasonalDemands, setDomesticSeasonalDemands] = useState<any>(null
   useEffect(() => {
     if (villageChangeSource) {
       const timer = setTimeout(() => {
-        console.log('Clearing villageChangeSource in page.tsx:', villageChangeSource);
+        //console.log('Clearing villageChangeSource in page.tsx:', villageChangeSource);
         setVillageChangeSource(null);
 
         // Also clear global flag if it matches
@@ -235,39 +236,39 @@ const [domesticSeasonalDemands, setDomesticSeasonalDemands] = useState<any>(null
       setSkippedSteps(drainSkippedSteps);
     }
   }, [viewMode, adminCurrentStep, drainCurrentStep, adminCompletedSteps, drainCompletedSteps, adminSkippedSteps, drainSkippedSteps]);
-   // water demand handle 
-   // Add this handler function
-   const handleWaterDemandResultsChange = (results: any) => {
-  setWaterDemandResults(results);
-  // Store globally if needed by other components
-  (window as any).waterDemandResults = results;
-};
-const handleFloatingSeasonalDemandsChange = (seasonalDemands: any) => {
-  setFloatingSeasonalDemands(seasonalDemands);
-  // Store globally if needed by other components
-  (window as any).floatingSeasonalDemands = seasonalDemands;
-};
+  // water demand handle 
+  // Add this handler function
+  const handleWaterDemandResultsChange = (results: any) => {
+    setWaterDemandResults(results);
+    // Store globally if needed by other components
+    (window as any).waterDemandResults = results;
+  };
+  const handleFloatingSeasonalDemandsChange = (seasonalDemands: any) => {
+    setFloatingSeasonalDemands(seasonalDemands);
+    // Store globally if needed by other components
+    (window as any).floatingSeasonalDemands = seasonalDemands;
+  };
 
-const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
-  setDomesticSeasonalDemands(seasonalDemands);
-  // Store globally if needed by other components
-  (window as any).domesticSeasonalDemands = seasonalDemands;
-};
+  const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
+    setDomesticSeasonalDemands(seasonalDemands);
+    // Store globally if needed by other components
+    (window as any).domesticSeasonalDemands = seasonalDemands;
+  };
 
-    const handlePerCapitaConsumptionChange = (value: number) => {
-      setPerCapitaConsumption(value);
-      // Store globally if needed by other components
-      (window as any).perCapitaConsumption = value;
-    };
-        // Add this handler function
-    const handleSeasonalMultipliersChange = (multipliers: any) => {
-      setSeasonalMultipliers(multipliers);
-      // Store globally if needed by other components
-      (window as any).seasonalMultipliers = multipliers;
-    };
+  const handlePerCapitaConsumptionChange = (value: number) => {
+    setPerCapitaConsumption(value);
+    // Store globally if needed by other components
+    (window as any).perCapitaConsumption = value;
+  };
+  // Add this handler function
+  const handleSeasonalMultipliersChange = (multipliers: any) => {
+    setSeasonalMultipliers(multipliers);
+    // Store globally if needed by other components
+    (window as any).seasonalMultipliers = multipliers;
+  };
   // Handle confirm for LocationSelector
   const handleLocationConfirm = (data: SelectedLocationData): void => {
-    console.log('Received confirmed location data:', data);
+    //console.log('Received confirmed location data:', data);
     setSelectedLocationData(data);
     setSelectedRiverData(null); // Clear RiverSelector data
   };
@@ -291,13 +292,13 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
       actualSource = window.villageChangeSource;
     }
 
-    console.log(`Villages selection changed in page.tsx (source: ${actualSource || 'unknown'}):`,
-      villages.filter(v => v.selected !== false).length, 'selected out of', villages.length);
-    console.log(`Source determination: param=${source}, global=${window.villageChangeSource}, final=${actualSource}`);
+    // console.log(`Villages selection changed in page.tsx (source: ${actualSource || 'unknown'}):`,
+    //   villages.filter(v => v.selected !== false).length, 'selected out of', villages.length);
+    // console.log(`Source determination: param=${source}, global=${window.villageChangeSource}, final=${actualSource}`);
 
     // Always update if villages are different
     if (!isEqual(villages, intersectedVillages)) {
-      console.log('Villages have changed, updating state with source:', actualSource);
+      //console.log('Villages have changed, updating state with source:', actualSource);
       setIntersectedVillages([...villages]);
 
       // Set the village change source
@@ -309,17 +310,17 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
           ...window.selectedRiverData,
           selectedVillages: villages.filter(v => v.selected !== false),
         };
-        console.log('Updated window.selectedRiverData');
+        //console.log('Updated window.selectedRiverData');
       }
     } else {
-      console.log('Villages unchanged, skipping update');
+      //console.log('Villages unchanged, skipping update');
     }
   };
 
   const handleDistrictsChange = (districts: string[]): void => {
-    console.log('Districts changed to:', districts);
+    //console.log('Districts changed to:', districts);
     if (JSON.stringify(districts) !== JSON.stringify(districtsRef.current)) {
-      console.log('Resetting subdistrict selections');
+      //console.log('Resetting subdistrict selections');
       setSelectedSubDistricts([]);
       if (window.resetSubDistrictSelectionsInLocationSelector) {
         window.resetSubDistrictSelectionsInLocationSelector();
@@ -335,7 +336,7 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
       subDistrictId: parseInt(vp.subdistrict_code) || 0,
       population: vp.total_population || 0
     };
-    console.log(`Mapped village ${mappedVillage.name} (${mappedVillage.id}) population: ${mappedVillage.population}`);
+    //console.log(`Mapped village ${mappedVillage.name} (${mappedVillage.id}) population: ${mappedVillage.population}`);
     return mappedVillage;
   }) || [];
 
@@ -348,22 +349,22 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
 
   // Handle subdistrict selection for LocationSelector
   const handleSubDistrictsChange = (subdistricts: string[]): void => {
-    console.log('Sub-districts changed to:', subdistricts);
+    //console.log('Sub-districts changed to:', subdistricts);
     setSelectedSubDistricts([...subdistricts]);
     setDrainSelectionsLocked(true);
   };
 
 
   const handleRiverConfirm = (data: SelectedRiverData): void => {
-    console.log('Received confirmed river data:', data);
+    //console.log('Received confirmed river data:', data);
     setSelectedRiverData(data);
     setSelectedLocationData(null); // Clear LocationSelector data
   };
   // Handle state selection for LocationSelector
   const handleStateChange = (stateCode: string): void => {
-    console.log('State changed to:', stateCode);
+    //console.log('State changed to:', stateCode);
     if (stateCode !== stateRef.current) {
-      console.log('Resetting district and subdistrict selections');
+      //console.log('Resetting district and subdistrict selections');
       setSelectedDistricts([]);
       setSelectedSubDistricts([]);
       if (window.resetDistrictSelectionsInLocationSelector) {
@@ -377,15 +378,15 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
   };
 
   const handleVillagesChangeAdmin = (villages: string[]): void => {
-    console.log('Villages changed to:', villages);
+    //console.log('Villages changed to:', villages);
     setSelectedVillages([...villages]);
   };
 
   // Handle river selection for RiverSelector
   const handleRiverChange = (riverId: string): void => {
-    console.log('River changed to:', riverId);
+    //console.log('River changed to:', riverId);
     if (riverId !== riverRef.current) {
-      console.log('Resetting stretch and drain selections');
+     // console.log('Resetting stretch and drain selections');
       setSelectedStretch('');
       setSelectedDrains([]);
       if (window.resetStretchSelectionsInDrainLocationsSelector) {
@@ -400,9 +401,9 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
 
   // Handle stretch selection for RiverSelector
   const handleStretchChange = (stretchId: string): void => {
-    console.log('Stretch changed to:', stretchId);
+    //console.log('Stretch changed to:', stretchId);
     if (!stretchRef.current.includes(stretchId)) {
-      console.log('Resetting drain selections');
+      //console.log('Resetting drain selections');
       setSelectedDrains([]);
       if (window.resetDrainSelectionsInDrainLocationsSelector) {
         window.resetDrainSelectionsInDrainLocationsSelector();
@@ -414,12 +415,12 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
   // Handle drains selection for RiverSelector
   const handleDrainsChange = (drainIds: string[]) => {
     setSelectedDrainIds(drainIds);
-    console.log("Selected drain IDs updated:", drainIds);
+    //console.log("Selected drain IDs updated:", drainIds);
   };
 
 
   const handleVillagePopulationUpdate = (populations: VillagePopulation[]) => {
-    console.log('Village populations updated:', populations);
+    //console.log('Village populations updated:', populations);
     setDrainVillagePopulations(populations);
   };
 
@@ -442,7 +443,7 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
       })),
     };
 
-    console.log('page.tsx: Setting selectedRiverData with complete drain data:', riverData);
+    //console.log('page.tsx: Setting selectedRiverData with complete drain data:', riverData);
     setSelectedRiverData(riverData);
 
     // FIXED: Ensure window.selectedRiverData includes selectedVillages
@@ -451,7 +452,7 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
       selectedVillages: intersectedVillages.filter(v => v.selected !== false),
     };
 
-    console.log('page.tsx: Updated window.selectedRiverData:', window.selectedRiverData);
+    //console.log('page.tsx: Updated window.selectedRiverData:', window.selectedRiverData);
   };
 
   const handleMapLoadingChange = (isLoading: boolean) => {
@@ -519,7 +520,7 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
 
   // Complete reset handler
   const handleReset = (): void => {
-    console.log('FULL RESET triggered');
+    //console.log('FULL RESET triggered');
     setCurrentStep(0);
     setAdminCurrentStep(0);
     setDrainCurrentStep(0);
@@ -566,88 +567,88 @@ const handleDomesticSeasonalDemandsChange = (seasonalDemands: any) => {
     }, 500);
   };
 
-//added for perfect reset 
-// Add this useEffect to handle view mode changes and reset all data
-useEffect(() => {
-  // Reset all step-related states
-  setCurrentStep(0);
-  setSkippedSteps([]);
-  setCompletedSteps([]);
-  
-  // Reset location data (admin mode)
-  setSelectedLocationData(null);
-  setSelectedStateCode('');
-  setSelectedDistricts([]);
-  setSelectedSubDistricts([]);
-  setSelectedVillages([]);
-  
-  // Reset river data (drain mode)
-  setSelectedRiverData(null);
-  setSelectedRiver('');
-  setSelectedStretch('');
-  setSelectedDrains([]);
-  setSelectedDrainIds([]);
-  setIntersectedVillages([]);
-  setDrainVillagePopulations([]);
-  setDrainSelectionsLocked(false);
-  setVillageChangeSource(null);
-  
-  // Reset all refs
-  stateRef.current = '';
-  districtsRef.current = [];
-  subDistrictsRef.current = [];
-  villagesRef.current = [];
-  riverRef.current = '';
-  stretchRef.current = [];
-  drainsRef.current = [];
-  
-  // Clear all global variables that store calculation data
-  (window as any).totalWaterSupply = undefined;
-  (window as any).previousTotalWaterSupply = undefined;
-  (window as any).selectedLocations = undefined;
-  (window as any).selectedRiverData = undefined;
-  (window as any).populationData = undefined;
-  (window as any).waterDemandData = undefined;
-  (window as any).sewageData = undefined;
-  (window as any).intersectedVillages = [];
-  (window as any).drainVillageData = undefined;
-  (window as any).selectedDrainData = undefined;
-  
-  // Reset any other global flags
-  window.villageChangeSource = null;
-  
-  // Call reset functions for selectors if they exist
-  if (window.resetDistrictSelectionsInLocationSelector) {
-    window.resetDistrictSelectionsInLocationSelector();
-  }
-  if (window.resetSubDistrictSelectionsInLocationSelector) {
-    window.resetSubDistrictSelectionsInLocationSelector();
-  }
-  if (window.resetStretchSelectionsInDrainLocationsSelector) {
-    window.resetStretchSelectionsInDrainLocationsSelector();
-  }
-  if (window.resetDrainSelectionsInDrainLocationsSelector) {
-    window.resetDrainSelectionsInDrainLocationsSelector();
-  }
-  
-  // Clear map-specific data
-  if (window.clearDrainMapData) {
-    window.clearDrainMapData();
-  }
-  if (window.clearAdminMapData) {
-    window.clearAdminMapData();
-  }
-  
-  // Reset loading states based on view mode
-  if (viewMode === 'drain') {
-    setIsDrainMapLoading(true);
-  } else {
-    setIsMapLoading(true);
-  }
-  
-}, [viewMode]); 
-// This will trigger whenever viewMode changes
-//added end in last for reset 
+  //added for perfect reset 
+  // Add this useEffect to handle view mode changes and reset all data
+  useEffect(() => {
+    // Reset all step-related states
+    setCurrentStep(0);
+    setSkippedSteps([]);
+    setCompletedSteps([]);
+
+    // Reset location data (admin mode)
+    setSelectedLocationData(null);
+    setSelectedStateCode('');
+    setSelectedDistricts([]);
+    setSelectedSubDistricts([]);
+    setSelectedVillages([]);
+
+    // Reset river data (drain mode)
+    setSelectedRiverData(null);
+    setSelectedRiver('');
+    setSelectedStretch('');
+    setSelectedDrains([]);
+    setSelectedDrainIds([]);
+    setIntersectedVillages([]);
+    setDrainVillagePopulations([]);
+    setDrainSelectionsLocked(false);
+    setVillageChangeSource(null);
+
+    // Reset all refs
+    stateRef.current = '';
+    districtsRef.current = [];
+    subDistrictsRef.current = [];
+    villagesRef.current = [];
+    riverRef.current = '';
+    stretchRef.current = [];
+    drainsRef.current = [];
+
+    // Clear all global variables that store calculation data
+    (window as any).totalWaterSupply = undefined;
+    (window as any).previousTotalWaterSupply = undefined;
+    (window as any).selectedLocations = undefined;
+    (window as any).selectedRiverData = undefined;
+    (window as any).populationData = undefined;
+    (window as any).waterDemandData = undefined;
+    (window as any).sewageData = undefined;
+    (window as any).intersectedVillages = [];
+    (window as any).drainVillageData = undefined;
+    (window as any).selectedDrainData = undefined;
+
+    // Reset any other global flags
+    window.villageChangeSource = null;
+
+    // Call reset functions for selectors if they exist
+    if (window.resetDistrictSelectionsInLocationSelector) {
+      window.resetDistrictSelectionsInLocationSelector();
+    }
+    if (window.resetSubDistrictSelectionsInLocationSelector) {
+      window.resetSubDistrictSelectionsInLocationSelector();
+    }
+    if (window.resetStretchSelectionsInDrainLocationsSelector) {
+      window.resetStretchSelectionsInDrainLocationsSelector();
+    }
+    if (window.resetDrainSelectionsInDrainLocationsSelector) {
+      window.resetDrainSelectionsInDrainLocationsSelector();
+    }
+
+    // Clear map-specific data
+    if (window.clearDrainMapData) {
+      window.clearDrainMapData();
+    }
+    if (window.clearAdminMapData) {
+      window.clearAdminMapData();
+    }
+
+    // Reset loading states based on view mode
+    if (viewMode === 'drain') {
+      setIsDrainMapLoading(true);
+    } else {
+      setIsMapLoading(true);
+    }
+
+  }, [viewMode]);
+  // This will trigger whenever viewMode changes
+  //added end in last for reset 
 
   // Toggle view mode handler
   const handleViewModeChange = (mode: 'admin' | 'drain') => {
@@ -689,14 +690,13 @@ useEffect(() => {
             {/* Toggle controls */}
             <div className="flex items-center space-x-6 mr-100">
               <span
-                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${
-                  viewMode === "admin" ? "text-white drop-shadow-lg" : "text-white/80"
-                }`}
+                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${viewMode === "admin" ? "text-white drop-shadow-lg" : "text-white/80"
+                  }`}
                 onClick={() => {
                   if (viewMode !== "admin") handleViewModeChange("admin")
                 }}
               >
-                Admin
+                Administrative
               </span>
 
               <div
@@ -713,9 +713,8 @@ useEffect(() => {
                 }}
               >
                 <div
-                  className={`absolute top-1 left-1 w-10 h-10 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
-                    viewMode === "drain" ? "translate-x-12 bg-green-500" : "bg-blue-500"
-                  } flex items-center justify-center`}
+                  className={`absolute top-1 left-1 w-10 h-10 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${viewMode === "drain" ? "translate-x-12 bg-green-500" : "bg-blue-500"
+                    } flex items-center justify-center`}
                 >
                   <div className="flex items-center justify-center w-full h-full">
                     {viewMode === "admin" ? (
@@ -732,9 +731,8 @@ useEffect(() => {
               </div>
 
               <span
-                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${
-                  viewMode === "drain" ? "text-white drop-shadow-lg" : "text-white/80"
-                }`}
+                className={`text-2xl font-semibold transition-colors duration-300 cursor-pointer select-none ${viewMode === "drain" ? "text-white drop-shadow-lg" : "text-white/80"
+                  }`}
                 onClick={() => {
                   if (viewMode !== "drain") handleViewModeChange("drain")
                 }}
@@ -755,50 +753,27 @@ useEffect(() => {
           />
         </div>
 
-        <div className="relative overflow-hidden w-full h-6 mb-4">
-          <div className="animate-marquee whitespace-nowrap text-blue-700 font-semibold text-sm">
+
+        <div className="relative overflow-hidden w-full h-6 mb-4 flex items-center justify-center space-x-2">
+          <AiOutlineInfoCircle className="text-blue-700" />
+          <a
+            href="https://example.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-700 font-semibold text-sm"
+          >
             This module contains data only for the Varuna River Basin, so it works for only five districts within the basin.
-          </div>
-          <style jsx>{`
-            @keyframes marquee {
-              0% {
-                transform: translateX(100%);
-              }
-              100% {
-                transform: translateX(-100%);
-              }
-            }
-            .animate-marquee {
-              display: inline-block;
-              white-space: nowrap;
-              animation: marquee 30s linear infinite;
-            }
-            
-            /* Custom scrollbar styles */
-            .scrollbar-thin::-webkit-scrollbar {
-              width: 6px;
-            }
-            .scrollbar-thin::-webkit-scrollbar-track {
-              background: #f1f5f9;
-              border-radius: 3px;
-            }
-            .scrollbar-thin::-webkit-scrollbar-thumb {
-              background: #94a3b8;
-              border-radius: 3px;
-            }
-            .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-              background: #64748b;
-            }
-          `}</style>
+          </a>
         </div>
+
 
         {/* Main Content Layout with Persistent Map - UPDATED HEIGHTS */}
         <div className="flex flex-col lg:flex-row w-full gap-4 px-4">
-          
+
           {/* Left Side - Content based on current step - INCREASED HEIGHT */}
           <div className="w-full lg:w-[60%] order-2 lg:order-1">
             <div className="transition-all duration-300 transform h-[75vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100">
-              
+
               {/* STEP 0: Location/Drain Selection - INCREASED HEIGHT */}
               <div className={currentStep === 0 ? 'block' : 'hidden'}>
                 <div className="h-[75vh]">
@@ -904,26 +879,26 @@ useEffect(() => {
               {/* STEP 2: Water Demand */}
               <div className={`${currentStep === 2 ? 'block' : 'hidden'} p-4`}>
                 {hasSelectedData && (
-                     <>
-                {viewMode === 'admin' && (
-                  <WaterDemandForm 
-                    onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
-                    onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
-                    onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
-                    onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
-                    onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
-                    />
-                )}
-                {viewMode === 'drain' && (
-                  <WaterDemandForm 
-                    onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
-                    onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
-                    onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
-                    onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
-                    onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
-                  />
-                )}
-              </>
+                  <>
+                    {viewMode === 'admin' && (
+                      <WaterDemandForm
+                        onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
+                        onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
+                        onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
+                        onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
+                        onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
+                      />
+                    )}
+                    {viewMode === 'drain' && (
+                      <WaterDemandForm
+                        onPerCapitaConsumptionChange={handlePerCapitaConsumptionChange}
+                        onSeasonalMultipliersChange={handleSeasonalMultipliersChange} // Add this prop
+                        onWaterDemandResultsChange={handleWaterDemandResultsChange} // Add this prop
+                        onFloatingSeasonalDemandsChange={handleFloatingSeasonalDemandsChange} // Add this prop
+                        onDomesticSeasonalDemandsChange={handleDomesticSeasonalDemandsChange} // 
+                      />
+                    )}
+                  </>
                 )}
               </div>
 
@@ -968,14 +943,14 @@ useEffect(() => {
                         seasonalMultipliers={seasonalMultipliers} // Add this prop
                         waterDemandResults={waterDemandResults} // Add this prop
                         floatingSeasonalDemands={floatingSeasonalDemands} // Add this prop
-                         domesticSeasonalDemands={domesticSeasonalDemands}
+                        domesticSeasonalDemands={domesticSeasonalDemands}
                       />
                     )}
                   </>
                 )}
               </div>
             </div>
-            
+
             {/* Navigation buttons - Now inside left section */}
             {hasSelectedData && (
               <div className="mt-6 mx-4 border border-gray-300 rounded-xl shadow-md p-4 hover:shadow-lg transition-shadow duration-300">

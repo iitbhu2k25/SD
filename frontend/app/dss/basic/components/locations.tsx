@@ -156,7 +156,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
         }
 
         const data = await response.json();
-        console.log('API response data:', data);
+        //console.log('API response data:', data);
         const stateData: LocationItem[] = data.map((state: any) => ({
           id: state.state_code,
           name: state.state_name
@@ -164,7 +164,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
         setStates(stateData);
       } catch (error) {
-        console.log('Error fetching states:', error);
+        //console.error('Error fetching states:', error);
       }
     };
     fetchStates();
@@ -174,7 +174,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
   useEffect(() => {
     if (selectedState) {
       const fetchDistricts = async (): Promise<void> => {
-        console.log('Fetching districts for state:', selectedState);
+        //console.log('Fetching districts for state:', selectedState);
         try {
           const response = await fetch('/django/district/',
             {
@@ -186,7 +186,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
             }
           );
           const data = await response.json();
-          console.log('API response data:', data);
+          //console.log('API response data:', data);
           const districtData: LocationItem[] = data.map((district: any) => ({
             id: district.district_code,
             name: district.district_name
@@ -204,7 +204,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setDistricts(sortedDistricts);
           setSelectedDistricts([]);
         } catch (error) {
-          console.log('Error fetching districts:', error);
+          //console.error('Error fetching districts:', error);
         }
       };
       fetchDistricts();
@@ -237,7 +237,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
             }
           );
           const data = await response.json();
-          console.log('API response data:', data);
+          //console.log('API response data:', data);
 
           // Create a map of district IDs to names for reference
           const districtMap = new Map(
@@ -266,7 +266,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setSubDistricts(sortedSubDistricts);
           setSelectedSubDistricts([]);
         } catch (error) {
-          console.log('Error fetching sub-districts:', error);
+          //console.error('Error fetching sub-districts:', error);
         }
       };
       fetchSubDistricts();
@@ -297,7 +297,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
             }
           );
           const data = await response.json();
-          console.log('API response data:', data);
+          //console.log('API response data:', data);
 
           // Create maps for reference
           const subDistrictMap = new Map(
@@ -339,7 +339,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
           setVillages(sortedVillages);
           setSelectedVillages([]);
         } catch (error) {
-          console.log('Error fetching villages:', error);
+          //console.error('Error fetching villages:', error);
           setVillages([]);
         }
       };
@@ -586,7 +586,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
       // Store in window object for access by PDF generator
       window.selectedLocations = locationData;
-      console.log('Location data stored in window object:', locationData);
+      //console.log('Location data stored in window object:', locationData);
 
       // Pass the data to parent component if callback exists
       if (onConfirm) {

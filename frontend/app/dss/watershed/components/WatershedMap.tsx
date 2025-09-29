@@ -137,7 +137,7 @@ const InfoPanel = ({
   if (!watershedData && mode !== 'downstream') return null;
 
   return (
-    <div className="absolute top-4 right-4 p-3 bg-white rounded-lg shadow-lg z-[500] w-64">
+    <div className="absolute top-4 right-4 p-3 bg-white rounded-lg shadow-lg  w-64">
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-bold text-blue-800 text-sm">{mode === 'upstream' ? 'Watershed Info' : 'Flowpath Info'}</h3>
         <button
@@ -630,7 +630,7 @@ const WatershedMap: React.FC = () => {
           <MapContainer
             center={[22.9734, 78.6569]}
             zoom={6}
-            style={{ height: 'calc(100vh - 2rem)', width: '100%' }}
+            style={{ height: 'calc(100vh - 2rem)', width: '100%', zIndex: 0 }}
             ref={(map) => {
               mapRef.current = map;
             }}

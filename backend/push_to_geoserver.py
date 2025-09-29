@@ -2,9 +2,9 @@ import requests
 from pathlib import Path
 
 # GeoServer config
-GEOSERVER_URL = "http://localhost:9091/geoserver/rest"
+GEOSERVER_URL = "http://localhost:9090/geoserver/rest"
 GEOSERVER_USER = "admin"
-GEOSERVER_PASSWORD = "geoserver2"
+GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "myworkspace"
 
 # Directory containing all shapefile ZIPs

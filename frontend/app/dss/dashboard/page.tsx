@@ -563,12 +563,7 @@ export default function VarunaRiverDashboard() {
       <div className="mb-8">
         <div className="bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-800 text-white rounded-2xl p-8 shadow-2xl border border-blue-500/20">
           <div className="flex justify-between items-center">
-            <button
-              onClick={() => window.location.href = '/'}
-              className="bg-orange-500 text-blue-700 font-bold px-4 py-2 rounded-lg shadow hover:bg-blue-100"
-            >
-              ⬅️ Back
-            </button>
+            
             <div>
               <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
                 🌊 Varuna River Management Dashboard

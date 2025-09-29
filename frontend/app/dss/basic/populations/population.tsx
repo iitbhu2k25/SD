@@ -1,3 +1,4 @@
+//frontend\app\dss\basic\populations\population.tsx
 //newly population 
 'use client'
 import React, { useState, useEffect, useCallback } from "react"
@@ -119,19 +120,19 @@ const Population: React.FC<PopulationProps> = ({
 
     // Debug logging - unchanged
     useEffect(() => {
-        console.log("Population component received data:");
-        console.log("Villages:", villages_props);
-        console.log("SubDistricts:", subDistricts_props);
-        console.log("Districts (multiple):", districts_props);
-        console.log("District (single - backward compatibility):", district_props);
-        console.log("Total Population:", totalPopulation_props);
-        console.log("Source Mode:", sourceMode);
+        // console.log("Population component received data:");
+        // console.log("Villages:", villages_props);
+        // console.log("SubDistricts:", subDistricts_props);
+        // console.log("Districts (multiple):", districts_props);
+        // console.log("District (single - backward compatibility):", district_props);
+        // console.log("Total Population:", totalPopulation_props);
+        // console.log("Source Mode:", sourceMode);
 
         const calculatedTotal = villages_props.reduce((sum, village) => sum + (village.population || 0), 0);
-        console.log("Calculated total population from villages:", calculatedTotal);
+        //console.log("Calculated total population from villages:", calculatedTotal);
 
         if (calculatedTotal === 0) {
-            console.warn("WARNING: Total population from villages is 0!");
+            //console.warn("WARNING: Total population from villages is 0!");
         }
     }, [villages_props, subDistricts_props, districts_props, district_props, totalPopulation_props, sourceMode]);
 
@@ -249,7 +250,7 @@ const Population: React.FC<PopulationProps> = ({
     };
 
     const handleLocalDemographicDataChange = useCallback((data: React.SetStateAction<DemographicData>) => {
-        console.log("Local demographic data updated:", data);
+        //console.log("Local demographic data updated:", data);
         setLocalDemographicData(data);
         setDemographicError(null);
     }, []);
@@ -260,7 +261,7 @@ const Population: React.FC<PopulationProps> = ({
         if (results && selectedMethod) {
             (window as any).selectedPopulationForecast = results[selectedMethod];
             (window as any).populationForecastResults = results;
-            console.log("Updated selectedPopulationForecast:", (window as any).selectedPopulationForecast);
+            //console.log("Updated selectedPopulationForecast:", (window as any).selectedPopulationForecast);
         }
     }, [selectedMethod, results]);
 
@@ -269,7 +270,7 @@ const Population: React.FC<PopulationProps> = ({
         if (results && Object.keys(results).length > 0) {
             // Save all population forecasting results to window for PDF access
             (window as any).populationForecastResults = results;
-            console.log("Saved population forecast results to window:", results);
+            //console.log("Saved population forecast results to window:", results);
         }
     }, [results]);
 
@@ -406,7 +407,7 @@ const Population: React.FC<PopulationProps> = ({
                 // Remove state_props, district_props, subdistrict_props
             };
 
-            console.log("Enhanced 2025 cohort request:", requestBody);
+            //console.log("Enhanced 2025 cohort request:", requestBody);
 
             fetch('/django/cohort/', {
                 method: 'POST',
@@ -420,7 +421,7 @@ const Population: React.FC<PopulationProps> = ({
                     return response.json();
                 })
                 .then(result => {
-                    console.log('API Response for sourceMode:', sourceMode, result);
+                    //console.log('API Response for sourceMode:', sourceMode, result);
                     window.population2025 = null;
                     window.selectedPopulationForecast2025 = null;
 
@@ -450,7 +451,7 @@ const Population: React.FC<PopulationProps> = ({
                     }
                 })
                 .catch(error => {
-                    console.log("Error fetching 2025 population:", error);
+                    //console.error("Error fetching 2025 population:", error);
                 });
         } else if (selectedMethod) {
             // Handle other methods - unchanged logic
@@ -500,7 +501,7 @@ const Population: React.FC<PopulationProps> = ({
                     })
                     .then(result => {
                         // Existing processing logic unchanged
-                        console.log('API Response for sourceMode:', sourceMode, result);
+                        //console.log('API Response for sourceMode:', sourceMode, result);
                         window.population2025 = null;
                         window.selectedPopulationForecast2025 = null;
 
@@ -521,7 +522,7 @@ const Population: React.FC<PopulationProps> = ({
                         }
                     })
                     .catch(error => {
-                        console.log("Error fetching 2025 population:", error);
+                        //console.error("Error fetching 2025 population:", error);
                     });
             }
         }
@@ -533,7 +534,7 @@ const Population: React.FC<PopulationProps> = ({
             const response = await cohortApiRequest;
             let allCohortData: CohortData[] = [];
 
-            console.log('Cohort API Response:', response);
+            //console.log('Cohort API Response:', response);
 
             if (response?.cohort) {
                 if (Array.isArray(response.cohort)) {
@@ -542,7 +543,7 @@ const Population: React.FC<PopulationProps> = ({
                     allCohortData = [response.cohort];
                 }
             } else {
-                console.warn('No cohort data found in response:', response);
+                //console.warn('No cohort data found in response:', response);
             }
 
             allCohortData.sort((a, b) => (a?.year || 0) - (b?.year || 0));
@@ -561,7 +562,7 @@ const Population: React.FC<PopulationProps> = ({
                     : item
             );
 
-            console.log('Processed cohort data:', allCohortData);
+            //console.log('Processed cohort data:', allCohortData);
             setCohortData(allCohortData);
 
             const cohortPopulation = extractCohortPopulation(allCohortData);
@@ -569,7 +570,7 @@ const Population: React.FC<PopulationProps> = ({
             return cohortPopulation;
 
         } catch (error) {
-            console.log('Error processing cohort data:', error);
+            //console.error('Error processing cohort data:', error);
             setError('Failed to process cohort data. Please try again.');
             return null;
         } finally {
@@ -584,7 +585,7 @@ const Population: React.FC<PopulationProps> = ({
         setDemographicError(null);
 
         try {
-            console.log("methods", methods);
+            //console.log("methods", methods);
 
             if (!isMethodSelected) {
                 setError('Please select at least one method');
@@ -680,20 +681,20 @@ const Population: React.FC<PopulationProps> = ({
                     cohortRequestBody.year = single_year;
                     cohortRequestBody.start_year = null;
                     cohortRequestBody.end_year = null;
-                    console.log('Cohort request - Single year mode:', single_year);
+                    //console.log('Cohort request - Single year mode:', single_year);
                 } else if (range_year_start !== null && range_year_end !== null) {
                     cohortRequestBody.start_year = range_year_start;
                     cohortRequestBody.end_year = range_year_end;
                     cohortRequestBody.year = null;
-                    console.log('Cohort request - Range mode:', range_year_start, 'to', range_year_end);
+                    //console.log('Cohort request - Range mode:', range_year_start, 'to', range_year_end);
                 } else {
                     cohortRequestBody.year = 2036;
                     cohortRequestBody.start_year = null;
                     cohortRequestBody.end_year = null;
-                    console.log('Cohort request - Default mode: 2036');
+                    //console.log('Cohort request - Default mode: 2036');
                 }
 
-                console.log('Enhanced cohort request body:', cohortRequestBody);
+                //console.log('Enhanced cohort request body:', cohortRequestBody);
 
                 cohortApiRequest = fetch('/django/cohort/', {
                     method: 'POST',
@@ -712,7 +713,7 @@ const Population: React.FC<PopulationProps> = ({
             // Time series and demographic handling - unchanged
             if (methods.timeseries) {
                 try {
-                    console.log("Attempting time series API with totalPopulation:", totalPopulation_props);
+                    //console.log("Attempting time series API with totalPopulation:", totalPopulation_props);
 
                     const timeSeriesResponse = await fetch('/django/time_series/arthemitic/', {
                         method: 'POST',
@@ -731,30 +732,30 @@ const Population: React.FC<PopulationProps> = ({
 
                     if (timeSeriesResponse.ok) {
                         const timeSeriesData = await timeSeriesResponse.json();
-                        console.log("Time series API succeeded:", timeSeriesData);
+                        //console.log("Time series API succeeded:", timeSeriesData);
                         requests.push(Promise.resolve(timeSeriesData));
                         requestTypes.push('timeseries');
                     } else {
-                        console.warn(`Time series API failed with status ${timeSeriesResponse.status}, using fallback`);
+                        //console.warn(`Time series API failed with status ${timeSeriesResponse.status}, using fallback`);
                         const fallbackData = generateFallbackTimeSeriesData(
                             totalPopulation_props,
                             single_year,
                             range_year_start,
                             range_year_end
                         );
-                        console.log("Generated fallback time series data:", fallbackData);
+                        //console.log("Generated fallback time series data:", fallbackData);
                         requests.push(Promise.resolve(fallbackData));
                         requestTypes.push('timeseries');
                     }
                 } catch (error) {
-                    console.log("Error in time series API:", error);
+                    //console.error("Error in time series API:", error);
                     const fallbackData = generateFallbackTimeSeriesData(
                         totalPopulation_props,
                         single_year,
                         range_year_start,
                         range_year_end
                     );
-                    console.log("Generated fallback time series data after error:", fallbackData);
+                    //console.log("Generated fallback time series data after error:", fallbackData);
                     requests.push(Promise.resolve(fallbackData));
                     requestTypes.push('timeseries');
                 }
@@ -827,7 +828,7 @@ const Population: React.FC<PopulationProps> = ({
             (window as any).populationForecastResults = result;
 
             // === NEW METHOD SELECTION LOGIC BASED ON MINIMUM AVERAGE GROWTH RATE ===
-            console.log("=== CALCULATING METHOD SELECTION BASED ON GROWTH RATES ===");
+            //console.log("=== CALCULATING METHOD SELECTION BASED ON GROWTH RATES ===");
 
             const methodGrowthAnalysis: MethodGrowthAnalysis = {};
             let finalSelectedMethod = '';
@@ -843,7 +844,7 @@ const Population: React.FC<PopulationProps> = ({
                     const basePopulation = methodData[baseYear];
 
                     if (!basePopulation) {
-                        console.warn(`No base population (2011) found for method: ${methodName}`);
+                        //console.warn(`No base population (2011) found for method: ${methodName}`);
                         return;
                     }
 
@@ -884,23 +885,23 @@ const Population: React.FC<PopulationProps> = ({
                         finalSelectedMethod = methodName;
                     }
 
-                    console.log(`Method: ${methodName}`);
-                    console.log(`  Base Population (2011): ${basePopulation.toLocaleString()}`);
-                    console.log(`  Average Growth Rate: ${avgGrowthRate.toFixed(2)}%`);
-                    console.log(`  Yearly Growth Data:`, yearlyGrowthData);
+                    // console.log(`Method: ${methodName}`);
+                    // console.log(`  Base Population (2011): ${basePopulation.toLocaleString()}`);
+                    // console.log(`  Average Growth Rate: ${avgGrowthRate.toFixed(2)}%`);
+                    // console.log(`  Yearly Growth Data:`, yearlyGrowthData);
                 }
             });
 
-            console.log("=== GROWTH RATE ANALYSIS COMPLETE ===");
-            console.log("Method Growth Analysis:", methodGrowthAnalysis);
-            console.log(`SELECTED METHOD (Minimum Avg Growth): ${finalSelectedMethod} (${minAvgGrowthRate.toFixed(2)}%)`);
+            // console.log("=== GROWTH RATE ANALYSIS COMPLETE ===");
+            // console.log("Method Growth Analysis:", methodGrowthAnalysis);
+            // console.log(`SELECTED METHOD (Minimum Avg Growth): ${finalSelectedMethod} (${minAvgGrowthRate.toFixed(2)}%)`);
 
             // Store growth analysis in window for debugging/access
             (window as any).methodGrowthAnalysis = methodGrowthAnalysis;
             (window as any).selectedMethodReason = `Minimum Average Growth Rate: ${minAvgGrowthRate.toFixed(2)}%`;
 
             // Log growth rate tables
-            console.log("=== GROWTH RATE TABLE ===");
+            //console.log("=== GROWTH RATE TABLE ===");
             const allYears = new Set<number>();
             Object.values(result).forEach(methodData => {
                 Object.keys(methodData).forEach(year => allYears.add(Number(year)));
@@ -923,28 +924,28 @@ const Population: React.FC<PopulationProps> = ({
                     });
                 }
             });
-            console.table(tableData);
+            //console.table(tableData);
 
-            console.log("=== AVERAGE GROWTH RATES BY METHOD ===");
+            //console.log("=== AVERAGE GROWTH RATES BY METHOD ===");
             const avgGrowthRates: { [method: string]: string } = {};
             Object.keys(result).forEach(method => {
                 if (methodGrowthAnalysis[method]) { // Fixed: Now properly typed
                     avgGrowthRates[method] = methodGrowthAnalysis[method].avgGrowthRate + '%';
                 }
             });
-            console.table(avgGrowthRates);
+            //console.table(avgGrowthRates);
 
             // Use the new selection logic - MINIMUM average growth rate
             const finalMethod = selectedMethod || finalSelectedMethod;
             setSelectedMethodd(finalMethod);
             (window as any).selectedPopulationForecast = result[finalMethod];
 
-            console.log('Selected Method (Based on Min Avg Growth Rate):', finalMethod);
-            console.log('Selection Reason:', (window as any).selectedMethodReason);
-            console.log('Selected Population Forecast:', (window as any).selectedPopulationForecast);
+            // console.log('Selected Method (Based on Min Avg Growth Rate):', finalMethod);
+            // console.log('Selection Reason:', (window as any).selectedMethodReason);
+            // console.log('Selected Population Forecast:', (window as any).selectedPopulationForecast);
 
         } catch (error) {
-            console.log('Error in calculate:', error);
+            //console.error('Error in calculate:', error);
             setError('An error occurred during calculation. Please try again.');
         } finally {
             setLoading(false);
@@ -981,7 +982,7 @@ const Population: React.FC<PopulationProps> = ({
 
     // All existing JSX remains unchanged - just the component logic is enhanced
     return (
-        <div className="w-full min-h-screen bg-gray-50">
+        <div className="w-full min-h-50 bg-gray-50">
             <div className="w-full max-w-none p-4 lg:p-6 xl:p-8">
                 <div className="bg-white rounded-lg shadow-md p-4 lg:p-6">
                     <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Population Estimation and Forecasting</h1>

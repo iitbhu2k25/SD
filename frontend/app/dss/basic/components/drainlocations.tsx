@@ -187,7 +187,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
   useEffect(() => {
     if (villageChangeSource) {
       const timer = setTimeout(() => {
-        console.log('Clearing villageChangeSource in DrainLocationsSelector');
+        //console.log('Clearing villageChangeSource in DrainLocationsSelector');
         // Don't clear if we're still updating
         if (!isDropdownUpdatingRef.current) {
           // This will be cleared by the parent component
@@ -209,29 +209,29 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
       const propsSorted = [...selectedFromProps].sort();
 
       if (JSON.stringify(pendingSorted) === JSON.stringify(propsSorted)) {
-        console.log('Pending villages matched props, clearing pendingVillages');
+        //console.log('Pending villages matched props, clearing pendingVillages');
         setPendingVillages(null);
       } else {
-        console.log('Pending villages do not match props yet:', {
-          pending: pendingSorted.length,
-          props: propsSorted.length
-        });
+        // //console.log('Pending villages do not match props yet:', {
+        //   pending: pendingSorted.length,
+        //   props: propsSorted.length
+        // });
       }
     }
   }, [villages, pendingVillages]);
 
   // Register reset functions to window
   useEffect(() => {
-    console.log('Villages useEffect triggered:', {
-      villageChangeSource,
-      globalVillageChangeSource: window.villageChangeSource,
-      dropdownUpdateInProgress: window.dropdownUpdateInProgress,
-      isDropdownUpdating: isDropdownUpdatingRef.current,
-      dropdownLockUntil: window.dropdownLockUntil,
-      finalDropdownSelection: window.finalDropdownSelection,
-      villagesLength: villages.length,
-      currentTime: Date.now()
-    });
+    // console.log('Villages useEffect triggered:', {
+    //   villageChangeSource,
+    //   globalVillageChangeSource: window.villageChangeSource,
+    //   dropdownUpdateInProgress: window.dropdownUpdateInProgress,
+    //   isDropdownUpdating: isDropdownUpdatingRef.current,
+    //   dropdownLockUntil: window.dropdownLockUntil,
+    //   finalDropdownSelection: window.finalDropdownSelection,
+    //   villagesLength: villages.length,
+    //   currentTime: Date.now()
+    // });
 
     // ENHANCED: Multiple checks for dropdown operations
     const isAnyDropdownOperation =
@@ -243,10 +243,10 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     const isDropdownLocked = window.dropdownLockUntil && Date.now() < window.dropdownLockUntil;
 
     if (isAnyDropdownOperation || isDropdownLocked) {
-      console.log('Skipping useEffect - dropdown operation detected', {
-        isAnyDropdownOperation,
-        isDropdownLocked
-      });
+      // console.log('Skipping useEffect - dropdown operation detected', {
+      //   isAnyDropdownOperation,
+      //   isDropdownLocked
+      // });
       return;
     }
 
@@ -254,16 +254,16 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     if (window.finalDropdownSelection) {
       const selectionAge = Date.now() - window.finalDropdownSelection.timestamp;
       if (selectionAge < 5000) { // 5 seconds
-        console.log('Skipping useEffect - recent final dropdown selection exists');
+        //console.log('Skipping useEffect - recent final dropdown selection exists');
         return;
       } else {
-        console.log('Clearing old final dropdown selection in useEffect');
+        //console.log('Clearing old final dropdown selection in useEffect');
         window.finalDropdownSelection = undefined;
       }
     }
 
     if (villages && villages.length > 0) {
-      console.log('Processing villages prop from external source (likely map)');
+      //console.log('Processing villages prop from external source (likely map)');
 
       // Only update if we don't have pending changes
       if (!pendingVillages) {
@@ -275,7 +275,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           });
 
         if (villagesChanged) {
-          console.log('Villages have changed from external source, updating intersectedVillages');
+          //console.log('Villages have changed from external source, updating intersectedVillages');
           setIntersectedVillages([...villages]);
 
           // Update selected villages
@@ -283,16 +283,16 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
             .filter(village => village.selected !== false)
             .map(village => village.shapeID);
 
-          console.log('Updating selectedVillages from external source:', selectedFromProps.length);
+          //console.log('Updating selectedVillages from external source:', selectedFromProps.length);
           setSelectedVillages([...selectedFromProps]);
         } else {
-          console.log('Villages unchanged, skipping update');
+          //console.log('Villages unchanged, skipping update');
         }
       } else {
-        console.log('Pending dropdown changes exist, skipping external update');
+        //console.log('Pending dropdown changes exist, skipping external update');
       }
     } else if (villages && villages.length === 0) {
-      console.log('Clearing villages due to empty prop');
+      //console.log('Clearing villages due to empty prop');
       setIntersectedVillages([]);
       setSelectedVillages([]);
       setPendingVillages(null);
@@ -324,7 +324,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
 
         setRivers(riverData);
       } catch (error: any) {
-        console.log('Error fetching rivers:', error);
+        //console.error('Error fetching rivers:', error);
         setRiverError(error.message);
         setError('Unable to load rivers. Please try refreshing the page.');
         setRivers([]);
@@ -375,7 +375,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setStretches(sortedStretches);
           setSelectedStretch('');
         } catch (error: any) {
-          console.log('Error fetching stretches:', error);
+          //console.error('Error fetching stretches:', error);
           setStretchError(error.message);
           setError('Unable to load stretches for the selected river.');
           setStretches([]);
@@ -430,9 +430,9 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setDrains(sortedDrains);
           setSelectedDrains([]);
 
-          console.log('Fetched drains with Drain_No:', drainData);
+          //console.log('Fetched drains with Drain_No:', drainData);
         } catch (error: any) {
-          console.log('Error fetching drains:', error);
+          //console.error('Error fetching drains:', error);
           setDrainError(error.message);
           setError('Unable to load drains for the selected stretch.');
           setDrains([]);
@@ -488,14 +488,14 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           const initialSelectedVillages = villagesWithSelection.map((village: { shapeID: any; }) => village.shapeID);
           setSelectedVillages(initialSelectedVillages);
 
-          console.log('Intersected villages with location hierarchy:', villagesWithSelection);
+          //console.log('Intersected villages with location hierarchy:', villagesWithSelection);
 
           // Fetch population data
           if (initialSelectedVillages.length > 0) {
             await fetchVillagePopulations(initialSelectedVillages);
           }
         } catch (error: any) {
-          console.log('Error fetching intersected villages:', error);
+          //console.error('Error fetching intersected villages:', error);
           setVillageError(error.message);
           setIntersectedVillages([]);
           setSelectedVillages([]);
@@ -566,12 +566,12 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
   // FIXED: Village selection handler
   const handleVillagesChange = (newSelectedVillages: string[]) => {
     if (selectionsLocked) {
-      console.log('Village selection is locked, ignoring change');
+      //console.log('Village selection is locked, ignoring change');
       return;
     }
 
-    console.log('=== DROPDOWN CHANGE START ===');
-    console.log('Villages selection changed in dropdown:', newSelectedVillages.length, 'selected');
+    //console.log('=== DROPDOWN CHANGE START ===');
+    //console.log('Villages selection changed in dropdown:', newSelectedVillages.length, 'selected');
 
     // IMMEDIATELY block any external updates
     window.villageChangeSource = 'dropdown';
@@ -598,11 +598,11 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
       selected: newSelectedVillages.includes(village.shapeID)
     }));
 
-    console.log('Created updated villages from dropdown:', {
-      total: updatedVillages.length,
-      selected: updatedVillages.filter(v => v.selected !== false).length,
-      deselected: updatedVillages.filter(v => v.selected === false).length
-    });
+    // console.log('Created updated villages from dropdown:', {
+    //   total: updatedVillages.length,
+    //   selected: updatedVillages.filter(v => v.selected !== false).length,
+    //   deselected: updatedVillages.filter(v => v.selected === false).length
+    // });
 
     // Update local intersectedVillages IMMEDIATELY
     setIntersectedVillages([...updatedVillages]);
@@ -623,17 +623,17 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     };
     window.finalDropdownSelection = finalSelection;
 
-    console.log('Stored final dropdown selection:', {
-      timestamp: finalSelection.timestamp,
-      selectedCount: finalSelection.selectedIds.length,
-      allSelected: finalSelection.selectedIds.length === updatedVillages.length,
-      noneSelected: finalSelection.selectedIds.length === 0
-    });
+    // console.log('Stored final dropdown selection:', {
+    //   timestamp: finalSelection.timestamp,
+    //   selectedCount: finalSelection.selectedIds.length,
+    //   allSelected: finalSelection.selectedIds.length === updatedVillages.length,
+    //   noneSelected: finalSelection.selectedIds.length === 0
+    // });
 
     // Notify parent immediately (reduced delay)
     setTimeout(() => {
       if (onVillagesChange) {
-        console.log('Notifying parent of dropdown changes');
+        //console.log('Notifying parent of dropdown changes');
         onVillagesChange([...updatedVillages]);
       }
     }, 5); // Reduced from 10ms
@@ -642,21 +642,21 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     setTimeout(() => {
       setIsDropdownUpdating(false);
       isDropdownUpdatingRef.current = false;
-      console.log('Cleared dropdown updating flags');
+      //console.log('Cleared dropdown updating flags');
     }, 200); // Reduced from 2000ms
 
     setTimeout(() => {
       window.villageChangeSource = null;
       window.dropdownLockUntil = undefined;
       setPendingVillages(null);
-      console.log('Cleared dropdown source and lock');
+      //console.log('Cleared dropdown source and lock');
     }, 500); // Reduced from 1000ms
 
     // Keep final selection available longer to ensure map can process it
     setTimeout(() => {
       if (window.finalDropdownSelection && window.finalDropdownSelection.timestamp === finalSelection.timestamp) {
         window.finalDropdownSelection = undefined;
-        console.log('=== DROPDOWN CHANGE COMPLETE ===');
+        //console.log('=== DROPDOWN CHANGE COMPLETE ===');
       }
     }, 2000); // Keep this longer to ensure map processes it
   };
@@ -671,7 +671,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     }
 
     try {
-      console.log("Fetching populations for villages:", selectedVillageIds.length, "villages");
+      //console.log("Fetching populations for villages:", selectedVillageIds.length, "villages");
 
       const response = await fetch('/django/village-population/', {
         method: 'POST',
@@ -684,7 +684,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
       }
 
       const data: VillagePopulation[] = await response.json();
-      console.log('Population data received:', data.length, 'records');
+      //console.log('Population data received:', data.length, 'records');
 
       setVillagePopulations(data);
       if (typeof onVillagePopulationUpdate === 'function') {
@@ -711,7 +711,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
         onVillagesChange(updatedVillages);
       }
     } catch (error: any) {
-      console.log('Error fetching village populations:', error);
+      //console.error('Error fetching village populations:', error);
 
       // Update villages with zero population as fallback, preserving location data
       const updatedVillages = intersectedVillages.map(village => ({
@@ -732,6 +732,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     }
   };
 
+  // Add this helper function to generate fallback data
 
 
   const handleReset = (): void => {

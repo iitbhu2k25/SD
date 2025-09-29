@@ -1,3 +1,4 @@
+//frontend\app\dss\basic\populations\components\cohort.tsx
 import React, { useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {

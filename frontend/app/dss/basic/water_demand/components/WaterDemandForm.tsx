@@ -369,12 +369,12 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           throw new Error(`Domestic HTTP error! Status: ${response.status}`);
         }
         const domesticDemandResult = await response.json();
-        console.log("Domestic Water Demand (from backend):", domesticDemandResult);
+        //console.log("Domestic Water Demand (from backend):", domesticDemandResult);
         setDomesticDemand(domesticDemandResult);
         // Store result globally
         (window as any).domesticWaterDemand = domesticDemandResult;
       } catch (error) {
-        console.log("Error calculating domestic water demand:", error);
+        //console.error("Error calculating domestic water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -405,12 +405,12 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
         }
 
         const floatingDemandResult = await floatingResponse.json();
-        console.log("Floating Water Demand (from backend):", floatingDemandResult);
+        //console.log("Floating Water Demand (from backend):", floatingDemandResult);
         setFloatingDemand(floatingDemandResult);
         // Store result globally
         (window as any).floatingWaterDemand = floatingDemandResult;
       } catch (error) {
-        console.log("Error calculating floating water demand:", error);
+        //console.error("Error calculating floating water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -438,14 +438,14 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           }
 
           institutionalResult = await institutionalResponse.json();
-          console.log("Institutional Water Demand (from backend):", institutionalResult);
+          //console.log("Institutional Water Demand (from backend):", institutionalResult);
         } else {
           // For 'total' mode, create a demand object based on the single value provided
           const baseYear = Object.keys(forecastData).sort()[0];
           const totalDemand = parseFloat(totalInstitutionalDemand);
 
           if (isNaN(totalDemand)) {
-            console.log("Invalid total institutional demand value");
+            //console.error("Invalid total institutional demand value");
             return;
           }
 
@@ -456,13 +456,13 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
             institutionalResult[year] = totalDemand * populationRatio;
           });
 
-          console.log("Total Institutional Water Demand (calculated):", institutionalResult);
+          //console.log("Total Institutional Water Demand (calculated):", institutionalResult);
         }
         setInstitutionalDemand(institutionalResult);
         // Store result globally
         (window as any).institutionalWaterDemand = institutionalResult;
       } catch (error) {
-        console.log("Error calculating institutional water demand:", error);
+       // console.error("Error calculating institutional water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -488,7 +488,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
         }
 
         const result = await response.json();
-        console.log("Firefighting Water Demand (from backend):", result);
+        //console.log("Firefighting Water Demand (from backend):", result);
         setFirefightingDemand(result);
         // Store result globally
         (window as any).firefightingWaterDemand = result;
@@ -498,7 +498,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           setSelectedFirefightingMethod(Object.keys(result)[0]);
         }
       } catch (error) {
-        console.log("Error calculating firefighting water demand:", error);
+        //console.error("Error calculating firefighting water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -540,13 +540,13 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
     totalDemand[year] = domesticVal + floatingVal + institutionalVal + firefightingVal;
     
     // DEBUG: Add console.log to check values
-    console.log(`Year ${year}:`, {
-      domestic: domesticVal,
-      floating: floatingVal,
-      institutional: institutionalVal,
-      firefighting: firefightingVal,
-      total: totalDemand[year]
-    });
+    // console.log(`Year ${year}:`, {
+    //   domestic: domesticVal,
+    //   floating: floatingVal,
+    //   institutional: institutionalVal,
+    //   firefighting: firefightingVal,
+    //   total: totalDemand[year]
+    // });
   });
 
   // Store in window object for other components to access

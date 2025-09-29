@@ -61,7 +61,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     }
   };
   
-  // Handle reset button click
+
   const handleReset = (): void => {
     resetSelections();
     

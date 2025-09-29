@@ -98,14 +98,14 @@ export const MultiSelect = <T extends Item>(props: MultiSelectProps<T>) => {
   // Toggle a single item
   const handleToggleItem = (itemId: string) => {
   if (!itemId) {
-    console.warn('Invalid itemId in handleToggleItem:', itemId);
+    //console.warn('Invalid itemId in handleToggleItem:', itemId);
     return;
   }
-  console.log('Toggling item in MultiSelect:', {
-    itemId,
-    currentSelected: selectedItems,
-    willBeSelected: !selectedItems.includes(itemId),
-  });
+  // console.log('Toggling item in MultiSelect:', {
+  //   itemId,
+  //   currentSelected: selectedItems,
+  //   willBeSelected: !selectedItems.includes(itemId),
+  // });
   if (selectedItems.includes(itemId)) {
     onSelectionChange(selectedItems.filter(id => id !== itemId));
   } else {
