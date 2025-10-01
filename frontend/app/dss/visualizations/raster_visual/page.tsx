@@ -37,8 +37,8 @@ interface Module {
   category: boolean;
   raster: RasterLayer[];
 }
-
-// Display API data
+const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
+const INITIAL_ZOOM = 6;
 
 const OpenLayersRasterViewer: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -148,14 +148,15 @@ const OpenLayersRasterViewer: React.FC = () => {
         tipLabel: "Toggle fullscreen",
       }),
     ]);
-
     const map = new Map({
       target: mapRef.current,
       layers: [initialBaseLayer],
       controls: controls,
       view: new View({
-        center: fromLonLat([INDIA_CENTER_LON, INDIA_CENTER_LAT]),
+        center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
         zoom: INITIAL_ZOOM,
+        minZoom: 4,
+        maxZoom: 18,
         enableRotation: true,
         constrainRotation: false,
       }),

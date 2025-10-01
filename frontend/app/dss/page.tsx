@@ -12,7 +12,7 @@ export default function Home() {
       <div 
   className="w-full mx-auto"
   style={{
-    backgroundImage: 'url("/Images/main_page_gif.gif")',
+    backgroundImage: 'url("/Images/main_page.jpeg")',
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat'

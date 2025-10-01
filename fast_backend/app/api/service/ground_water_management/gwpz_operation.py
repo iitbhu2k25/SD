@@ -665,7 +665,8 @@ class GWPumpingMapper:
         try:
             raster_path=GWLI_service.get_GWLI_visual(db)
             raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),                            
+                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),    
+                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                                                   
                            } for i in raster_path]
             response=[]
             for i in raster_path:
@@ -673,9 +674,7 @@ class GWPumpingMapper:
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 unique_store_name = Unique_name.unique_name(self.config.raster_store)
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-                sld_name=Unique_name.unique_name(layer_name)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=sld_name)   
+                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,

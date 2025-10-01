@@ -39,7 +39,7 @@ async def gwz_drain_report(payload:StpPriorityDrainReport):
  
 
 # groud water pumping locations
-@router.get("/get_gwli_category",response_model=list[STPSutabilityOutput])
+@router.get("/get_gwli_category",response_model=list[STPSutabilityOutput],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_raster_gwli(db:db_dependency,category:str,all_data: bool = False):
     return GWLI_service.get_raster_GWLI(db,category,all_data)

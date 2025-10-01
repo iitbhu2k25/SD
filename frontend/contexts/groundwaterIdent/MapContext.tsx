@@ -9,7 +9,8 @@ const LAYER_NAMES = {
   DISTRICT: "STP_subdistrict",
   SUB_DISTRICT: "STP_Village",
 };
-// Type definitions for the context
+
+
 interface MapContextType {
   primaryLayer: string;
   secondaryLayer: string | null;

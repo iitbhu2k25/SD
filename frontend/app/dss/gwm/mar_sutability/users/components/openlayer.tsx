@@ -236,8 +236,8 @@ const Maping: React.FC = () => {
       new MousePosition({
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
-          const [longitude, latitude] = coordinate;
-          return `Lat: ${latitude.toFixed(6)}° | Long: ${longitude.toFixed(6)}°`;
+          const [Longitude, latitude] = coordinate;
+          return `Lat: ${latitude.toFixed(6)}° | Long: ${Longitude.toFixed(6)}°`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",

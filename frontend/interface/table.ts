@@ -1,5 +1,9 @@
 import DataTable, { TableColumn } from 'react-data-table-component';
-
+export interface CsvRow {
+  Well_id: string;
+  Longitude: string;
+  Latitude: string;
+}
 export interface DataRow {
   Village_Name: string;
   Very_Low: number;
