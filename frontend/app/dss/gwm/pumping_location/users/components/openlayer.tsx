@@ -428,8 +428,8 @@ const Maping: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
-    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
@@ -524,7 +524,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
+    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
 
     if (layerFilter.filterField && layerFilter.filterValue && layerFilter.filterValue.length > 0) {
       wfsUrl += `&CQL_FILTER=${layerFilter.filterField} IN (${Array.isArray(layerFilter.filterValue)

@@ -326,7 +326,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
+    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     if (hasSelections && filter?.filterField && filter?.filterValue && filter.filterValue.length > 0) {
       wfsUrl += `&CQL_FILTER=${filter.filterField} IN (${Array.isArray(filter.filterValue)
@@ -406,7 +406,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const vectorSource = new VectorSource({
       url: wfsUrl,
