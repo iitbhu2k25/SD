@@ -24,12 +24,13 @@ import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWLI_service,MARSutability_svc
+from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSutability_svc
 from app.database.crud.gwpz_crud import MARSutability_crud
 import pandas as pd
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
 from app.utils.name import Unique_name
+from app.database.crud.gwpz_crud import GWPL_crud
 
 
 geo=Geoserver()
@@ -659,14 +660,52 @@ class GWPumpingMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-    
-    
+        self.BASE_DIR = Settings().BASE_DIR
+    def _get_operations_raster(self,db:db_dependency,payload:List):
+        all_sutability_raster=GWPL_crud(db).get_all(True)
+        payload_dict = {r.id: r.weight for r in payload.data}
+        condition_raster = [
+            [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
+            for raster in all_sutability_raster
+            if raster.raster_category == 'condition' and raster.id in payload_dict
+        ]
+        constraintion_raster=[
+            os.path.join(self.BASE_DIR, raster.file_path)
+            for raster in all_sutability_raster
+            if raster.raster_category == 'constraint' and raster.id in payload_dict
+        ]
+        return condition_raster,constraintion_raster
+    def _get_raster_with_weight(self,db:db_dependency,payload:List):
+        condition_raster,constraintion_raster=self._get_operations_raster(db,payload)
+        raster_path=[]
+        raster_weights=[]
+        for i in condition_raster:
+            raster_path.append(i[0])
+            raster_weights.append(i[1])
+        return raster_path,raster_weights,constraintion_raster
+    def _get_overlay_raster(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
+        self.processor.align_rasters(raster_path)
+        overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
+        weighted_sum = self.processor.create_weighted_overlay(
+                raster_weights, overlay_name
+            )
+        constraint_name=Unique_name.unique_name_with_ext("constraint","tif")
+        constrained_path, _ = self.processor.apply_constraints_new(
+                weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
+            )
+        final_name = Unique_name.unique_name_with_ext("GWPZ_rasters","tif")
+        return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
+    def _cliping_raster(self,final_path:str,final_name:str,payload:List):
+        vector_name=None
+        clip=payload.clip
+        final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place="Drain")
+        return final_path,vector_name,clip
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
-            raster_path=GWLI_service.get_GWLI_visual(db)
+            raster_path=GWPL_service.get_GWPL_visual(db)
             raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),    
-                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                                                   
+                            "path": os.path.abspath(self.BASE_DIR+"/"+i.file_path),    
+                            "sld_path": os.path.abspath(self.BASE_DIR+"/"+i.sld_path,)                                                                   
                            } for i in raster_path]
             response=[]
             for i in raster_path:
@@ -686,44 +725,28 @@ class GWPumpingMapper:
             print(e)
             return False
         
-    # def create_gwpz_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
-    #     try:
-    #         if len(raster_paths) != len(weights):
-    #             raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
-    #         self.processor.align_rasters(raster_paths)
-    #         overlay_name=f"overlay_{uuid.uuid4().hex}_map.tif"
-    #         weighted_sum = self.processor.create_weighted_overlay(
-    #             weights, overlay_name
-    #         )
-    #         output_name=f"Final_Ground_water_Potential_{uuid.uuid4().hex}_map.tif"
-    #         constrained_path, _ = self.processor.make_raster_output(
-    #             weighted_sum, output_name=output_name
-    #         )
-    #         final_name = f"Groundwater_potential_{uuid.uuid4().hex}.tif"
-    #         final_path = self.processor.clip_to_basin(
-    #             raster_path=constrained_path,
-    #             shapefile_path=self.config.basin_shapefile , output_name=final_name
-    #         )
-    #         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-    #         final_path=self.processor.clip_to_user_villages(final_path,clip=clip,place=place)
-    #         csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
-            
-    #         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
-    #         unique_store_name = f"{self.config.raster_store}_{timestamp}"
-    #         tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-    #         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-    #         if status:
-    #             return {
-    #                 "workspace": self.config.raster_workspace,
-    #                 "layer_name": layer_name,
-    #                 "csv_path":csv_path,
-    #                 "csv_details":csv_details
-    #             }
-    #         return False
-    #     except Exception as e:
-    #         print(e)
-    #         return False
-
+    def create_gwpz_map(self,db:db_dependency,payload:List,reverse:bool=False) -> str:
+        raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
+        constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
+        final_name = Unique_name.unique_name_with_ext('GWPL_raster','tif') 
+        final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
+        sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
+        unique_store_name =Unique_name.unique_name(self.config.raster_store)
+        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        if status:
+            return {
+                "status": "success",
+                "workspace": self.config.raster_workspace,
+                "store": self.config.raster_store,
+                "layer_name": layer_name,
+                "vector_name":vector_name,
+                "type": "raster",
+                "clip_villages":clip,
+                "csv_details":csv_details
+            }
+        return False
 class MARSutabilityMapper:                                                                                                                                                                                                                                      
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
@@ -731,7 +754,7 @@ class MARSutabilityMapper:
         self.vector_process=VectorProcess()
         self.BASE_DIR="/home/app/"
     
-    def _get_sutability_raster(self,db:db_dependency,payload:List):
+    def _get_operations_raster(self,db:db_dependency,payload:List):
         all_sutability_raster=MARSutability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
@@ -746,7 +769,7 @@ class MARSutabilityMapper:
         ]
         return condition_raster,constraintion_raster
     def _get_raster_with_weight(self,db:db_dependency,payload:List):
-        condition_raster,constraintion_raster=self._get_sutability_raster(db,payload)
+        condition_raster,constraintion_raster=self._get_operations_raster(db,payload)
         raster_path=[]
         raster_weights=[]
         for i in condition_raster:
@@ -754,7 +777,7 @@ class MARSutabilityMapper:
             raster_weights.append(i[1])
         return raster_path,raster_weights,constraintion_raster
 
-    def _sutability_overlay(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
+    def _get_overlay_raster(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
         self.processor.align_rasters(raster_path)
         overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
         weighted_sum = self.processor.create_weighted_overlay(
@@ -776,8 +799,8 @@ class MARSutabilityMapper:
         try:
             raster_path=MARSutability_svc.get_MAR_visual(db)
             raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path), 
-                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                           
+                            "path": os.path.abspath(self.BASE_DIR+"/"+i.file_path), 
+                            "sld_path": os.path.abspath(self.BASE_DIR+"/"+i.sld_path,)                           
                            } for i in raster_path]
             response=[]
             for i in raster_path:
@@ -800,7 +823,7 @@ class MARSutabilityMapper:
 
     def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
-        constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
+        constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext("MAR_Sutability","tif")
         final_path1,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)

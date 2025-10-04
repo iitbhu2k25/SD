@@ -86,8 +86,8 @@ const CsvUploader: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg p-4">
+    <div className="bg-gray-50 flex items-center justify-center ">
+      <div className="w-full bg-white rounded-xl shadow-lg p-4">
         <h2 className="text-xl font-bold text-gray-900 mb-3">CSV Uploader</h2>
 
         {/* Upload Button */}

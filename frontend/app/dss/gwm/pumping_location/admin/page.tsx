@@ -49,28 +49,26 @@ const MainContent = () => {
   };
 
   const handleSubmit = () => {
-    if (selectedCondition.length < 1) {
-      toast.error("Please select at least one condition category", {
-        position: "top-center",
-      });
-    } else {
-      setSubmitting(true);
-
-      const selectedData = [
-        ...selectedCondition,
-        ...selectedConstraint,
-      ]
-      setSelectedCategory(selectedData);
-      setstpOperation(true);
-
-      // Simulate processing completion (remove this in production with actual processing)
-      setTimeout(() => {
-        setSubmitting(false);
-      }, 2000);
-    }
-  };
-
-
+      if (selectedCondition.length < 1) {
+        toast.error("Please select at least one condition category", {
+          position: "top-center",
+        });
+      } else {
+        setSubmitting(true);
+        
+        const selectedData = [
+          ...selectedCondition,
+          ...selectedConstraint,
+        ]
+        setSelectedCategory(selectedData);
+        setstpOperation(true);
+  
+       
+        setTimeout(() => {
+          setSubmitting(false);
+        }, 2000);
+      }
+    };
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -82,7 +80,7 @@ const MainContent = () => {
           }
           message={
             stpOperation
-              ? "Analyzing site priorities and generating results..."
+              ? "Analyzing pumping locations and generating results..."
               : "Fetching map data and initializing components..."
           }
         />
@@ -96,21 +94,74 @@ const MainContent = () => {
                 <h2 className="text-xl font-semibold text-gray-800">
                   Selection Criteria
                 </h2>
-
-                <button
-                  onClick={() => setUploadcsv((prev) => !prev)}
-                  className={`px-4 py-2 rounded-lg text-white font-medium shadow-md transition duration-200 ${Uploadcsv ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-500 hover:bg-gray-600"
-                    }`}
-                >
-                  {Uploadcsv ? "Switch to Location" : "Switch to CSV Upload"}
-                </button>
               </div>
 
               <div className="p-6">
-                 {Uploadcsv ? <CsvUploader /> : <LocationSelector />}
+                <div className="mb-8  bg-gray-50 rounded-lg border border-gray-200">
+                  <LocationSelector />
+                </div>
+                {showCategories && (
+                  <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
+                    <div className="flex items-center justify-between mb-5">
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-800">
+                          Input Method
+                        </h2>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Choose how you want to provide location data.
+                        </p>
+                      </div>
 
+                      {/* Modern Toggle Switch */}
+                      <div className="flex items-center space-x-3">
+                        <span
+                          className={`text-sm font-medium ${!Uploadcsv ? "text-blue-600" : "text-gray-400"
+                            }`}
+                        >
+                          Manual
+                        </span>
+                        <button
+                          onClick={() => setUploadcsv(!Uploadcsv)}
+                          className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none ${Uploadcsv ? "bg-blue-600" : "bg-gray-300"
+                            }`}
+                        >
+                          <span
+                            className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${Uploadcsv ? "translate-x-6" : ""
+                              }`}
+                          />
+                        </button>
+                        <span
+                          className={`text-sm font-medium ${Uploadcsv ? "text-blue-600" : "text-gray-400"
+                            }`}
+                        >
+                          CSV
+                        </span>
+                      </div>
+                    </div>
 
-                
+                    {/* Input Mode Section */}
+                    <div className="mt-4">
+                      {Uploadcsv ? (
+                        <div className="animate-fadeIn">
+                          <CsvUploader />
+                        </div>
+                      ) : (
+                        <div className="animate-fadeIn">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Enter Number of Locations
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="e.g. 25"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {showCategories && (
                   <div className="animate-fadeIn">
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -138,12 +189,13 @@ const MainContent = () => {
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
-
+                        onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                          } flex items-center transition duration-200`}
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
+                          submitting
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                        } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -297,7 +349,7 @@ const MainContent = () => {
 };
 
 // Main App component that provides the context
-const GWLIAdmin = () => {
+const GWPLAdmin = () => {
   return (
     <LocationProvider>
       <CategoryProvider>
@@ -309,4 +361,4 @@ const GWLIAdmin = () => {
   );
 };
 
-export default GWLIAdmin;
+export default GWPLAdmin;

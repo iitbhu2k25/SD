@@ -131,7 +131,7 @@ const MainContent = () => {
 
               <div className="p-6">
                 {/* Selection Components with improved styling */}
-                <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="mb-8 bg-gray-50 rounded-lg border border-gray-200">
                   <LocationSelector />
                 </div>
 

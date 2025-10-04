@@ -15,7 +15,7 @@ class GWZ_crud(CrudBase):
         query=self.db.query(self.Model).filter()
         return self._pagination(query,all_data)
     
-class GWA_visualization_crud(CrudBase):
+class GWZ_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Zone_Visual_raster):
         super().__init__(db,Model)
         self.obj = None
@@ -24,7 +24,7 @@ class GWA_visualization_crud(CrudBase):
         query=self.db.query(self.Model).filter().all()
         return query
 
-class GWLI_crud(CrudBase):
+class GWPL_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Identification):
         super().__init__(db,Model)
         self.obj = None
@@ -37,7 +37,7 @@ class GWLI_crud(CrudBase):
         return self._pagination(query,all_data)
 
     
-class GWLI_visualization_crud(CrudBase):
+class GWPL_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Identification_visual_raster):
         super().__init__(db,Model)
         self.obj = None

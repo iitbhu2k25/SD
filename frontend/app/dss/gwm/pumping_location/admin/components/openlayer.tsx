@@ -421,7 +421,7 @@ const Mapping: React.FC = () => {
     if (stpOperation) {
       const performSTP = async () => {
         try {
-          const resp = await fetch("/api/stp_operation/stp_sutability", {
+          const resp = await fetch("/api/gwz_operation/gwli_operation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ data: selectedCategory, clip: selectedvillages }),
@@ -432,7 +432,7 @@ const Mapping: React.FC = () => {
           const result = await resp.json();
           if (result && result.status === "success") {
             const append_data = {
-              file_name: "STP_Sutability",
+              file_name: "Pumping_location",
               workspace: result.workspace,
               layer_name: result.layer_name,
             };
@@ -443,7 +443,7 @@ const Mapping: React.FC = () => {
             }
 
             const newData = [...displayRaster];
-            const index = newData.findIndex(item => item.file_name === "STP_Sutability");
+            const index = newData.findIndex(item => item.file_name === "Pumping_location");
             if (index !== -1) {
               newData[index] = append_data;
             } else {

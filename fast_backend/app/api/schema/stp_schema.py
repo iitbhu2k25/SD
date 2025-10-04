@@ -29,18 +29,6 @@ class Sub_district_request(BaseModel):
 
 
 
-class STPPriorityInput(BaseModel):
-    file_name: str
-    weight: float
-
-
-class STPCategory(BaseModel):
-    data: List[STPPriorityInput] = None
-    clip: List[int] = None
-    all_data: bool = True
-    place: str = None
-    class Config:
-        from_attributes = True
 
     
 class STPRasterInputt(BaseModel):
@@ -61,7 +49,7 @@ class STP_sutability_Area(BaseModel):
     CUSTOM_LAND_PER_MLD: float = Field(2.0, le=2) 
     layer_name:str
     
-class STP_sutability(BaseModel):
+class Raster_operation_input(BaseModel):
     id :int
     file_name: str
     Influence: str
@@ -71,13 +59,27 @@ class STP_sutability(BaseModel):
         from_attributes = True
 
 class STPSutabilityInput(BaseModel):
-    data: List[STP_sutability] = None
+    data: List[Raster_operation_input] = None
     clip: List[int] = None
     all_data: bool = True
     place: str = None
     drain_clip:Optional[List[int]]=None
     class Config:
         from_attributes = True
+
+class STPPriorityInput(BaseModel):
+    file_name: str
+    weight: float
+
+
+class STPCategory(BaseModel):
+    data: List[STPPriorityInput] = None
+    clip: List[int] = None
+    all_data: bool = True
+    place: str = None
+    class Config:
+        from_attributes = True
+
 
 class STPPriorityOutput(BaseModel):
     weight: float
