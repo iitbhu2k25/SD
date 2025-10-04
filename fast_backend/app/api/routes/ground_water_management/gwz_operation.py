@@ -5,7 +5,7 @@ from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,G
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
 from app.api.service.celery.gwz_drain_document import document_gen5
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,StpPriorityDrainReport,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,StpPriorityDrainReport,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -52,6 +52,11 @@ async def gwli_raster_dislay(db:db_dependency,payload:category_raster):
 @validate
 async def gwli_raster_operation(db:db_dependency,payload: STPSutabilityInput):
     return GWPumpingMapper().create_gwpz_map(db,payload)
+
+@router.post("/gwli_find_score", status_code=status.HTTP_201_CREATED)
+@validate
+async def gwli_find_score(db:db_dependency,payload:GWPL_Table_input):
+    return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location)
 
 
 # MAR sutability 

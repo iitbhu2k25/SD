@@ -58,6 +58,12 @@ class Raster_operation_input(BaseModel):
     class Config:
         from_attributes = True
 
+class GWPL_Table_input(BaseModel):
+    location:list
+    raster_name:str
+    class Config:
+        from_attributes = True
+    
 class STPSutabilityInput(BaseModel):
     data: List[Raster_operation_input] = None
     clip: List[int] = None

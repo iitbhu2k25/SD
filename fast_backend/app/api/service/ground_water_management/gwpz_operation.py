@@ -16,21 +16,17 @@ from app.utils.network_conf import GeoConfig
 import uuid
 from app.database.config.dependency import db_dependency
 from pathlib import Path
-from app.api.service.river_water_management import spt_service
 from app.conf.settings import Settings
 from datetime import datetime
 import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
-from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSutability_svc
-from app.database.crud.gwpz_crud import MARSutability_crud
-import pandas as pd
+from app.database.crud.gwpz_crud import MARSutability_crud,GWPL_crud
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
 from app.utils.name import Unique_name
-from app.database.crud.gwpz_crud import GWPL_crud
 
 
 geo=Geoserver()
@@ -661,6 +657,19 @@ class GWPumpingMapper:
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
         self.BASE_DIR = Settings().BASE_DIR
+        self.Temp=Settings().TEMP_DIR
+    def _get_relevance_raster(self,db:db_dependency,raster:str):
+        unique_folder=Unique_name.unique_name("relevance_raster")
+        self.Temp=os.path.join(self.Temp,unique_folder)
+        os.makedirs(self.Temp,exist_ok=True)
+        resp = Geoserver().raster_download(
+            temp_path=self.Temp, 
+            layer_name=raster
+        )
+        relevance_raster=GWPL_crud(db).get_raster_category(category="refrence",all_data=True)
+        relevance_raster = [[raster.file_name,os.path.join(self.BASE_DIR, raster.file_path)] for raster in relevance_raster]
+        relevance_raster.append(["Rank",resp["raster_path"]])
+        return relevance_raster
     def _get_operations_raster(self,db:db_dependency,payload:List):
         all_sutability_raster=GWPL_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
@@ -675,6 +684,7 @@ class GWPumpingMapper:
             if raster.raster_category == 'constraint' and raster.id in payload_dict
         ]
         return condition_raster,constraintion_raster
+    
     def _get_raster_with_weight(self,db:db_dependency,payload:List):
         condition_raster,constraintion_raster=self._get_operations_raster(db,payload)
         raster_path=[]
@@ -683,6 +693,7 @@ class GWPumpingMapper:
             raster_path.append(i[0])
             raster_weights.append(i[1])
         return raster_path,raster_weights,constraintion_raster
+    
     def _get_overlay_raster(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
         self.processor.align_rasters(raster_path)
         overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
@@ -695,11 +706,13 @@ class GWPumpingMapper:
             )
         final_name = Unique_name.unique_name_with_ext("GWPZ_rasters","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
+    
     def _cliping_raster(self,final_path:str,final_name:str,payload:List):
         vector_name=None
         clip=payload.clip
         final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place="Drain")
         return final_path,vector_name,clip
+    
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
             raster_path=GWPL_service.get_GWPL_visual(db)
@@ -731,7 +744,6 @@ class GWPumpingMapper:
         final_name = Unique_name.unique_name_with_ext('GWPL_raster','tif') 
         final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
-        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
@@ -743,10 +755,31 @@ class GWPumpingMapper:
                 "layer_name": layer_name,
                 "vector_name":vector_name,
                 "type": "raster",
-                "clip_villages":clip,
-                "csv_details":csv_details
             }
         return False
+
+    def gwpl_table(self,db:db_dependency,raster:str,well_point:list):
+        Relevance=self._get_relevance_raster(db,raster)
+        records = []
+
+        for well_geom in well_point:
+            well_id,lat ,lon = well_geom["Well_id"],well_geom["Latitude"],well_geom["Longitude"]
+            well_data = {"Well_id": well_id}
+            for col_name, raster_path in Relevance:
+                with rasterio.open(raster_path) as src:
+                    try:
+                        sampled_val = next(src.sample([(lon, lat)]))
+                        val = float(sampled_val[0]) if sampled_val is not None else None
+                    except Exception as e:
+                        print(f"Error sampling {col_name} at ({lon},{lat}): {e}")
+                        val = None
+
+                    well_data[col_name] = val
+
+            records.append(well_data)
+        result = pd.DataFrame(records)
+        return records
+
 class MARSutabilityMapper:                                                                                                                                                                                                                                      
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()

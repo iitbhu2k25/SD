@@ -12,29 +12,25 @@ import MapView from "@/app/dss/gwm/pumping_location/admin/components/openlayer";
 import { useMap } from "@/contexts/groundwaterIdent/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
-import DataTable from "react-data-table-component";
-import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import DataTable from "react-data-table-component";
+import { Gwpl_columns} from "@/interface/table";
 import WholeLoading from "@/components/app_layout/newLoading";
 import CsvUploader from "./components/handle_csv";
 
 const MainContent = () => {
-  // Add submitting state
   const [submitting, setSubmitting] = useState(false);
   const [Uploadcsv, setUploadcsv] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
     "condition")
-
-
   const {
     selectedCondition,
     selectedConstraint,
     setSelectedCategory,
-    tableData,
-
+    
   } = useCategory();
 
-  const { selectionsLocked, confirmSelections, resetSelections } =
+  const { selectionsLocked, displayRaster, setValidateTable, well_points,tableData } =
     useLocation();
 
   const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
@@ -49,26 +45,26 @@ const MainContent = () => {
   };
 
   const handleSubmit = () => {
-      if (selectedCondition.length < 1) {
-        toast.error("Please select at least one condition category", {
-          position: "top-center",
-        });
-      } else {
-        setSubmitting(true);
-        
-        const selectedData = [
-          ...selectedCondition,
-          ...selectedConstraint,
-        ]
-        setSelectedCategory(selectedData);
-        setstpOperation(true);
-  
-       
-        setTimeout(() => {
-          setSubmitting(false);
-        }, 2000);
-      }
-    };
+    if (selectedCondition.length < 1) {
+      toast.error("Please select at least one condition category", {
+        position: "top-center",
+      });
+    } else {
+      setSubmitting(true);
+
+      const selectedData = [
+        ...selectedCondition,
+        ...selectedConstraint,
+      ]
+      setSelectedCategory(selectedData);
+      setstpOperation(true);
+
+
+      setTimeout(() => {
+        setSubmitting(false);
+      }, 2000);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -100,10 +96,12 @@ const MainContent = () => {
                 <div className="mb-8  bg-gray-50 rounded-lg border border-gray-200">
                   <LocationSelector />
                 </div>
-                {showCategories && (
+
+                {displayRaster.find(item => item.file_name === "Pumping_location") && tableData.length == 0 && (
                   <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
+
                     <div className="flex items-center justify-between mb-5">
-                      <div>
+                      <div className="flex-1">
                         <h2 className="text-lg font-semibold text-gray-800">
                           Input Method
                         </h2>
@@ -112,34 +110,47 @@ const MainContent = () => {
                         </p>
                       </div>
 
-                      {/* Modern Toggle Switch */}
-                      <div className="flex items-center space-x-3">
-                        <span
-                          className={`text-sm font-medium ${!Uploadcsv ? "text-blue-600" : "text-gray-400"
-                            }`}
-                        >
-                          Manual
-                        </span>
-                        <button
-                          onClick={() => setUploadcsv(!Uploadcsv)}
-                          className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none ${Uploadcsv ? "bg-blue-600" : "bg-gray-300"
-                            }`}
-                        >
+                      <div className="flex items-center gap-4">
+
+                        <div className="flex items-center space-x-3">
                           <span
-                            className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${Uploadcsv ? "translate-x-6" : ""
+                            className={`text-sm font-medium transition-colors ${!Uploadcsv ? "text-blue-600" : "text-gray-400"
                               }`}
-                          />
-                        </button>
-                        <span
-                          className={`text-sm font-medium ${Uploadcsv ? "text-blue-600" : "text-gray-400"
-                            }`}
-                        >
-                          CSV
-                        </span>
+                          >
+                            Manual
+                          </span>
+                          <button
+                            onClick={() => setUploadcsv(!Uploadcsv)}
+                            className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${Uploadcsv ? "bg-blue-600" : "bg-gray-300"
+                              }`}
+                            aria-label="Toggle input method"
+                          >
+                            <span
+                              className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${Uploadcsv ? "translate-x-6" : ""
+                                }`}
+                            />
+                          </button>
+                          <span
+                            className={`text-sm font-medium transition-colors ${Uploadcsv ? "text-blue-600" : "text-gray-400"
+                              }`}
+                          >
+                            CSV
+                          </span>
+                        </div>
+
+
+                        {well_points && well_points.length > 0 && (
+                          <button
+                            onClick={() => setValidateTable(true)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm animate-fadeIn"
+                          >
+                            Validate
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Input Mode Section */}
+                    {/* Content Area */}
                     <div className="mt-4">
                       {Uploadcsv ? (
                         <div className="animate-fadeIn">
@@ -148,27 +159,40 @@ const MainContent = () => {
                       ) : (
                         <div className="animate-fadeIn">
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Enter Number of Locations
+                            Mark the location on Map
                           </label>
-                          <input
-                            type="number"
-                            min="1"
-                            placeholder="e.g. 25"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                          />
+                          <p className="text-xs text-gray-500">
+                            Click on the map to add pumping location points
+                          </p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-
+                {tableData.length > 0 && (
+                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
+                  <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                    <h2 className="text-xl font-semibold mb-4">
+                      Groundwater  Well points wise Analysis :-
+                    </h2>
+                    <DataTable
+                      columns={Gwpl_columns}
+                      data={tableData}
+                      pagination
+                      responsive
+                      paginationPerPage={10}
+                      paginationRowsPerPageOptions={[5, 10, 20, 50]}
+                    />
+                  </div>
+                </section>
+              )}
                 {showCategories && (
                   <div className="animate-fadeIn">
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <CategorySelector />
                     </div>
 
-                    {/* Required selection indicator */}
+                 
                     <div className="mb-4 text-sm text-red-600 font-medium flex items-center">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -191,11 +215,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          submitting
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                          } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -245,29 +268,13 @@ const MainContent = () => {
                   </div>
                 )}
               </div>
-              {tableData.length > 0 && (
-                <div className="p-6 bg-white rounded-2xl shadow-md">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Village Analysis Information
-                  </h2>
-                  <DataTable
-                    columns={Village_columns}
-                    data={tableData}
-                    pagination
-                    responsive
-                    paginationPerPage={10}
-                    paginationRowsPerPageOptions={[5, 10, 20, 50]}
-                  />
-                </div>
-              )}
-
 
             </section>
           </div>
 
-          {/* Map and Slider area - Now spans 4/12 columns on large screens */}
+   
           <div className="lg:col-span-4 space-y-4">
-            {/* Map Section with Larger Height */}
+
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               {/* Larger Map Component */}
               <div className="w-full p-4 md:min-h-[500px]">

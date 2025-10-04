@@ -1,7 +1,7 @@
 'use client'
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, use } from 'react';
 import { api } from '@/services/api';
-import { CsvRow } from "@/interface/table";
+import { CsvRow,Gwpl_Table } from "@/interface/table";
 
 export interface State {
   id: string | number;
@@ -58,6 +58,8 @@ interface LocationContextType {
   resetSelections: () => void;
   well_points: CsvRow[];
   setwell_points: (points: CsvRow[]) => void;
+  setValidateTable:(value: boolean) => void
+  tableData: Gwpl_Table[];
 }
 
 // Props for the LocationProvider component
@@ -87,6 +89,8 @@ const LocationContext = createContext<LocationContextType>({
   resetSelections: () => { },
   well_points: [],
   setwell_points: () => { },
+  setValidateTable: () => { },
+  tableData:[],
 });
 
 // Create the provider component
@@ -109,6 +113,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
 
   const [well_points, setwell_points] = useState<CsvRow[]>([]);
+  const [ValidateTable, setValidateTable] = useState<boolean>(false);
+  const [tableData, setTableData] = useState<Gwpl_Table[]>([]);
+
+
 
   useEffect(() => {
     const fetchStates = async () => {
@@ -293,7 +301,34 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     setSelectedvillages([]);
   }, [selectedSubDistricts]);
 
+  useEffect(() => {
+    console.log("value")
+    const findScore = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.post("/gwz_operation/gwli_find_score", {
+          body: {
+            location :well_points,
+            raster_name: displayRaster.filter((raster) => raster.file_name === "Pumping_location")[0].layer_name,
+          },
+        });
 
+        if (response.status != 201) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        setTableData(response.message as Gwpl_Table[]);
+      } catch (error) {
+        console.log('Error fetching villages:', error);
+      } finally {
+        setIsLoading(false);
+      }
+      setValidateTable(false);
+    };
+
+    if (ValidateTable === true) {
+      findScore();
+    }
+  }, [ValidateTable]);
   // Handle state selection
   const handleStateChange = (stateId: number): void => {
     setSelectedState(stateId);
@@ -324,7 +359,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     return {
       subDistricts: selectedSubDistrictObjects,
       villages: selectedTownObjects,
-
     };
   };
 
@@ -334,7 +368,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     setSelectedDistricts(null);
     setSelectedSubDistricts(null);
     setSelectedvillages([]);
-
     setSelectionsLocked(false);
   };
 
@@ -360,6 +393,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     setdisplay_raster,
     well_points,
     setwell_points: setwell_points,
+    setValidateTable: setValidateTable,
+    tableData,
   };
 
   return (
