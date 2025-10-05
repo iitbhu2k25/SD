@@ -1,7 +1,7 @@
 "use client";
 
 
-import React, { useState, useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { LocationProvider } from "@/contexts/stp_sutability/admin/LocationContext";
 import { CategoryProvider } from "@/contexts/stp_sutability/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_sutability/admin/MapContext";
@@ -19,7 +19,8 @@ import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_sutability/admin/components/Stp_area";
 import { api } from "@/services/api";
-import PDFGenerationStatus from "@/components/PdfGeneration";
+import PDFGenerationStatus from "@/components/utils/PdfGeneration";
+import { downloadCSV } from "@/components/utils/downloadCsv";
 
 const MainContent = () => {
   // Add submitting state
@@ -103,7 +104,7 @@ const MainContent = () => {
         position: "top-center",
       });
     } else {
-    
+
 
       const selectedData = [
         ...selectedCondition,
@@ -120,10 +121,10 @@ const MainContent = () => {
       {
         <WholeLoading
           visible={loading || isMapLoading || stpOperation || reportLoading}
-          title={stpOperation ? "Analyzing STP sutability" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+          title={stpOperation ? "Analyzing STP sutability" : reportLoading ? "Generating report for STP sutability" : "Loading Resources"}
           message={
             stpOperation
-              ? "Analyzing site priorities and generating results..."
+              ? "Analyzing site sutability and generating results..."
               : reportLoading
                 ? "Generating report, please wait..."
                 : "Fetching map data and initializing components..."
@@ -178,8 +179,8 @@ const MainContent = () => {
                         onClick={handleSubmit}
                         disabled={submitting}
                         className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
                           } flex items-center transition duration-200`}
                       >
                         {submitting ? (
@@ -231,19 +232,31 @@ const MainContent = () => {
                 )}
               </div>
               {tableData.length > 0 && (
-                <div className="p-6 bg-white rounded-2xl shadow-md">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Village Analysis Information
-                  </h2>
-                  <DataTable
-                    columns={Village_columns}
-                    data={tableData}
-                    pagination
-                    responsive
-                    paginationPerPage={10}
-                    paginationRowsPerPageOptions={[5, 10, 20, 50]}
-                  />
-                </div>
+                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
+                  <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                    <div className="mb-4 flex justify-between ">
+                      <h2 className="text-xl font-semibold mb-4">STP Sutability Village-wise Analysis:</h2>
+                      <button
+                        onClick={() => downloadCSV(tableData, "STP_sutability_admin.csv")}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                        </svg>
+                        Download CSV
+                      </button>
+
+                    </div>
+                    <DataTable
+                      columns={Village_columns}
+                      data={tableData}
+                      pagination
+                      responsive
+                      paginationPerPage={5}
+                      paginationRowsPerPageOptions={[5, 10]}
+                    />
+                  </div>
+                </section>
               )}
               {tableData.length > 0 && (
                 <div className="flex justify-start mt-8">
@@ -252,42 +265,42 @@ const MainContent = () => {
               )
               }
             </section>
-              <div className="flex m-8 justify-center">
-                {tableData.length > 0 && (
-                  <div className="flex justify-start mt-8">
-                    <button
-                      onClick={handlereport}
-                      disabled={reportLoading}
-                      className={`px-8 py-3 rounded-full font-medium shadow-md ${reportLoading
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center gap-2 transition duration-200`}
+            <div className="flex m-8 justify-center">
+              {tableData.length > 0 && (
+                <div className="flex justify-start mt-8">
+                  <button
+                    onClick={handlereport}
+                    disabled={reportLoading}
+                    className={`px-8 py-3 rounded-full font-medium shadow-md ${reportLoading
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                      } flex items-center gap-2 transition duration-200`}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      {reportLoading ? "Starting..." : "Generate Report"}
-                    </button>
-                    <WholeLoading
-                      visible={reportLoading}
-                      title={"Generating report for STP priorities"}
-                      message={
-                        "Analyzing site priorities and generating results..."
-                      }
-                    />
-                  </div>
-                )}
-              </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    {reportLoading ? "Starting..." : "Generate Report"}
+                  </button>
+                  <WholeLoading
+                    visible={reportLoading}
+                    title={"Generating report for STP priorities"}
+                    message={
+                      "Analyzing site priorities and generating results..."
+                    }
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Map and Slider area - Now spans 4/12 columns on large screens */}
@@ -309,8 +322,8 @@ const MainContent = () => {
                     <button
                       onClick={() => setActiveTab("condition")}
                       className={`flex-1 py-2 font-medium ${activeTab === "condition"
-                          ? "text-blue-600 border-b-2 border-blue-500"
-                          : "text-gray-500 hover:text-gray-700"
+                        ? "text-blue-600 border-b-2 border-blue-500"
+                        : "text-gray-500 hover:text-gray-700"
                         }`}
                     >
                       Condition Influences
@@ -318,8 +331,8 @@ const MainContent = () => {
                     <button
                       onClick={() => setActiveTab("constraint")}
                       className={`flex-1 py-2 font-medium ${activeTab === "constraint"
-                          ? "text-blue-600 border-b-2 border-blue-500"
-                          : "text-gray-500 hover:text-gray-700"
+                        ? "text-blue-600 border-b-2 border-blue-500"
+                        : "text-gray-500 hover:text-gray-700"
                         }`}
                     >
                       Constraint Influences
@@ -367,7 +380,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-             {showPdfStatus && taskId && (
+      {showPdfStatus && taskId && (
         <PDFGenerationStatus
           taskId={taskId}
           className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"

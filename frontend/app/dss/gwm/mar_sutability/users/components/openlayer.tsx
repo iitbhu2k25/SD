@@ -53,8 +53,6 @@ const Maping: React.FC = () => {
   const hoverInteractionRef = useRef<Select | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
 
-
-  // Simplified state
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({
     primary: 0,
@@ -236,8 +234,8 @@ const Maping: React.FC = () => {
       new MousePosition({
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
-          const [longitude, latitude] = coordinate;
-          return `Lat: ${latitude.toFixed(6)}° | Long: ${longitude.toFixed(6)}°`;
+          const [Longitude, latitude] = coordinate;
+          return `Lat: ${latitude.toFixed(6)}° | Long: ${Longitude.toFixed(6)}°`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -326,7 +324,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
+    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     if (hasSelections && filter?.filterField && filter?.filterValue && filter.filterValue.length > 0) {
       wfsUrl += `&CQL_FILTER=${filter.filterField} IN (${Array.isArray(filter.filterValue)
@@ -406,7 +404,7 @@ const Maping: React.FC = () => {
       return;
     }
 
-    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=1.1.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const vectorSource = new VectorSource({
       url: wfsUrl,

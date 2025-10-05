@@ -1,6 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/groundwaterIdent/LocationContext';
+import { useLocation } from '@/contexts/groundwaterIdent/admin/LocationContext';
 
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {
@@ -9,7 +9,8 @@ const LAYER_NAMES = {
   DISTRICT: "STP_subdistrict",
   SUB_DISTRICT: "STP_Village",
 };
-// Type definitions for the context
+
+
 interface MapContextType {
   primaryLayer: string;
   secondaryLayer: string | null;

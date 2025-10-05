@@ -4,7 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-const gridItems = [
+const gridItems = [{
+    href: "dss/home/home_grid/home_card/basic_module",
+    imgSrc: "/Images/GridSection/basicmodule.jpg",
+    alt: "Basic Module",
+    title: "Basic Module",
+    acronym: "BM",
+    description: "Essential tools for sewage load estimation and predictions",
+    color: "from-blue-400/30 to-blue-600/40"
+  },
   {
     href: "dss/home/home_grid/home_card/gwm",
     imgSrc: "/Images/GridSection/gwm.webp",
@@ -39,15 +47,6 @@ const gridItems = [
     title: "Socio-Hydrological System",
     acronym: "SHSD",
     description: "Integrating water management with socio-economic factors",
-    color: "from-blue-400/30 to-blue-600/40"
-  },
-  {
-    href: "dss/home/home_grid/home_card/basic_module",
-    imgSrc: "/Images/GridSection/basicmodule.jpg",
-    alt: "Basic Module",
-    title: "Basic Module",
-    acronym: "BM",
-    description: "Essential tools for sewage load estimation and predictions",
     color: "from-blue-400/30 to-blue-600/40"
   }
 ];

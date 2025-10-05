@@ -22,7 +22,7 @@ import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
-
+import { downloadCSV } from "@/components/utils/downloadCsv";
 const MainContent = () => {
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
     "condition"
@@ -208,10 +208,34 @@ const MainContent = () => {
                   </div>
                 )}
               </div>
-            </section>
+              {tableData.length > 0 && (
+                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
+                  <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                    <div className="mb-4 flex justify-between ">
+                      <h2 className="text-xl font-semibold mb-4">MAR Sutability Village-wise Analysis:</h2>
+                      <button
+                        onClick={() => downloadCSV(tableData, "MAR_sutability_drain.csv")}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                        </svg>
+                        Download CSV
+                      </button>
 
-            {/* River System Summary */}
-           
+                    </div>
+                    <DataTable
+                      columns={Village_columns}
+                      data={tableData}
+                      pagination
+                      responsive
+                      paginationPerPage={5}
+                      paginationRowsPerPageOptions={[5, 10]}
+                    />
+                  </div>
+                </section>
+              )}
+            </section>          
           </div>
 
           {/* Map and Slider area - Now spans 4/8 columns on large screens */}

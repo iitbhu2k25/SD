@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.database.crud.gwpz_crud import GWZ_crud,MARSutability_crud,MARSutability_visualization_crud,GWA_visualization_crud,GWLI_crud,GWLI_visualization_crud
+from app.database.crud.gwpz_crud import GWZ_crud,MARSutability_crud,MARSutability_visualization_crud,GWZ_visualization_crud,GWPL_crud,GWPL_visualization_crud
 from app.api.schema.stp_schema import STPCategory
 import os
 from  app.api.service.river_water_management.spt_service import Stp_service
@@ -21,9 +21,9 @@ class Gwzp_service:
         return GWZ_crud(db).get_raster_category(all_data)
 
     def get_GWA_Priority_visual(db:Session,all_data:bool=True):
-        return GWA_visualization_crud(db).get_all_visual()
+        return GWZ_visualization_crud(db).get_all_visual()
 
-class GWLI_service:
+class GWPL_service:
     # def get_raster(db:Session,payload:STPCategory):
     #     raster_path=[]
     #     raster_weights=[]
@@ -35,11 +35,11 @@ class GWLI_service:
     #         raster_weights.append(float(i.weight))
     #     return raster_path,raster_weights
     
-    def get_raster_GWLI(db:Session,category:str,all_data:bool=False):
-        return GWLI_crud(db).get_raster_category(category,all_data)
+    def get_raster_GWPL(db:Session,category:str,all_data:bool=False):
+        return GWPL_crud(db).get_raster_category(category,all_data)
 
-    def get_GWLI_visual(db:Session,all_data:bool=True):
-        return GWLI_visualization_crud(db).get_all_visual()
+    def get_GWPL_visual(db:Session,all_data:bool=True):
+        return GWPL_visualization_crud(db).get_all_visual()
 
 class MARSutability_svc:
     # def get_raster(db:Session,payload:STPCategory):
@@ -65,7 +65,7 @@ class Raster_visual:
         temp = Stp_service.get_priority_visual(db)
         temp2 = Stp_service.get_sutability_category(db)
         temp3= Gwzp_service.get_GWA_Priority_visual(db)
-        temp4 = GWLI_service.get_GWLI_visual(db)
+        temp4 = GWPL_service.get_GWPL_visual(db)
         temp5=MARSutability_svc.get_MAR_visual(db)
 
         

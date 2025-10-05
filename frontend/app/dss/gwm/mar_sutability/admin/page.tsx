@@ -16,9 +16,10 @@ import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
+import { downloadCSV } from "@/components/utils/downloadCsv";
 
 const MainContent = () => {
-  // Add submitting state
+
   const [submitting, setSubmitting] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
@@ -30,13 +31,13 @@ const MainContent = () => {
     selectedConstraint,
     setSelectedCategory,
     tableData,
-    
+
   } = useCategory();
 
   const { selectionsLocked, confirmSelections, resetSelections } =
     useLocation();
 
-  const { setstpOperation ,isMapLoading, loading, stpOperation} = useMap();
+  const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -57,7 +58,7 @@ const MainContent = () => {
       });
     } else {
       setSubmitting(true);
-      
+
       const selectedData = [
         ...selectedCondition,
         ...selectedConstraint,
@@ -135,11 +136,10 @@ const MainContent = () => {
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
-                          submitting
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
                             ? "bg-gray-400 cursor-not-allowed"
                             : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                        } flex items-center transition duration-200`}
+                          } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -190,22 +190,34 @@ const MainContent = () => {
                 )}
               </div>
               {tableData.length > 0 && (
-                <div className="p-6 bg-white rounded-2xl shadow-md">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Village Analysis Information
-                  </h2>
-                  <DataTable
-                    columns={Village_columns}
-                    data={tableData}
-                    pagination
-                    responsive
-                    paginationPerPage={10}
-                    paginationRowsPerPageOptions={[5, 10, 20, 50]}
-                  />
-                </div>
+                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
+                  <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                    <div className="mb-4 flex justify-between ">
+                      <h2 className="text-xl font-semibold mb-4">MAR Sutability Village-wise Analysis:</h2>
+                      <button
+                        onClick={() => downloadCSV(tableData, "MAR_sutability_admin.csv")}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                        </svg>
+                        Download CSV
+                      </button>
+
+                    </div>
+                    <DataTable
+                      columns={Village_columns}
+                      data={tableData}
+                      pagination
+                      responsive
+                      paginationPerPage={5}
+                      paginationRowsPerPageOptions={[5, 10]}
+                    />
+                  </div>
+                </section>
               )}
-                             
-                {/* {tableData.length > 0 && (
+
+              {/* {tableData.length > 0 && (
                   <div className="flex justify-start mt-8">
                     <button
                       type="button"
@@ -237,7 +249,7 @@ const MainContent = () => {
                     />
                   </div>
                 )} */}
- 
+
             </section>
           </div>
 
@@ -259,21 +271,19 @@ const MainContent = () => {
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "condition"
+                      className={`flex-1 py-2 font-medium ${activeTab === "condition"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Condition Influences
                     </button>
                     <button
                       onClick={() => setActiveTab("constraint")}
-                      className={`flex-1 py-2 font-medium ${
-                        activeTab === "constraint"
+                      className={`flex-1 py-2 font-medium ${activeTab === "constraint"
                           ? "text-blue-600 border-b-2 border-blue-500"
                           : "text-gray-500 hover:text-gray-700"
-                      }`}
+                        }`}
                     >
                       Constraint Influences
                     </button>

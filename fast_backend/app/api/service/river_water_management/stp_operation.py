@@ -945,7 +945,7 @@ class STPSutabilityMapper:
         upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
         return name_only
     
-    def _get_sutability_raster(self,db:db_dependency,payload:List):
+    def _get_operations_raster(self,db:db_dependency,payload:List):
         all_sutability_raster=STP_sutability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
@@ -960,7 +960,7 @@ class STPSutabilityMapper:
         ]
         return condition_raster,constraintion_raster
     
-    def _sutability_overlay(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
+    def _get_overlay_raster(self,raster_path:List =None,constraintion_raster:List=None,raster_weights:List=None):
         self.processor.align_rasters(raster_path)
         overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
         weighted_sum = self.processor.create_weighted_overlay(
@@ -989,9 +989,10 @@ class STPSutabilityMapper:
         vector_name=self._temporory_vector(vector_temp_file=selected_villages)
         return selected_villages['ID'].tolist(),vector_name
     def town_to_villages(self,clip:List):
-        selected_villages =self.vector_process.get_town_village(clip)  
+        selected_villages =self.vector_process.get_town_village(clip) 
+         
     def _get_raster_with_weight(self,db:db_dependency,payload:List):
-        condition_raster,constraintion_raster=self._get_sutability_raster(db,payload)
+        condition_raster,constraintion_raster=self._get_operations_raster(db,payload)
         raster_path=[]
         raster_weights=[]
         if payload.place == "Drain":
@@ -1009,7 +1010,7 @@ class STPSutabilityMapper:
     
     def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
-        constrained_path,final_path=self._sutability_overlay(raster_path,constraintion_raster,raster_weights)
+        constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext('STP_Sutability','tif') 
         final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)

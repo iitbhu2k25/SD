@@ -1,5 +1,9 @@
 import DataTable, { TableColumn } from 'react-data-table-component';
-
+export interface CsvRow {
+  Well_id: string;
+  Longitude: string;
+  Latitude: string;
+}
 export interface DataRow {
   Village_Name: string;
   Very_Low: number;
@@ -9,6 +13,67 @@ export interface DataRow {
   Very_High: number;
 }
 
+export interface Gwpl_Table{
+  Well_id:number;
+  Rank:number;
+  "Groundwater table":number;
+  "Rainfall": number;
+  "Sand thickness": number;
+  "Temperature": number;
+  "Top clay thickness":number;
+}
+export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
+  {
+    name: 'Well Id',
+    selector: row => row.Well_id,
+    sortable: true,
+    width: '100px',
+    wrap: true,
+    format: row => row.Well_id,
+  },
+  {
+    name: 'Rank',
+    selector: row => row.Rank,
+    sortable: true,
+    format: row => `${row.Rank.toFixed(2)}%`,
+    width: '120px',
+  },  
+  {
+    name: 'Groundwater table',
+    selector: row => row["Groundwater table"],
+    sortable: true,
+    format: row => `${row["Groundwater table"].toFixed(2)}`,
+    width: '120px',
+  },
+  {
+    name: 'Rainfall',
+    selector: row => row["Rainfall"],
+    sortable: true,
+    format: row => `${row["Rainfall"].toFixed(2)}`,
+    width: '120px',
+  },
+  {
+    name: 'Sand thickness',
+    selector: row => row["Sand thickness"],
+    sortable: true,
+    format: row => `${row["Sand thickness"].toFixed(2)}`,
+    width: '120px',
+  },
+  {
+    name: 'Temperature',
+    selector: row => row["Temperature"],
+    sortable: true,
+    format: row => `${row["Temperature"].toFixed(2)}`,
+    width: '120px',
+  },
+  {
+    name: 'Top clay thickness',
+    selector: row => row["Top clay thickness"],
+    sortable: true,
+    format: row => `${row["Top clay thickness"].toFixed(2)}`,
+    width: '120px',
+  },
+]
 // Props interface for the component
 interface VillageDataTableProps {
   data?: DataRow[];

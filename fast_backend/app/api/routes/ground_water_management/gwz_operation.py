@@ -1,12 +1,11 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
-from app.api.schema.stp_schema import category_raster,STPPriorityOutput, STPSutabilityOutput,STPSutabilityInput
 from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper,MARSutabilityMapper
-from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,Gwzp_service,GWLI_service
+from app.api.service.ground_water_management.gwpz_svc import MARSutability_svc,Gwzp_service,GWPL_service
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
 from app.api.service.celery.gwz_drain_document import document_gen5
-from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,StpPriorityDrainReport,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STPCategory,STPSutabilityOutput,STPPriorityOutput,StpPriorityDrainReport,STPSutabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -39,21 +38,28 @@ async def gwz_drain_report(payload:StpPriorityDrainReport):
  
 
 # groud water pumping locations
-@router.get("/get_gwli_category",response_model=list[STPSutabilityOutput])
+@router.get("/get_gwli_category",response_model=list[STPSutabilityOutput],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_raster_gwli(db:db_dependency,category:str,all_data: bool = False):
-    return GWLI_service.get_raster_GWLI(db,category,all_data)
+    return GWPL_service.get_raster_GWPL(db,category,all_data)
 
 @router.post("/gwli_visual_display", status_code=status.HTTP_201_CREATED)
 @validate
 async def gwli_raster_dislay(db:db_dependency,payload:category_raster):
     return GWPumpingMapper().get_visual_raster(db,payload.clip)
 
-# @router.post("/gwli_operation", status_code=status.HTTP_201_CREATED)
-# @validate
-# async def gwli_raster_operation(db:db_dependency,payload: STPCategory):
-#     pass
+@router.post("/gwli_operation", status_code=status.HTTP_201_CREATED)
+@validate
+async def gwli_raster_operation(db:db_dependency,payload: STPSutabilityInput):
+    return GWPumpingMapper().create_gwpz_map(db,payload)
 
+@router.post("/gwli_find_score", status_code=status.HTTP_201_CREATED)
+@validate
+async def gwli_find_score(db:db_dependency,payload:GWPL_Table_input):
+    return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location)
+
+
+# MAR sutability 
 @router.get("/get_mar_sutability_category",status_code=status.HTTP_201_CREATED,response_model=list[STPSutabilityOutput])
 @validate
 async def get_raster_mar_sutability(db:db_dependency,category:str,all_data: bool = False):
