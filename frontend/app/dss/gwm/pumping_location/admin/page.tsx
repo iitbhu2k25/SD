@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider } from "@/contexts/groundwaterIdent/LocationContext";
-import { CategoryProvider } from "@/contexts/groundwaterIdent/CategoryContext";
-import { MapProvider } from "@/contexts/groundwaterIdent/MapContext";
+import { LocationProvider } from "@/contexts/groundwaterIdent/admin/LocationContext";
+import { CategoryProvider } from "@/contexts/groundwaterIdent/admin/CategoryContext";
+import { MapProvider } from "@/contexts/groundwaterIdent/admin/MapContext";
 import LocationSelector from "@/app/dss/gwm/pumping_location/admin/components/locations";
 import CategorySelector from "@/app/dss/gwm/pumping_location/admin/components/Category";
-import { useLocation } from "@/contexts/groundwaterIdent/LocationContext";
-import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
+import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
+import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
 import MapView from "@/app/dss/gwm/pumping_location/admin/components/openlayer";
-import { useMap } from "@/contexts/groundwaterIdent/MapContext";
+import { useMap } from "@/contexts/groundwaterIdent/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -27,7 +27,6 @@ const MainContent = () => {
     selectedCondition,
     selectedConstraint,
     setSelectedCategory,
-    
   } = useCategory();
 
   const { selectionsLocked, displayRaster, setValidateTable, well_points,tableData } =

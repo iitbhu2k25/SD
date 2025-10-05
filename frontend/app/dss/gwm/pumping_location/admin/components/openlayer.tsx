@@ -21,12 +21,11 @@ import {
   ZoomToExtent,
 } from "ol/control";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
-import { useMap } from "@/contexts/groundwaterIdent/MapContext";
-import { useCategory } from "@/contexts/groundwaterIdent/CategoryContext";
+import { useMap } from "@/contexts/groundwaterIdent/admin/MapContext";
+import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/groundwaterIdent/LocationContext";
+import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
 import {CsvRow} from '@/interface/table'
-const REQUIRED_HEADERS = ["Well_id", "Longitude", "Latitude"];
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
@@ -412,14 +411,14 @@ const Mapping: React.FC = () => {
     handleVectorLayer(resultLayer, 'result');
   }, [resultLayer, defaultWorkspace]);
 
-  // Handle raster layer and STP operation
+  // Handle raster layer and GWPL operation
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
 
     if (stpOperation) {
-      const performSTP = async () => {
+      const performGWPL = async () => {
         try {
           const resp = await fetch("/api/gwz_operation/gwli_operation", {
             method: "POST",
@@ -427,7 +426,7 @@ const Mapping: React.FC = () => {
             body: JSON.stringify({ data: selectedCategory, clip: selectedvillages }),
           });
 
-          if (!resp.ok) throw new Error(`STP operation failed: ${resp.status}`);
+          if (!resp.ok) throw new Error(` operation failed: ${resp.status}`);
 
           const result = await resp.json();
           if (result && result.status === "success") {
@@ -458,13 +457,13 @@ const Mapping: React.FC = () => {
             }, 500);
           }
         } catch (error: any) {
-          setError(`STP operation failed: ${error.message}`);
+          setError(`GWPL operation failed: ${error.message}`);
         } finally {
           setstpOperation(false);
         }
       };
 
-      performSTP();
+      performGWPL();
       return;
     }
 

@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { useCategory } from '@/contexts/groundwaterIdent/CategoryContext';
+import { useCategory } from '@/contexts/groundwaterIdent/admin/CategoryContext';
 
 const CategorySelector: React.FC = () => {
   // State to track which category type is currently active
@@ -41,7 +41,7 @@ const CategorySelector: React.FC = () => {
   
   return (
     <div className="bg-white rounded-lg shadow mb-6">
-      {/* Category type tabs */}
+
       <div className="flex border-b border-gray-200">
         <button
           onClick={() => setActiveTab('condition')}

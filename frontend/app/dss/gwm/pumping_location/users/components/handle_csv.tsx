@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { Upload, AlertCircle } from "lucide-react";
 import { CsvRow } from "@/interface/table";
-import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
+import { useRiverSystem} from "@/contexts/groundwaterIdent/users/DrainContext";
 
 const REQUIRED_HEADERS = ["Well_id", "Longitude", "Latitude"];
 
@@ -12,7 +12,7 @@ const CsvUploader: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
-  const { setwell_points } = useLocation();
+  const { setwell_points } =useRiverSystem();
 
   // Automatically save selected rows whenever selection changes
   useEffect(() => {

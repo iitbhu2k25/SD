@@ -1,6 +1,6 @@
 'use client'
 import React from 'react';
-import { useCategory } from '@/contexts/groundwaterIdent/CategoryContext';
+import { useCategory } from '@/contexts/groundwaterIdent/admin/CategoryContext';
 
 interface CategorySliderProps {
   activeTab: 'condition' | 'constraint';

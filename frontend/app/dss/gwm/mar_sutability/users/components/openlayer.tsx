@@ -53,8 +53,6 @@ const Maping: React.FC = () => {
   const hoverInteractionRef = useRef<Select | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
 
-
-  // Simplified state
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({
     primary: 0,

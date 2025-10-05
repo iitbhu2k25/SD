@@ -13,8 +13,9 @@ interface ModernSwitchProps {
 }
 
 import GWPLAdmin from "./admin/page";
+import GWPLDrain from "./users/page";
 // import GWPIDrain from "./users/page";
-import SimpleUnderConstruction from "@/app/dss/default/page"
+
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
   rightLabel,
@@ -121,7 +122,7 @@ const GWPZPage: React.FC = () => {
 
       <div className="transition-all duration-500 ease-in-out">
         {activeView === "admin" && <GWPLAdmin />}
-        {activeView === "user" && <SimpleUnderConstruction/>}
+        {activeView === "user" && <GWPLDrain/>}
       </div>
     </div>
   );
