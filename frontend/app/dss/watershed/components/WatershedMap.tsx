@@ -255,7 +255,7 @@ const WatershedMap: React.FC = () => {
     try {
       setBaseMapLoading(true);
       
-      const WFS_URL = '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
+      const WFS_URL = '/geoserver/api/myworkspace/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
       
       const response = await fetch(WFS_URL, {
         method: 'GET',

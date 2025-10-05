@@ -395,7 +395,7 @@ function MapLayers({
 
         // GeoServer WFS endpoint for India layer (GeoJSON output)
         const WFS_URL =
-          '/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json';
+          '/geoserver/api/myworkspace/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json';
 
         const response = await fetch(WFS_URL, {
           method: 'GET',
