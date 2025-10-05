@@ -10,9 +10,11 @@ import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import Image from "next/image";
+import { doubleClick, pointerMove } from "ol/events/condition";
 import { fromLonLat } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
+import Select from "ol/interaction/Select";
 import {
   defaults as defaultControls,
   ScaleLine,
@@ -25,7 +27,7 @@ import { useMap } from "@/contexts/groundwaterIdent/admin/MapContext";
 import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
-import {CsvRow} from '@/interface/table'
+import { CsvRow } from '@/interface/table'
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
@@ -40,7 +42,8 @@ const Mapping: React.FC = () => {
   const wellPointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
-
+  const selectInteractionRef = useRef<Select | null>(null);
+  const hoverInteractionRef = useRef<Select | null>(null);
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0, result: 0, wells: 0 });
@@ -56,6 +59,9 @@ const Mapping: React.FC = () => {
   const [showResultLayer, setShowResultLayer] = useState(true);
   const [showWellPoints, setShowWellPoints] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
   const [selectedRadioLayer, setSelectedRadioLayer] = useState("");
 
   const { displayRaster, selectedvillages, setdisplay_raster, well_points } = useLocation();
@@ -198,7 +204,13 @@ const Mapping: React.FC = () => {
 
     return styles;
   };
-
+  useEffect(() => {
+    if (primaryLayerRef.current && featureCounts.secondary > 0) {
+      primaryLayerRef.current.setVisible(!showSecondaryLayer);
+    } else if (primaryLayerRef.current) {
+      primaryLayerRef.current.setVisible(true);
+    }
+  }, [showSecondaryLayer, featureCounts.secondary]);
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -245,13 +257,49 @@ const Mapping: React.FC = () => {
       }),
     });
 
+    const selectInteraction = new Select({
+      condition: doubleClick,
+      style: new Style({
+        stroke: new Stroke({ color: '#ff0000', width: 3 }),
+        fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
+      }),
+    });
+
+    const hoverInteraction = new Select({
+      condition: pointerMove,
+      style: new Style({
+        stroke: new Stroke({ color: '#ffaa00', width: 2 }),
+        fill: new Fill({ color: 'transparent' })
+      }),
+    });
+
+    hoverInteraction.on('select', (event) => {
+      const hoveredFeatures = event.selected;
+      setHoveredFeature(hoveredFeatures.length > 0 ? hoveredFeatures[0] : null);
+    });
+
+    const handleMouseMove = (event: any) => {
+      setMousePosition({ x: event.pixel[0], y: event.pixel[1] });
+    };
+
+    map.on('pointermove', handleMouseMove);
+    map.addInteraction(selectInteraction);
+    map.addInteraction(hoverInteraction);
+    selectInteractionRef.current = selectInteraction;
+    hoverInteractionRef.current = hoverInteraction;
     mapInstanceRef.current = map;
-    setTimeout(() => setIsLoading(false), 500);
+
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
 
     return () => {
-      if (map) map.setTarget("");
+      if (map) {
+        map.setTarget("");
+      }
     };
   }, []);
+
 
 
   useEffect(() => {
@@ -275,7 +323,7 @@ const Mapping: React.FC = () => {
     const features = well_points.map((well: CsvRow) => {
       const lon = parseFloat(well.Longitude);
       const lat = parseFloat(well.Latitude);
-      console.log('lon',lon)
+      console.log('lon', lon)
       // Validate coordinates
       if (isNaN(lon) || isNaN(lat)) {
         console.warn(`Invalid coordinates for well ${well.Well_id}:`, well);
@@ -353,8 +401,8 @@ const Mapping: React.FC = () => {
     if (!mapInstanceRef.current || !layer) return;
 
     const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857${type === 'secondary' && LayerFilterValue && LayerFilter
-        ? `&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue) ? LayerFilterValue.map(v => `'${v}'`).join(",") : `'${LayerFilterValue}'`})`
-        : ''
+      ? `&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue) ? LayerFilterValue.map(v => `'${v}'`).join(",") : `'${LayerFilterValue}'`})`
+      : ''
       }`;
 
     const vectorSource = new VectorSource({
@@ -534,6 +582,7 @@ const Mapping: React.FC = () => {
         <div className="hidden md:block">
           <GISCompass />
         </div>
+        <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
 
         {/* Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-3 sm:px-6 py-3 flex items-center space-x-2 sm:space-x-4">

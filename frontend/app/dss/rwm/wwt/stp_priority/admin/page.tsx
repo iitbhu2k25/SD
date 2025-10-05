@@ -14,10 +14,11 @@ import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
-import { Village_columns } from "@/interface/table";
+import { DataRow, Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
-import PDFGenerationStatus from "@/components/PdfGeneration";
+import PDFGenerationStatus from "@/components/utils/PdfGeneration";
+import { downloadCSV } from "@/components/utils/downloadCsv";
 
 const MainContent = () => {
   const { selectedCategories, stpProcess, tableData } = useCategory();
@@ -40,7 +41,6 @@ const MainContent = () => {
   useEffect(() => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
-
 
   const handleGenerateReport = async () => {
     try {
@@ -166,16 +166,29 @@ const MainContent = () => {
               {tableData.length > 0 && (
                 <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
                   <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
-                    <h2 className="text-xl font-semibold mb-4">STP Priority Village-wise Analysis:</h2>
+                    <div className="mb-4 flex justify-between ">
+                      <h2 className="text-xl font-semibold mb-4">STP Priority Village-wise Analysis:</h2>
+                      <button
+                        onClick={() => downloadCSV(tableData, "STP_Priority_admin.csv")}
+                        className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                        </svg>
+                        Download CSV
+                      </button>
+
+                    </div>
                     <DataTable
                       columns={Village_columns}
                       data={tableData}
                       pagination
                       responsive
-                      paginationPerPage={10}
-                      paginationRowsPerPageOptions={[5, 10, 20, 50]}
+                      paginationPerPage={5}
+                      paginationRowsPerPageOptions={[5, 10]}
                     />
                   </div>
+
                 </section>
 
               )}

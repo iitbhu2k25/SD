@@ -639,11 +639,7 @@ const Maping: React.FC = () => {
           </button>
         )}
 
-        {featureCounts.wells > 0 && (
-          <button onClick={() => setShowWellPoints(!showWellPoints)} className={`absolute left-4 bottom-32 flex items-center justify-center gap-2 text-sm font-medium rounded-full px-3 py-2 w-52 z-50 transition-all ${showWellPoints ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-600'}`}>
-            {showWellPoints ? '👁️ Hide Well Points' : '👁️‍🗨️ Show Well Points'}
-          </button>
-        )}
+        
 
         {activePanel === "basemap" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">

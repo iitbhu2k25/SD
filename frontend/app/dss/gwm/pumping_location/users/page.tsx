@@ -192,8 +192,8 @@ const MainContent = () => {
                         data={tableData}
                         pagination
                         responsive
-                        paginationPerPage={10}
-                        paginationRowsPerPageOptions={[5, 10, 20, 50]}
+                        paginationPerPage={5}
+                        paginationRowsPerPageOptions={[5, 10]}
                       />
                     </div>
                   </section>
