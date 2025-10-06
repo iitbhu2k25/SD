@@ -323,7 +323,7 @@ const MainContent = () => {
 };
 
 // Main App component that provides the context
-const suitabilityDrain = () => {
+const SuitabilityDrain = () => {
   return (
     <RiverSystemProvider>
       <CategoryProvider>
@@ -335,4 +335,4 @@ const suitabilityDrain = () => {
   );
 };
 
-export default suitabilityDrain;
+export default SuitabilityDrain;

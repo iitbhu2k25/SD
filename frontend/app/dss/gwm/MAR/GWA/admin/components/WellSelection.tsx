@@ -232,7 +232,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
         const saveSuccess = await saveWellTable();
 
         if (!saveSuccess) {
-         console.log("Failed to save wells table");
+          console.log("Failed to save wells table");
           alert("Failed to save wells table. Please try again.");
           return;
         }
@@ -256,7 +256,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
       }
 
     } catch (error: any) {
-     console.log("Error during save and confirm process:", error);
+      console.log("Error during save and confirm process:", error);
       alert(`Error during confirmation: ${error.message}`);
     } finally {
       setIsConfirming(false);
@@ -282,7 +282,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
       handleWellsModeChange(mode, forceRemoveWellPointsLayer);
       console.log("Mode change successful");
     } catch (error) {
-     console.log("Error changing mode:", error);
+      console.log("Error changing mode:", error);
     }
   };
 

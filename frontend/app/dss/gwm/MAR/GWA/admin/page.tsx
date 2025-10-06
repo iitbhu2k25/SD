@@ -52,7 +52,7 @@ function ComputeAvailableWaterButton() {
        localStorage.setItem('gwa_stress_data', JSON.stringify(stressTableData));
         console.log('✅ Stress data stored in sessionStorage:', stressTableData.length, 'villages');
       } catch (error) {
-       console.log('❌ Failed to store stress data:', error);
+        console.log('❌ Failed to store stress data:', error);
         alert('Warning: Could not transfer stress data. The dataset might be too large.');
       }
     } else {

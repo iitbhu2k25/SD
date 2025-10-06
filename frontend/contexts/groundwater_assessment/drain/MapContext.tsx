@@ -27,8 +27,8 @@ import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationCon
 import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellContext";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = "http://localhost:9090/geoserver/api/myworkspace/wfs";
-const GEOSERVER_WMS_URL = "http://localhost:9090/geoserver";
+const GEOSERVER_BASE_URL = "/geoserver/api/myworkspace/wfs";
+const GEOSERVER_WMS_URL = "/geoserver";
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -272,7 +272,7 @@ const PopupForm: React.FC<PopupFormProps> = React.memo(({
   onCancel
 }) => {
   console.log("PopupForm render - visible:", visible);
-  
+
   if (!visible) return null;
 
   const displayColumns = availableColumns;
@@ -431,44 +431,45 @@ const PopupForm: React.FC<PopupFormProps> = React.memo(({
           )}
 
           {/* Data Measurements */}
-         {dataColumns.length > 0 && (
-  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-    {(() => {
-      // 1. Parse the columns into an array of objects
-      const parsedColumns = dataColumns.map(col => {
-        const parts = col.split('_');
-        return {
-          key: col,
-          year: parts[1],
-          period: parts[0] === 'PRE' ? 'Pre-Monsoon' : 'Post-Monsoon',
-          order: parts[0] === 'PRE' ? 0 : 1 // for sorting
-        };
-      });
+          {dataColumns.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {(() => {
+                // 1. Parse the columns into an array of objects
+                const parsedColumns = dataColumns.map(col => {
+                  const parts = col.split('_');
+                  return {
+                    key: col,
+                    year: parts[1],
+                    period: parts[0] === 'PRE' ? 'Pre-Monsoon' : 'Post-Monsoon',
+                    order: parts[0] === 'PRE' ? 0 : 1 // for sorting
+                  };
+                });
 
-      // 2. Group by year and sort by period
-      const sortedColumns = parsedColumns
-        .sort((a, b) => a.year - b.year || a.order - b.order);
+                // 2. Group by year and sort by period
+                // Around line 545
+                const sortedColumns = parsedColumns
+                  .sort((a, b) => Number(a.year) - Number(b.year) || a.order - b.order);
 
-      // 3. Render
-      return sortedColumns.map(col => (
-        <div key={col.key}>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            {col.period} {col.year}
-          </label>
-          <input
-            type="number"
-            value={formData[col.key] || ''}
-            onChange={e => onInputChange(col.key, e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-            placeholder="0.00"
-            step="0.01"
-            autoComplete="off"
-          />
-        </div>
-      ));
-    })()}
-  </div>
-)}
+                // 3. Render
+                return sortedColumns.map(col => (
+                  <div key={col.key}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      {col.period} {col.year}
+                    </label>
+                    <input
+                      type="number"
+                      value={formData[col.key] || ''}
+                      onChange={e => onInputChange(col.key, e.target.value)}
+                      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      placeholder="0.00"
+                      step="0.01"
+                      autoComplete="off"
+                    />
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
 
         </div>
       </div>
@@ -478,11 +479,10 @@ const PopupForm: React.FC<PopupFormProps> = React.memo(({
         <button
           onClick={onSubmit}
           disabled={!formData['HYDROGRAPH'] || (typeof formData['HYDROGRAPH'] === 'string' && !formData['HYDROGRAPH'].trim())}
-          className={`flex-1 py-3 px-6 rounded-lg text-sm font-medium transition-colors ${
-            typeof formData['HYDROGRAPH'] === 'string' && formData['HYDROGRAPH'].trim()
-              ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
+          className={`flex-1 py-3 px-6 rounded-lg text-sm font-medium transition-colors ${typeof formData['HYDROGRAPH'] === 'string' && formData['HYDROGRAPH'].trim()
+            ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
         >
           Add Well to Table
         </button>
@@ -766,21 +766,28 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     ];
   };
 
-  const buildGsrLegend = (features: any[]) => {
-    const counts = new Map();
-    for (const f of features) {
-      const p = f.getProperties() || {};
-      const label = p.gsr_classification || p.classification || 'Unknown';
-      const color = p.classification_color || gsrFallbackColorMap[label] || '#9CA3AF';
-      const entry = counts.get(label);
-      if (entry) {
-        entry.count += 1;
-      } else {
-        counts.set(label, { color, count: 1 });
-      }
+
+const buildGsrLegend = (features: any[]) => {
+  const counts: Record<string, { color: string; count: number }> = {};
+  
+  for (const f of features) {
+    const p = f.getProperties() || {};
+    const label = p.gsr_classification || p.classification || 'Unknown';
+    const color = p.classification_color || gsrFallbackColorMap[label] || '#9CA3AF';
+    
+    if (counts[label]) {
+      counts[label].count += 1;
+    } else {
+      counts[label] = { color, count: 1 };
     }
-    return Array.from(counts).map(([label, { color, count }]) => ({ label, color, count }));
-  };
+  }
+  
+  return Object.entries(counts).map(([label, { color, count }]) => ({
+    label,
+    color,
+    count
+  }));
+};
 
   // NEW: Function to set layer opacity
   const setLayerOpacity = (layerType: keyof LayerOpacityState, opacity: number) => {
@@ -950,8 +957,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       setIsGsrDisplayed(true);
 
       const legendClasses = buildGsrLegend(source.getFeatures());
-      setLegendData((prev) => ({ ...(prev || {}), gsr: { classes: legendClasses } }));
 
+      // Around line 324
+      setLegendData((prev) => {
+        const updated: LegendData = prev ? { ...prev } : {};
+        updated.gsr = { classes: legendClasses as { label: string; color: string; count: number; }[] };
+        return updated;
+      });
       setTimeout(() => {
         const extent = source.getExtent();
         if (extent && mapInstanceRef.current) {
@@ -2556,21 +2568,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
 
 
- return (
-  <MapContext.Provider value={contextValue}>
-    {children}
-    <PopupBackdrop />
-    <PopupForm
-      visible={popupVisible}
-      formData={formData}
-      availableColumns={availableColumns}
-      popupPosition={popupPosition}
-      onInputChange={handlePopupInputChange}
-      onSubmit={handlePopupSubmit}
-      onCancel={handlePopupCancel}
-    />
-  </MapContext.Provider>
-);
+  return (
+    <MapContext.Provider value={contextValue}>
+      {children}
+      <PopupBackdrop />
+      <PopupForm
+        visible={popupVisible}
+        formData={formData}
+        availableColumns={availableColumns}
+        popupPosition={popupPosition}
+        onInputChange={handlePopupInputChange}
+        onSubmit={handlePopupSubmit}
+        onCancel={handlePopupCancel}
+      />
+    </MapContext.Provider>
+  );
 };
 
 export const useMap = (): MapContextType => {

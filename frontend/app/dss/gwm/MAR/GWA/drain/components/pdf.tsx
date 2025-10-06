@@ -216,11 +216,11 @@ const PDF: React.FC<PDFProps> = ({
 
         console.log("Contour visualization image added successfully");
       } catch (imgError) {
-       console.log("Error while adding image to PDF:", imgError);
-       console.log("Image data length:", imgBase64.length);
+        console.log("Error while adding image to PDF:", imgError);
+        console.log("Image data length:", imgBase64.length);
       }
     } catch (error) {
-     console.log("Unexpected error in addContourVisualization:", error);
+      console.log("Unexpected error in addContourVisualization:", error);
     }
 
     return cursorY;
@@ -426,7 +426,7 @@ const PDF: React.FC<PDFProps> = ({
       console.log("Trend map image added successfully");
       return cursorY;
     } catch (error) {
-     console.log("Error adding trend map image:", error);
+      console.log("Error adding trend map image:", error);
       doc.text("Failed to include trend map image.", MARGIN_LEFT, cursorY);
       return cursorY + SECTION_SPACING;
     }
@@ -1281,7 +1281,7 @@ const PDF: React.FC<PDFProps> = ({
 
       return cursorY;
     } catch (error) {
-     console.log("Error adding GSR map image:", error);
+      console.log("Error adding GSR map image:", error);
       return cursorY + SECTION_SPACING;
     }
   };
@@ -1564,7 +1564,7 @@ const PDF: React.FC<PDFProps> = ({
           doc.addImage(base64Data, 'PNG', MARGIN_LEFT, cursorY, imgWidth, imgHeight);
           cursorY += imgHeight + SECTION_SPACING;
         } catch (error) {
-         console.log('Error adding location map image to PDF:', error);
+          console.log('Error adding location map image to PDF:', error);
           cursorY = addTextWithPagination(
             doc,
             ['Failed to include location map image.'],
@@ -1595,7 +1595,7 @@ const PDF: React.FC<PDFProps> = ({
 
       console.log('Local PDF report generated successfully');
     } catch (error) {
-     console.log('Error generating local PDF report:', error);
+      console.log('Error generating local PDF report:', error);
       alert('Error generating local PDF report. Please try again.');
     }
   };
@@ -1615,7 +1615,7 @@ const PDF: React.FC<PDFProps> = ({
         throw new Error(result?.error || result?.message || 'API PDF generation failed');
       }
     } catch (error) {
-     console.log('Error during PDF generation:', error);
+      console.log('Error during PDF generation:', error);
       alert(`Error generating PDF report: ${pdfGenerationError || 'Please try again.'}`);
     } finally {
       setGenerating(false);

@@ -306,7 +306,7 @@ const PDF: React.FC = () => {
 
       return cursorY;
     } catch (error) {
-     console.log("Error adding trend map image:", error);
+      console.log("Error adding trend map image:", error);
       return cursorY + SECTION_SPACING;
     }
   };
@@ -1141,7 +1141,7 @@ const PDF: React.FC = () => {
 
       return cursorY;
     } catch (error) {
-     console.log("Error adding GSR map image:", error);
+      console.log("Error adding GSR map image:", error);
       return cursorY + SECTION_SPACING;
     }
   };
@@ -1335,8 +1335,8 @@ const PDF: React.FC = () => {
       // Rest of your statistics code...
 
     } catch (error) {
-     console.log("Error adding contour visualization:", error);
-     console.log("Error details:", {
+      console.log("Error adding contour visualization:", error);
+      console.log("Error details:", {
         hasVisualizationData: !!visualizationData,
         hasPngBase64: !!visualizationData?.png_base64,
         base64Length: visualizationData?.png_base64?.length
@@ -1524,7 +1524,7 @@ const PDF: React.FC = () => {
       doc.save("Groundwater_Assessment_Report.pdf");
       setGenerating(false);
     } catch (error) {
-     console.log("Error generating PDF:", error);
+      console.log("Error generating PDF:", error);
       alert("An error occurred while generating the PDF. Please try again.");
       setGenerating(false);
     }

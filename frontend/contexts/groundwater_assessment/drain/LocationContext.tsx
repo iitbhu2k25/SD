@@ -115,7 +115,7 @@ const LocationContext = createContext<LocationContextType>({
 
 export const LocationProvider: React.FC<LocationProviderProps> = ({
   children,
-  geoServerBaseUrl = "http://localhost:9090/geoserver", // Updated default GeoServer base URL
+  geoServerBaseUrl = "/geoserver/api", // Updated default GeoServer base URL
   villageApiBaseUrl = "/django", // Default Village API base URL
 }) => {
   // Location state

@@ -97,14 +97,14 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             URL.revokeObjectURL(url);
           })
           .catch(error => {
-           console.log('Error downloading image:', error);
+            console.log('Error downloading image:', error);
             alert('Failed to download image. Please try again.');
           });
       } else {
         alert('No image data available for download');
       }
     } catch (error) {
-     console.log('Error preparing download:', error);
+      console.log('Error preparing download:', error);
       alert('Failed to prepare download. Please try again.');
     }
   };
@@ -349,7 +349,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
                   alt="Contour Visualization"
                   className="max-w-full h-auto rounded-md shadow-sm border"
                   onError={(e) => {
-                   console.log('Image failed to load');
+                    console.log('Image failed to load');
                     e.currentTarget.style.display = 'none';
                   }}
                 />

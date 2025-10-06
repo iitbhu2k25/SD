@@ -111,14 +111,14 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             URL.revokeObjectURL(url);
           })
           .catch(error => {
-           console.log('Error downloading image:', error);
+            console.log('Error downloading image:', error);
             alert('Failed to download image. Please try again.');
           });
       } else {
         alert('No image data available for download');
       }
     } catch (error) {
-     console.log('Error preparing download:', error);
+      console.log('Error preparing download:', error);
       alert('Failed to prepare download. Please try again.');
     }
   };

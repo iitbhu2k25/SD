@@ -13,7 +13,7 @@ interface ModernSwitchProps {
 }
 
 import PriorityAdmin from "./admin/page";
-import suitabilityDrain from "./users/page";
+import SuitabilityDrain from "./users/page";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -121,7 +121,7 @@ const PriorityPage: React.FC = () => {
 
       <div className="transition-all duration-500 ease-in-out">
         {activeView === "admin" && <PriorityAdmin />}
-        {activeView === "user" && <suitabilityDrain />}
+        {activeView === "user" && <SuitabilityDrain />}
       </div>
     </div>
   );

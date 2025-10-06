@@ -38,6 +38,16 @@ interface LayerInfo {
   type: 'drainage' | 'raster' | 'wells' | 'village-overlay' | 'contour' | 'trend';
 }
 
+type LayerOpacityState ={
+  basemap: number;
+  boundaries: number;
+  raster: number;
+  contour: number;
+  trend: number;
+  gsr: number;
+  wellPoints: number;
+  villageOverlay:number;
+}
 const MapComponent: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -353,7 +363,7 @@ const MapComponent: React.FC = () => {
         await document.exitFullscreen();
       }
     } catch (error) {
-     console.log('Error toggling fullscreen:', error);
+      console.log('Error toggling fullscreen:', error);
     }
   };
 

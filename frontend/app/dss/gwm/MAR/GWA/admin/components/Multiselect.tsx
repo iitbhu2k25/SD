@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import { District, SubDistrict } from '@/contexts/groundwater_assessment/admin/LocationContext';
+import { District, SubDistrict} from '@/contexts/groundwater_assessment/admin/LocationContext';
 
 interface MultiSelectProps<T> {
   items: T[];
@@ -12,7 +12,7 @@ interface MultiSelectProps<T> {
   displayPattern?: (item: T) => string;
 }
 
-export const MultiSelect = <T extends District | SubDistrict  = District | SubDistrict>({
+export const MultiSelect = <T extends District | SubDistrict  = District | SubDistrict >({
   items,
   selectedItems,
   onSelectionChange,
