@@ -1,10 +1,18 @@
 import os
 import re
 from typing import List, Dict, Any, Tuple, Optional
+import uuid
+from datetime import datetime
 
 import geopandas as gpd
 import pandas as pd
 import json
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for server environments
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import numpy as np
+import base64
 
 from django.conf import settings
 from rest_framework.views import APIView
@@ -105,38 +113,27 @@ def load_village_shapefile() -> Optional[gpd.GeoDataFrame]:
 def merge_gsr_with_shapefile(gsr_results: List[Dict[str, Any]], village_gdf: gpd.GeoDataFrame) -> Dict[str, Any]:
     """
     Merge GSR results with village shapefile and return GeoJSON
+    Only includes villages that have GSR data (inner join)
     """
     try:
         # Convert GSR results to DataFrame for easier merging
         gsr_df = pd.DataFrame(gsr_results)
         
-        # Merge shapefile with GSR results on village_co = village_code
+        # 🔧 FIXED: Use inner join to only get villages that have GSR data
         merged_gdf = village_gdf.merge(
             gsr_df, 
             left_on='village_co', 
             right_on='village_code', 
-            how='left'  # Keep all villages from shapefile
+            how='inner'  # 🎯 Changed from 'left' to 'inner' - only keep matching villages
         )
         
-        print(f"🔗 Merged {len(merged_gdf)} villages with GSR data")
-        print(f"📊 Villages with GSR data: {len(merged_gdf.dropna(subset=['gsr']))}")
+        print(f"🔗 Merged {len(merged_gdf)} villages with GSR data (inner join)")
+        print(f"📊 Original GSR data villages: {len(gsr_df)}")
+        print(f"📊 Shapefile villages: {len(village_gdf)}")
+        print(f"📊 Final merged villages: {len(merged_gdf)}")
         
-        # Fill NaN values for villages without GSR data
-        gsr_columns = [
-            'recharge', 'domestic_demand', 'agricultural_demand', 'total_demand',
-            'gsr', 'gsr_status', 'trend_status', 'gsr_classification', 
-            'classification_color', 'has_recharge_data', 'has_domestic_data',
-            'has_agricultural_data', 'has_trend_data'
-        ]
-        
-        for col in gsr_columns:
-            if col in merged_gdf.columns:
-                if col in ['gsr_status', 'trend_status', 'gsr_classification', 'classification_color']:
-                    merged_gdf[col] = merged_gdf[col].fillna('No Data')
-                elif col in ['has_recharge_data', 'has_domestic_data', 'has_agricultural_data', 'has_trend_data']:
-                    merged_gdf[col] = merged_gdf[col].fillna(False)
-                else:
-                    merged_gdf[col] = merged_gdf[col].fillna(0)
+        # Since we're using inner join, all villages will have GSR data
+        # No need to fill NaN values as before
         
         # Convert to GeoJSON
         # Handle any potential issues with geometry serialization
@@ -149,14 +146,16 @@ def merge_gsr_with_shapefile(gsr_results: List[Dict[str, Any]], village_gdf: gpd
         # Add metadata about the merge
         merge_stats = {
             'total_shapefile_villages': len(village_gdf),
-            'villages_with_gsr_data': len(merged_gdf.dropna(subset=['gsr'])),
-            'villages_without_gsr_data': len(merged_gdf[merged_gdf['gsr'].isna()]),
-            'merge_success_rate': round(len(merged_gdf.dropna(subset=['gsr'])) / len(village_gdf) * 100, 2)
+            'total_gsr_villages': len(gsr_df),
+            'villages_with_geospatial_data': len(merged_gdf),  # Villages that have both GSR data and shapefile geometry
+            'villages_without_geospatial_data': len(gsr_df) - len(merged_gdf),  # GSR villages without matching shapefile
+            'match_success_rate': round(len(merged_gdf) / len(gsr_df) * 100, 2) if len(gsr_df) > 0 else 0
         }
         
         return {
             'geojson': geojson_dict,
-            'merge_statistics': merge_stats
+            'merge_statistics': merge_stats,
+            'merged_gdf': merged_gdf  # Return the GeoDataFrame for map plotting
         }
         
     except Exception as e:
@@ -166,11 +165,142 @@ def merge_gsr_with_shapefile(gsr_results: List[Dict[str, Any]], village_gdf: gpd
             'merge_statistics': {
                 'error': str(e),
                 'total_shapefile_villages': len(village_gdf) if village_gdf is not None else 0,
-                'villages_with_gsr_data': 0,
-                'villages_without_gsr_data': 0,
-                'merge_success_rate': 0
-            }
+                'total_gsr_villages': len(gsr_results),
+                'villages_with_geospatial_data': 0,
+                'villages_without_geospatial_data': len(gsr_results),
+                'match_success_rate': 0
+            },
+            'merged_gdf': None
         }
+
+
+def generate_gsr_map_image(merged_gdf: gpd.GeoDataFrame) -> Optional[str]:
+    """
+    Generate GSR classification map with performance optimizations.
+    Matches PDFGenerationView visual style.
+    """
+    from io import BytesIO
+    import contextily as ctx
+    import matplotlib.patches as mpatches
+
+    try:
+        if merged_gdf is None or len(merged_gdf) == 0:
+            print("⚠️ No merged GeoDataFrame available for map generation")
+            return None
+
+        # 1. Simplify geometries for faster rendering
+        merged_gdf_simplified = merged_gdf.copy()
+        merged_gdf_simplified['geometry'] = merged_gdf_simplified['geometry'].simplify(
+            tolerance=0.0001,
+            preserve_topology=True
+        )
+
+        # 2. Keep in EPSG:4326 (lat/long degrees) - NO reprojection to Web Mercator
+        merged_gdf_web = merged_gdf_simplified.to_crs(epsg=4326)
+
+        # 3. Create figure (same size as original)
+        fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+
+        # 4. Get unique classifications
+        classification_labels = merged_gdf_web['gsr_classification'].unique()
+        classification_labels = [cl for cl in classification_labels if cl]
+
+        # 5. Vectorized color mapping
+        colors = merged_gdf_web['gsr_classification'].map(get_classification_color).fillna('gray')
+
+        # 6. Plot with same style as original
+        merged_gdf_web.plot(
+            ax=ax,
+            color=colors,
+            edgecolor='black',
+            linewidth=0.75,  # Same as original
+            alpha=1,
+            rasterized=True  # Added for performance
+        )
+
+        # 7. Add OpenStreetMap basemap (exactly like PDFGenerationView)
+        try:
+            ctx.add_basemap(
+            ax,
+            crs=merged_gdf_web.crs,  # Use EPSG:4326
+            source=ctx.providers.CartoDB.Voyager,  # CartoDB Voyager basemap
+            alpha=1,   # Transparency (1 = opaque, 0 = invisible)
+            zoom=10      # Adjust detail level
+        )
+
+        except Exception as e:
+            print(f"⚠️ Basemap loading failed: {e}")
+
+        # 8. Title and labels (matching PDFGenerationView format)
+        ax.set_title('GSR Classification Map\n(Groundwater Supply-Requirement Analysis)',
+                     fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('LONGITUDE', fontsize=12)  # Uppercase like PDFGenerationView
+        ax.set_ylabel('LATITUDE', fontsize=12)   # Uppercase like PDFGenerationView
+
+        # 9. Create legend (using vectorized count for speed)
+        classification_counts = merged_gdf_web['gsr_classification'].value_counts()
+        
+        legend_handles = []
+        for cl in classification_labels:
+            color = get_classification_color(cl)
+            count = classification_counts.get(cl, 0)
+            patch = mpatches.Patch(color=color, label=f"{cl} ({count})")
+            legend_handles.append(patch)
+
+        ax.legend(
+            handles=legend_handles,
+            title='GSR Classifications',
+            title_fontsize=12,
+            fontsize=10,
+            loc='upper left',
+            bbox_to_anchor=(1.02, 1),
+            frameon=True,
+            fancybox=True,
+            shadow=True
+        )
+
+        ax.tick_params(axis='both', which='major', labelsize=10)
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        # 10. Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        filename = f"gsr_map_{timestamp}_{unique_id}.png"
+        temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        filepath = os.path.join(temp_dir, filename)
+
+        # 11. OPTIMIZATION: Use BytesIO buffer for faster I/O
+        buffer = BytesIO()
+        
+        # Save with reduced DPI (150 instead of 300)
+        plt.savefig(
+            buffer,
+            format='png',
+            dpi=150,  # Reduced from 300 for speed
+            bbox_inches='tight',
+            facecolor='white',
+            edgecolor='none'
+        )
+        
+        # Write buffer to file
+        buffer.seek(0)
+        with open(filepath, 'wb') as f:
+            f.write(buffer.read())
+        
+        buffer.close()
+        plt.close(fig)
+
+        print(f"🗺️ GSR map image saved successfully: {filepath}")
+        print(f"📊 Map contains {len(merged_gdf)} villages with GSR data")
+        return filename
+
+    except Exception as e:
+        print(f"❌ Error generating GSR map image: {str(e)}")
+        plt.close('all')
+        return None
+
 
 
 def calculate_gsr_classification(gsr_value: float, trend_status: str) -> str:
@@ -479,10 +609,27 @@ class GSRComputeAPIView(APIView):
             # ✅ NEW: Load village shapefile and merge with GSR data
             village_gdf = load_village_shapefile()
             geospatial_result = None
+            map_image_filename = None
             
             if village_gdf is not None:
                 print("🗺️ Merging GSR data with village shapefile...")
                 geospatial_result = merge_gsr_with_shapefile(matched_results, village_gdf)
+                
+                # ✅ NEW: Generate map image if merge was successful
+                if geospatial_result.get('merged_gdf') is not None:
+                    print("🎨 Generating GSR map image...")
+                    map_image_filename = generate_gsr_map_image(geospatial_result['merged_gdf'])
+                    map_image_base64 = None
+                    if map_image_filename:
+                        map_image_path = os.path.join(settings.MEDIA_ROOT, 'temp', map_image_filename)
+                        try:
+                            with open(map_image_path, "rb") as img_file:
+                                map_image_base64 = base64.b64encode(img_file.read()).decode("utf-8")
+                        except Exception as e:
+                            print(f"❌ Error encoding map image to base64: {str(e)}")
+
+                    
+                                    
             else:
                 print("⚠️ Could not load village shapefile - proceeding without geospatial data")
                 geospatial_result = {
@@ -516,27 +663,32 @@ class GSRComputeAPIView(APIView):
                 },
                 'selected_subdistricts': selected_subdistricts,
                 'trend_csv_filename': trend_csv_filename,
+                'map_image_filename': map_image_filename,  # ✅ NEW: Add map image filename
                 'flags': {
                     'has_domestic_demand': data.get('hasDomesticDemand', False),
                     'has_agricultural_demand': data.get('hasAgriculturalDemand', False),
                     'has_recharge_data': data.get('hasRechargeData', False),
                     'has_trend_data': trend_csv_filename is not None,
-                    'has_geospatial_data': geospatial_result['geojson'] is not None
+                    'has_geospatial_data': geospatial_result['geojson'] is not None,
+                    'has_map_image': map_image_filename is not None  # ✅ NEW: Map image flag
                 }
             }
             
             # ✅ ENHANCED: Response with both JSON and GeoJSON data
             response_data = {
-                "success": True,
-                "message": f"GSR analysis completed successfully for {len(matched_results)} villages",
-                "data": matched_results,  # Original JSON GSR results
-                "summary": summary,
-                "metadata": metadata,
-                "villages_count": len(matched_results),
-                # ✅ NEW: Geospatial data with merged shapefile + GSR results
-                "geospatial_data": geospatial_result['geojson'],
-                "merge_statistics": geospatial_result['merge_statistics']
-            }
+            "success": True,
+            "message": f"GSR analysis completed successfully for {len(matched_results)} villages",
+            "data": matched_results,  # Original JSON GSR results
+            "summary": summary,
+            "metadata": metadata,
+            "villages_count": len(matched_results),
+            # ✅ NEW: Geospatial data with merged shapefile + GSR results
+            "geospatial_data": geospatial_result['geojson'],
+            "merge_statistics": geospatial_result['merge_statistics'],
+            "map_image_filename": map_image_filename,  # ✅ NEW: Return map image filename
+            "map_image_base64": f"data:image/png;base64,{map_image_base64}" if map_image_base64 else None  # ✅ NEW: Add base64 image string
+        }
+
             
             return Response(response_data, status=200)
             
@@ -551,9 +703,9 @@ class GSRComputeAPIView(APIView):
         GET endpoint for API documentation/health check
         """
         return Response({
-            "service": "GSR Computation API with Geospatial Integration",
-            "version": "2.0",
-            "description": "Computes GSR analysis with comprehensive classification and returns both JSON and GeoJSON data",
+            "service": "GSR Computation API with Geospatial Integration and Map Image Generation",
+            "version": "2.1",
+            "description": "Computes GSR analysis with comprehensive classification and returns both JSON and GeoJSON data along with map image",
             "expected_payload": {
                 "rechargeData": "Array of recharge data with 'village_co' and 'recharge' fields",
                 "domesticData": "Array of domestic demand data with 'village_code' and 'demand_mld' fields", 
@@ -568,9 +720,10 @@ class GSRComputeAPIView(APIView):
                 "success": "Boolean",
                 "data": "Array of village GSR results with trend_status, gsr_classification and classification_color fields",
                 "summary": "Summary statistics including trend and classification distribution",
-                "metadata": "Additional computation metadata",
+                "metadata": "Additional computation metadata including map_image_filename",
                 "geospatial_data": "GeoJSON FeatureCollection with village polygons and GSR data merged",
-                "merge_statistics": "Statistics about shapefile-GSR data merge success"
+                "merge_statistics": "Statistics about shapefile-GSR data merge success",
+                "map_image_filename": "Filename of generated map image saved in media/temp/"
             },
             "shapefile_integration": {
                 "shapefile_path": "media/gwa_data/gwa_shp/Final_Village/Village.shp",
@@ -578,8 +731,20 @@ class GSRComputeAPIView(APIView):
                     "shapefile": "village_co",
                     "gsr_data": "village_code (from Village_ID)"
                 },
-                "merge_type": "left join (keeps all villages from shapefile)",
+                "merge_type": "inner join (keeps only villages with GSR data)",
                 "output_format": "GeoJSON with WGS84 (EPSG:4326) coordinate system"
+            },
+            "map_image_generation": {
+                "description": "Automatically generates a choropleth map image of GSR classifications",
+                "output_format": "PNG image at 300 DPI",
+                "save_location": "media/temp/",
+                "filename_pattern": "gsr_map_YYYYMMDD_HHMMSS_<8-char-uuid>.png",
+                "features": [
+                    "Color-coded villages by GSR classification",
+                    "Legend showing classification meanings and village counts",
+                    "Grid lines and coordinate labels",
+                    "High-resolution output suitable for reports"
+                ]
             },
             "classifications": {
                 "Critical": {

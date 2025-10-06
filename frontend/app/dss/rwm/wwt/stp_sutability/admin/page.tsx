@@ -91,7 +91,7 @@ const MainContent = () => {
       setTaskId(task['task_id']);
       setShowPdfStatus(true);
     } catch (error) {
-      console.error("Report error", error);
+      console.log("Report error", error);
       toast.error("Failed to start report");
     } finally {
       setReportLoading(false);

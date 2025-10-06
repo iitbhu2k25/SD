@@ -12,6 +12,8 @@ from .views import PopulationForecastAPI
 from .crops import GetCropsBySeasonView
 from .agriculture import AgriculturalDemandAPIView
 from .gsr import GSRComputeAPIView
+from .stress import StressIdentificationAPIView
+from .pdf import PDFGenerationView
 # from interpolation import InterpolateRasterView
 
 urlpatterns = [
@@ -28,4 +30,6 @@ urlpatterns = [
     path('crops', GetCropsBySeasonView.as_view(), name='crops'),
     path('agricultural', AgriculturalDemandAPIView.as_view(), name='agricultural'),
     path('gsr', GSRComputeAPIView.as_view(), name='gsr'),
+    path('stress', StressIdentificationAPIView.as_view(), name='stress'),
+    path ('pdf', PDFGenerationView.as_view(), name='pdf'),
 ]

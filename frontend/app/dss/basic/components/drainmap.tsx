@@ -189,7 +189,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                 fetchAllData();
             } catch (err) {
-                //console.error("Error initializing map:", err);
+                //console.log("Error initializing map:", err);
                 setError("Failed to initialize map");
             }
         }
@@ -457,13 +457,13 @@ const DrainMap: React.FC<DrainMapProps> = ({
             if (el?.requestFullscreen) {
                 el.requestFullscreen()
                     .then(() => setIsFullscreen(true))
-                    .catch((err) => console.error('Error entering fullscreen:', err));
+                    .catch((err) => console.log('Error entering fullscreen:', err));
             }
         } else {
             if (document.exitFullscreen) {
                 document.exitFullscreen()
                     .then(() => setIsFullscreen(false))
-                    .catch((err) => console.error('Error exiting fullscreen:', err));
+                    .catch((err) => console.log('Error exiting fullscreen:', err));
             }
         }
     }, []);
@@ -583,7 +583,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 //console.warn(`No valid bounds found for ${featureType}: ${featureId}`);
             }
         } catch (error) {
-            //console.error(`Error zooming to ${featureType}:`, error);
+            //console.log(`Error zooming to ${featureType}:`, error);
         }
     };
 
@@ -683,7 +683,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             });
             //console.log("Highlighted river:", riverId);
         } catch (err) {
-            //console.error("Error highlighting river:", err);
+            //console.log("Error highlighting river:", err);
         }
     };
 
@@ -740,7 +740,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
             //console.log("Highlighted stretch:", stretchId);
         } catch (err) {
-            //console.error("Error highlighting stretch:", err);
+            //console.log("Error highlighting stretch:", err);
         }
     };
 
@@ -771,7 +771,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             }
 
         } catch (err) {
-            //console.error("Error resetting stretch styles:", err);
+            //console.log("Error resetting stretch styles:", err);
         }
     };
 
@@ -792,7 +792,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 await fetchStretchesByRiver(selectedRiver);
             }
         } catch (err) {
-            //console.error("Error fetching data:", err);
+            //console.log("Error fetching data:", err);
             setError("Failed to load map data");
         } finally {
             setLoading(false);
@@ -820,7 +820,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateBasinLayer(data);
             }
         } catch (error: any) {
-            //console.error("Error fetching basin:", error);
+            //console.log("Error fetching basin:", error);
             setError(`Basin: ${error.message}`);
         }
     };
@@ -845,7 +845,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateRiversLayer(data);
             }
         } catch (error: any) {
-            //console.error("Error fetching rivers:", error);
+            //console.log("Error fetching rivers:", error);
             setError(`Rivers: ${error.message}`);
         }
     };
@@ -921,7 +921,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (err) {
-            //console.error("Error highlighting river stretches:", err);
+            //console.log("Error highlighting river stretches:", err);
         }
     };
 
@@ -963,7 +963,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            //console.error("Error fetching stretches:", error);
+            //console.log("Error fetching stretches:", error);
             setError(`Stretches: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -994,7 +994,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 updateDrainsLayer(data);
             }
         } catch (error: any) {
-            //console.error("Error fetching drains:", error);
+            //console.log("Error fetching drains:", error);
             setError(`Drains: ${error.message}`);
         }
     };
@@ -1022,12 +1022,12 @@ const DrainMap: React.FC<DrainMapProps> = ({
                         createStretchLabels(data);
                     }
                 } catch (labelError) {
-                    //console.error("Error creating stretch labels:", labelError);
+                    //console.log("Error creating stretch labels:", labelError);
                     // Don't let label errors prevent the map from loading
                 }
             }
         } catch (error: any) {
-            //console.error("Error fetching all stretches:", error);
+            //console.log("Error fetching all stretches:", error);
             setError(`Stretches: ${error.message}`);
         }
     };
@@ -1128,7 +1128,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error: any) {
-            //console.error("Error fetching catchments and villages:", error);
+            //console.log("Error fetching catchments and villages:", error);
             setError(`Catchments and Villages: ${error.message}`);
         } finally {
             setCatchmentLoading(false);
@@ -1179,7 +1179,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 villageLayerRef.current.bringToFront();
             }
         } catch (error) {
-            //console.error("Error updating catchment layer:", error);
+            //console.log("Error updating catchment layer:", error);
             setError("Failed to display catchments");
         }
     };
@@ -1228,7 +1228,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            //console.error("Error updating basin layer:", error);
+            //console.log("Error updating basin layer:", error);
             setError("Failed to display basin");
         }
     };
@@ -1279,7 +1279,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            //console.error("Error updating rivers layer:", error);
+            //console.log("Error updating rivers layer:", error);
             setError("Failed to display rivers");
         }
     };
@@ -1298,7 +1298,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         try {
             clearLabelLayers();
         } catch (error) {
-            //console.error("Error clearing label layers:", error);
+            //console.log("Error clearing label layers:", error);
         }
 
         if (!data?.features?.length) {
@@ -1349,7 +1349,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     createStretchLabels(data);
                 }
             } catch (labelError) {
-                //console.error("Error creating stretch labels:", labelError);
+                //console.log("Error creating stretch labels:", labelError);
             }
 
             // If a specific stretch is already selected, highlight it
@@ -1368,7 +1368,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            //console.error("Error updating stretches layer:", error);
+            //console.log("Error updating stretches layer:", error);
             setError("Failed to display stretches");
         }
     };
@@ -1417,7 +1417,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
             //console.log(`Created ${labelLayersRef.current.length} stretch labels`);
         } catch (error) {
-            //console.error("Error creating stretch labels:", error);
+            //console.log("Error creating stretch labels:", error);
         }
     };
 
@@ -1721,7 +1721,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }
             }
         } catch (error) {
-            //console.error("Error updating village layer:", error);
+            //console.log("Error updating village layer:", error);
             setError("Failed to display villages");
         }
     };
@@ -1776,7 +1776,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 highlightSelectedDrains();
             }
         } catch (error) {
-            //console.error("Error updating drains layer:", error);
+            //console.log("Error updating drains layer:", error);
             setError("Failed to display drains");
         }
     };
@@ -1826,7 +1826,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
             });
            // console.log("Highlighted drains:", selectedDrains);
         } catch (err) {
-            //console.error("Error highlighting drains:", err);
+            //console.log("Error highlighting drains:", err);
         }
     };
 

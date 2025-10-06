@@ -324,7 +324,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
 
         setRivers(riverData);
       } catch (error: any) {
-        //console.error('Error fetching rivers:', error);
+        //console.log('Error fetching rivers:', error);
         setRiverError(error.message);
         setError('Unable to load rivers. Please try refreshing the page.');
         setRivers([]);
@@ -375,7 +375,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setStretches(sortedStretches);
           setSelectedStretch('');
         } catch (error: any) {
-          //console.error('Error fetching stretches:', error);
+          //console.log('Error fetching stretches:', error);
           setStretchError(error.message);
           setError('Unable to load stretches for the selected river.');
           setStretches([]);
@@ -432,7 +432,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
 
           //console.log('Fetched drains with Drain_No:', drainData);
         } catch (error: any) {
-          //console.error('Error fetching drains:', error);
+          //console.log('Error fetching drains:', error);
           setDrainError(error.message);
           setError('Unable to load drains for the selected stretch.');
           setDrains([]);
@@ -495,7 +495,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
             await fetchVillagePopulations(initialSelectedVillages);
           }
         } catch (error: any) {
-          //console.error('Error fetching intersected villages:', error);
+          //console.log('Error fetching intersected villages:', error);
           setVillageError(error.message);
           setIntersectedVillages([]);
           setSelectedVillages([]);
@@ -711,7 +711,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
         onVillagesChange(updatedVillages);
       }
     } catch (error: any) {
-      //console.error('Error fetching village populations:', error);
+      //console.log('Error fetching village populations:', error);
 
       // Update villages with zero population as fallback, preserving location data
       const updatedVillages = intersectedVillages.map(village => ({

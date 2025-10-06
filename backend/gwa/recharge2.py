@@ -4,11 +4,11 @@ import geopandas as gpd
 from datetime import datetime
 import os
 import rasterio
-from rasterio.transform import from_bounds
+from rasterio.transform import from_bounds, from_origin
 from rasterio.crs import CRS
 from rasterio.mask import mask
 from rasterio.features import geometry_mask
-from scipy.spatial.distance import cdist
+from scipy.spatial import cKDTree
 from rasterstats import zonal_stats
 from shapely.geometry import Point
 from shapely.ops import unary_union
@@ -16,185 +16,174 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 
 class GroundwaterRechargeView(APIView):
     permission_classes = [AllowAny]
 
-    def interpolate_for_villages(self, points_gdf, filtered_gdf, cell_size=30, power=2):
+    def fast_zonal_stats(self, geometries, raster_path, stats_list, nodata=-9999, chunk_size=100):
         """
-        Perform IDW interpolation over an area that covers all villages with buffer
-        to ensure every village gets proper interpolated values
+        ULTRA-FAST parallelized zonal statistics using multithreading
+        """
+        def process_chunk(start_idx):
+            end_idx = min(start_idx + chunk_size, len(geometries))
+            chunk_geoms = geometries[start_idx:end_idx]
+            return zonal_stats(
+                chunk_geoms,
+                raster_path,
+                stats=stats_list,
+                nodata=nodata,
+                all_touched=True
+            )
+
+        # Use all available CPU cores for maximum speed
+        max_workers = min(multiprocessing.cpu_count(), 8)  # Cap at 8 to avoid overhead
+        results = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all chunks for parallel processing
+            futures = [
+                executor.submit(process_chunk, i) 
+                for i in range(0, len(geometries), chunk_size)
+            ]
+            
+            # Collect results as they complete
+            for future in futures:
+                results.extend(future.result())
+
+        return results
+
+    def interpolate_for_villages(self, points_gdf, filtered_gdf, cell_size=30, power=2, 
+                               search_mode="variable", n_neighbors=3, radius=None, nodata_val=-9999):
+        """
+        OPTIMIZED IDW interpolation - faster processing with chunking and memory optimization
         """
         
-        print(f"🏞️ Starting interpolation for {len(filtered_gdf)} villages using {len(points_gdf)} data points")
+        print(f"🏞️ Starting OPTIMIZED IDW interpolation for {len(filtered_gdf)} villages using {len(points_gdf)} data points")
+        print(f"📊 Interpolation parameters: cell_size={cell_size}m, power={power}, search_mode={search_mode}")
         
-        # Create a buffered area that includes all villages plus extra margin
-        village_buffer_distance = 2000  # 2km buffer around villages
-        unified_villages = unary_union(filtered_gdf.geometry)
-        buffered_area = unified_villages.buffer(village_buffer_distance)
+        if search_mode == "variable":
+            print(f"   Using {n_neighbors} nearest neighbors")
+        elif search_mode == "fixed":
+            print(f"   Using all points within {radius}m radius")
+        else:
+            print(f"   Using global search (all points)")
         
-        # Get bounds for the buffered area (this ensures full coverage)
-        bounds = buffered_area.bounds
+        # Get raster grid extent directly from boundary
+        minx, miny, maxx, maxy = filtered_gdf.total_bounds
         
-        print(f"📏 Interpolation area bounds: {bounds}")
-        print(f"🎯 Using {village_buffer_distance}m buffer around villages")
+        print(f"📏 Interpolation area bounds: ({minx:.0f}, {miny:.0f}, {maxx:.0f}, {maxy:.0f})")
         
-        # Create grid parameters with adequate resolution
-        width = int((bounds[2] - bounds[0]) / cell_size)
-        height = int((bounds[3] - bounds[1]) / cell_size)
+        # Create grid coordinates - using more efficient approach
+        x_coords = np.arange(minx, maxx, cell_size)
+        y_coords = np.arange(miny, maxy, cell_size)
+        grid_x, grid_y = np.meshgrid(x_coords, y_coords[::-1])  # flip y for raster
         
-        # Ensure reasonable grid size for performance
-        max_grid_size = 3000
-        if width > max_grid_size or height > max_grid_size:
-            scale_factor = max(width, height) / max_grid_size
-            width = int(width / scale_factor)
-            height = int(height / scale_factor)
-            cell_size = cell_size * scale_factor
-            print(f"⚠️ Grid size adjusted to {width}x{height}, cell size: {cell_size:.1f}m")
+        width = len(x_coords)
+        height = len(y_coords)
         
         print(f"📏 Grid parameters: {width}x{height}, cell size: {cell_size}m")
         
-        # Create coordinate arrays for the full grid
-        x = np.linspace(bounds[0], bounds[2], width)
-        y = np.linspace(bounds[1], bounds[3], height)
-        xx, yy = np.meshgrid(x, y)
+        # Extract coords & values - optimized for speed
+        coords = np.array([(geom.x, geom.y) for geom in points_gdf.geometry])
+        values = points_gdf['water_fluctuation'].to_numpy(dtype=np.float32)  # Use numpy directly for speed
         
-        # Create transform for the raster
-        transform = from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+        # Remove NaN values efficiently
+        valid_mask = ~np.isnan(values)
+        coords = coords[valid_mask]
+        values = values[valid_mask]
         
-        # Get all grid coordinates
-        grid_coords = np.column_stack([xx.ravel(), yy.ravel()])
-        total_pixels = len(grid_coords)
+        if len(coords) < 3:
+            raise ValueError(f"Insufficient valid points for interpolation: {len(coords)} < 3")
         
-        print(f"🔍 Interpolating for {total_pixels:,} grid points")
+        print(f"📊 Using {len(coords)} valid data points for interpolation")
         
-        # Get point data for interpolation
-        point_coords = np.column_stack([
-            points_gdf.geometry.x.values,
-            points_gdf.geometry.y.values
-        ])
-        point_values = points_gdf['water_fluctuation'].values
+        # KDTree for fast neighbor queries
+        tree = cKDTree(coords)
+        xi = np.column_stack([grid_x.ravel(), grid_y.ravel()])
         
-        # Remove NaN values
-        valid_mask = ~np.isnan(point_values)
-        point_coords = point_coords[valid_mask]
-        point_values = point_values[valid_mask]
+        print(f"🔍 Interpolating for {len(xi):,} grid points")
         
-        if len(point_coords) < 3:
-            raise ValueError(f"Insufficient valid points for interpolation: {len(point_coords)} < 3")
+        # OPTIMIZED IDW interpolation with chunking for better memory management and speed
+        n_points = xi.shape[0]
+        interpolated_values = np.empty(n_points, dtype=np.float32)
         
-        print(f"📊 Using {len(point_coords)} valid data points for interpolation")
+        # Use chunking to process large grids efficiently
+        chunk_size = 10000  # Process 10k points at a time for optimal memory usage
         
-        # Calculate adaptive search radius based on point distribution and grid size
-        if len(point_coords) > 1:
-            distances = cdist(point_coords, point_coords)
-            distances[distances == 0] = np.inf
-            avg_min_distance = np.mean(np.min(distances, axis=1))
-            # Use larger search radius to ensure good coverage
-            search_radius = max(avg_min_distance * 5, cell_size * 3, 1000)  # At least 1km
-        else:
-            search_radius = cell_size * 10
-        
-        print(f"🎯 Using search radius: {search_radius:.1f}m")
-        
-        # Enhanced IDW interpolation that covers the entire area
-        def comprehensive_idw_interpolation(grid_coords, point_coords, point_values, power, search_radius):
-            interpolated = np.full(len(grid_coords), np.nan)
-            
-            # Process in chunks for memory efficiency
-            chunk_size = 8000
-            total_chunks = (len(grid_coords) + chunk_size - 1) // chunk_size
-            
-            print(f"🔄 Processing {total_chunks} chunks for interpolation")
-            
-            for chunk_idx in range(total_chunks):
-                start_idx = chunk_idx * chunk_size
-                end_idx = min(start_idx + chunk_size, len(grid_coords))
-                chunk_coords = grid_coords[start_idx:end_idx]
+        if search_mode == "variable":
+            # Optimized variable search with chunking
+            for start_idx in range(0, n_points, chunk_size):
+                end_idx = min(start_idx + chunk_size, n_points)
+                chunk = xi[start_idx:end_idx]
                 
-                if chunk_idx % 20 == 0 or chunk_idx == total_chunks - 1:
-                    progress = ((chunk_idx + 1) / total_chunks) * 100
-                    print(f"   Interpolation progress: {progress:.1f}% ({chunk_idx + 1}/{total_chunks} chunks)")
+                dists, idxs = tree.query(chunk, k=n_neighbors)
+                dists[dists == 0] = 1e-10
+                weights = 1.0 / (dists ** power)
+                vals = np.sum(weights * values[idxs], axis=1) / np.sum(weights, axis=1)
+                interpolated_values[start_idx:end_idx] = vals
                 
-                # Calculate distances for this chunk
-                chunk_distances = cdist(chunk_coords, point_coords)
+                # Progress reporting for large grids
+                if n_points > 50000 and start_idx % (chunk_size * 5) == 0:
+                    progress = ((end_idx / n_points) * 100)
+                    print(f"   Progress: {progress:.1f}%")
+
+        elif search_mode == "fixed":
+            # Use all points within radius - chunked processing
+            if radius is None:
+                raise ValueError("Radius must be specified for fixed search mode")
+            
+            for start_idx in range(0, n_points, chunk_size):
+                end_idx = min(start_idx + chunk_size, n_points)
+                chunk = xi[start_idx:end_idx]
                 
-                for i, distances in enumerate(chunk_distances):
-                    grid_idx = start_idx + i
-                    
-                    # Handle exact matches
-                    exact_match_mask = distances < 1e-6
-                    if np.any(exact_match_mask):
-                        interpolated[grid_idx] = np.mean(point_values[exact_match_mask])
-                        continue
-                    
-                    # Use points within search radius
-                    within_radius = distances <= search_radius
-                    num_within_radius = np.sum(within_radius)
-                    
-                    if num_within_radius >= 3:
-                        # Use points within radius, but limit to best 20 for performance
-                        radius_indices = np.where(within_radius)[0]
-                        if len(radius_indices) > 20:
-                            radius_distances = distances[radius_indices]
-                            closest_in_radius = np.argsort(radius_distances)[:20]
-                            selected_distances = radius_distances[closest_in_radius]
-                            selected_values = point_values[radius_indices[closest_in_radius]]
-                        else:
-                            selected_distances = distances[radius_indices]
-                            selected_values = point_values[radius_indices]
+                for i, grid_point in enumerate(chunk):
+                    neighbors = tree.query_ball_point(grid_point, r=radius)
+                    if len(neighbors) == 0:
+                        interpolated_values[start_idx + i] = np.nan
                     else:
-                        # Use closest points if not enough within radius
-                        min_points = min(8, len(point_coords))  # Use at least 8 closest points
-                        closest_indices = np.argsort(distances)[:min_points]
-                        selected_distances = distances[closest_indices]
-                        selected_values = point_values[closest_indices]
-                    
-                    # IDW calculation with distance weighting
-                    weights = 1 / (selected_distances ** power)
-                    
-                    # Apply distance decay for very far points
-                    max_reasonable_distance = search_radius * 2
-                    far_points = selected_distances > max_reasonable_distance
-                    if np.any(far_points):
-                        weights[far_points] *= 0.1  # Reduce weight of very distant points
-                    
-                    interpolated[grid_idx] = np.sum(weights * selected_values) / np.sum(weights)
-            
-            return interpolated
+                        dists = np.linalg.norm(coords[neighbors] - grid_point, axis=1)
+                        dists[dists == 0] = 1e-10
+                        weights = 1.0 / (dists ** power)
+                        interpolated_values[start_idx + i] = np.sum(weights * values[neighbors]) / np.sum(weights)
+
+        else:  # global
+            # Global search with optimized vectorized operations
+            for start_idx in range(0, n_points, chunk_size):
+                end_idx = min(start_idx + chunk_size, n_points)
+                chunk = xi[start_idx:end_idx]
+                
+                dists = np.linalg.norm(coords[:, None, :] - chunk[None, :, :], axis=2)
+                dists[dists == 0] = 1e-10
+                weights = 1.0 / (dists.T ** power)
+                vals = np.sum(weights * values, axis=1) / np.sum(weights, axis=1)
+                interpolated_values[start_idx:end_idx] = vals
+
+        # Reshape to grid efficiently
+        idw_grid = interpolated_values.reshape(grid_x.shape)
         
-        # Perform interpolation over the entire buffered area
-        interpolated_values = comprehensive_idw_interpolation(
-            grid_coords, point_coords, point_values, power, search_radius
-        )
+        # Create transform
+        transform = from_origin(minx, maxy, cell_size, cell_size)
         
-        # Reshape to grid
-        interpolated_grid = interpolated_values.reshape(height, width).astype(np.float32)
+        # Convert to float32 for consistency and memory efficiency
+        idw_grid = idw_grid.astype(np.float32)
         
-        # Create a mask to identify areas outside the buffered village region
-        # This helps with visualization but doesn't remove data needed for village calculations
-        region_mask = geometry_mask(
-            [buffered_area], 
-            transform=transform,
-            invert=True,  # True for inside the geometry
-            out_shape=(height, width)
-        )
-        
-        # Apply mask - set areas far from villages to NoData for cleaner visualization
-        # But keep a generous buffer to ensure all village boundaries have data
-        interpolated_grid[~region_mask] = np.nan
-        
-        # Validate that we have good coverage
-        valid_pixels = ~np.isnan(interpolated_grid)
+        # Validate results
+        valid_pixels = ~np.isnan(idw_grid)
+        total_pixels = len(xi)
         coverage_percentage = (np.sum(valid_pixels) / total_pixels) * 100
         
-        print(f"✅ Interpolation completed successfully")
+        print(f"✅ OPTIMIZED IDW interpolation completed successfully")
         print(f"   - Total grid pixels: {total_pixels:,}")
         print(f"   - Valid interpolated pixels: {np.sum(valid_pixels):,}")
         print(f"   - Coverage: {coverage_percentage:.1f}%")
-        print(f"   - Value range: {np.nanmin(interpolated_grid):.3f} to {np.nanmax(interpolated_grid):.3f}")
+        print(f"   - Value range: {np.nanmin(idw_grid):.3f} to {np.nanmax(idw_grid):.3f}")
         
-        return interpolated_grid, bounds, width, height, transform, search_radius
+        # Get bounds for return
+        bounds = (minx, miny, maxx, maxy)
+        
+        return idw_grid, bounds, width, height, transform, None
 
     def post(self, request):
         # Extract payload data
@@ -216,7 +205,7 @@ class GroundwaterRechargeView(APIView):
             )
 
         try:
-            # Step 1: Load and process CSV
+            # Step 1: Load and process CSV - OPTIMIZED
             csv_path = os.path.join('media', 'temp', csv_filename)
             if not os.path.exists(csv_path):
                 return Response(
@@ -224,7 +213,8 @@ class GroundwaterRechargeView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            df = pd.read_csv(csv_path)
+            # Use faster CSV reading with dtype specification
+            df = pd.read_csv(csv_path, dtype={'LATITUDE': 'float32', 'LONGITUDE': 'float32'})
             if df.empty:
                 return Response(
                     {"success": False, "message": "CSV file is empty"},
@@ -242,7 +232,7 @@ class GroundwaterRechargeView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Step 2: Identify Pre/Post columns and calculate water fluctuation
+            # Step 2: Identify Pre/Post columns and calculate water fluctuation - OPTIMIZED
             pre_columns = [col for col in df.columns if 'pre' in col.lower()]
             post_columns = [col for col in df.columns if 'post' in col.lower()]
 
@@ -255,11 +245,11 @@ class GroundwaterRechargeView(APIView):
             print(f"📊 Found pre columns: {pre_columns}")
             print(f"📊 Found post columns: {post_columns}")
 
-            # Convert columns to numeric
+            # Convert columns to numeric efficiently
             for col in pre_columns + post_columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            # Calculate means and water fluctuation
+            # Calculate means and water fluctuation using vectorized operations
             df['pre_mean'] = df[pre_columns].mean(axis=1, skipna=True)
             df['post_mean'] = df[post_columns].mean(axis=1, skipna=True)
             df['water_fluctuation'] = df['pre_mean'] - df['post_mean']
@@ -304,18 +294,18 @@ class GroundwaterRechargeView(APIView):
 
             print(f"✅ Validated required shapefile columns: {required_shp_columns}")
 
-            # Filter shapefile based on selection
+            # Filter shapefile based on selection - OPTIMIZED
             if selected_villages:
                 gdf['village_co'] = gdf['village_co'].astype(str)
                 selected_villages_str = [str(v) for v in selected_villages]
-                filtered_gdf = gdf[gdf['village_co'].isin(selected_villages_str)]
+                filtered_gdf = gdf[gdf['village_co'].isin(selected_villages_str)].copy()  # Use copy for better memory management
                 filter_type = "villages"
                 filter_values = selected_villages_str
                 print(f"🎯 Filtering by villages: {selected_villages_str}")
             else:
                 gdf['SUBDIS_COD'] = pd.to_numeric(gdf['SUBDIS_COD'], errors='coerce')
                 selected_subdistricts_num = [int(s) for s in selected_subdistricts]
-                filtered_gdf = gdf[gdf['SUBDIS_COD'].isin(selected_subdistricts_num)]
+                filtered_gdf = gdf[gdf['SUBDIS_COD'].isin(selected_subdistricts_num)].copy()
                 filter_type = "subdistricts"
                 filter_values = selected_subdistricts_num
                 print(f"🎯 Filtering by subdistricts: {selected_subdistricts_num}")
@@ -333,12 +323,12 @@ class GroundwaterRechargeView(APIView):
                 filtered_gdf = filtered_gdf.to_crs('EPSG:32644')
                 print(f"🔄 Reprojected shapefile to EPSG:32644")
 
-            # Step 4: Comprehensive IDW Interpolation
+            # Step 4: OPTIMIZED IDW Interpolation
             # Create point geometries from CSV coordinates
             points_gdf = gpd.GeoDataFrame(
                 df,
                 geometry=[Point(xy) for xy in zip(df['LONGITUDE'], df['LATITUDE'])],
-                crs='EPSG:4326'  # Assuming lat/lon are in WGS84
+                crs='EPSG:4326'
             )
             
             # Reproject points to match shapefile CRS
@@ -365,10 +355,12 @@ class GroundwaterRechargeView(APIView):
                 print(f"⚠️ Limited data points ({len(points_within_region)}), using all available points for better interpolation")
                 points_within_region = points_gdf
             
-            # Perform comprehensive interpolation that ensures village coverage
+            # Perform OPTIMIZED IDW interpolation
             try:
-                interpolated_grid, bounds, width, height, transform, search_radius = self.interpolate_for_villages(
-                    points_within_region, filtered_gdf, cell_size=30, power=2
+                interpolated_grid, bounds, width, height, transform, _ = self.interpolate_for_villages(
+                    points_within_region, filtered_gdf, 
+                    cell_size=30, power=2, search_mode="variable", n_neighbors=3, 
+                    radius=None, nodata_val=-9999
                 )
             except Exception as interp_error:
                 return Response(
@@ -376,31 +368,61 @@ class GroundwaterRechargeView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # Save interpolated raster
+            # Save full raster first (exactly like first file)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            raster_filename = f"water_fluctuation_comprehensive_{timestamp}.tif"
-            raster_path = os.path.join('media', 'temp', raster_filename)
+            output_raster = f"water_fluctuation_idw_full_{timestamp}.tif"
+            output_raster_path = os.path.join('media', 'temp', output_raster)
             
             # Ensure temp directory exists
-            os.makedirs(os.path.dirname(raster_path), exist_ok=True)
+            os.makedirs(os.path.dirname(output_raster_path), exist_ok=True)
             
+            # OPTIMIZED raster writing with compression
             with rasterio.open(
-                raster_path, 'w',
-                driver='GTiff',
-                height=height,
-                width=width,
+                output_raster_path, "w",
+                driver="GTiff",
+                height=interpolated_grid.shape[0],
+                width=interpolated_grid.shape[1],
                 count=1,
                 dtype=rasterio.float32,
                 crs=CRS.from_epsg(32644),
                 transform=transform,
-                nodata=np.nan,
-                compress='lzw'
+                nodata=-9999,
+                compress='lzw',
+                tiled=True,  # Enable tiling for better performance
+                blockxsize=256,  # Optimal block size
+                blockysize=256
             ) as dst:
                 dst.write(interpolated_grid, 1)
-            
-            print(f"💾 Saved comprehensive interpolated raster: {raster_filename}")
 
-            # Step 5: Zonal Statistics - Calculate mean water fluctuation for each village
+            # Clip raster with village outline (mask outside polygon = NoData) - exactly like first file
+            clipped_raster = f"water_fluctuation_idw_clipped_{timestamp}.tif"
+            clipped_raster_path = os.path.join('media', 'temp', clipped_raster)
+            
+            with rasterio.open(output_raster_path) as src:
+                out_image, out_transform = rasterio.mask.mask(
+                    src,
+                    filtered_gdf.geometry,
+                    crop=True,
+                    filled=True,
+                    nodata=-9999
+                )
+                out_meta = src.meta.copy()
+                out_meta.update({
+                    "driver": "GTiff",
+                    "height": out_image.shape[1],
+                    "width": out_image.shape[2],
+                    "transform": out_transform,
+                    "nodata": -9999
+                })
+
+            with rasterio.open(clipped_raster_path, "w", **out_meta) as dest:
+                dest.write(out_image)
+            
+            print(f"💾 OPTIMIZED IDW interpolation complete.")
+            print(f"   • Full raster: {output_raster}")
+            print(f"   • Clipped raster: {clipped_raster}")
+
+            # Step 5: ULTRA-FAST Zonal Statistics with parallel processing
             village_geometries = []
             village_codes = []
             
@@ -408,16 +430,21 @@ class GroundwaterRechargeView(APIView):
                 village_geometries.append(row['geometry'])
                 village_codes.append(row['village_co'])
             
-            print(f"📊 Calculating zonal statistics for {len(village_geometries)} villages")
+            print(f"📊 Calculating ULTRA-FAST zonal statistics for {len(village_geometries)} villages using parallel processing")
             
-            # Calculate zonal statistics with more comprehensive stats
-            zonal_results = zonal_stats(
+            # Use ULTRA-FAST parallel zonal statistics
+            # Optimal chunk size based on number of villages and available cores
+            chunk_size = max(10, min(len(village_geometries) // (multiprocessing.cpu_count() * 2), 200))
+            
+            zonal_results = self.fast_zonal_stats(
                 village_geometries,
-                raster_path,
-                stats=['mean', 'count', 'min', 'max', 'std', 'median'],
-                nodata=np.nan,
-                all_touched=True  # Include pixels that touch village boundaries
+                clipped_raster_path,
+                ['mean', 'count', 'min', 'max', 'std', 'median'],
+                nodata=-9999,
+                chunk_size=chunk_size
             )
+            
+            print(f"✅ ULTRA-FAST zonal statistics completed!")
             
             # Step 6: Enhanced - Add recharge calculation using village, SY, and Shape_Area from shapefile
             print("🔧 Adding recharge calculation using village attributes from shapefile")
@@ -563,9 +590,10 @@ class GroundwaterRechargeView(APIView):
                 "total_recharge_mcm": round(total_recharge_mcm, 4),
                 "interpolation_grid_size": f"{width}x{height}",
                 "cell_size_meters": 30,
-                "search_radius_meters": round(search_radius, 1),
                 "idw_power": 2,
-                "interpolation_type": "Comprehensive IDW with Village Coverage"
+                "search_mode": "variable",
+                "n_neighbors": 3,
+                "interpolation_type": "ULTRA-OPTIMIZED IDW + Parallel Zonal Stats"
             }
 
             # Convert results to safe format (include all villages for reference)
@@ -574,7 +602,7 @@ class GroundwaterRechargeView(APIView):
             # Prepare response
             response_data = {
                 "success": True,
-                "message": f"Comprehensive groundwater recharge analysis completed. {villages_with_data}/{total_villages} villages have interpolated data.",
+                "message": f"ULTRA-OPTIMIZED IDW groundwater recharge analysis completed. {villages_with_data}/{total_villages} villages have interpolated data.",
                 "metadata": {
                     "processing_timestamp": datetime.now().isoformat(),
                     "input_csv": csv_filename,
@@ -582,19 +610,32 @@ class GroundwaterRechargeView(APIView):
                     "filter_values": filter_values,
                     "pre_columns_found": pre_columns,
                     "post_columns_found": post_columns,
-                    "interpolation_method": "Comprehensive IDW with Village Coverage",
+                    "interpolation_method": "ULTRA-OPTIMIZED IDW + Parallel Zonal Stats",
                     "coordinate_system": "EPSG:32644",
-                    "interpolation_coverage": f"Interpolated over buffered area to ensure village coverage",
+                    "interpolation_parameters": {
+                        "cell_size": 30,
+                        "power": 2,
+                        "search_mode": "variable",
+                        "n_neighbors": 12,
+                        "nodata_value": -9999,
+                        "optimization": "chunked_processing + parallel_zonal_stats"
+                    },
                     "recharge_calculation": "recharge = Shape_Area × SY × mean_water_fluctuation",
                     "recharge_units": "cubic meters (m³)",
                     "data_quality_note": "All villages included in results; check pixel_count > 0 for villages with interpolated data"
                 },
                 "output_files": {
-                    "interpolated_raster": {
-                        "filename": raster_filename,
-                        "path": raster_path,
-                        "size_bytes": os.path.getsize(raster_path),
-                        "description": "Comprehensive interpolation raster ensuring village coverage"
+                    "interpolated_raster_full": {
+                        "filename": output_raster,
+                        "path": output_raster_path,
+                        "size_bytes": os.path.getsize(output_raster_path),
+                        "description": "ULTRA-OPTIMIZED Full IDW interpolation raster (before clipping)"
+                    },
+                    "interpolated_raster_clipped": {
+                        "filename": clipped_raster,
+                        "path": clipped_raster_path,
+                        "size_bytes": os.path.getsize(clipped_raster_path),
+                        "description": "ULTRA-OPTIMIZED Clipped IDW interpolation raster (used for zonal statistics)"
                     },
                     "village_results_csv": {
                         "filename": results_filename,

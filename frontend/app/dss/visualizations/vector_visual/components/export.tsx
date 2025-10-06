@@ -202,7 +202,7 @@
 //         });
 //       }
 //     } catch (error) {
-//       console.error("Error processing layers:", error);
+//       console.log("Error processing layers:", error);
 //       showNotification(
 //         "Export Error",
 //         "Error processing map layers",
@@ -262,7 +262,7 @@
 //         "success"
 //       );
 //     }catch (error) {
-//   console.error("Export error:", error);
+//   console.log("Export error:", error);
 
 //   let errorMessage = "An unknown error occurred.";
 //   if (error instanceof Error) {
@@ -340,7 +340,7 @@
 //               mapContainer.removeChild(titleElement);
 //             }
 
-//             console.error("SVG export error:", error);
+//             console.log("SVG export error:", error);
 //             showNotification(
 //               "Export Error",
 //               `Failed to export SVG: ${error.message}`,
@@ -349,7 +349,7 @@
 //             reject(error);
 //           });
 //       } catch (error) {
-//   console.error("SVG export error:", error);
+//   console.log("SVG export error:", error);
 
 //   let errorMessage = "An unknown error occurred.";
 //   if (error instanceof Error) {
@@ -430,7 +430,7 @@
 // //       }, 'image/jpeg', 0.9);
 
 // //     } catch (error) {
-// //       console.error("JPG export error:", error);
+// //       console.log("JPG export error:", error);
 // //       showNotification(
 // //         "Export Error",
 // //         `Failed to export JPG: ${error.message}`,
@@ -561,7 +561,7 @@
 // //     showNotification("Export Successful", "Map exported to PDF successfully", "success");
 
 // //   } catch (error) {
-// //     console.error("PDF export error:", error);
+// //     console.log("PDF export error:", error);
 // //     showNotification("Export Error", error.message, "error");
 // //   }
 // // };

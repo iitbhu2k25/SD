@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon, MultiPolygon
 from scipy.spatial import cKDTree
 from scipy import stats
 from django.http import JsonResponse
@@ -18,6 +18,8 @@ import base64
 import warnings
 import re
 from collections import namedtuple
+import uuid
+from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
@@ -38,7 +40,7 @@ class GroundwaterTrendAnalysisView(View):
         os.makedirs(self.temp_media_dir, exist_ok=True)
 
     # ---------------------------
-    # Filtering helpers (unchanged)
+    # Filtering helpers
     # ---------------------------
     def filter_shapefiles_by_subdis_cod(self, subdis_codes):
         print(f"🔍 Filtering by SUBDIS_COD: {subdis_codes}")
@@ -106,7 +108,7 @@ class GroundwaterTrendAnalysisView(View):
             raise Exception(f"Error filtering shapefiles by village_codes: {str(e)}")
 
     # ---------------------------
-    # Mann-Kendall (unchanged)
+    # Mann-Kendall
     # ---------------------------
     def mann_kendall_test(self, data_series):
         data_clean = data_series.dropna()
@@ -130,7 +132,7 @@ class GroundwaterTrendAnalysisView(View):
         return MKResult(tau, p_value, trend, sen_slope)
 
     # ---------------------------
-    # Updated Time series creation - NOW GENERATES BOTH SEASONAL AND YEARLY
+    # Time series creation - GENERATES BOTH SEASONAL AND YEARLY
     # ---------------------------
     def create_village_time_series(self, wells_csv_path, filtered_centroids, filtered_villages, return_stats=False):
         print("🔄 Creating village time series for FILTERED villages (both seasonal and yearly)...")
@@ -201,13 +203,13 @@ class GroundwaterTrendAnalysisView(View):
                     pre_val = w[pre_col] if pre_col and not pd.isna(w[pre_col]) else None
                     post_val = w[post_col] if post_col and not pd.isna(w[post_col]) else None
                     
-                    # For yearly combined data (existing logic)
+                    # For yearly combined data
                     vals = [v for v in [pre_val, post_val] if v is not None]
                     if vals:
                         year_values.append(np.mean(vals))
                         year_weights.append(weights[j])
                     
-                    # For seasonal data (new logic)
+                    # For seasonal data
                     if pre_val is not None:
                         pre_values.append(pre_val)
                         pre_weights.append(weights[j])
@@ -215,14 +217,14 @@ class GroundwaterTrendAnalysisView(View):
                         post_values.append(post_val)
                         post_weights.append(weights[j])
 
-                # Calculate yearly combined value (existing)
+                # Calculate yearly combined value
                 if year_values and year_weights:
                     yweights = np.array(year_weights); yweights = yweights / yweights.sum()
                     yearly_data[year] = float(np.sum(np.array(year_values) * yweights))
                 else:
                     yearly_data[year] = np.nan
 
-                # Calculate seasonal values (new)
+                # Calculate seasonal values
                 if pre_values and pre_weights:
                     pre_weights_norm = np.array(pre_weights); pre_weights_norm = pre_weights_norm / pre_weights_norm.sum()
                     seasonal_data[f"{year}_PRE"] = float(np.sum(np.array(pre_values) * pre_weights_norm))
@@ -291,7 +293,7 @@ class GroundwaterTrendAnalysisView(View):
         return villages_with_yearly_depth, villages_with_seasonal_depth, years
 
     # ---------------------------
-    # Mann-Kendall Analysis - ONLY ON YEARLY DATA (unchanged logic)
+    # Mann-Kendall Analysis - ONLY ON YEARLY DATA
     # ---------------------------
     def perform_mann_kendall_analysis(self, villages_with_yearly_depth, trend_years, all_available_years):
         print(f"🔬 Mann-Kendall for yearly data using years: {trend_years}")
@@ -332,9 +334,9 @@ class GroundwaterTrendAnalysisView(View):
 
         df = pd.DataFrame(results)
         color_map = {
-            'Increasing': '#FF6B6B',
-            'Decreasing': '#4ECDC4',
-            'No-Trend': '#95A5A6',
+            'Increasing': "#FA4646",
+            'Decreasing': "#62D9D1",
+            'No-Trend': "#95A5A6",
             'Insufficient Data': '#F39C12'
         }
         df['Color'] = df['Trend_Status'].map(color_map)
@@ -344,7 +346,173 @@ class GroundwaterTrendAnalysisView(View):
         return df
 
     # ---------------------------
-    # Charts (keep existing - use yearly data)
+    # Map generation from GeoJSON data - UPDATED to return base64
+    # ---------------------------
+    def generate_trend_map_from_geojson(self, village_geojson, years_for_trend, subdis_codes=None, village_codes=None):
+        """
+        Generate a map visualization from village_geojson data and save as image
+        Returns tuple: (filename, base64_string)
+        """
+        try:
+            print("🗺️ Generating trend map from GeoJSON data...")
+            
+            # Pre-allocate lists
+            village_polygons = []
+            colors = []
+            village_names = []
+            
+            # Process GeoJSON features
+            from shapely.geometry import shape
+            
+            for feature in village_geojson['features']:
+                try:
+                    geom_data = feature['geometry']
+                    properties = feature['properties']
+                    
+                    # Use shapely's shape() for faster conversion
+                    polygon = shape(geom_data)
+                    
+                    # For MultiPolygon, take first polygon only
+                    if polygon.geom_type == 'MultiPolygon':
+                        polygon = list(polygon.geoms)[0]
+                    
+                    village_polygons.append(polygon)
+                    colors.append(properties.get('Color', '#95A5A6'))
+                    village_names.append(properties.get('Village_Name', 'Unknown'))
+                        
+                except Exception as e:
+                    print(f"⚠️ Skipping feature due to geometry error: {e}")
+                    continue
+            
+            if not village_polygons:
+                raise Exception("No valid village polygons found in GeoJSON data")
+            
+            # Create GeoDataFrame in EPSG:4326 (lat/long degrees, same as PDFGenerationView)
+            gdf = gpd.GeoDataFrame({
+                'geometry': village_polygons,
+                'color': colors,
+                'village_name': village_names
+            }, crs='EPSG:4326')
+            
+            print(f"✅ Created GeoDataFrame with {len(gdf)} villages")
+            
+            # Simplify geometries for faster rendering
+            gdf['geometry'] = gdf['geometry'].simplify(
+                tolerance=0.0001,
+                preserve_topology=True
+            )
+            
+            # Create figure (matching PDFGenerationView size)
+            fig, ax = plt.subplots(1, 1, figsize=(15, 12))
+            
+            # Plot with matching style
+            gdf.plot(
+                ax=ax, 
+                color=gdf['color'], 
+                edgecolor='blue',
+                alpha=0.6,
+                linewidth=1.5
+            )
+            
+            # Set map bounds with padding
+            bounds = gdf.total_bounds
+            padding = 0.01
+            ax.set_xlim(bounds[0] - padding, bounds[2] + padding)
+            ax.set_ylim(bounds[1] - padding, bounds[3] + padding)
+            
+            # Add lightweight basemap
+            try:
+                import contextily as ctx
+                ctx.add_basemap(
+                ax,
+                crs=gdf.crs,
+                source=ctx.providers.CartoDB.Voyager,  # more visible than Positron
+                alpha=1,
+                zoom=10
+            )
+
+            except Exception as e:
+                print(f"⚠️ Could not add basemap: {e}")
+            
+            # Create title
+            year_range = f"{min([int(y) for y in years_for_trend])}-{max([int(y) for y in years_for_trend])}"
+            
+            info_parts = []
+            if subdis_codes:
+                info_parts.append(f"SUBDIS_COD: {', '.join(map(str, subdis_codes[:3]))}{'...' if len(subdis_codes) > 3 else ''}")
+            if village_codes:
+                info_parts.append(f"Villages: {', '.join(map(str, village_codes[:3]))}{'...' if len(village_codes) > 3 else ''}")
+            
+            subtitle = f" ({' | '.join(info_parts)})" if info_parts else ""
+            
+            ax.set_title(
+                f'Groundwater Trend Analysis Map ({year_range}){subtitle}',
+                fontsize=14,
+                fontweight='bold',
+                pad=20
+            )
+            
+            # Add legend
+            import matplotlib.patches as mpatches
+            legend_elements = [
+                mpatches.Patch(color='#FF6B6B', label='Increasing (Worsening)'),
+                mpatches.Patch(color='#4ECDC4', label='Decreasing (Improving)'),
+                mpatches.Patch(color='#95A5A6', label='No Significant Trend'),
+                mpatches.Patch(color='#F39C12', label='Insufficient Data')
+            ]
+            ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+            
+            # Axis labels - matching PDFGenerationView exactly (LONGITUDE/LATITUDE in degrees)
+            ax.set_xlabel('LONGITUDE', fontsize=12)
+            ax.set_ylabel('LATITUDE', fontsize=12)
+            ax.grid(True, alpha=0.3)
+            plt.tight_layout()
+            
+            # Generate filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            
+            if subdis_codes:
+                tag = "_".join(map(str, subdis_codes[:3])) + ("_etc" if len(subdis_codes) > 3 else "")
+                image_filename = f"trend_map_subdis_{tag}_{year_range}_{timestamp}_{unique_id}.png"
+            elif village_codes:
+                tag = "_".join(map(str, village_codes[:3])) + ("_etc" if len(village_codes) > 3 else "")
+                image_filename = f"trend_map_villages_{tag}_{year_range}_{timestamp}_{unique_id}.png"
+            else:
+                image_filename = f"trend_map_{year_range}_{timestamp}_{unique_id}.png"
+            
+            # Use BytesIO buffer for faster I/O
+            from io import BytesIO
+            
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+            buffer.seek(0)
+            
+            # Convert to base64
+            b64_string = base64.b64encode(buffer.read()).decode("utf-8")
+            trend_map_base64 = f"data:image/png;base64,{b64_string}"
+            
+            # Save to file
+            image_path = os.path.join(self.temp_media_dir, image_filename)
+            os.makedirs(os.path.dirname(image_path), exist_ok=True)
+            
+            buffer.seek(0)
+            with open(image_path, 'wb') as f:
+                f.write(buffer.read())
+            
+            plt.close(fig)
+            buffer.close()
+            
+            print(f"💾 Trend map saved to: {image_path}")
+            print(f"✅ Trend map converted to base64")
+            
+            return image_filename, trend_map_base64
+            
+        except Exception as e:
+            print(f"❌ Error generating trend map: {str(e)}")
+            return None, None
+    # ---------------------------
+    # Charts
     # ---------------------------
     def generate_trend_charts(self, trend_summary, year_range, villages_with_depth=None, all_available_years=None, subdis_codes=None, village_codes=None):
         charts = {}
@@ -369,15 +537,13 @@ class GroundwaterTrendAnalysisView(View):
             buffer = BytesIO(); plt.savefig(buffer, format='png', dpi=300, bbox_inches='tight'); buffer.seek(0)
             charts['trend_distribution'] = base64.b64encode(buffer.getvalue()).decode(); plt.close()
 
-            # Additional charts would follow the same pattern...
-
         except Exception as e:
             print(f"[WARNING] Chart generation error: {str(e)}")
             charts['error'] = str(e)
         return charts
 
     # ---------------------------
-    # GeoJSON (keep existing - use yearly data)
+    # GeoJSON
     # ---------------------------
     def create_village_json_for_map(self, villages_with_depth, trend_results_df, all_available_years):
         print("🗺️ Building GeoJSON...")
@@ -475,7 +641,7 @@ class GroundwaterTrendAnalysisView(View):
         return geojson_data
 
     # ---------------------------
-    # Summary tables and response builder (keep existing)
+    # Summary tables
     # ---------------------------
     def create_summary_tables(self, trend_results_df, villages_with_depth, all_available_years):
         tables = {}
@@ -485,12 +651,20 @@ class GroundwaterTrendAnalysisView(View):
         tables['trend_summary'] = tr.to_dict('records')
         return tables
 
+    # ---------------------------
+    # Response builder - UPDATED with base64
+    # ---------------------------
     def create_comprehensive_response_data(self, villages_with_depth, trend_results_df, all_available_years, years_for_trend, timestamp, subdis_codes=None, village_codes=None):
         print("📊 Building response payload...")
         years_range = f"{min(years_for_trend)}-{max(years_for_trend)}"
         charts = self.generate_trend_charts(trend_results_df, years_range, villages_with_depth, all_available_years, subdis_codes=subdis_codes, village_codes=village_codes)
         village_geojson = self.create_village_json_for_map(villages_with_depth, trend_results_df, all_available_years)
         summary_tables = self.create_summary_tables(trend_results_df, villages_with_depth, all_available_years)
+
+        # UPDATED: Generate trend map from GeoJSON and get both filename and base64
+        trend_map_filename, trend_map_base64 = self.generate_trend_map_from_geojson(
+            village_geojson, years_for_trend, subdis_codes=subdis_codes, village_codes=village_codes
+        )
 
         trend_counts = trend_results_df['Trend_Status'].value_counts()
         village_trends = []
@@ -518,7 +692,9 @@ class GroundwaterTrendAnalysisView(View):
                 'analysis_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'analysis_timestamp': timestamp,
                 'filtered_by_subdis_cod': subdis_codes if subdis_codes else [],
-                'filtered_by_village_codes': village_codes if village_codes else []
+                'filtered_by_village_codes': village_codes if village_codes else [],
+                'trend_map_filename': trend_map_filename,
+                'trend_map_base64': trend_map_base64
             },
             'trend_distribution': {
                 'increasing': int(trend_counts.get('Increasing', 0)),
@@ -547,7 +723,9 @@ class GroundwaterTrendAnalysisView(View):
             'total_villages': len(village_trends),
             'analysis_timestamp': timestamp,
             'filtered_by_subdis_cod': subdis_codes if subdis_codes else [],
-            'filtered_by_village_codes': village_codes if village_codes else []
+            'filtered_by_village_codes': village_codes if village_codes else [],
+            'trend_map_filename': trend_map_filename,
+            'trend_map_base64': trend_map_base64
         }
 
     # ---------------------------
@@ -555,43 +733,20 @@ class GroundwaterTrendAnalysisView(View):
     # ---------------------------
     def get(self, request):
         return JsonResponse({
-            "api_name": "Groundwater Trend Analysis API with Seasonal and Yearly Time Series",
-            "description": "Analyze groundwater trends (Mann-Kendall on yearly data) with seasonal and yearly time series generation.",
+            "api_name": "Groundwater Trend Analysis API with Seasonal and Yearly Time Series + Map Generation",
+            "description": "Analyze groundwater trends (Mann-Kendall on yearly data) with seasonal and yearly time series generation + map visualization with base64 image.",
             "endpoints": {
                 "POST": {
-                    "description": "Perform groundwater trend analysis on filtered villages - generates both seasonal and yearly time series CSVs",
+                    "description": "Perform groundwater trend analysis on filtered villages",
                     "required_parameters": {
                         "wells_csv_filename": "Name of wells CSV file in media/temp/"
-                    },
-                    "exactly_one_filter_required": {
-                        "subdis_codes": "List of SUBDIS_COD values. Includes ALL villages in those subdistricts.",
-                        "village_codes": f"List of village codes in shapefiles column '{self.VILLAGE_CODE_COL}'. Includes ONLY these villages."
-                    },
-                    "optional_parameters": {
-                        "trend_years": "List of years for trend analysis (e.g., ['2015', '2016', ...]). If omitted, all available years are used.",
-                        "return_type": "Options: 'all' (default), 'stats', 'charts', 'village_data', 'tables'"
-                    },
-                    "generated_files": {
-                        "yearly_timeseries_csv": "Combined PRE+POST values by year (e.g., 2015, 2016, 2017...)",
-                        "seasonal_timeseries_csv": "Separate seasonal values (e.g., 2015_PRE, 2015_POST, 2016_PRE, 2016_POST...)",
-                        "mann_kendall_csv": "Trend analysis results (based on yearly data only)"
                     }
                 }
-            },
-            "response_structure": {
-                "success": "Boolean indicating success",
-                "summary_stats": "Comprehensive statistical analysis",
-                "village_geojson": "GeoJSON FeatureCollection for map visualization",
-                "villages": "Array of village trend data with time series",
-                "charts": "Base64 encoded visualization charts",
-                "summary_tables": "Statistical summary tables",
-                "color_mapping": "Color codes for different trend statuses",
-                "total_villages": "Number of villages analyzed"
             }
         })
 
     # ---------------------------
-    # Updated POST method
+    # POST method
     # ---------------------------
     def post(self, request):
         try:
@@ -605,7 +760,6 @@ class GroundwaterTrendAnalysisView(View):
             if not wells_csv_filename:
                 return JsonResponse({"error": "wells_csv_filename is required"}, status=400)
 
-            # XOR filter rule: exactly one of subdis_codes or village_codes
             has_subdis = isinstance(subdis_codes, list) and len(subdis_codes) > 0
             has_village = isinstance(village_codes, list) and len(village_codes) > 0
 
@@ -634,13 +788,11 @@ class GroundwaterTrendAnalysisView(View):
             else:
                 years_for_trend = [str(y) for y in trend_years]
 
-            # Perform Mann-Kendall analysis only on yearly data
             print("🔬 Step 2: Mann-Kendall analysis on yearly data...")
             trend_results_df = self.perform_mann_kendall_analysis(
                 villages_with_yearly_depth, years_for_trend, all_available_years
             )
 
-            # Save Mann-Kendall results
             timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
             if has_subdis:
                 tag = "subdis_" + "_".join(map(str, subdis_codes[:3])) + ("_etc" if len(subdis_codes) > 3 else "")
@@ -656,8 +808,7 @@ class GroundwaterTrendAnalysisView(View):
             
             print(f"✅ Saved Mann-Kendall CSV: {trend_csv_path}")
 
-            # Generate response (use yearly data for main response)
-            print("📊 Step 3: Building response data...")
+            print("📊 Step 3: Building response data + generating map with base64...")
             response_data = self.create_comprehensive_response_data(
                 villages_with_yearly_depth, trend_results_df, all_available_years, years_for_trend, timestamp,
                 subdis_codes=subdis_codes if has_subdis else None,
@@ -671,12 +822,9 @@ class GroundwaterTrendAnalysisView(View):
                 'timeseries_seasonal_csv_filename': timeseries_stats.get('village_timeseries_seasonal_csv', '')
             })
 
-            # Backward-compatible alias
             response_data['villages'] = response_data.pop('village_trends')
-            print(f"✅ Done. Returning {response_data['total_villages']} villages with GeoJSON data")
-            print(f"✅ Generated 2 time series CSVs + 1 Mann-Kendall CSV")
+            print(f"✅ Done. Returning {response_data['total_villages']} villages with GeoJSON data + map image + base64")
 
-            # Optionally filter the payload by return_type
             if return_type == 'stats':
                 return JsonResponse({'success': True, 'summary_stats': response_data['summary_stats']})
             elif return_type == 'charts':

@@ -887,7 +887,7 @@ export default function Map(props: MapProps) {
       });
       showNotification('Success', 'Map exported successfully!', 'success');
     } catch (err) {
-      console.error('PDF export error:', err);
+      console.log('PDF export error:', err);
       showNotification('Error', 'PDF export failed. Please try again.', 'error');
     }
   };

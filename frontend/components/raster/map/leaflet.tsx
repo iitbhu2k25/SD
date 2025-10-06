@@ -1,6 +1,6 @@
 // 'use client';
 // import { useEffect, useRef, useState } from 'react';
-// import { useMapContext } from '@/app/contexts/MapContext';
+// import { useMapContext } from '@/contexts/MapContext';
 // import dynamic from 'next/dynamic';
 
 // // Define types for our component

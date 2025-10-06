@@ -1,6 +1,7 @@
 import os
 import re
 from typing import List, Dict, Any, Tuple
+import numpy as np
 
 import geopandas as gpd
 import pandas as pd
@@ -9,7 +10,6 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-
 from .models import Crop  # db_table = 'gwa_crop' with fields: season, crop, stage, period, crop_factor
 
 # Constants
@@ -198,6 +198,116 @@ def compute_for_village_row(row: pd.Series, seasons: List[str], crops: List[str]
 
     return total_index, details
 
+def generate_crop_month_data(results: List[Dict], crops: List[str]) -> Dict[str, Any]:
+    """Generate data for individual crop scatter chart - returns JSON data instead of image"""
+    # Initialize data structure for each crop by month
+    crop_monthly_data = {crop: [0]*12 for crop in crops}
+    
+    # Aggregate data from all results
+    village_count = len(results) if results else 1
+    
+    for result in results:
+        for season_name, season_data in result['seasons'].items():
+            for crop in crops:
+                if crop in season_data and isinstance(season_data[crop], dict):
+                    crop_data = season_data[crop]
+                    if 'stages' in crop_data:
+                        for stage_info in crop_data['stages']:
+                            months = stage_info.get('months', [])
+                            deficit_value = stage_info.get('stage_avg_deficit', 0)
+                            
+                            # Add deficit value to corresponding months for this crop
+                            for month in months:
+                                if month in MONTHS:
+                                    month_idx = MONTHS.index(month)
+                                    crop_monthly_data[crop][month_idx] += deficit_value
+    
+    # Average the values across villages
+    for crop in crops:
+        crop_monthly_data[crop] = [round(value / village_count, 3) for value in crop_monthly_data[crop]]
+    
+    # Return structured data for frontend charting
+    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    return {
+        "type": "scatter",
+        "title": "Monthly Crop Water Demand by Crop (Discrete Points)",
+        "x_label": "Month",
+        "y_label": "Average Water Demand (mm)",
+        "months": months_display,
+        "crops_data": crop_monthly_data
+    }
+
+def generate_cumulative_data(results: List[Dict], crops: List[str]) -> Dict[str, Any]:
+    """Generate data for cumulative demand chart - returns JSON data instead of image"""
+    # Initialize monthly cumulative data
+    cumulative_monthly_data = [0] * 12
+    
+    # Aggregate data from all results
+    village_count = len(results) if results else 1
+    
+    for result in results:
+        for season_name, season_data in result['seasons'].items():
+            for crop in crops:
+                if crop in season_data and isinstance(season_data[crop], dict):
+                    crop_data = season_data[crop]
+                    if 'stages' in crop_data:
+                        for stage_info in crop_data['stages']:
+                            months = stage_info.get('months', [])
+                            deficit_value = stage_info.get('stage_avg_deficit', 0)
+                            
+                            # Add deficit value to corresponding months for cumulative calculation
+                            for month in months:
+                                if month in MONTHS:
+                                    month_idx = MONTHS.index(month)
+                                    cumulative_monthly_data[month_idx] += deficit_value
+    
+    # Average the values across villages
+    cumulative_monthly_data = [round(value / village_count, 3) for value in cumulative_monthly_data]
+    
+    # Return structured data for frontend charting
+    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    return {
+        "type": "line_area",
+        "title": "Total Cumulative Water Demand (All Crops Combined)",
+        "x_label": "Month", 
+        "y_label": "Total Water Demand (mm)",
+        "months": months_display,
+        "values": cumulative_monthly_data
+    }
+
+def generate_crop_water_demand_charts(
+    results: List[Dict], 
+    gdf: gpd.GeoDataFrame,
+    seasons: List[str], 
+    crops: List[str],
+    irrigation_intensity: float
+) -> Dict[str, Any]:
+    """Generate chart data for both individual crops and cumulative demand"""
+    
+    # Generate individual crop chart data
+    individual_crops_data = generate_crop_month_data(results, crops)
+    
+    # Generate cumulative demand chart data
+    cumulative_data = generate_cumulative_data(results, crops)
+    
+    # Calculate basic summary for completeness
+    total_villages = len(results)
+    total_demand = sum([result['village_demand'] for result in results])
+    
+    return {
+        'individual_crops': individual_crops_data,
+        'cumulative_demand': cumulative_data,
+        'summary_stats': {
+            'total_villages': total_villages,
+            'total_demand_cubic_meters': round(total_demand, 2),
+            'average_demand_per_village': round(total_demand / total_villages, 2) if total_villages > 0 else 0,
+        }
+    }
+
 class AgriculturalDemandAPIView(APIView):
     """API View for Agricultural Demand Calculation"""
     permission_classes = [AllowAny]
@@ -276,6 +386,9 @@ class AgriculturalDemandAPIView(APIView):
                 "error": "groundwaterFactor must be >= 0"
             }, status=400)
         
+        # Check if charts are requested
+        include_charts = data.get("include_charts", False)
+        
         # Load shapefile
         try:
             gdf = load_villages_gdf()
@@ -328,8 +441,8 @@ class AgriculturalDemandAPIView(APIView):
             }
             results.append(result)
         
-        # Return comprehensive response
-        return Response({
+        # Prepare base response
+        response_data = {
             "success": True,
             "data": results,
             "filter": {
@@ -342,7 +455,20 @@ class AgriculturalDemandAPIView(APIView):
             "groundwaterFactor": groundwater_factor,
             "villages_count": len(results),
             "debug_info": debug_info
-        }, status=200)
+        }
+        
+        # Generate chart data if requested
+        if include_charts:
+            try:
+                charts_data = generate_crop_water_demand_charts(
+                    results, gdf, seasons, crops, irrigation_intensity
+                )
+                response_data["charts"] = charts_data
+            except Exception as e:
+                response_data["charts_error"] = f"Failed to generate chart data: {str(e)}"
+        
+        # Return comprehensive response
+        return Response(response_data, status=200)
 
     def get(self, request, format=None):
         """Get village metadata and sample data"""

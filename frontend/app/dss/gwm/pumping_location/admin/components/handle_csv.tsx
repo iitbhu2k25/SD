@@ -59,7 +59,7 @@ const CsvUploader: React.FC = () => {
         setCsvData(result.data);
       },
       error: (err) => {
-        console.error(err);
+        console.log(err);
         setError("Error parsing CSV file.");
       },
     });

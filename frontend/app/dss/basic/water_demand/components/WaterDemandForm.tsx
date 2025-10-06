@@ -374,7 +374,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
         // Store result globally
         (window as any).domesticWaterDemand = domesticDemandResult;
       } catch (error) {
-        //console.error("Error calculating domestic water demand:", error);
+        //console.log("Error calculating domestic water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -410,7 +410,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
         // Store result globally
         (window as any).floatingWaterDemand = floatingDemandResult;
       } catch (error) {
-        //console.error("Error calculating floating water demand:", error);
+        //console.log("Error calculating floating water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -445,7 +445,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           const totalDemand = parseFloat(totalInstitutionalDemand);
 
           if (isNaN(totalDemand)) {
-            //console.error("Invalid total institutional demand value");
+            //console.log("Invalid total institutional demand value");
             return;
           }
 
@@ -462,7 +462,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
         // Store result globally
         (window as any).institutionalWaterDemand = institutionalResult;
       } catch (error) {
-       // console.error("Error calculating institutional water demand:", error);
+       // console.log("Error calculating institutional water demand:", error);
       } finally {
         setIsCalculating(false);
       }
@@ -498,7 +498,7 @@ const [showSeasonalBreakdown, setShowSeasonalBreakdown] = useState(false);
           setSelectedFirefightingMethod(Object.keys(result)[0]);
         }
       } catch (error) {
-        //console.error("Error calculating firefighting water demand:", error);
+        //console.log("Error calculating firefighting water demand:", error);
       } finally {
         setIsCalculating(false);
       }
