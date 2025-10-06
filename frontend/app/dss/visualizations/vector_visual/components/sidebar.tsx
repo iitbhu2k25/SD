@@ -1,9 +1,10 @@
 // app/vector/components/sidebar.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import UidModal from './analysis';
+
 type SidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
@@ -16,6 +17,7 @@ type SidebarProps = {
     message: string,
     type: 'success' | 'error' | 'info'
   ) => void;
+  onUploadShapefile: (files: FileList) => Promise<any>;
 };
 
 export default function Sidebar({
@@ -25,7 +27,8 @@ export default function Sidebar({
   onFeatureInfoToggle,
   onCompassToggle,
   onGridToggle,
-  showNotification
+  showNotification,
+  onUploadShapefile
 }: SidebarProps) {
   // Subcategories mapping
   const subcategories = {
@@ -40,7 +43,7 @@ export default function Sidebar({
     industries: ["all"],
     stps: ["all"],
   };
-   type Category = keyof typeof subcategories;
+  type Category = keyof typeof subcategories;
   
   // State for form fields
   const [category, setCategory] = useState<Category | ''>('');
@@ -53,6 +56,13 @@ export default function Sidebar({
   const [showGrid, setShowGrid] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [showCompass, setShowCompass] = useState(true);
+
+  // Upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressText, setProgressText] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // State for Union modal
   const [unionModalOpen, setUnionModalOpen] = useState(false);
@@ -79,7 +89,7 @@ export default function Sidebar({
   }, [showCompass, onCompassToggle]);
 
   // Handle dropdown toggle
-  const toggleDropdown = (id:any) => {
+  const toggleDropdown = (id: any) => {
     setOpenDropdown(openDropdown === id ? '' : id);
   };
 
@@ -110,13 +120,12 @@ export default function Sidebar({
         showNotification('Error', 'Map interface not available', 'error');
       }
     } catch (error) {
-  if (error instanceof Error) {
-    showNotification('Error', `Failed to load data: ${error.message}`, 'error');
-  } else {
-    showNotification('Error', 'Failed to load data: Unknown error', 'error');
-  }
-}
-
+      if (error instanceof Error) {
+        showNotification('Error', `Failed to load data: ${error.message}`, 'error');
+      } else {
+        showNotification('Error', 'Failed to load data: Unknown error', 'error');
+      }
+    }
   };
 
   // Handle basemap change
@@ -141,14 +150,146 @@ export default function Sidebar({
     }
   };
 
+  // Upload functions
+  const startSimulatedProgress = () => {
+    setUploadProgress(0);
+    setProgressText('Upload 0% complete');
+    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
+    let p = 0;
+    uploadTimerRef.current = setInterval(() => {
+      p = Math.min(95, p + Math.max(1, Math.round((95 - p) * 0.08)));
+      setUploadProgress(p);
+      setProgressText(`Upload ${p}% complete`);
+      if (p >= 95) {
+        if (uploadTimerRef.current) {
+          clearInterval(uploadTimerRef.current);
+          uploadTimerRef.current = null;
+        }
+      }
+    }, 200);
+  };
+
+  const completeProgress = () => {
+    if (uploadTimerRef.current) {
+      clearInterval(uploadTimerRef.current);
+      uploadTimerRef.current = null;
+    }
+    setUploadProgress(100);
+    setProgressText('Upload 100% complete');
+    setTimeout(() => {
+      setUploadProgress(0);
+      setProgressText('');
+    }, 1200);
+  };
+
+  const failProgress = () => {
+    if (uploadTimerRef.current) {
+      clearInterval(uploadTimerRef.current);
+      uploadTimerRef.current = null;
+    }
+    setProgressText('Upload failed');
+    setTimeout(() => {
+      setUploadProgress(0);
+      setProgressText('');
+    }, 1500);
+  };
+
+  const handleUpload = async () => {
+    try {
+      const files = fileInputRef.current?.files;
+      if (!files || files.length === 0) {
+        showNotification('Error', 'No file selected', 'error');
+        return;
+      }
+
+      setUploading(true);
+      startSimulatedProgress();
+      showNotification('Uploading', 'Uploading shapefile...', 'info');
+
+      const result = await onUploadShapefile(files);
+
+      if (result) {
+        showNotification('Success', 'Shapefile uploaded and plotted', 'success');
+        completeProgress();
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        showNotification('Error', 'Upload failed', 'error');
+        failProgress();
+      }
+    } catch (e: any) {
+      showNotification('Error', e?.message || 'Upload failed', 'error');
+      failProgress();
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <>
       <div
-        className={`w-[300px] bg-white p-5 overflow-y-auto transition-all duration-300 z-10 border-r border-gray-200 shadow-md flex-shrink-0 ${collapsed ? 'w-0 p-0 overflow-hidden' : ''
-          }`}
+        className={`w-[300px] bg-white p-5 overflow-y-auto transition-all duration-300 z-10 border-r border-gray-200 shadow-md flex-shrink-0 ${
+          collapsed ? 'w-0 p-0 overflow-hidden' : ''
+        }`}
       >
         <div className="flex justify-between items-center mb-5 pb-2.5 border-b-2 border-blue-500">
           <h5 className="font-semibold text-gray-700">Control Panel</h5>
+        </div>
+
+        {/* Upload Shapefile Section */}
+        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
+            <i className="fas fa-upload mr-2 text-emerald-600"></i> Upload Shapefile
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="shapefile-upload"
+              className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-8m0 0L8 12m4-4l4 4M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1" />
+              </svg>
+              <span className="text-xs text-gray-600">Choose or drag & drop files</span>
+              <input
+                id="shapefile-upload"
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".zip,.shp,.dbf,.shx,.prj,.cpg"
+                className="hidden"
+              />
+            </label>
+
+            {uploading && (
+              <div className="space-y-1">
+                <div className="w-full h-2 bg-gray-200 rounded">
+                  <div
+                    className="h-2 bg-emerald-600 rounded transition-all"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <div className="text-xs text-gray-600">{progressText || `Upload ${uploadProgress}% complete`}</div>
+              </div>
+            )}
+
+            <button
+              disabled={uploading}
+              onClick={handleUpload}
+              className={`w-full px-3 py-2 rounded-md text-white text-sm font-medium transition ${
+                uploading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+              title="Upload and plot"
+            >
+              {uploading ? 'Uploading…' : 'Upload & Plot'}
+            </button>
+            
+            <p className="text-xs text-gray-500">
+             {/* Accepts .zip or .shp + sidecars (.dbf, .shx, .prj). */}
+              Accepts  .shp +.dbf, +.shx, +.prj
+            </p>
+          </div>
         </div>
 
         {/* Feature Selection */}
@@ -196,10 +337,11 @@ export default function Sidebar({
           <button
             onClick={loadShapefile}
             disabled={!category || !subcategory}
-            className={`w-full py-3 px-5 mt-4 rounded-lg border-none text-white font-medium flex justify-center items-center cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative ${!category || !subcategory
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600 after:content-[""] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:rounded-lg after:bg-blue-500 after:z-[-1] after:opacity-50 after:animate-pulse'
-              }`}
+            className={`w-full py-3 px-5 mt-4 rounded-lg border-none text-white font-medium flex justify-center items-center cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative ${
+              !category || !subcategory
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 after:content-[""] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:rounded-lg after:bg-blue-500 after:z-[-1] after:opacity-50 after:animate-pulse'
+            }`}
           >
             <i className="fas fa-map-marked-alt mr-2"></i> Plot Features
           </button>
@@ -214,17 +356,20 @@ export default function Sidebar({
           {/* Basemap Dropdown */}
           <div className="relative mb-3">
             <div
-              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${openDropdown === 'basemap' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''}`}
+              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${
+                openDropdown === 'basemap' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''
+              }`}
               onClick={() => toggleDropdown('basemap')}
             >
               <div><i className="fas fa-map mr-2 text-blue-500"></i> Base Map</div>
               <i className={`fas fa-chevron-down transition-transform duration-300 ${openDropdown === 'basemap' ? 'rotate-180' : ''}`}></i>
             </div>
 
-            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${openDropdown === 'basemap'
+            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${
+              openDropdown === 'basemap'
                 ? 'max-h-[300px] opacity-100 translate-y-0'
                 : 'max-h-0 opacity-0 -translate-y-2 overflow-hidden border-none'
-              }`}>
+            }`}>
               <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('streets')}>
                 <i className="fas fa-road mr-2.5 w-5 text-center text-blue-500"></i> Streets
               </div>
@@ -249,17 +394,20 @@ export default function Sidebar({
           {/* Analysis Tools Dropdown */}
           <div className="relative mb-3">
             <div
-              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${openDropdown === 'analysis' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''}`}
+              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${
+                openDropdown === 'analysis' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''
+              }`}
               onClick={() => toggleDropdown('analysis')}
             >
               <div><i className="fas fa-chart-line mr-2 text-blue-500"></i> Analysis Tools</div>
               <i className={`fas fa-chevron-down transition-transform duration-300 ${openDropdown === 'analysis' ? 'rotate-180' : ''}`}></i>
             </div>
 
-            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${openDropdown === 'analysis'
+            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${
+              openDropdown === 'analysis'
                 ? 'max-h-[300px] opacity-100 translate-y-0'
                 : 'max-h-0 opacity-0 -translate-y-2 overflow-hidden border-none'
-              }`}>
+            }`}>
               <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Intersection')}>
                 <i className="fas fa-object-group mr-2.5 w-5 text-center text-blue-500"></i> Intersection
               </div>
@@ -272,9 +420,6 @@ export default function Sidebar({
               <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Euclidean Distance')}>
                 <i className="fas fa-calculator mr-2.5 w-5 text-center text-blue-500"></i> Euclidean Distance
               </div>
-              {/* <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1" onClick={() => selectAnalysisTool('Union')}>
-                <i className="fas fa-calculator mr-2.5 w-5 text-center text-blue-500"></i> Union
-              </div> */}
             </div>
           </div>
         </div>
@@ -398,10 +543,11 @@ export default function Sidebar({
       {/* Toggle Sidebar Button */}
       <button
         onClick={onToggle}
-        className={`absolute z-[999] flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-md border-none cursor-pointer transition-all duration-300 hover:bg-blue-500 hover:text-white hover:scale-110 ${collapsed
-          ? 'left-5 top-5'
-          : 'left-[300px] top-5'
-          }`}
+        className={`absolute z-[999] flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-md border-none cursor-pointer transition-all duration-300 hover:bg-blue-500 hover:text-white hover:scale-110 ${
+          collapsed
+            ? 'left-5 top-5'
+            : 'left-[300px] top-5'
+        }`}
       >
         <i className={`fas ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
       </button>
@@ -409,7 +555,7 @@ export default function Sidebar({
       {/* Union Modal */}
       <UidModal 
         isOpen={unionModalOpen} 
-        onOpenChange={(isOpen:any) => setUnionModalOpen(isOpen)} 
+        onOpenChange={(isOpen: any) => setUnionModalOpen(isOpen)} 
       />
     </>
   );

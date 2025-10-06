@@ -71,6 +71,14 @@ export default function VectorPage() {
     }, 4000);
   };
 
+  // Upload handler to be passed to sidebar
+  const handleUploadShapefile = async (files: FileList) => {
+    if (window.uploadShapefile) {
+      return await window.uploadShapefile(files);
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       {/* Header */}
@@ -79,7 +87,7 @@ export default function VectorPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <i className="fas fa-globe-asia text-2xl mr-2"></i>
-              <h3 className="text-xl font-semibold m-0">(DSS-wrm) IIT BHU Vector Data Viewer Tool</h3>
+              <h3 className="text-xl font-semibold m-0">(DSS-WRM) IIT BHU Vector Data Viewer Tool</h3>
             </div>
             <div className="text-right">
               <span className="text-light">Advanced Geospatial Analysis Tool</span>
@@ -101,6 +109,7 @@ export default function VectorPage() {
               onCompassToggle={handleCompassToggle}
               onGridToggle={handleGridToggle}
               showNotification={showNotification}
+              onUploadShapefile={handleUploadShapefile}
             />
           </div>
         </div>

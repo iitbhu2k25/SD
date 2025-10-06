@@ -11,6 +11,7 @@ declare global {
     changeBasemap?: (basemapId: string) => void;
     loadGeoJSON?: (category: string, subcategory: string) => Promise<any | null>;
     updateMapStyles?: () => void;
+    uploadShapefile?: (files: FileList) => Promise<any>;
   }
 }
 
@@ -86,7 +87,7 @@ async function exportMapToPDF(opts: {
 
   const bounds = mapInstance.getBounds();
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const scale = Math.max(1, qualityDPI / 96) * dpr; // 96 CSS px per inch baseline
+  const scale = Math.max(1, qualityDPI / 96) * dpr;
 
   const overlayRoot = mapEl.parentElement;
   const uiOverlays = Array.from(overlayRoot?.querySelectorAll('.pointer-events-auto') ?? []) as HTMLElement[];
@@ -351,10 +352,9 @@ export default function Map(props: MapProps) {
   const { sidebarCollapsed, onFeatureClick, currentLayer, activeFeature, compassVisible, gridVisible, showNotification } = props;
 
   const [geoJsonLayer, setGeoJsonLayer] = useState<any>(null);
-  const [uploadedLayer, setUploadedLayer] = useState<any>(null); // NEW
+  const [uploadedLayer, setUploadedLayer] = useState<any>(null);
   const [coordinates, setCoordinates] = useState({ lat: 0, lng: 0 });
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false); // NEW
   const [bufferDistance, setBufferDistance] = useState(100);
   const [bufferToolVisible, setBufferToolVisible] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -372,10 +372,6 @@ export default function Map(props: MapProps) {
   const drawnItemsRef = useRef<any>(null);
   const baseLayersRef = useRef<{ [key: string]: any }>({});
   const currentBaseLayerRef = useRef<any>(null);
-
-  // NEW: upload
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectedFilesRef = useRef<FileList | null>(null);
 
   const initializeLeaflet = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -597,7 +593,7 @@ export default function Map(props: MapProps) {
       await waitForMap();
       if (!mapInstanceRef.current) throw new Error('Map not initialized after waiting');
 
-      const response = await fetch(`/django/get_shapefile?category=${category}&subcategory=${subcategory}`);
+      const response = await fetch(`/basics/get_shapefile?category=${category}&subcategory=${subcategory}`);
       if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
 
       const geoJsonData = await response.json();
@@ -682,12 +678,119 @@ export default function Map(props: MapProps) {
     if (uploadedLayer) uploadedLayer.setStyle({ color: lineColor, weight, opacity: 1, fillColor, fillOpacity });
   }, [geoJsonLayer, uploadedLayer]);
 
+  // Upload shapefile handler
+  const uploadShapefile = useCallback(async (files: FileList) => {
+    const acceptExt = ['.zip', '.shp', '.shx', '.dbf', '.prj', '.cpg'];
+    
+    const validateFiles = (files: FileList | null) => {
+      if (!files || files.length === 0) return { ok: false, reason: 'No file selected' };
+      const names = Array.from(files).map(f => f.name.toLowerCase());
+      const hasZip = names.some(n => n.endsWith('.zip'));
+      const hasShp = names.some(n => n.endsWith('.shp'));
+      const allAllowed = names.every(n => acceptExt.some(ext => n.endsWith(ext)));
+      if (!allAllowed) return { ok: false, reason: 'Wrong format. Upload a .zip or the .shp with sidecar files (.shx, .dbf, .prj, .cpg).' };
+      if (!hasZip && !hasShp) return { ok: false, reason: 'No .zip or .shp found. Select a zipped shapefile or include at least the .shp file.' };
+      return { ok: true, reason: '' };
+    };
+
+    const valid = validateFiles(files);
+    if (!valid.ok) {
+      showNotification('Wrong Format', valid.reason, 'error');
+      return null;
+    }
+
+    try {
+      const form = new FormData();
+      Array.from(files).forEach(f => form.append('file', f));
+      
+      const res = await fetch('/basics/upload-shapefile', {
+        method: 'POST',
+        body: form,
+      });
+      
+      const ctype = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        if (ctype.includes('application/json')) {
+          const err = await res.json();
+          throw new Error(err?.error || `Upload failed (${res.status})`);
+        }
+        throw new Error(`Upload failed (${res.status})`);
+      }
+      
+      const payload = await res.json();
+      const geojson = typeof payload === 'string' ? JSON.parse(payload) : payload;
+      
+      if (!geojson || !geojson.features || !Array.isArray(geojson.features) || geojson.features.length === 0) {
+        showNotification('Error', 'No features in uploaded data', 'error');
+        return null;
+      }
+
+      // Plot on map
+      const L = require('leaflet');
+
+      if (uploadedLayer && mapInstanceRef.current?.hasLayer(uploadedLayer)) {
+        mapInstanceRef.current.removeLayer(uploadedLayer);
+        setUploadedLayer(null);
+      }
+      if (geoJsonLayer && mapInstanceRef.current?.hasLayer(geoJsonLayer)) {
+        mapInstanceRef.current.removeLayer(geoJsonLayer);
+        setGeoJsonLayer(null);
+      }
+
+      const lineColorElement = document.getElementById('lineColor') as HTMLInputElement | null;
+      const weightElement = document.getElementById('weight') as HTMLInputElement | null;
+      const fillColorElement = document.getElementById('fillColor') as HTMLInputElement | null;
+      const opacityElement = document.getElementById('opacity') as HTMLInputElement | null;
+
+      const lineColor = lineColorElement?.value || 'red';
+      const weight = parseInt(weightElement?.value || '2', 10);
+      const fillColor = fillColorElement?.value || '#78b4db';
+      const opacity = parseFloat(opacityElement?.value || '0.1');
+
+      const canvasRenderer = L.canvas({ padding: 0.5 });
+      const layer = L.geoJSON(geojson, {
+        renderer: canvasRenderer,
+        style: () => ({
+          color: lineColor,
+          weight,
+          opacity: 1,
+          fillColor,
+          fillOpacity: opacity,
+        }),
+        onEachFeature: (feature: any, lyr: any) => {
+          lyr.on('click', (e: any) => {
+            if (onFeatureClick) {
+              L.DomEvent.stop(e);
+              onFeatureClick(feature, lyr);
+            }
+          });
+        },
+      });
+
+      layer.addTo(mapInstanceRef.current);
+
+      try {
+        const b = (layer as any).getBounds?.();
+        if (b && b.isValid()) {
+          mapInstanceRef.current.fitBounds(b, { padding: [20, 20], maxZoom: 16 });
+        }
+      } catch { /* noop */ }
+
+      setUploadedLayer(layer);
+      return geojson;
+    } catch (e: any) {
+      showNotification('Error', e?.message || 'Upload failed', 'error');
+      return null;
+    }
+  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.changeBasemap = changeBasemap;
       window.loadGeoJSON = loadGeoJSON;
       window.updateMapStyles = updateLayerStyles;
       window.toggleBufferTool = () => setBufferToolVisible((prev) => !prev);
+      window.uploadShapefile = uploadShapefile;
     }
     return () => {
       if (typeof window !== 'undefined') {
@@ -695,9 +798,10 @@ export default function Map(props: MapProps) {
         delete window.loadGeoJSON;
         delete window.updateMapStyles;
         delete window.toggleBufferTool;
+        delete window.uploadShapefile;
       }
     };
-  }, [changeBasemap, loadGeoJSON, updateLayerStyles]);
+  }, [changeBasemap, loadGeoJSON, updateLayerStyles, uploadShapefile]);
 
   useEffect(() => {
     if (mapInstanceRef.current) {
@@ -757,6 +861,7 @@ export default function Map(props: MapProps) {
     mapInstanceRef.current?.setView([22.3511, 78.6677], 5);
     showNotification('Map Reset', 'Returned to default view', 'info');
   };
+  
   const handleLocateClick = () => {
     if (!mapInstanceRef.current) return;
     showNotification('Location', 'Finding your location...', 'info');
@@ -778,13 +883,15 @@ export default function Map(props: MapProps) {
         showNotification('Location Error', 'Could not find your location', 'error');
       });
   };
+  
   const handleFullScreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     } else {
       document.exitFullscreen?.();
     }
   };
+  
   const createBuffer = () => {
     if (!mapInstanceRef.current || !drawnItemsRef.current) return;
 
@@ -912,128 +1019,6 @@ export default function Map(props: MapProps) {
     }
   };
 
-  // ---------- Upload Shapefile: take files from user, send, plot ----------
-  const acceptExt = ['.zip', '.shp', '.shx', '.dbf', '.prj', '.cpg'];
-
-  const validateSelectedFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return { ok: false, reason: 'No file selected' };
-    const names = Array.from(files).map(f => f.name.toLowerCase());
-    const hasZip = names.some(n => n.endsWith('.zip'));
-    const hasShp = names.some(n => n.endsWith('.shp'));
-    const allAllowed = names.every(n => acceptExt.some(ext => n.endsWith(ext)));
-    if (!allAllowed) return { ok: false, reason: 'Wrong format. Upload a .zip or the .shp with sidecar files (.shx, .dbf, .prj, .cpg).' };
-    if (!hasZip && !hasShp) return { ok: false, reason: 'No .zip or .shp found. Select a zipped shapefile or include at least the .shp file.' };
-    return { ok: true, reason: '' };
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    selectedFilesRef.current = e.target.files;
-  };
-
-  const uploadToApi = async (files: FileList) => {
-    const form = new FormData();
-    Array.from(files).forEach(f => form.append('file', f)); // request.FILES.getlist("file")
-    const res = await fetch('/django/upload-shapefile', {
-      method: 'POST',
-      body: form,
-    });
-    const ctype = res.headers.get('content-type') || '';
-    if (!res.ok) {
-      if (ctype.includes('application/json')) {
-        const err = await res.json();
-        throw new Error(err?.error || `Upload failed (${res.status})`);
-      }
-      throw new Error(`Upload failed (${res.status})`);
-    }
-    const payload = await res.json(); // API returns JSON string from gdf.to_json()
-    const geojson = typeof payload === 'string' ? JSON.parse(payload) : payload;
-    return geojson;
-  };
-
-  const plotUploadedGeoJSON = (geojson: any) => {
-    const L = require('leaflet');
-
-    if (uploadedLayer && mapInstanceRef.current?.hasLayer(uploadedLayer)) {
-      mapInstanceRef.current.removeLayer(uploadedLayer);
-      setUploadedLayer(null);
-    }
-    if (geoJsonLayer && mapInstanceRef.current?.hasLayer(geoJsonLayer)) {
-      mapInstanceRef.current.removeLayer(geoJsonLayer);
-      setGeoJsonLayer(null);
-    }
-
-    const lineColorElement = document.getElementById('lineColor') as HTMLInputElement | null;
-    const weightElement = document.getElementById('weight') as HTMLInputElement | null;
-    const fillColorElement = document.getElementById('fillColor') as HTMLInputElement | null;
-    const opacityElement = document.getElementById('opacity') as HTMLInputElement | null;
-
-    const lineColor = lineColorElement?.value || 'red';
-    const weight = parseInt(weightElement?.value || '2', 10);
-    const fillColor = fillColorElement?.value || '#78b4db';
-    const opacity = parseFloat(opacityElement?.value || '0.1');
-
-    const canvasRenderer = L.canvas({ padding: 0.5 });
-    const layer = L.geoJSON(geojson, {
-      renderer: canvasRenderer,
-      style: () => ({
-        color: lineColor,
-        weight,
-        opacity: 1,
-        fillColor,
-        fillOpacity: opacity,
-      }),
-      onEachFeature: (feature: any, lyr: any) => {
-        lyr.on('click', (e: any) => {
-          if (onFeatureClick) {
-            L.DomEvent.stop(e);
-            onFeatureClick(feature, lyr);
-          }
-        });
-      },
-    });
-
-    layer.addTo(mapInstanceRef.current);
-
-    try {
-      const b = (layer as any).getBounds?.();
-      if (b && b.isValid()) {
-        mapInstanceRef.current.fitBounds(b, { padding: [20, 20], maxZoom: 16 });
-      }
-    } catch { /* noop */ }
-
-    setUploadedLayer(layer);
-  };
-
-  const handleUpload = async () => {
-    try {
-      const files = selectedFilesRef.current;
-      const valid = validateSelectedFiles(files);
-      if (!valid.ok) {
-        showNotification('Wrong Format', valid.reason, 'error');
-        return;
-      }
-      setUploading(true);
-      showNotification('Uploading', 'Uploading shapefile...', 'info');
-
-      const geojson = await uploadToApi(files as FileList);
-      if (!geojson || !geojson.features || !Array.isArray(geojson.features) || geojson.features.length === 0) {
-        showNotification('Error', 'No features in uploaded data', 'error');
-        setUploading(false);
-        return;
-      }
-      plotUploadedGeoJSON(geojson);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      selectedFilesRef.current = null;
-
-      showNotification('Success', 'Shapefile uploaded and plotted', 'success');
-    } catch (e: any) {
-      showNotification('Error', e?.message || 'Upload failed', 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
-  // -------------------------------------------------------------------
-
   return (
     <div className="relative w-full h-full">
       <div
@@ -1043,57 +1028,6 @@ export default function Map(props: MapProps) {
         style={{ minHeight: '400px', minWidth: '300px', backgroundColor: '#f0f0f0' }}
       />
       <div className="absolute inset-0 z-10 pointer-events-none">
-        {/* Upload Shapefile Panel */}
-        <div className="absolute top-4 left-40 bg-white/95 rounded-xl shadow-md p-3 w-[min(360px,calc(100vw-2rem))] pointer-events-auto">
-  <div className="flex items-center justify-between mb-2">
-    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0l-4 4m4-4l4 4"/>
-      </svg>
-      Upload Shapefile
-    </h3>
-  </div>
-
-  <div className="space-y-2">
-    <label
-      htmlFor="shapefile-upload"
-      className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-8m0 0L8 12m4-4l4 4M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1"/>
-      </svg>
-      <span className="text-xs text-gray-600">Choose or drag & drop files</span>
-      <input
-        id="shapefile-upload"
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".zip,.shp,.dbf,.shx,.prj,.cpg"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-    </label>
-
-    <div className="flex items-center gap-2">
-      <button
-        disabled={uploading || !fileInputRef.current?.files?.length}
-        onClick={handleUpload}
-        className={`px-3 py-1.5 rounded-md text-white text-sm font-medium transition ${
-          uploading || !fileInputRef.current?.files?.length
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-emerald-600 hover:bg-emerald-700'
-        }`}
-        title="Upload and plot"
-      >
-        {uploading ? 'Uploading…' : 'Upload & Plot'}
-      </button>
-      <span className="text-xs text-gray-500">
-        Accepts .zip or .shp + sidecars (.dbf, .shx, .prj).
-      </span>
-    </div>
-  </div>
-</div>
-
         <div className="absolute bottom-1 left-28 bg-white/90 py-1 px-3 rounded-lg shadow-md backdrop-blur-sm text-sm pointer-events-auto">
           <span className="font-medium text-gray-700">Lat: {coordinates.lat} | Lng: {coordinates.lng}</span>
         </div>
