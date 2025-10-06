@@ -2,7 +2,7 @@ from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_location
 from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
-from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper
+from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
 router=APIRouter()
@@ -52,7 +52,7 @@ async def get_stretch(db:db_dependency,payload:STPStretchesInput):
 async def get_stretch(db:db_dependency,payload:STPDrainInput):
     return Stp_location.get_drain(db,payload.stretch_ids)
 
-@router.post("/get_sutability_drain",response_model=list[STPDrainNewOutput],status_code=status.HTTP_201_CREATED)
+@router.post("/get_suitability_drain",response_model=list[STPDrainNewOutput],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_stretch(db:db_dependency,payload:STPDrainInput):
     return Stp_location.get_drain_new(db,payload.stretch_ids)
@@ -64,10 +64,10 @@ async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
     ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
     return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
-@router.post("/get_sutability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
+@router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
 async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
-    ans=STPSutabilityMapper().cachement_villages(db,payload.drain_nos)
+    ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
     return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
 @router.get("/get_raster_visual",status_code=status.HTTP_201_CREATED)

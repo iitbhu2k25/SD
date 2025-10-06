@@ -21,6 +21,7 @@ export interface Gwpl_Table{
   "Sand thickness": number;
   "Temperature": number;
   "Top clay thickness":number;
+  "Merit Score": number;
 }
 export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
   {
@@ -35,9 +36,17 @@ export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
     name: 'Rank',
     selector: row => row.Rank,
     sortable: true,
-    format: row => `${row.Rank.toFixed(2)}%`,
+    format: row => row.Rank,
     width: '120px',
-  },  
+  }
+  ,
+   {
+    name: 'Merit Score',
+    selector: row => row["Merit Score"],
+    sortable: true,
+    format: row => `${row["Merit Score"].toFixed(2)}`,
+    width: '120px',
+  },
   {
     name: 'Groundwater table',
     selector: row => row["Groundwater table"],
@@ -72,7 +81,7 @@ export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
     sortable: true,
     format: row => `${row["Top clay thickness"].toFixed(2)}`,
     width: '120px',
-  },
+  }
 ]
 // Props interface for the component
 interface VillageDataTableProps {

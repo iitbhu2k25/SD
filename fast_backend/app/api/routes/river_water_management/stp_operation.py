@@ -1,12 +1,12 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_sutability_Area,Stp_Area,STPCategory,StpSutabilityAdminReport,StpSutabilityDrainReport,STPSutabilityOutput,STPPriorityOutput,STPSutabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
-from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPSutabilityMapper,STP_Area
+from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper,STP_Area
 from app.api.service.celery.stp_priority_admin_document import document_gen
 from app.api.service.celery.stp_priority_drain_document import document_gen1
-from app.api.service.celery.stp_sutability_admin_report import document_gen2
-from app.api.service.celery.stp_sutability_drain_report import document_gen3
+from app.api.service.celery.stp_suitability_admin_report import document_gen2
+from app.api.service.celery.stp_suitability_drain_report import document_gen3
 from app.conf.ws_config import ConnectionManager
 from fastapi import  WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -51,47 +51,47 @@ async def stp_priority_drain_report(payload:StpPriorityDrainReport):
  
  
  
-# stp sutability
-@router.get("/get_sutability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPSutabilityOutput])
+# stp suitability
+@router.get("/get_suitability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPsuitabilityOutput])
 @validate
-async def get_raster_sutability(db:db_dependency,category:str,all_data: bool = False):
-    return Stp_service.get_raster_sutability(db,category,all_data)
+async def get_raster_suitability(db:db_dependency,category:str,all_data: bool = False):
+    return Stp_service.get_raster_suitability(db,category,all_data)
 
 
-@router.post("/stp_sutability_visual_display",status_code=status.HTTP_201_CREATED,)
+@router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
-    return STPSutabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
+    return STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
 
     
-@router.post("/stp_sutability",status_code=status.HTTP_201_CREATED,)
+@router.post("/stp_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
-async def stp_classify(db:db_dependency,payload:STPSutabilityInput):
-    return STPSutabilityMapper().create_sutability_map(db,payload)
+async def stp_classify(db:db_dependency,payload:STPsuitabilityInput):
+    return STPsuitabilityMapper().create_suitability_map(db,payload)
 
 
-@router.post("/stp_sutability_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@router.post("/stp_suitability_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def stp_sutability_admin_report(payload:StpSutabilityAdminReport):
+async def stp_suitability_admin_report(payload:StpsuitabilityAdminReport):
     task_id= document_gen2.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
-@router.post("/stp_sutability_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
+@router.post("/stp_suitability_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def stp_sutability_drain_report(payload:StpSutabilityDrainReport):
+async def stp_suitability_drain_report(payload:StpsuitabilityDrainReport):
     task_id= document_gen3.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
 
-@router.get("/get_stp_sutability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)
+@router.get("/get_stp_suitability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)
 @validate
-async def stp_sutability_area(db:db_dependency):
-    return  Stp_service.get_sutability_area(db)
+async def stp_suitability_area(db:db_dependency):
+    return  Stp_service.get_suitability_area(db)
 
 
-@router.post("/stp_sutability_area",status_code=status.HTTP_201_CREATED)
+@router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED)
 @validate
-async def stp_sutability_area(db:db_dependency,payload:STP_sutability_Area):
+async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
     return STP_Area().stp_area_finding(db,payload)
 
 @router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)

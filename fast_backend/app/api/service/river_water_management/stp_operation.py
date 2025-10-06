@@ -19,7 +19,7 @@ import uuid
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.api.service.river_water_management import spt_service
-from app.database.crud.stp_crud import STP_sutability_crud
+from app.database.crud.stp_crud import STP_suitability_crud
 from app.conf.settings import Settings
 from datetime import datetime
 import zipfile
@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 from rasterio.features import rasterize
 import pandas as pd
 from rasterstats import zonal_stats
-from app.api.schema.stp_schema import STP_sutability_Area
+from app.api.schema.stp_schema import STP_suitability_Area
 from scipy.ndimage import label
 from app.database.crud.stp_crud import Stp_area_crud
 from app.utils.name import Unique_name
@@ -476,8 +476,7 @@ class RasterProcess(VectorProcess):
 
         if reverse:
             colors = colors[::-1]
-        for i in intervals:
-            print("intervals ",intervals)
+       
         sld_content = self._generate_sld_xml(intervals, colors)
         unique_name = f"style_{uuid.uuid4().hex}.sld"
         output_sld_path = os.path.join(self.output_dir, unique_name)        
@@ -809,7 +808,7 @@ class STPPriorityMapper:
         return False
 
       
-class STPSutabilityMapper:
+class STPsuitabilityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
@@ -946,16 +945,16 @@ class STPSutabilityMapper:
         return name_only
     
     def _get_operations_raster(self,db:db_dependency,payload:List):
-        all_sutability_raster=STP_sutability_crud(db).get_all(True)
+        all_suitability_raster=STP_suitability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
             [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'condition' and raster.id in payload_dict
         ]
         constraintion_raster=[
             os.path.join(self.BASE_DIR, raster.file_path)
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'constraint' and raster.id in payload_dict
         ]
         return condition_raster,constraintion_raster
@@ -970,7 +969,7 @@ class STPSutabilityMapper:
         constrained_path, _ = self.processor.apply_constraints_new(
                 weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
             )
-        final_name = Unique_name.unique_name_with_ext("stp_sutability","tif")
+        final_name = Unique_name.unique_name_with_ext("stp_suitability","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
 
     def _cliping_raster(self,final_path:str,final_name:str,payload:List):
@@ -1008,13 +1007,13 @@ class STPSutabilityMapper:
             raster_weights.append(i[1])
         return raster_path,raster_weights,constraintion_raster
     
-    def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
+    def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
-        final_name = Unique_name.unique_name_with_ext('STP_Sutability','tif') 
+        final_name = Unique_name.unique_name_with_ext('STP_suitability','tif') 
         final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
-        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="suitability")
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
@@ -1033,7 +1032,7 @@ class STPSutabilityMapper:
 
     def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
-            raster_path=spt_service.Stp_service.get_sutability_category(db,all_data=True)
+            raster_path=spt_service.Stp_service.get_suitability_category(db,all_data=True)
             raster_path = [{"file_name": i.file_name,
                             "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
                             "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
@@ -1186,7 +1185,7 @@ class STP_Area:
             print(f"   • Area: {row['area_ha']:.2f} ha")
             print(f"   • Difference from Required: {row['closeness']:.2f} ha\n")
         return selected
-    def stp_area_finding(self,db:db_dependency,payload:STP_sutability_Area):
+    def stp_area_finding(self,db:db_dependency,payload:STP_suitability_Area):
         raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']
         MLD_CAPACITY=payload.MLD_CAPACITY
         land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value

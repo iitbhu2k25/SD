@@ -1,4 +1,4 @@
-from app.database.models import State,District,STP_Drain_sutability,SubDistrict,STP_villages,Towns,STP_River,STP_Drain,STP_Stretches,STP_Catchment
+from app.database.models import State,District,STP_Drain_suitability,SubDistrict,STP_villages,Towns,STP_River,STP_Drain,STP_Stretches,STP_Catchment
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
 import sqlalchemy as sq
@@ -87,7 +87,7 @@ class Stp_drain_crud(CrudBase):
         return self._pagination(query,all_data)
 
 class Stp_drain_new_crud(CrudBase):
-    def __init__(self,db:Session,Model=STP_Drain_sutability):
+    def __init__(self,db:Session,Model=STP_Drain_suitability):
         super().__init__(db,Model)
         self.obj = None
 

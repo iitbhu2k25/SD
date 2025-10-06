@@ -190,8 +190,6 @@ const MainContent = () => {
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <CategorySelector />
                     </div>
-
-                 
                     <div className="mb-4 text-sm text-red-600 font-medium flex items-center">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -207,8 +205,6 @@ const MainContent = () => {
                       </svg>
                       At least one condition category must be selected
                     </div>
-
-                    {/* Submit Button */}
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
@@ -267,7 +263,6 @@ const MainContent = () => {
                   </div>
                 )}
               </div>
-
             </section>
           </div>
 
@@ -275,17 +270,15 @@ const MainContent = () => {
           <div className="lg:col-span-4 space-y-4">
 
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
-              {/* Larger Map Component */}
+             
               <div className="w-full p-4 md:min-h-[500px]">
                 <MapView />
               </div>
             </section>
-
-            {/* Category Influence Sliders in a separate box below the map */}
             {showCategories && (
               <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
-                  {/* Tabs for switching between condition and constraint categories */}
+              
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
@@ -327,7 +320,7 @@ const MainContent = () => {
                     </div>
                   ) : (
                     <div className="p-4">
-                      {/* Just display the names of selected constraint categories */}
+           
                       <div className="space-y-2">
                         <h3 className="text-lg font-semibold mb-4 text-gray-800">
                           Selected Constraints

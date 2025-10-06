@@ -316,6 +316,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         if (response.status != 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        console.log("xxx",response.message)
         setTableData(response.message as Gwpl_Table[]);
       } catch (error) {
         console.log('Error fetching villages:', error);

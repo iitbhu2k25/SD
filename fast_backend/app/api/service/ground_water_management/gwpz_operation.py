@@ -22,8 +22,8 @@ import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
-from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSutability_svc
-from app.database.crud.gwpz_crud import MARSutability_crud,GWPL_crud
+from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSuitability_svc
+from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
 from app.utils.name import Unique_name
@@ -428,8 +428,7 @@ class RasterProcess(VectorProcess):
 
         if reverse:
             colors = colors[::-1]
-        for i in intervals:
-            print("intervals ",intervals)
+       
         sld_content = self._generate_sld_xml(intervals, colors)
         unique_name = f"style_{uuid.uuid4().hex}.sld"
         output_sld_path = os.path.join(self.output_dir, unique_name)        
@@ -668,7 +667,7 @@ class GWPumpingMapper:
         )
         relevance_raster=GWPL_crud(db).get_raster_category(category="refrence",all_data=True)
         relevance_raster = [[raster.file_name,os.path.join(self.BASE_DIR, raster.file_path)] for raster in relevance_raster]
-        relevance_raster.append(["Rank",resp["raster_path"]])
+        relevance_raster.append(["Merit Score",resp["raster_path"]])
         return relevance_raster
     def _get_operations_raster(self,db:db_dependency,payload:List):
         all_sutability_raster=GWPL_crud(db).get_all(True)
@@ -713,6 +712,18 @@ class GWPumpingMapper:
         final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place="Drain")
         return final_path,vector_name,clip
     
+    def _find_rank(self,table):
+        sorted_records = sorted(
+        [(i, rec["Merit Score"]) for i, rec in enumerate(table) if rec.get("Merit Score") is not None],
+        key=lambda x: x[1],
+        reverse=True
+        )
+        rank = 1
+        for idx, score in sorted_records:
+            table[idx]["Rank"] = rank
+            rank+= 1
+
+        return table
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
             raster_path=GWPL_service.get_GWPL_visual(db)
@@ -768,19 +779,17 @@ class GWPumpingMapper:
             for col_name, raster_path in Relevance:
                 with rasterio.open(raster_path) as src:
                     try:
-                        sampled_val = next(src.sample([(lon, lat)]))
+                        sampled_val = next(src.sample([(lon, lat)]), None)
                         val = float(sampled_val[0]) if sampled_val is not None else None
                     except Exception as e:
                         print(f"Error sampling {col_name} at ({lon},{lat}): {e}")
                         val = None
 
                     well_data[col_name] = val
+                records.append(well_data)
+        return self._find_rank(records)
 
-            records.append(well_data)
-        result = pd.DataFrame(records)
-        return records
-
-class MARSutabilityMapper:                                                                                                                                                                                                                                      
+class MARSuitabilityMapper:                                                                                                                                                                                                                                      
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
@@ -788,7 +797,7 @@ class MARSutabilityMapper:
         self.BASE_DIR="/home/app/"
     
     def _get_operations_raster(self,db:db_dependency,payload:List):
-        all_sutability_raster=MARSutability_crud(db).get_all(True)
+        all_sutability_raster=MARSuitability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
             [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
@@ -830,7 +839,7 @@ class MARSutabilityMapper:
     
     def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
-            raster_path=MARSutability_svc.get_MAR_visual(db)
+            raster_path=MARSuitability_svc.get_MAR_visual(db)
             raster_path = [{"file_name": i.file_name,
                             "path": os.path.abspath(self.BASE_DIR+"/"+i.file_path), 
                             "sld_path": os.path.abspath(self.BASE_DIR+"/"+i.sld_path,)                           

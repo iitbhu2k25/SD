@@ -20,17 +20,17 @@ boundry_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Boundary', 'Bou
 town_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Town', 'Town.zip')
 
 stp_priority = os.path.join(BASE_DIRR, "csv_file_stp", "stp_priority_visual_raster.csv")
-stp_sutability = os.path.join(BASE_DIRR,  "csv_file_stp", "stp_sutability_visual_raster.csv")
+stp_suitability = os.path.join(BASE_DIRR,  "csv_file_stp", "stp_suitability_visual_raster.csv")
 groundwater_identification = os.path.join(BASE_DIRR,  "csv_file_stp", "gwli_visual.csv")
 groundwater_zone = os.path.join(BASE_DIRR,  "csv_file_stp", "gwz_visual.csv")
-mar_sutability = os.path.join(BASE_DIRR,  "csv_file_stp", "mar_sutability_visual_raster.csv")
+mar_suitability = os.path.join(BASE_DIRR,  "csv_file_stp", "mar_suitability_visual_raster.csv")
 
 
 csv_files = [
-    mar_sutability,
+    mar_suitability,
     groundwater_zone,
     stp_priority,
-    stp_sutability
+    stp_suitability
 ]
 
 visual_raster=Geoserver()

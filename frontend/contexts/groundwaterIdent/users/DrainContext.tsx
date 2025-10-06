@@ -262,7 +262,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchDrains = async () => {
       try {
         const response = await fetch(
-          "/api/location/get_sutability_drain",
+          "/api/location/get_suitability_drain",
           {
             method: "POST",
             headers: {
@@ -316,7 +316,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchCatchments = async () => {
       try {
         const response = await fetch(
-          "/api/location/get_sutability_cachement",
+          "/api/location/get_suitability_cachement",
           {
             method: "POST",
             headers: {

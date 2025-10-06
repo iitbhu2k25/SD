@@ -34,8 +34,8 @@ class Groundwater_Identification_visual_raster(Base):
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
 
-class MAR_sutability_raster(Base):
-    __tablename__='mar_sutability_raster'
+class MAR_suitability_raster(Base):
+    __tablename__='mar_suitability_raster'
     file_name:Mapped[str]=mapped_column(String,nullable=False)
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     weight:Mapped[float]=mapped_column(Float,nullable=False)
@@ -43,8 +43,8 @@ class MAR_sutability_raster(Base):
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
 
 
-class MAR_sutability_visual_raster(Base):
-    __tablename__='mar_sutability_visual_raster'
+class MAR_suitability_visual_raster(Base):
+    __tablename__='mar_suitability_visual_raster'
     file_name:Mapped[str]=mapped_column(String,nullable=False)
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)

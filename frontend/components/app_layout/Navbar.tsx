@@ -301,7 +301,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/gwm/mar_sutability"
+                        href="/dss/gwm/mar_suitability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         MAR site Suitability
@@ -592,7 +592,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/rwm/wwt/stp_sutability"
+                        href="/dss/rwm/wwt/stp_suitability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         STP Suitability

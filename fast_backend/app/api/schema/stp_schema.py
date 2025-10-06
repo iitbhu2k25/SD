@@ -43,7 +43,7 @@ class STPClassification(BaseModel):
     class Config:
         from_attributes = True
 
-class STP_sutability_Area(BaseModel):
+class STP_suitability_Area(BaseModel):
     TREATMENT_TECHNOLOGY:int
     MLD_CAPACITY:float
     CUSTOM_LAND_PER_MLD: float = Field(2.0, le=2) 
@@ -64,7 +64,7 @@ class GWPL_Table_input(BaseModel):
     class Config:
         from_attributes = True
     
-class STPSutabilityInput(BaseModel):
+class STPsuitabilityInput(BaseModel):
     data: List[Raster_operation_input] = None
     clip: List[int] = None
     all_data: bool = True
@@ -100,7 +100,7 @@ class Stp_Area(BaseModel):
     tech_name:str
     tech_value:float
 
-class STPSutabilityOutput(STPPriorityOutput):
+class STPsuitabilityOutput(STPPriorityOutput):
     raster_category: str  
 
     class Config:
@@ -210,7 +210,7 @@ class StpPriorityDrainReport(BaseModel):
     location: LocationData
     weight_data: List[weight_insight]
 
-class StpSutabilityAdminReport(BaseModel):
+class StpsuitabilityAdminReport(BaseModel):
 
     class LocationData(BaseModel):
         state:str
@@ -227,7 +227,7 @@ class StpSutabilityAdminReport(BaseModel):
     weight_data: List[weight_insight]
     non_weight_data: List[weight_insight]
     
-class StpSutabilityDrainReport(BaseModel):
+class StpsuitabilityDrainReport(BaseModel):
 
     class LocationData(BaseModel):
         River:str

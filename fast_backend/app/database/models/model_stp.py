@@ -62,7 +62,7 @@ class STP_Stretches(Base):
     river_Code: Mapped[int] = mapped_column(ForeignKey("stp_river.River_Code"), nullable=False)  # Fixed case
     river: Mapped["STP_River"] = relationship(back_populates="stretches")
     drains: Mapped[List["STP_Drain"]] = relationship(back_populates="stretch")
-    drain_new:Mapped[List["STP_Drain_sutability"]]=relationship(back_populates="stretch")
+    drain_new:Mapped[List["STP_Drain_suitability"]]=relationship(back_populates="stretch")
 
 class STP_Drain(Base):
     __tablename__ = "stp_drain"
@@ -73,8 +73,8 @@ class STP_Drain(Base):
     catchment: Mapped["STP_Catchment"] = relationship(back_populates="drains")
     River_code: Mapped[int] = mapped_column(Integer, nullable=False)
 
-class STP_Drain_sutability(Base):
-    __tablename__ = "stp_drain_sutability"
+class STP_Drain_suitability(Base):
+    __tablename__ = "stp_drain_suitability"
     
     Drain_No: Mapped[int] = mapped_column(Integer, primary_key=True, unique=True, nullable=False)
     stretch_id: Mapped[int] = mapped_column(ForeignKey("stp_stretches.id"), nullable=False)  # Renamed for clarity
@@ -100,8 +100,8 @@ class STP_raster(Base):
     weight:Mapped[float]=mapped_column(Float,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
 
-class STP_sutability_raster(Base):
-    __tablename__='stp_sutability_raster'
+class STP_suitability_raster(Base):
+    __tablename__='stp_suitability_raster'
     file_name:Mapped[str]=mapped_column(String,nullable=False)
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     weight:Mapped[float]=mapped_column(Float,nullable=False)
@@ -116,16 +116,16 @@ class STP_Priority_Visual_raster(Base):
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
 
-class STP_sutability_visual_raster(Base):
-    __tablename__='stp_sutability_visual_raster'
+class STP_suitability_visual_raster(Base):
+    __tablename__='stp_suitability_visual_raster'
     file_name:Mapped[str]=mapped_column(String,nullable=False)
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
 
-class Stp_sutability_Area(Base):
-    __tablename__='stp_sutability_area'
+class Stp_suitability_Area(Base):
+    __tablename__='stp_suitability_area'
     tech_name:Mapped[str]=mapped_column(String,nullable=False)
     tech_value:Mapped[float]=mapped_column(Float,nullable=False)
 

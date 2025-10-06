@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.database.crud.gwpz_crud import GWZ_crud,MARSutability_crud,MARSutability_visualization_crud,GWZ_visualization_crud,GWPL_crud,GWPL_visualization_crud
+from app.database.crud.gwpz_crud import GWZ_crud,MARSuitability_crud,MARSuitability_visualization_crud,GWZ_visualization_crud,GWPL_crud,GWPL_visualization_crud
 from app.api.schema.stp_schema import STPCategory
 import os
 from  app.api.service.river_water_management.spt_service import Stp_service
@@ -41,7 +41,7 @@ class GWPL_service:
     def get_GWPL_visual(db:Session,all_data:bool=True):
         return GWPL_visualization_crud(db).get_all_visual()
 
-class MARSutability_svc:
+class MARSuitability_svc:
     # def get_raster(db:Session,payload:STPCategory):
     #     raster_path=[]
     #     raster_weights=[]
@@ -54,19 +54,19 @@ class MARSutability_svc:
     #     return raster_path,raster_weights
     
     def get_raster_MAR(db:Session,category:str,all_data:bool=False):
-        return MARSutability_crud(db).get_raster_category(category,all_data)
+        return MARSuitability_crud(db).get_raster_category(category,all_data)
 
     def get_MAR_visual(db:Session,all_data:bool=True):
-        return MARSutability_visualization_crud(db).get_all_visual()
+        return MARSuitability_visualization_crud(db).get_all_visual()
     
 class Raster_visual:
     @staticmethod
     def visual_raster(db):
         temp = Stp_service.get_priority_visual(db)
-        temp2 = Stp_service.get_sutability_category(db)
+        temp2 = Stp_service.get_suitability_category(db)
         temp3= Gwzp_service.get_GWA_Priority_visual(db)
         temp4 = GWPL_service.get_GWPL_visual(db)
-        temp5=MARSutability_svc.get_MAR_visual(db)
+        temp5=MARSuitability_svc.get_MAR_visual(db)
 
         
         resp = [
