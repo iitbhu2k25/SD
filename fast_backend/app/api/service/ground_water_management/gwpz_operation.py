@@ -7,6 +7,7 @@ from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
 from rasterio.mask import mask
+from pyproj import Transformer
 from shapely.geometry import mapping
 from tqdm import tqdm
 from app.api.service.geoserver import Geoserver
@@ -779,14 +780,21 @@ class GWPumpingMapper:
             for col_name, raster_path in Relevance:
                 with rasterio.open(raster_path) as src:
                     try:
-                        sampled_val = next(src.sample([(lon, lat)]), None)
+                        if src.crs.to_string() != "EPSG:4326":
+                            transformer = Transformer.from_crs("EPSG:4326", src.crs, always_xy=True)
+                            lon_t, lat_t = transformer.transform(lon, lat)
+                        else:
+                            lon_t, lat_t = lon, lat
+
+                        sampled_val = next(src.sample([(lon_t, lat_t)]), None)
                         val = float(sampled_val[0]) if sampled_val is not None else None
+                        
                     except Exception as e:
                         print(f"Error sampling {col_name} at ({lon},{lat}): {e}")
                         val = None
 
                     well_data[col_name] = val
-                records.append(well_data)
+            records.append(well_data)
         return self._find_rank(records)
 
 class MARSuitabilityMapper:                                                                                                                                                                                                                                      
