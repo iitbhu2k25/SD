@@ -143,9 +143,10 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
     completeWellData['LONGITUDE'] = wellData['LONGITUDE'] || coordinates[0].toString();
 
     // Set default block if empty
-    if (!completeWellData['BLOCK'] || completeWellData['BLOCK'].trim() === '') {
-      completeWellData['BLOCK'] = 'Unknown';
-    }
+ if (!completeWellData['BLOCK'] || completeWellData['BLOCK']?.toString().trim() === '') {
+  completeWellData['BLOCK'] = 'Unknown';
+}
+
 
     console.log("Complete well data for table:", completeWellData);
     console.log("Adding well with", Object.keys(completeWellData).length, "total columns");
@@ -231,7 +232,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
         const saveSuccess = await saveWellTable();
 
         if (!saveSuccess) {
-          console.log("Failed to save wells table");
+         console.log("Failed to save wells table");
           alert("Failed to save wells table. Please try again.");
           return;
         }
@@ -255,7 +256,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
       }
 
     } catch (error: any) {
-      console.log("Error during save and confirm process:", error);
+     console.log("Error during save and confirm process:", error);
       alert(`Error during confirmation: ${error.message}`);
     } finally {
       setIsConfirming(false);
@@ -281,7 +282,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
       handleWellsModeChange(mode, forceRemoveWellPointsLayer);
       console.log("Mode change successful");
     } catch (error) {
-      console.log("Error changing mode:", error);
+     console.log("Error changing mode:", error);
     }
   };
 
@@ -320,19 +321,17 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
                 <div className="flex items-center">
                   <input
                     type="radio"
-                    id="existing-wells"
-                    name="wellSelection"
                     value="existing_and_new"
                     checked={wellSelectionMode === 'existing_and_new'}
-                    onChange={(e) => {
-                      console.log("Existing wells radio clicked");
-                      handleRadioChange('existing_and_new');
-                    }}
-                    className="mr-2 cursor-pointer"
+                    onChange={() => handleWellsModeChange('existing_and_new')}
+                    disabled={isWellTableSaved} // disable instead of blocking change
                   />
+
+
+
                   <label
                     htmlFor="existing-wells"
-                    className="text-md font-medium text-gray-800 cursor-pointer"
+                    className="text-md font-medium text-gray-800 cursor-pointer ml-2"
                     onClick={() => {
                       console.log("Existing wells label clicked");
                       handleRadioChange('existing_and_new');
@@ -345,19 +344,14 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
                 <div className="flex items-center">
                   <input
                     type="radio"
-                    id="upload-csv"
-                    name="wellSelection"
                     value="upload_csv"
                     checked={wellSelectionMode === 'upload_csv'}
-                    onChange={(e) => {
-                      console.log("Upload CSV radio clicked");
-                      handleRadioChange('upload_csv');
-                    }}
-                    className="mr-2 cursor-pointer"
+                    onChange={() => handleWellsModeChange('upload_csv')}
+                    disabled={isWellTableSaved} // disable instead of blocking change
                   />
                   <label
                     htmlFor="upload-csv"
-                    className="text-md font-medium text-gray-800 cursor-pointer"
+                    className="text-md font-medium text-gray-800 cursor-pointer ml-2"
                     onClick={() => {
                       console.log("Upload CSV label clicked");
                       handleRadioChange('upload_csv');
@@ -638,8 +632,8 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
           <div className="flex justify-center space-x-4 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
             <button
               className={`${areaConfirmed && wellsData.length > 0
-                  ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg transform hover:scale-105 transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50 rounded-full py-3 px-6"
-                  : "bg-gray-400 cursor-not-allowed text-white rounded-full py-3 px-6"
+                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg transform hover:scale-105 transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50 rounded-full py-3 px-6"
+                : "bg-gray-400 cursor-not-allowed text-white rounded-full py-3 px-6"
                 }`}
               onClick={handleFinalConfirm}
               disabled={!areaConfirmed || wellsData.length === 0 || wellsLoading || isConfirming}

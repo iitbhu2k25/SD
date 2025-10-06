@@ -244,7 +244,7 @@ const Navbar = (): JSX.Element => {
                     </li>
                     <li>
                       <Link
-                        href="/dss/default"
+                        href="/dss/gwm/resource_estimation/wqa"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                       >
                         Water Quality Assessment

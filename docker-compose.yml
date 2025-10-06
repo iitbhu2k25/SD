@@ -1,18 +1,18 @@
 
 services:
-  frontend:
-    build:
-      context: ./frontend/
-      dockerfile: dockerfile.frontend 
-    image: frontend:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/home/app:z
-    depends_on:
-      - fast_backend
-      - geoserver
-    command: npm start
+  # frontend:
+  #   build:
+  #     context: ./frontend/
+  #     dockerfile: dockerfile.frontend 
+  #   image: frontend:latest
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./frontend:/home/app:z
+  #   depends_on:
+  #     - fast_backend
+  #     - geoserver
+  #   command: npm start
 
 
   backend:
@@ -45,8 +45,8 @@ services:
       - .fastdb.env
     volumes:
       - ./fast_backend:/home/app:z
-    command: gunicorn app.main:app --config gunicorn.conf.py --reload
-    #command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload
+    #command: gunicorn app.main:app --config gunicorn.conf.py --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload
     restart: always
     depends_on:
       - fast_db
@@ -109,22 +109,22 @@ services:
     env_file:
       - .fastdb.env
    
-  flower:
-    build:
-      context: ./fast_backend
-      dockerfile: Dockerfile
-    image: flower:latest
-    command: celery --broker=redis://redis:6379/0 flower --port=5555
-    ports:
-      - 5556:5555
-    env_file:
-      - .env
-    depends_on:
-      - redis
-      - celery
-      - geoserver
-    expose:
-      - 5556
+  # flower:
+  #   build:
+  #     context: ./fast_backend
+  #     dockerfile: Dockerfile
+  #   image: flower:latest
+  #   command: celery --broker=redis://redis:6379/0 flower --port=5555
+  #   ports:
+  #     - 5556:5555
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - redis
+  #     - celery
+  #     - geoserver
+  #   expose:
+  #     - 5556
 
   geoserver:
     image: kartoza/geoserver:latest

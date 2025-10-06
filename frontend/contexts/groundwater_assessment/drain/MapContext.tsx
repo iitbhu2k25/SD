@@ -27,7 +27,7 @@ import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationCon
 import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellContext";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = "http://localhost:9090/geoserver/myworkspace/wfs";
+const GEOSERVER_BASE_URL = "http://localhost:9090/geoserver/api/myworkspace/wfs";
 const GEOSERVER_WMS_URL = "http://localhost:9090/geoserver";
 
 // Base maps configuration

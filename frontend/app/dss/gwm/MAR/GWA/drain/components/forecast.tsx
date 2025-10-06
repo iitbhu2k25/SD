@@ -92,7 +92,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
     if (!tableData.length) return [];
 
     const years = new Set<number>();
-    tableData.forEach(row => {
+    tableData.forEach((row: { forecasts: any[]; }) => {
       row.forecasts.forEach((forecast: any) => {
         if (forecast.year) years.add(forecast.year);
       });
@@ -108,7 +108,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
     const headers = ['Village', ...allForecastYears.map(year => `Forecasted ${year}`)];
     const csvContent = [
       headers.join(','),
-      ...tableData.map(row => {
+      ...tableData.map((row: { village: any; forecasts: any[]; }) => {
         const values = [row.village];
         allForecastYears.forEach(year => {
           const forecast = row.forecasts.find((f: any) => f.year === year);
@@ -254,38 +254,38 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
 
   return (
     <div className="h-full overflow-auto flex flex-col">
-          {/* Forecast Generation Loading Overlay */}
-    {isLoading && (
-      <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="text-center bg-white rounded-xl shadow-2xl p-8">
-          <div className="inline-block relative">
-            <svg className="animate-spin h-20 w-20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <defs>
-                <linearGradient id="spinner-gradient-forecast" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3B82F6" />
-                  <stop offset="50%" stopColor="#8B5CF6" />
-                  <stop offset="100%" stopColor="#EC4899" />
-                </linearGradient>
-                <linearGradient id="spinner-gradient-2-forecast" x1="100%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#10B981" />
-                  <stop offset="50%" stopColor="#3B82F6" />
-                  <stop offset="100%" stopColor="#6366F1" />
-                </linearGradient>
-              </defs>
-              <circle className="opacity-20" cx="12" cy="12" r="10" stroke="url(#spinner-gradient-forecast)" strokeWidth="3" />
-              <path className="opacity-90" fill="url(#spinner-gradient-2-forecast)" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-3 h-3 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse"></div>
+      {/* Forecast Generation Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center bg-white rounded-xl shadow-2xl p-8">
+            <div className="inline-block relative">
+              <svg className="animate-spin h-20 w-20" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <defs>
+                  <linearGradient id="spinner-gradient-forecast" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#3B82F6" />
+                    <stop offset="50%" stopColor="#8B5CF6" />
+                    <stop offset="100%" stopColor="#EC4899" />
+                  </linearGradient>
+                  <linearGradient id="spinner-gradient-2-forecast" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="50%" stopColor="#3B82F6" />
+                    <stop offset="100%" stopColor="#6366F1" />
+                  </linearGradient>
+                </defs>
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="url(#spinner-gradient-forecast)" strokeWidth="3" />
+                <path className="opacity-90" fill="url(#spinner-gradient-2-forecast)" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-3 h-3 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full animate-pulse"></div>
+              </div>
             </div>
+            <p className="text-xl font-semibold mt-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              Generating Forecast...
+            </p>
+            <p className="text-sm text-gray-500 mt-2">Please wait while we analyze and predict groundwater trends</p>
           </div>
-          <p className="text-xl font-semibold mt-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Generating Forecast...
-          </p>
-          <p className="text-sm text-gray-500 mt-2">Please wait while we analyze and predict groundwater trends</p>
         </div>
-      </div>
-    )}
+      )}
       <h3 className="font-medium text-blue-600 mb-4">Groundwater Forecast Analysis (Step {step})</h3>
 
       {error && (
@@ -740,7 +740,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {tableData.map((row, index) => (
+                        {tableData.map((row: { village: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; forecasts: any[]; }, index: React.Key | null | undefined) => (
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {row.village}
@@ -823,9 +823,12 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
                             <Tooltip
                               formatter={(value, name) => [
                                 typeof value === 'number' ? value.toFixed(2) : value,
-                                name.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+                                String(name) // convert to string first
+                                  .replace('_', ' ')
+                                  .replace(/\b\w/g, (l: string) => l.toUpperCase())
                               ]}
                             />
+
                             {selectedVillages.map((villageName, idx) => {
                               const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
                               const historicalColor = colors[idx % colors.length];

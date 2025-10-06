@@ -320,7 +320,7 @@ const MapComponent: React.FC = () => {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.log('Error toggling fullscreen:', error);
+     console.log('Error toggling fullscreen:', error);
     }
   };
 

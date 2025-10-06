@@ -32,7 +32,8 @@ INSTALLED_APPS = [
     "authapp",
     "gwa",
     "swa",
-    "dashboard"
+    "dashboard",
+    "wqa"
 ]
 
 MIDDLEWARE = [

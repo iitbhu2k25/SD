@@ -124,5 +124,5 @@ whitenoise==6.9.0
 pykrige
 fiona
 
-
+reportlab
 

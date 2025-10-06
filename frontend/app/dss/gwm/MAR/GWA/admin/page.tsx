@@ -52,7 +52,7 @@ function ComputeAvailableWaterButton() {
        localStorage.setItem('gwa_stress_data', JSON.stringify(stressTableData));
         console.log('✅ Stress data stored in sessionStorage:', stressTableData.length, 'villages');
       } catch (error) {
-        console.log('❌ Failed to store stress data:', error);
+       console.log('❌ Failed to store stress data:', error);
         alert('Warning: Could not transfer stress data. The dataset might be too large.');
       }
     } else {
@@ -77,7 +77,12 @@ function ComputeAvailableWaterButton() {
   };
 
   return (
-    <></>
+    <button
+      onClick={handleClick}
+      className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 rounded-full py-3 px-6 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-cyan-400 focus:ring-opacity-50 transform hover:scale-105"
+    >
+      <span className="whitespace-nowrap">Compute Available Water</span>
+    </button>
   );
 }
 
