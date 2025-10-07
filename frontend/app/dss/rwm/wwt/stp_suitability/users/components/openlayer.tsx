@@ -401,9 +401,7 @@ const Maping: React.FC = () => {
     handleVectorLayer(catchmentLayer, catchmentLayerRef, "catchment", 7, layerVisibility.catchment, catchmentFilter as any);
   }, [catchmentLayer, catchmentFilter, layerVisibility.catchment, showTitles]);
 
-  useEffect(() => {
-      handleVectorLayer(resultLayer,resultLayerRef, 'result',8, layerVisibility.result, resultFilter as any);
-    }, [resultLayer, defaultWorkspace]);
+ 
   
   useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) {
