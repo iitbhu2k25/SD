@@ -39,10 +39,10 @@ from .session_manager import session_manager
 # Constants
 RASTERS_DIR = Path("media/gwa_iprasters")
 GENERATED_RASTERS_DIR = Path("media/temp/sessions")
-GEOSERVER_URL = "http://geoserver2:8080/geoserver/rest"
+GEOSERVER_URL = "http://geoserver:8080/geoserver/rest"
 GEOSERVER_WCS_URL = "/geoserver/wcs"
 GEOSERVER_USER = "admin"
-GEOSERVER_PASSWORD = "geoserver2"
+GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "myworkspace"
 
 # Path to shapefiles

@@ -671,16 +671,16 @@ class GWPumpingMapper:
         relevance_raster.append(["Merit Score",resp["raster_path"]])
         return relevance_raster
     def _get_operations_raster(self,db:db_dependency,payload:List):
-        all_sutability_raster=GWPL_crud(db).get_all(True)
+        all_suitability_raster=GWPL_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
             [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'condition' and raster.id in payload_dict
         ]
         constraintion_raster=[
             os.path.join(self.BASE_DIR, raster.file_path)
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'constraint' and raster.id in payload_dict
         ]
         return condition_raster,constraintion_raster
@@ -805,16 +805,16 @@ class MARSuitabilityMapper:
         self.BASE_DIR="/home/app/"
     
     def _get_operations_raster(self,db:db_dependency,payload:List):
-        all_sutability_raster=MARSuitability_crud(db).get_all(True)
+        all_suitability_raster=MARSuitability_crud(db).get_all(True)
         payload_dict = {r.id: r.weight for r in payload.data}
         condition_raster = [
             [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'condition' and raster.id in payload_dict
         ]
         constraintion_raster=[
             os.path.join(self.BASE_DIR, raster.file_path)
-            for raster in all_sutability_raster
+            for raster in all_suitability_raster
             if raster.raster_category == 'constraint' and raster.id in payload_dict
         ]
         return condition_raster,constraintion_raster
@@ -837,7 +837,7 @@ class MARSuitabilityMapper:
         constrained_path, _ = self.processor.apply_constraints_new(
                 weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
             )
-        final_name = Unique_name.unique_name_with_ext("stp_sutability","tif")
+        final_name = Unique_name.unique_name_with_ext("stp_suitability","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
 
 
@@ -856,7 +856,7 @@ class MARSuitabilityMapper:
             for i in raster_path:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place="Drain")
-                unique_store_name = Unique_name.unique_name("mar_sutability")
+                unique_store_name = Unique_name.unique_name("mar_suitability")
                 status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
                 sld_name=Unique_name.unique_name(layer_name)
                 status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)  
@@ -871,13 +871,13 @@ class MARSuitabilityMapper:
             print(e)
             return False
 
-    def create_sutability_map(self,db:db_dependency,payload:List,reverse:bool=False):
+    def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
-        final_name = Unique_name.unique_name_with_ext("MAR_Sutability","tif")
+        final_name = Unique_name.unique_name_with_ext("MAR_suitability","tif")
         final_path1,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
-        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="sutability")
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="suitability")
         unique_store_name = Unique_name.unique_name(self.config.raster_store)
         status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)

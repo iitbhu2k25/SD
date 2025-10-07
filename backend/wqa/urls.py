@@ -28,16 +28,16 @@ urlpatterns = [
     
     # Analysis and GWQI
    # path('analysis/', GroundwaterQualityAnalysisView.as_view(), name='gwqi-analysis'),
-    path('gwqi-overlay/', GWQIOverlayView.as_view(), name='gwqi-overlay'),
+    path('gwqi_overlay', GWQIOverlayView.as_view(), name='gwqi_overlay'),
     
     # PDF Report Generation
-    path('generate-gwqi-report/', GenerateGWQIReportView.as_view(), name='generate-gwqi-report'),
+    path('generate_gwqi_report', GenerateGWQIReportView.as_view(), name='generate_gwqi_report'),
     
     # On-demand Village Analysis
-    path('village-analysis/', VillageAnalysisView.as_view(), name='village-analysis'),
+    path('village_analysis', VillageAnalysisView.as_view(), name='village_analysis'),
     
     # Session Management
-    path('cleanup-session/', CleanupSessionView.as_view(), name='cleanup-session'),
+    path('cleanup_session', CleanupSessionView.as_view(), name='cleanup_session'),
     
     # CSV handling
     path('validate-csv', validate_csv, name='validate-csv'),
