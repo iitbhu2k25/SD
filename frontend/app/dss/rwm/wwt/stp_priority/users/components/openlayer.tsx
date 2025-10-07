@@ -10,7 +10,7 @@ import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
 import { doubleClick, pointerMove } from "ol/events/condition";
 import Image from "next/image";
-
+import { createWFSVectorSource } from "@/components/utils/geoserver_url";
 import { fromLonLat } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -24,7 +24,7 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
 import "ol/ol.css";
-import { GISCompass, baseMaps,HoverTooltip } from "@/components/MapComponents";
+import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
 
 // Constants
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
@@ -338,7 +338,7 @@ const Maping: React.FC = () => {
 
     selectInteraction.on('select', (event) => {
       const selectedFeatures = event.selected;
-      if (selectedFeatures.length > 0 ) {
+      if (selectedFeatures.length > 0) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
 
@@ -522,21 +522,11 @@ const Maping: React.FC = () => {
       }
       return;
     }
-
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    if (layerFilter.filterField && layerFilter.filterValue && layerFilter.filterValue.length > 0) {
-      wfsUrl += `&CQL_FILTER=${layerFilter.filterField} IN (${Array.isArray(layerFilter.filterValue)
-          ? layerFilter.filterValue.map((v) => `'${v}'`).join(",")
-          : `'${layerFilter.filterValue}'`
-        })`;
-    }
-
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
+    const vectorSource = createWFSVectorSource({
+      workspace: defaultWorkspace,
+      layerName: layerName,
+      layerFilter,
     });
-
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: createVectorStyle(layerType, showTitles),
@@ -713,7 +703,7 @@ const Maping: React.FC = () => {
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
 
         {/* Components */}
-          <div className="hidden md:block">
+        <div className="hidden md:block">
           <GISCompass />
         </div>
 
@@ -738,8 +728,8 @@ const Maping: React.FC = () => {
                 key={panel}
                 onClick={() => togglePanel(panel)}
                 className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel
-                    ? "bg-blue-100 text-blue-600 shadow-inner"
-                    : "hover:bg-gray-100 text-gray-700"
+                  ? "bg-blue-100 text-blue-600 shadow-inner"
+                  : "hover:bg-gray-100 text-gray-700"
                   }`}
                 title={panel.charAt(0).toUpperCase() + panel.slice(1)}
               >
@@ -801,8 +791,8 @@ const Maping: React.FC = () => {
                   key={key}
                   onClick={() => changeBaseMap(key)}
                   className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border-2 ${selectedBaseMap === key
-                      ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700"
-                      : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
+                    ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 text-blue-700"
+                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
                     }`}
                 >
                   <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -883,35 +873,35 @@ const Maping: React.FC = () => {
 
                 return (
                   <div key={layerType} className={`p-4 rounded-xl border transition-all duration-300 ${isVisible
-                      ? `bg-gradient-to-r from-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 to-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'emerald' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 border-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-200`
-                      : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+                    ? `bg-gradient-to-r from-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 to-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'emerald' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 border-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-200`
+                    : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
                     }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className={`w-4 h-4 rounded-full mr-3 ${isVisible ? colorConfig.color.replace('#', 'bg-[') + ']' : 'bg-gray-400'
                           }`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
                         <span className={`font-semibold ${isVisible ? colorConfig.color.includes('DC2626') ? 'text-red-800' :
-                            colorConfig.color.includes('059669') ? 'text-green-800' :
-                              colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
-                            : 'text-gray-600'
+                          colorConfig.color.includes('059669') ? 'text-green-800' :
+                            colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
+                          : 'text-gray-600'
                           }`}>
                           {colorConfig.name}
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">
                         <span className={`text-xs px-3 py-1 rounded-full ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-200/80 text-red-800' :
-                            colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
-                              colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
-                            : 'bg-gray-200/80 text-gray-700'
+                          colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
+                            colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
+                          : 'bg-gray-200/80 text-gray-700'
                           }`}>
                           {count} features
                         </span>
                         <button
                           onClick={toggleFunction}
                           className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :
-                              colorConfig.color.includes('059669') ? 'bg-green-500' :
-                                colorConfig.color.includes('7C2D12') ? 'bg-yellow-500' : 'bg-blue-500'
-                              : 'bg-gray-300'
+                            colorConfig.color.includes('059669') ? 'bg-green-500' :
+                              colorConfig.color.includes('7C2D12') ? 'bg-yellow-500' : 'bg-blue-500'
+                            : 'bg-gray-300'
                             }`}
                         >
                           <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isVisible ? 'translate-x-6' : ''
@@ -964,8 +954,8 @@ const Maping: React.FC = () => {
               <button
                 onClick={() => setShowTitles(!showTitles)}
                 className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
-                    ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
-                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
                   }`}
               >
                 <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>

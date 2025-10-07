@@ -8,6 +8,7 @@ import ImageLayer from "ol/layer/Image";
 import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
+import { createWFSVectorSource } from "@/components/utils/geoserver_url";
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import Image from "next/image";
 import { doubleClick, pointerMove } from "ol/events/condition";
@@ -332,21 +333,11 @@ const Maping: React.FC = () => {
       }
       return;
     }
-
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    if (hasSelections && filter?.filterField && filter?.filterValue && filter.filterValue.length > 0) {
-      wfsUrl += `&CQL_FILTER=${filter.filterField} IN (${Array.isArray(filter.filterValue)
-        ? filter.filterValue.map((v) => `'${v}'`).join(",")
-        : `'${filter.filterValue}'`
-        })`;
-    }
-
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
+    const vectorSource = createWFSVectorSource({
+      workspace: defaultWorkspace,
+      layerName: layer,
+      layerFilter: filter,
     });
-
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: createVectorStyle(layerType, layerType === 'result'),

@@ -13,6 +13,7 @@ import Point from "ol/geom/Point";
 import { doubleClick, pointerMove } from "ol/events/condition";
 import Image from "next/image";
 import { fromLonLat } from "ol/proj";
+import { createWFSVectorSource } from "@/components/utils/geoserver_url";
 import {
   defaults as defaultControls,
   ScaleLine,
@@ -40,83 +41,83 @@ const LAYER_COLORS = {
   catchment: { color: "#7C2D12", fill: "rgba(124, 45, 18, 0.3)" },
 };
 
-  const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
-    const geometry = feature.getGeometry();
-    const geometryType = geometry.getType();
-    const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const featureName = feature.get("name") || feature.get("Name");
-    const styles = [];
+const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
+  const geometry = feature.getGeometry();
+  const geometryType = geometry.getType();
+  const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
+  const featureName = feature.get("name") || feature.get("Name");
+  const styles = [];
 
-    const colorConfig = LAYER_COLORS[layerType as keyof typeof LAYER_COLORS] || LAYER_COLORS.primary;
+  const colorConfig = LAYER_COLORS[layerType as keyof typeof LAYER_COLORS] || LAYER_COLORS.primary;
 
-    if (geometryType.includes("Polygon")) {
-      styles.push(new Style({
-        stroke: new Stroke({ color: colorConfig.color, width: 2 }),
-         fill: new Fill({ color: 'transparent' })
-      }));
-    }
+  if (geometryType.includes("Polygon")) {
+    styles.push(new Style({
+      stroke: new Stroke({ color: colorConfig.color, width: 2 }),
+      fill: new Fill({ color: 'transparent' })
+    }));
+  }
 
-    if (geometryType.includes("LineString")) {
-      styles.push(new Style({
-        stroke: new Stroke({ color: colorConfig.color, width: 3 })
-      }));
-    }
+  if (geometryType.includes("LineString")) {
+    styles.push(new Style({
+      stroke: new Stroke({ color: colorConfig.color, width: 3 })
+    }));
+  }
 
-    if (geometryType.includes("Point")) {
-      styles.push(new Style({
-        image: new Circle({
-          radius: 6,
-          fill: new Fill({ color: colorConfig.color + "80" }),
-          stroke: new Stroke({ color: colorConfig.color, width: 2 })
-        })
-      }));
-    }
-
-    if (showLabels && zoom > 8 && featureName) {
-      styles.push(new Style({
-        text: new Text({
-          text: featureName.toString(),
-          font: "12px Arial, sans-serif",
-          fill: new Fill({ color: colorConfig.color }),
-          stroke: new Stroke({ color: "#ffffff", width: 3 }),
-          offsetY: geometryType.includes("Point") ? -20 : 0,
-          textAlign: "center",
-        })
-      }));
-    }
-
-    return styles;
-  };
-
-  const createWellPointStyle = (feature: any, resolution: number) => {
-    const wellId = feature.get("Well_id");
-    const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const styles = [];
-
+  if (geometryType.includes("Point")) {
     styles.push(new Style({
       image: new Circle({
-        radius: 7,
-        fill: new Fill({ color: "rgba(255, 87, 34, 0.8)" }),
-        stroke: new Stroke({ color: "#d84315", width: 2 })
+        radius: 6,
+        fill: new Fill({ color: colorConfig.color + "80" }),
+        stroke: new Stroke({ color: colorConfig.color, width: 2 })
       })
     }));
+  }
 
-    if (zoom > 8 && wellId) {
-      styles.push(new Style({
-        text: new Text({
-          text: `Well ${wellId}`,
-          font: "bold 11px Arial, sans-serif",
-          fill: new Fill({ color: "#d84315" }),
-          stroke: new Stroke({ color: "#ffffff", width: 3 }),
-          offsetY: -15,
-          textAlign: "center",
-          textBaseline: "middle",
-        })
-      }));
-    }
+  if (showLabels && zoom > 8 && featureName) {
+    styles.push(new Style({
+      text: new Text({
+        text: featureName.toString(),
+        font: "12px Arial, sans-serif",
+        fill: new Fill({ color: colorConfig.color }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+        offsetY: geometryType.includes("Point") ? -20 : 0,
+        textAlign: "center",
+      })
+    }));
+  }
 
-    return styles;
-  };
+  return styles;
+};
+
+const createWellPointStyle = (feature: any, resolution: number) => {
+  const wellId = feature.get("Well_id");
+  const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
+  const styles = [];
+
+  styles.push(new Style({
+    image: new Circle({
+      radius: 7,
+      fill: new Fill({ color: "rgba(255, 87, 34, 0.8)" }),
+      stroke: new Stroke({ color: "#d84315", width: 2 })
+    })
+  }));
+
+  if (zoom > 8 && wellId) {
+    styles.push(new Style({
+      text: new Text({
+        text: `Well ${wellId}`,
+        font: "bold 11px Arial, sans-serif",
+        fill: new Fill({ color: "#d84315" }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+        offsetY: -15,
+        textAlign: "center",
+        textBaseline: "middle",
+      })
+    }));
+  }
+
+  return styles;
+};
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -430,17 +431,10 @@ const Maping: React.FC = () => {
       return;
     }
 
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    if (hasSelections && filter?.filterField && filter?.filterValue && filter.filterValue.length > 0) {
-      wfsUrl += `&CQL_FILTER=${filter.filterField} IN (${Array.isArray(filter.filterValue)
-        ? filter.filterValue.map((v) => `'${v}'`).join(",")
-        : `'${filter.filterValue}'`})`;
-    }
-
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
+    const vectorSource = createWFSVectorSource({
+      workspace: defaultWorkspace,
+      layerName: layer,
+      layerFilter: filter,
     });
 
     const vectorLayer = new VectorLayer({
@@ -639,7 +633,7 @@ const Maping: React.FC = () => {
           </button>
         )}
 
-        
+
 
         {activePanel === "basemap" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
@@ -810,7 +804,7 @@ const Maping: React.FC = () => {
               <button onClick={() => setShowTitles(!showTitles)} className={`p-4 rounded-xl border ${showTitles ? "bg-green-100 border-green-200" : "bg-gray-100 border-gray-200"}`}>
                 <span className="text-sm font-medium">Show Titles: {showTitles ? "ON" : "OFF"}</span>
               </button>
-              <button onClick={() => { if (mapInstanceRef.current) { const view = mapInstanceRef.current.getView(); view.setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat])); view.setZoom(INITIAL_ZOOM); }}} className="p-4 rounded-xl bg-gray-100 border border-gray-200">
+              <button onClick={() => { if (mapInstanceRef.current) { const view = mapInstanceRef.current.getView(); view.setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat])); view.setZoom(INITIAL_ZOOM); } }} className="p-4 rounded-xl bg-gray-100 border border-gray-200">
                 <span className="text-sm font-medium">Home View</span>
               </button>
             </div>
