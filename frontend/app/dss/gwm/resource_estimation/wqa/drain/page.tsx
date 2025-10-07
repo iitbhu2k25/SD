@@ -64,7 +64,7 @@ function GroundwaterAssessmentContent() {
         addRasterLayer(layer_name, geoserver_url);
         console.log(`Raster layer added to map: ${layer_name}`);
       } else {
-       console.log('Invalid raster data:', data.payload);
+        console.error('Invalid raster data:', data.payload);
       }
     }
   };

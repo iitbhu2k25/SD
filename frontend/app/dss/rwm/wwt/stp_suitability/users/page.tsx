@@ -22,7 +22,7 @@ import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
-import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_suitability/admin/components/Stp_area";
+import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_suitability/users/components/Stp_area";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";

@@ -379,7 +379,8 @@ const ContourPage: React.FC = () => {
   const { selectedYear, yearSelected } = useWell();
 
   // Create ref for village analysis section
-  const villageAnalysisRef = useRef<HTMLDivElement>(null);
+  const villageAnalysisRef = useRef<HTMLDivElement>(document.createElement('div'));
+  
 
   // NEW: Track last generated parameters
   const [lastGeneratedParams, setLastGeneratedParams] = useState<string[]>([]);

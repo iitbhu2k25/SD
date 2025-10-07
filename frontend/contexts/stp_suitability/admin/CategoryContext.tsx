@@ -117,6 +117,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
+        console.log("response",response.message)
         const data = await response.message as Category[];
         const enhancedCategories = data.map((category: Category) => ({
           ...category,

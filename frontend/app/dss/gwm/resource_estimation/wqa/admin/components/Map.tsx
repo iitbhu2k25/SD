@@ -803,7 +803,7 @@ const MapComponent: React.FC = () => {
                             )}
                           </span>
                         </div>
-                        {legendData.raster.type === 'gwqi' && (
+                        {legendData.raster?.type === 'gwqi' && (
                           <div className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
                             Index
                           </div>

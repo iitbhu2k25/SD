@@ -12,7 +12,7 @@ import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 // Define layer name constants to ensure consistency
 export const LAYER_NAMES = {
   INDIA: "Boundary",
-  BOUNDARY:"Boundary",
+  BOUNDARY: "Boundary",
   RIVER: "Rivers",
   DRAIN: "Drain",
   STRETCH: "Stretches",
@@ -28,7 +28,7 @@ interface clip_rasters {
 // Updated interface with separate filters for each layer
 interface LayerFilter {
   filterField: string | null;
-  filterValue: number[] |string[] | null;
+  filterValue: number[] | string[] | null;
 }
 
 // Type definitions for the context
@@ -39,17 +39,18 @@ interface MapContextType {
   drainLayer: string | null;
   catchmentLayer: string | null;
   boundarylayer: string | null;
-  
+
   // Separate filters for each layer
   riverFilter: LayerFilter;
   stretchFilter: LayerFilter;
   drainFilter: LayerFilter;
   catchmentFilter: LayerFilter;
-  
+
   // Add initial load flags
   shouldLoadAllLayers: boolean;
   hasSelections: boolean;
-  
+  resultLayer: string | null;
+  setResultLayer: (layer: string | null) => void;
   stpOperation: boolean;
   setstpOperation: (operation: boolean) => void;
   setPrimaryLayer: (layer: string) => void;
@@ -87,26 +88,28 @@ const MapContext = createContext<MapContextType>({
   stretchFilter: { filterField: null, filterValue: null },
   drainFilter: { filterField: null, filterValue: null },
   catchmentFilter: { filterField: null, filterValue: null },
-  
+
   shouldLoadAllLayers: true,
   hasSelections: false,
-  
+
   stpOperation: false,
-  setstpOperation: () => {},
-  setPrimaryLayer: () => {},
-  setRiverLayer: () => {},
-  setStretchLayer: () => {},
-  setDrainLayer: () => {},
-  setCatchmentLayer: () => {},
-  syncLayersWithRiverSystem: () => {},
+  setstpOperation: () => { },
+  setPrimaryLayer: () => { },
+  setRiverLayer: () => { },
+  setStretchLayer: () => { },
+  setDrainLayer: () => { },
+  setCatchmentLayer: () => { },
+  syncLayersWithRiverSystem: () => { },
   isMapLoading: false,
-  zoomToFeature: () => {},
-  resetMapView: () => {},
+  zoomToFeature: () => { },
+  resetMapView: () => { },
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
   LAYER_NAMES,
   loading: false,
-  setLoading: () => {},
+  setLoading: () => { },
+  resultLayer: null,
+  setResultLayer: () => { },
 });
 
 // Create the provider component
@@ -122,25 +125,25 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); // Always load stretch layer
   const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); // Always load drain layer
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); // Always load catchment layer
-  
+  const [resultLayer, setResultLayer] = useState<string | null>(null);
   // Separate filter states for each layer
-  const [riverFilter, setRiverFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [riverFilter, setRiverFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [stretchFilter, setStretchFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [stretchFilter, setStretchFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [drainFilter, setDrainFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [drainFilter, setDrainFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [catchmentFilter, setCatchmentFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [catchmentFilter, setCatchmentFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  
+
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -282,15 +285,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     drainLayer,
     catchmentLayer,
     boundarylayer,
-    
+
     riverFilter,
     stretchFilter,
     drainFilter,
     catchmentFilter,
-    
+
     shouldLoadAllLayers,
     hasSelections,
-    
     stpOperation,
     setstpOperation,
     setPrimaryLayer,
@@ -307,6 +309,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     LAYER_NAMES,
     loading,
     setLoading,
+    resultLayer,
+    setResultLayer
   };
 
   return (

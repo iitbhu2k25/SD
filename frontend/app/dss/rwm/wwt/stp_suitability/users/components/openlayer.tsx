@@ -52,6 +52,7 @@ const Maping: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+  const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
 
 
   // Simplified state
@@ -81,11 +82,10 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
   const [buttonClicked, setButtonClicked] = useState(false);
+    const [showResultLayer, setShowResultLayer] = useState(true);
 
   // Context hooks
   const {
-    selectedRiver,
-    selectedStretches,
     selectedDrains,
     selectedCatchments,
     displayRaster,
@@ -98,7 +98,6 @@ const Maping: React.FC = () => {
   const {
     primaryLayer,
     riverLayer,
-    boundarylayer,
     stretchLayer,
     drainLayer,
     catchmentLayer,
@@ -106,14 +105,11 @@ const Maping: React.FC = () => {
     stretchFilter,
     drainFilter,
     catchmentFilter,
-    geoServerUrl,
     defaultWorkspace,
-    isMapLoading,
     setstpOperation,
     stpOperation,
-    loading,
-    setLoading,
-    shouldLoadAllLayers,
+    resultLayer,
+    setResultLayer,
     hasSelections,
   } = useMap();
 
@@ -405,7 +401,10 @@ const Maping: React.FC = () => {
     handleVectorLayer(catchmentLayer, catchmentLayerRef, "catchment", 7, layerVisibility.catchment, catchmentFilter as any);
   }, [catchmentLayer, catchmentFilter, layerVisibility.catchment, showTitles]);
 
-  // Load layers with initial zoom for primary layer
+  useEffect(() => {
+      handleVectorLayer(resultLayer,resultLayerRef, 'result',8, layerVisibility.result, resultFilter as any);
+    }, [resultLayer, defaultWorkspace]);
+  
   useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) {
       setFeatureCounts(prev => ({ ...prev, primary: 0 }));

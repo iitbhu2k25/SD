@@ -320,7 +320,7 @@ const ContourPage: React.FC = () => {
 
   const { selectedYear, yearSelected } = useWell();
   
-  const villageAnalysisRef = useRef<HTMLDivElement>(null);
+ const villageAnalysisRef = useRef<HTMLDivElement>(document.createElement('div'));
 
   useEffect(() => {
     setVillageAnalysisSectionRef(villageAnalysisRef);

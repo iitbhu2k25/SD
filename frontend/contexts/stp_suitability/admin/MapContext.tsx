@@ -87,7 +87,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedDistricts,
     selectedSubDistricts,
     selectedTowns,
-
   } = useLocation();
 
   // Function to reset map view (zoom to default)

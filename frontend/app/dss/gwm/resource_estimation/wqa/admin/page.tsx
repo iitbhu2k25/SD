@@ -56,7 +56,8 @@ function GroundwaterAssessmentContent() {
     }
   };
 
-  const handleGeoJsonData = (data: { type: 'contour' | 'raster'; payload: any }) => {
+  const handleGeoJsonData = (data: { type: "unified" | "contour" | "raster"; payload: any; }) => {
+  
     setContourData(data);
     if (data.type === 'raster') {
       const { layer_name, geoserver_url } = data.payload;
@@ -95,10 +96,7 @@ function GroundwaterAssessmentContent() {
                   activeTab="groundwater-contour"
                   onGeoJsonData={handleGeoJsonData}
                 >
-                  <GroundwaterContour
-                    activeTab="groundwater-contour"
-                    step={activeStep}
-                  />
+                  <GroundwaterContour/>
                 </GroundwaterContourProvider>
               ) : (
                 <div className="text-gray-500">

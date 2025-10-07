@@ -157,7 +157,7 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
   useEffect(() => {
     return () => {
       if (sessionId) {
-        fetch('/django/wqa/cleanup-session/', {
+        fetch('/django/wqa/cleanup_session/', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({session_id: sessionId})
@@ -304,7 +304,7 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
         stepDescription: 'Configuring enhanced raster layer switching with parameter-specific legends...'
       });
 
-      const response = await fetch('/django/wqa/gwqi-overlay/', {
+      const response = await fetch('/django/wqa/gwqi_overlay/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -479,7 +479,7 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
         session_id: sessionId
       };
 
-      const response = await fetch('/django/wqa/village-analysis/', {
+      const response = await fetch('/django/wqa/village_analysis/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -547,7 +547,7 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
       
       console.log('[DRAIN] Requesting PDF report for drain system with session:', sessionId);
       
-      const response = await fetch('/django/wqa/generate-gwqi-report/', {
+      const response = await fetch('/django/wqa/generate_gwqi_report/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -613,7 +613,7 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
 
     // Cleanup session when clearing results
     if (sessionId) {
-      fetch('/django/wqa/cleanup-session/', {
+      fetch('/django/wqa/cleanup_session/', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({session_id: sessionId})

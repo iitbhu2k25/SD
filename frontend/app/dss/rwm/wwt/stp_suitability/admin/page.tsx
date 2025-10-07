@@ -260,7 +260,7 @@ const MainContent = () => {
               )}
               {tableData.length > 0 && (
                 <div className="flex justify-start mt-8">
-                  <TreatmentForm />
+                  <TreatmentForm  />
                 </div>
               )
               }
