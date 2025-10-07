@@ -4,7 +4,6 @@ import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
-import { result } from "lodash";
 import { toast } from "react-toastify";
 
 type FormValues = {

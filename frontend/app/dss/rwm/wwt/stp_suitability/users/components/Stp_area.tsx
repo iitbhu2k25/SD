@@ -2,8 +2,8 @@ import React from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
+import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
 import { toast } from "react-toastify";
 
 type FormValues = {
@@ -15,7 +15,7 @@ type FormValues = {
 export const TreatmentForm: React.FC = () => {
   const { StpArea, OptSetStpArea } = useCategory();
   const { displayRaster } = useRiverSystem();
-  const { setResultLayer, setstpOperation } = useMap();
+  const { setResultLayer, setIsMapLoading } = useMap();
 
   const {
     handleSubmit,
@@ -31,7 +31,7 @@ export const TreatmentForm: React.FC = () => {
     if (chosen) {
       try {
 
-        setstpOperation(true);
+        setIsMapLoading(true);
         OptSetStpArea(chosen);
 
         const layer_name = displayRaster.find(
@@ -58,7 +58,7 @@ export const TreatmentForm: React.FC = () => {
         console.log(err)
       }
       finally {
-        setstpOperation(false);
+        setIsMapLoading(false);
       }
 
     }

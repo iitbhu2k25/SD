@@ -35,6 +35,7 @@ const LAYER_COLORS = {
   stretch: { color: "#059669", fill: "rgba(5, 150, 105, 0.3)" },
   drain: { color: "#DC2626", fill: "rgba(220, 38, 38, 0.3)" },
   catchment: { color: "#7C2D12", fill: "rgba(124, 45, 18, 0.3)" },
+  result: { color: "#4eea33ff", fill: "rgba(147, 51, 234, 0.3)" },
 };
 
 const Maping: React.FC = () => {
@@ -47,13 +48,12 @@ const Maping: React.FC = () => {
   const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
-  const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-
 
   // Simplified state
   const [isLoading, setIsLoading] = useState(true);
@@ -63,12 +63,14 @@ const Maping: React.FC = () => {
     stretch: 0,
     drain: 0,
     catchment: 0,
+    result: 0,
   });
   const [layerVisibility, setLayerVisibility] = useState({
     river: true,
     stretch: true,
     drain: true,
     catchment: true,
+    result: true,
   });
   const [layerOpacity, setLayerOpacity] = useState(70);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -82,7 +84,6 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
   const [buttonClicked, setButtonClicked] = useState(false);
-    const [showResultLayer, setShowResultLayer] = useState(true);
 
   // Context hooks
   const {
@@ -159,12 +160,13 @@ const Maping: React.FC = () => {
     });
   };
 
-  const toggleLayerVisibility = (layerType: 'river' | 'stretch' | 'drain' | 'catchment') => {
+  const toggleLayerVisibility = (layerType: 'river' | 'stretch' | 'drain' | 'catchment' | 'result') => {
     const layerRefs = {
       river: riverLayerRef,
       stretch: stretchLayerRef,
       drain: drainLayerRef,
       catchment: catchmentLayerRef,
+      result: resultLayerRef,
     };
 
     const layerRef = layerRefs[layerType];
@@ -277,7 +279,6 @@ const Maping: React.FC = () => {
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
       }),
       filter: (feature, layer) => {
-        // Exclude boundary layer from selection interactions
         return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
       }
     });
@@ -348,7 +349,7 @@ const Maping: React.FC = () => {
 
     const vectorLayer = new VectorLayer({
       source: vectorSource,
-      style: createVectorStyle(layerType),
+      style: createVectorStyle(layerType, layerType === 'result'),
       zIndex: zIndex,
       visible: isVisible,
     });
@@ -356,7 +357,6 @@ const Maping: React.FC = () => {
     const handleFeaturesLoaded = (event: any) => {
       const numFeatures = event.features ? event.features.length : 0;
       setFeatureCounts(prev => ({ ...prev, [layerType]: numFeatures }));
-
 
       if (hasSelections && numFeatures > 0) {
         const extent = vectorSource.getExtent();
@@ -401,56 +401,11 @@ const Maping: React.FC = () => {
     handleVectorLayer(catchmentLayer, catchmentLayerRef, "catchment", 7, layerVisibility.catchment, catchmentFilter as any);
   }, [catchmentLayer, catchmentFilter, layerVisibility.catchment, showTitles]);
 
- 
-  
+
   useEffect(() => {
-    if (!mapInstanceRef.current || !primaryLayer) {
-      setFeatureCounts(prev => ({ ...prev, primary: 0 }));
-      if (primaryLayerRef.current) {
-        mapInstanceRef.current?.removeLayer(primaryLayerRef.current);
-        primaryLayerRef.current = null;
-      }
-      return;
-    }
+    handleVectorLayer(resultLayer, resultLayerRef, "result", 11, layerVisibility.result);
+  }, [resultLayer, defaultWorkspace, layerVisibility.result, showTitles]);
 
-    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
-    });
-
-    const vectorLayer = new VectorLayer({
-      source: vectorSource,
-      style: createVectorStyle("primary"),
-      zIndex: 1,
-      visible: true,
-    });
-
-    vectorSource.once("featuresloadend", (event: any) => {
-      const numFeatures = event.features ? event.features.length : 0;
-      setFeatureCounts(prev => ({ ...prev, primary: numFeatures }));
-
-      if (numFeatures > 0) {
-        const extent = vectorSource.getExtent();
-        if (extent && extent.every(val => isFinite(val))) {
-          mapInstanceRef.current?.getView().fit(extent, {
-            padding: [50, 50, 50, 50],
-            duration: 1000,
-          });
-        }
-      }
-    });
-
-    vectorSource.on("featuresloaderror", () => setError("Failed to load primary layer"));
-
-    if (primaryLayerRef.current) {
-      mapInstanceRef.current.removeLayer(primaryLayerRef.current);
-    }
-
-    mapInstanceRef.current.addLayer(vectorLayer);
-    primaryLayerRef.current = vectorLayer;
-  }, [primaryLayer, defaultWorkspace]);
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -475,6 +430,11 @@ const Maping: React.FC = () => {
               layer_name: result.layer_name,
             };
             setTableData(result.csv_details);
+
+            // Set result layer if available
+            if (result.vector_name && result.vector_name !== "none") {
+              setResultLayer(result.vector_name);
+            }
 
             const newData = [...displayRaster];
             const index = newData.findIndex(item => item.file_name === "STP_suitability");
@@ -565,8 +525,6 @@ const Maping: React.FC = () => {
       setShowCatchment(true);
     }
   };
-
-
 
   return (
     <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
@@ -794,6 +752,32 @@ const Maping: React.FC = () => {
                         className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}
                       >
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.catchment ? "translate-x-6" : ""}`} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Result Layer */}
+              {featureCounts.result > 0 && (
+                <div className={`p-4 rounded-xl border ${layerVisibility.result ? "bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full mr-3 ${layerVisibility.result ? "bg-purple-500" : "bg-gray-400"}`}></div>
+                      <span className={`font-semibold ${layerVisibility.result ? "text-purple-800" : "text-gray-600"}`}>
+                        Result Layer
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.result ? "bg-purple-200/80 text-purple-800" : "bg-gray-200/80 text-gray-700"}`}>
+                        {featureCounts.result} features
+                      </span>
+                      <button
+                        onClick={() => toggleLayerVisibility('result')}
+                        className={`w-12 h-6 rounded-full ${layerVisibility.result ? "bg-purple-500" : "bg-gray-300"} relative transition-all duration-300`}
+                        title={layerVisibility.result ? "Hide result layer" : "Show result layer"}
+                      >
+                        <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.result ? "translate-x-6" : ""}`} />
                       </button>
                     </div>
                   </div>

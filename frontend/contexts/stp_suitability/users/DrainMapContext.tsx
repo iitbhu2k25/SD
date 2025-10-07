@@ -67,6 +67,7 @@ interface MapContextType {
   LAYER_NAMES: typeof LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  setIsMapLoading: (loading: boolean) => void;
 }
 
 // Props for the MapProvider
@@ -91,7 +92,7 @@ const MapContext = createContext<MapContextType>({
 
   shouldLoadAllLayers: true,
   hasSelections: false,
-
+  setIsMapLoading: () => { },
   stpOperation: false,
   setstpOperation: () => { },
   setPrimaryLayer: () => { },
@@ -310,7 +311,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     loading,
     setLoading,
     resultLayer,
-    setResultLayer
+    setResultLayer,
+    setIsMapLoading,
   };
 
   return (
