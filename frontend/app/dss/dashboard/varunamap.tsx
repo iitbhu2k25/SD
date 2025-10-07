@@ -448,8 +448,13 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
 
     // Create select interaction
     const selectInteraction = new Select({
-      condition: click,
-      multi: false, // Fixed: prevents multiple selections causing disappearing points
+  condition: click,
+  multi: false,
+  // ✅ ADD THIS FILTER FUNCTION
+  filter: function(feature) {
+    // This ensures that only features with a 'location' property (i.e., stations) can be selected.
+    return feature.get('location') != null;
+  },
       style: (feature) => {
         // Get the station from feature properties
         const station = feature.getProperties() as DrainStation;
@@ -560,7 +565,8 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
     const loadDrainStations = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`django/drain-water-quality/main`);
+       // const response = await fetch(`django/drain-water-quality/main`);
+        const response = await fetch(`/django/drain-water-quality/main`);
         if (!response.ok){
           console.log(`HTTP ${response.status}: ${response.statusText}`);
         }
