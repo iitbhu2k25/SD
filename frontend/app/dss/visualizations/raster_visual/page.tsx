@@ -18,6 +18,7 @@ import "ol/ol.css";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
 import { baseMaps } from "@/components/MapComponents";
+import Image from "next/image";
 
 // TypeScript interfaces
 interface BaseMap {
@@ -674,7 +675,7 @@ const OpenLayersRasterViewer: React.FC = () => {
               </button>
             </div>
             <div className="overflow-hidden rounded-lg border border-slate-600 bg-white">
-              <img
+              <Image
                 src={legendUrl}
                 alt="Layer Legend"
                 className="max-w-full h-auto"

@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import Image from 'next/image';
 
 declare global {
   interface Window {
@@ -1034,7 +1035,7 @@ export default function Map(props: MapProps) {
 
         {compassVisible && (
           <div id="compass" className="absolute top-10 left-10 w-24 h-24 pointer-events-auto">
-            <img src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" />
+            <Image src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" />
           </div>
         )}
 

@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePathname } from 'next/navigation'; // ✅ Ensure this is available with App Router
 import VarunaMap from './varunamap'; // ✅ Import VarunaMap
-// Interfaces
+import Image from 'next/image';
 interface Alert {
   type: string;
   severity: 'High' | 'Critical';
@@ -205,7 +205,7 @@ const ImageCarousel = () => {
         <div><h2 className="text-xl font-bold">🌊 Varuna River Gallery</h2></div>
       </div>
       <div className="relative h-[638px] overflow-hidden">
-        <img src={images[currentImageIndex]} alt={`Varuna River ${currentImageIndex + 1}`} className="w-full h-full object-cover transition-all duration-500 ease-in-out" />
+        <Image src={images[currentImageIndex]} alt={`Varuna River ${currentImageIndex + 1}`} className="w-full h-full object-cover transition-all duration-500 ease-in-out" />
         <button onClick={prevImage} className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200">
           <ChevronLeft size={20} />
         </button>
@@ -1697,7 +1697,7 @@ export default function VarunaRiverDashboard() {
                {/* Top Half - Image or Icon */}
           {item.image ? (
             <div className="-mx-5 -mt-5">
-              <img
+              <Image
                 src={item.image}
                 alt={item.title}
                 className="w-full h-[140px] object-cover rounded-t-2xl"

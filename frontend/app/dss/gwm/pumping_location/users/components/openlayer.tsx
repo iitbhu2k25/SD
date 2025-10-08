@@ -186,6 +186,7 @@ const Maping: React.FC = () => {
     stretchFilter,
     drainFilter,
     catchmentFilter,
+    boundarylayer,
     defaultWorkspace,
     setstpOperation,
     stpOperation,
@@ -413,7 +414,86 @@ const Maping: React.FC = () => {
       wellPointsLayerRef.current.setVisible(showWellPoints);
     }
   }, [showWellPoints]);
+useEffect(() => {
+    if (!mapInstanceRef.current || !primaryLayer) return;
 
+    setIsLoading(true);
+    setError(null);
+
+    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
+
+    const primaryVectorSource = new VectorSource({
+      format: new GeoJSON(),
+      url: primaryWfsUrl,
+    });
+
+    const boundaryVectorSource = new VectorSource({
+      format: new GeoJSON(),
+      url: boundaryWfsUrl,
+    });
+
+    const primaryVectorLayer = new VectorLayer({
+      source: primaryVectorSource,
+      style: createVectorStyle("primary", showTitles),
+      zIndex: 1,
+      visible: true,
+    });
+
+    const boundaryVectorLayer = new VectorLayer({
+      source: boundaryVectorSource,
+      style: new Style({
+        stroke: new Stroke({
+          color: "#301934",
+          width: 2
+        }),
+        fill: new Fill({
+          color: "rgba(48, 25, 52, 0.1)" // Very transparent fill for boundary
+        })
+      }),
+      zIndex: 2,
+      visible: true,
+    });
+
+    const handleFeaturesLoaded = (event: any) => {
+      const numFeatures = event.features ? event.features.length : 0;
+      setFeatureCounts(prev => ({ ...prev, primary: numFeatures }));
+      setIsLoading(false);
+
+      const primaryExtent = primaryVectorSource.getExtent();
+      if (primaryExtent && primaryExtent.some((val) => isFinite(val))) {
+        mapInstanceRef.current?.getView().fit(primaryExtent, {
+          padding: [50, 50, 50, 50],
+          duration: 1000,
+        });
+      }
+    };
+
+    const handleFeaturesError = () => {
+      setIsLoading(false);
+      setError("Failed to load primary features");
+    };
+
+    primaryVectorSource.on("featuresloadend", handleFeaturesLoaded);
+    primaryVectorSource.on("featuresloaderror", handleFeaturesError);
+
+    if (primaryLayerRef.current) {
+      mapInstanceRef.current.removeLayer(primaryLayerRef.current);
+    }
+    if (boundaryLayerRef.current) {
+      mapInstanceRef.current.removeLayer(boundaryLayerRef.current);
+    }
+
+    mapInstanceRef.current.addLayer(boundaryVectorLayer);
+    mapInstanceRef.current.addLayer(primaryVectorLayer);
+    primaryLayerRef.current = primaryVectorLayer;
+    boundaryLayerRef.current = boundaryVectorLayer;
+
+    return () => {
+      primaryVectorSource.un("featuresloadend", handleFeaturesLoaded);
+      primaryVectorSource.un("featuresloaderror", handleFeaturesError);
+    };
+  }, [primaryLayer, boundarylayer, defaultWorkspace, showTitles]);
   const handleVectorLayer = (
     layer: string | null,
     layerRef: React.MutableRefObject<VectorLayer<VectorSource> | null>,
@@ -469,10 +549,6 @@ const Maping: React.FC = () => {
     mapInstanceRef.current.addLayer(vectorLayer);
     layerRef.current = vectorLayer;
   };
-
-  useEffect(() => {
-    handleVectorLayer(primaryLayer, primaryLayerRef, "primary", 1, true);
-  }, [primaryLayer, defaultWorkspace]);
 
   useEffect(() => {
     handleVectorLayer(riverLayer, riverLayerRef, "river", 10, layerVisibility.river, riverFilter as any);
@@ -816,7 +892,7 @@ const Maping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
           </div>
         )}
 

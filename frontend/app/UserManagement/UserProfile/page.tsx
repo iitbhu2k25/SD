@@ -6,8 +6,7 @@ import { UserEditable, UserProfile } from '@/interface/user';
 import { toast } from 'react-toastify';
 import { useLogout } from '@/components/authentication/logout';
 import { useAuthStore } from '@/store/authStore';
-import {USER} from '@/interface/authentication';
-
+import Image from 'next/image';
 interface InputFieldProps {
   label: string;
   value: string;
@@ -309,7 +308,7 @@ const UserProfilePage: React.FC = () => {
                 <div className="relative w-32 h-32 sm:w-40 sm:h-40 mx-auto">
                   <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-500 rounded-3xl flex items-center justify-center text-white text-3xl sm:text-4xl font-bold shadow-2xl ring-4 ring-white/50 transform hover:rotate-3 transition-all duration-300">
                     {editedUser.profileImage ? (
-                      <img
+                      <Image
                         src={editedUser.profileImage}
                         alt="Profile"
                         className="w-full h-full rounded-3xl object-cover"

@@ -339,21 +339,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
                 </button>
               </div>
 
-              {/* <div className="relative">
-                <img
-                  src={
-                    visualizationData.png_base64
-                      ? `data:image/png;base64,${visualizationData.png_base64}`
-                      : visualizationData.png_path || ''
-                  }
-                  alt="Contour Visualization"
-                  className="max-w-full h-auto rounded-md shadow-sm border"
-                  onError={(e) => {
-                    console.log('Image failed to load');
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div> */}
+    
             </div>
           )}
           {/* Detailed Statistics */}

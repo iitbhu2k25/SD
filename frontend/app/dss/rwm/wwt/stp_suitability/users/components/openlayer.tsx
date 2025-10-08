@@ -101,6 +101,7 @@ const Maping: React.FC = () => {
     primaryLayer,
     riverLayer,
     stretchLayer,
+    boundarylayer,
     drainLayer,
     catchmentLayer,
     riverFilter,
@@ -316,7 +317,86 @@ const Maping: React.FC = () => {
     };
   }, []);
 
-  // Handle vector layers with simplified logic
+useEffect(() => {
+    if (!mapInstanceRef.current || !primaryLayer) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
+
+    const primaryVectorSource = new VectorSource({
+      format: new GeoJSON(),
+      url: primaryWfsUrl,
+    });
+
+    const boundaryVectorSource = new VectorSource({
+      format: new GeoJSON(),
+      url: boundaryWfsUrl,
+    });
+
+    const primaryVectorLayer = new VectorLayer({
+      source: primaryVectorSource,
+      style: createVectorStyle("primary", showTitles),
+      zIndex: 1,
+      visible: true,
+    });
+
+    const boundaryVectorLayer = new VectorLayer({
+      source: boundaryVectorSource,
+      style: new Style({
+        stroke: new Stroke({
+          color: "#301934",
+          width: 2
+        }),
+        fill: new Fill({
+          color: "rgba(48, 25, 52, 0.1)" // Very transparent fill for boundary
+        })
+      }),
+      zIndex: 2,
+      visible: true,
+    });
+
+    const handleFeaturesLoaded = (event: any) => {
+      const numFeatures = event.features ? event.features.length : 0;
+      setFeatureCounts(prev => ({ ...prev, primary: numFeatures }));
+      setIsLoading(false);
+
+      const primaryExtent = primaryVectorSource.getExtent();
+      if (primaryExtent && primaryExtent.some((val) => isFinite(val))) {
+        mapInstanceRef.current?.getView().fit(primaryExtent, {
+          padding: [50, 50, 50, 50],
+          duration: 1000,
+        });
+      }
+    };
+
+    const handleFeaturesError = () => {
+      setIsLoading(false);
+      setError("Failed to load primary features");
+    };
+
+    primaryVectorSource.on("featuresloadend", handleFeaturesLoaded);
+    primaryVectorSource.on("featuresloaderror", handleFeaturesError);
+
+    if (primaryLayerRef.current) {
+      mapInstanceRef.current.removeLayer(primaryLayerRef.current);
+    }
+    if (boundaryLayerRef.current) {
+      mapInstanceRef.current.removeLayer(boundaryLayerRef.current);
+    }
+
+    mapInstanceRef.current.addLayer(boundaryVectorLayer);
+    mapInstanceRef.current.addLayer(primaryVectorLayer);
+    primaryLayerRef.current = primaryVectorLayer;
+    boundaryLayerRef.current = boundaryVectorLayer;
+
+    return () => {
+      primaryVectorSource.un("featuresloadend", handleFeaturesLoaded);
+      primaryVectorSource.un("featuresloaderror", handleFeaturesError);
+    };
+  }, [primaryLayer, boundarylayer, defaultWorkspace, showTitles]);
   const handleVectorLayer = (
     layer: string | null,
     layerRef: React.MutableRefObject<VectorLayer<VectorSource> | null>,
@@ -337,7 +417,7 @@ const Maping: React.FC = () => {
     const vectorSource = createWFSVectorSource({
       workspace: defaultWorkspace,
       layerName: layer,
-      layerFilter:filter
+      layerFilter: filter
     })
     const vectorLayer = new VectorLayer({
       source: vectorSource,
@@ -349,10 +429,11 @@ const Maping: React.FC = () => {
     const handleFeaturesLoaded = (event: any) => {
       const numFeatures = event.features ? event.features.length : 0;
       setFeatureCounts(prev => ({ ...prev, [layerType]: numFeatures }));
-
-      if (hasSelections && numFeatures > 0) {
+      console.log(`${layerType} layer loaded with ${numFeatures} features`);
+      if (layerType === 'primary') {
         const extent = vectorSource.getExtent();
-        if (extent && extent.every(val => isFinite(val))) {
+        console.log("zooming")
+        if (extent && extent.some((val) => isFinite(val))) {
           mapInstanceRef.current?.getView().fit(extent, {
             padding: [50, 50, 50, 50],
             duration: 1000,
@@ -360,9 +441,13 @@ const Maping: React.FC = () => {
         }
       }
     };
+    const handleFeaturesError = () => {
+      console.error(`Failed to load ${layerType} layer`);
+      setError(`Failed to load ${layerType} layer`);
+    };
 
     vectorSource.on("featuresloadend", handleFeaturesLoaded);
-    vectorSource.on("featuresloaderror", () => setError(`Failed to load ${layerType} layer`));
+    vectorSource.on("featuresloaderror", handleFeaturesError);
 
     if (layerRef.current) {
       mapInstanceRef.current.removeLayer(layerRef.current);
@@ -370,12 +455,15 @@ const Maping: React.FC = () => {
 
     mapInstanceRef.current.addLayer(vectorLayer);
     layerRef.current = vectorLayer;
+
+    // Return cleanup function
+    return () => {
+      vectorSource.un("featuresloadend", handleFeaturesLoaded);
+      vectorSource.un("featuresloaderror", handleFeaturesError);
+    };
   };
 
-  // Load layers
-  useEffect(() => {
-    handleVectorLayer(primaryLayer, primaryLayerRef, "primary", 1, true);
-  }, [primaryLayer, defaultWorkspace]);
+
 
   useEffect(() => {
     handleVectorLayer(riverLayer, riverLayerRef, "river", 10, layerVisibility.river, riverFilter as any);
@@ -661,7 +749,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      
+
                       <button
                         onClick={() => toggleLayerVisibility('river')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.river ? "bg-blue-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -684,7 +772,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      
+
                       <button
                         onClick={() => toggleLayerVisibility('stretch')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.stretch ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -707,7 +795,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button
                         onClick={() => toggleLayerVisibility('drain')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.drain ? "bg-red-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -730,7 +818,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button
                         onClick={() => toggleLayerVisibility('catchment')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -743,7 +831,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Result Layer */}
-              { (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.result ? "bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -753,7 +841,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      
+
                       <button
                         onClick={() => toggleLayerVisibility('result')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.result ? "bg-purple-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -831,7 +919,7 @@ const Maping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
           </div>
         )}
 

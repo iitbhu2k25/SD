@@ -705,7 +705,7 @@ const Mapping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
           </div>
         )}
 

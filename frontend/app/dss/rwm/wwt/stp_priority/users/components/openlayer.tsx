@@ -992,7 +992,7 @@ const Maping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
 
             </div>
-            <img src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
+            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
           </div>
         )}
 

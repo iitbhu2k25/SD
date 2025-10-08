@@ -7,7 +7,7 @@ import Image from 'next/image';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  
+
   const switchToSignup = () => setIsLogin(false);
   const switchToLogin = () => setIsLogin(true);
 
@@ -32,7 +32,7 @@ export default function AuthPage() {
                       h-64 sm:h-80 md:h-96 lg:h-auto lg:min-h-screen 
                       order-1 lg:order-2 
                       overflow-hidden">
-        <Image
+        {/* <Image
           src="/Images/main_page_gif.gif"   
           alt="Water management visualization"
           placeholder="blur"
@@ -42,13 +42,18 @@ export default function AuthPage() {
           sizes="(max-width: 1024px) 100vw, 50vw"
           unoptimized
           priority
+        /> */}
+        <img
+          src="/Images/main_page_gif.gif"
+          alt="Water management visualization"
+          className="object-cover w-full h-full"
         />
-        
+
         {/* Optional: Overlay with gradient for better text readability on mobile */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent lg:hidden"></div>
-        
-      
-        
+
+
+
       </div>
     </div>
   );

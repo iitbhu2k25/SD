@@ -18,7 +18,6 @@ export async function middleware(request: NextRequest) {
   ) {
     return NextResponse.next();
   }
-
   const isProtected = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
@@ -26,17 +25,12 @@ export async function middleware(request: NextRequest) {
   if (!isProtected) {
     return NextResponse.next();
   }
-
   const token = request.cookies.get("refresh_token")?.value;
-
   if (!token) {
     return NextResponse.redirect(new URL("/", request.url));
   }
-
   try {
-    console.log("token verification started");
     await jwtVerify(token, new TextEncoder().encode(SECRET));
-    console.log("token verified successfully");
     return NextResponse.next();
   } catch (err) {
     console.log("Error verifying token:", err);
