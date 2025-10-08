@@ -25,6 +25,7 @@ import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
+import { createWFSVectorSource } from "@/components/utils/geoserver_url";
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
@@ -333,20 +334,11 @@ const Maping: React.FC = () => {
       return;
     }
 
-    let wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    if (hasSelections && filter?.filterField && filter?.filterValue && filter.filterValue.length > 0) {
-      wfsUrl += `&CQL_FILTER=${filter.filterField} IN (${Array.isArray(filter.filterValue)
-        ? filter.filterValue.map((v) => `'${v}'`).join(",")
-        : `'${filter.filterValue}'`
-        })`;
-    }
-
-    const vectorSource = new VectorSource({
-      url: wfsUrl,
-      format: new GeoJSON(),
-    });
-
+    const vectorSource = createWFSVectorSource({
+      workspace: defaultWorkspace,
+      layerName: layer,
+      layerFilter:filter
+    })
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: createVectorStyle(layerType, layerType === 'result'),
@@ -659,7 +651,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* River Layer */}
-              {featureCounts.river > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.river ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -669,9 +661,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.river ? "bg-blue-200/80 text-blue-800" : "bg-gray-200/80 text-gray-700"}`}>
-                        {featureCounts.river} features
-                      </span>
+                      
                       <button
                         onClick={() => toggleLayerVisibility('river')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.river ? "bg-blue-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -684,7 +674,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Stretch Layer */}
-              {featureCounts.stretch > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.stretch ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -694,9 +684,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.stretch ? "bg-green-200/80 text-green-800" : "bg-gray-200/80 text-gray-700"}`}>
-                        {featureCounts.stretch} features
-                      </span>
+                      
                       <button
                         onClick={() => toggleLayerVisibility('stretch')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.stretch ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -709,7 +697,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Drain Layer */}
-              {featureCounts.drain > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.drain ? "bg-gradient-to-r from-red-50 to-red-100 border-red-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -719,9 +707,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.drain ? "bg-red-200/80 text-red-800" : "bg-gray-200/80 text-gray-700"}`}>
-                        {featureCounts.drain} features
-                      </span>
+                     
                       <button
                         onClick={() => toggleLayerVisibility('drain')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.drain ? "bg-red-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -734,7 +720,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Catchment Layer */}
-              {featureCounts.catchment > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.catchment ? "bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -744,9 +730,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.catchment ? "bg-yellow-200/80 text-yellow-800" : "bg-gray-200/80 text-gray-700"}`}>
-                        {featureCounts.catchment} features
-                      </span>
+                     
                       <button
                         onClick={() => toggleLayerVisibility('catchment')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -759,7 +743,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Result Layer */}
-              {featureCounts.result > 0 && (
+              { (
                 <div className={`p-4 rounded-xl border ${layerVisibility.result ? "bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -769,9 +753,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.result ? "bg-purple-200/80 text-purple-800" : "bg-gray-200/80 text-gray-700"}`}>
-                        {featureCounts.result} features
-                      </span>
+                      
                       <button
                         onClick={() => toggleLayerVisibility('result')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.result ? "bg-purple-500" : "bg-gray-300"} relative transition-all duration-300`}

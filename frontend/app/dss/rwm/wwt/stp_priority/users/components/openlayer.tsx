@@ -841,24 +841,20 @@ const Maping: React.FC = () => {
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="space-y-3">
-              {/* Primary Layer */}
-              {featureCounts.primary > 0 && (
+              { (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-blue-800">India Layer</span>
                     </div>
-                    <span className="text-xs px-3 py-1 rounded-full bg-blue-200/80 text-blue-800">
-                      {featureCounts.primary} features
-                    </span>
                   </div>
                 </div>
               )}
 
-              {/* River Layers */}
+ 
               {Object.entries(featureCounts).map(([layerType, count]) => {
-                if (layerType === 'primary' || count === 0) return null;
+                if (layerType === 'primary') return null;
 
                 const colorConfig = LAYER_COLORS[layerType];
                 const isVisible = layerType === 'river' ? showRiverLayer :
@@ -889,13 +885,7 @@ const Maping: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <span className={`text-xs px-3 py-1 rounded-full ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-200/80 text-red-800' :
-                          colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
-                            colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
-                          : 'bg-gray-200/80 text-gray-700'
-                          }`}>
-                          {count} features
-                        </span>
+
                         <button
                           onClick={toggleFunction}
                           className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :

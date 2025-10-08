@@ -690,7 +690,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {featureCounts.river > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.river ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -698,7 +698,7 @@ const Maping: React.FC = () => {
                       <span className={`font-semibold ${layerVisibility.river ? "text-blue-800" : "text-gray-600"}`}>Rivers {hasSelections && riverFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.river ? "bg-blue-200/80 text-blue-800" : "bg-gray-200/80 text-gray-700"}`}>{featureCounts.river} features</span>
+                     
                       <button onClick={() => toggleLayerVisibility('river')} className={`w-12 h-6 rounded-full ${layerVisibility.river ? "bg-blue-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.river ? "translate-x-6" : ""}`} />
                       </button>
@@ -707,7 +707,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {featureCounts.stretch > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.stretch ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -715,7 +715,7 @@ const Maping: React.FC = () => {
                       <span className={`font-semibold ${layerVisibility.stretch ? "text-green-800" : "text-gray-600"}`}>Stretches {hasSelections && stretchFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.stretch ? "bg-green-200/80 text-green-800" : "bg-gray-200/80 text-gray-700"}`}>{featureCounts.stretch} features</span>
+                  
                       <button onClick={() => toggleLayerVisibility('stretch')} className={`w-12 h-6 rounded-full ${layerVisibility.stretch ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.stretch ? "translate-x-6" : ""}`} />
                       </button>
@@ -724,7 +724,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {featureCounts.drain > 0 && (
+              { (
                 <div className={`p-4 rounded-xl border ${layerVisibility.drain ? "bg-gradient-to-r from-red-50 to-red-100 border-red-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -732,7 +732,6 @@ const Maping: React.FC = () => {
                       <span className={`font-semibold ${layerVisibility.drain ? "text-red-800" : "text-gray-600"}`}>Drains {hasSelections && drainFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.drain ? "bg-red-200/80 text-red-800" : "bg-gray-200/80 text-gray-700"}`}>{featureCounts.drain} features</span>
                       <button onClick={() => toggleLayerVisibility('drain')} className={`w-12 h-6 rounded-full ${layerVisibility.drain ? "bg-red-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.drain ? "translate-x-6" : ""}`} />
                       </button>
@@ -741,7 +740,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {featureCounts.catchment > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.catchment ? "bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -749,7 +748,7 @@ const Maping: React.FC = () => {
                       <span className={`font-semibold ${layerVisibility.catchment ? "text-yellow-800" : "text-gray-600"}`}>Catchments {hasSelections && catchmentFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${layerVisibility.catchment ? "bg-yellow-200/80 text-yellow-800" : "bg-gray-200/80 text-gray-700"}`}>{featureCounts.catchment} features</span>
+                    
                       <button onClick={() => toggleLayerVisibility('catchment')} className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.catchment ? "translate-x-6" : ""}`} />
                       </button>
@@ -758,7 +757,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {featureCounts.wells > 0 && (
+              {(
                 <div className={`p-4 rounded-xl border ${showWellPoints ? "bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -766,7 +765,7 @@ const Maping: React.FC = () => {
                       <span className={`font-semibold ${showWellPoints ? "text-orange-800" : "text-gray-600"}`}>Well Points</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className={`text-xs px-3 py-1 rounded-full ${showWellPoints ? "bg-orange-200/80 text-orange-800" : "bg-gray-200/80 text-gray-700"}`}>{featureCounts.wells} wells</span>
+
                       <button onClick={() => setShowWellPoints(!showWellPoints)} className={`w-12 h-6 rounded-full ${showWellPoints ? "bg-orange-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showWellPoints ? "translate-x-6" : ""}`} />
                       </button>
