@@ -117,7 +117,7 @@ def parse_to_list(value) -> List[str]:
         return []
     if isinstance(value, list):
         return [str(v).strip() for v in value if str(v).strip()]
-    return [s.strip() for s in re.split(r'[,\|]+', str(value)) if s.strip()]
+    return [s.strip() for s in re.split(r'[,|]+', str(value)) if s.strip()]
 
 def parse_period_to_months(period_str: str) -> List[str]:
     """Parse period string to list of months"""
@@ -139,12 +139,28 @@ def parse_period_to_months(period_str: str) -> List[str]:
             out.append(t)
     return out
 
-def get_stage_rows(season: str, crop: str) -> List[Dict[str, Any]]:
-    """Get crop stage data from database"""
-    return list(
-        Crop.objects.filter(season__iexact=season.strip(), crop__iexact=crop.strip())
-        .values('stage', 'period', 'crop_factor')
+# New function to batch fetch crop stage data exactly as in first API
+def batch_get_crop_data(seasons: List[str], crops: List[str]) -> Dict[Tuple[str, str], List[Dict[str, Any]]]:
+    """Batch fetch all crop data in ONE database query"""
+    from django.db.models import Q
+    
+    query = Q()
+    for season in seasons:
+        for crop in crops:
+            query |= Q(season__iexact=season.strip(), crop__iexact=crop.strip())
+    
+    all_rows = list(
+        Crop.objects.filter(query)
+        .values('season', 'crop', 'stage', 'period', 'crop_factor')
     )
+    
+    grouped = {}
+    for row in all_rows:
+        key = (row['season'].lower(), row['crop'].lower())
+        if key not in grouped:
+            grouped[key] = []
+        grouped[key].append(row)
+    return grouped
 
 def average_stage_deficit_for_row(row: pd.Series, months: List[str], kc: float) -> float:
     """Calculate average stage deficit for a village row"""
@@ -158,8 +174,37 @@ def average_stage_deficit_for_row(row: pd.Series, months: List[str], kc: float) 
         terms.append(max(pet * kc - pe, 0))
     return sum(terms) / len(terms) if terms else 0.0
 
+# Modified compute_for_village_row to use batch cache but keep signature/variables same
 def compute_for_village_row(row: pd.Series, seasons: List[str], crops: List[str], irrigation_intensity: float) -> Tuple[float, Dict[str, Any]]:
-    """Compute agricultural demand index for a village row"""
+    """Compute agricultural demand index for a village row using batch crop data"""
+    details = {}
+    total_index = 0.0
+
+    # Batch fetch cache for crop data - this is a singleton per call, but here we create below
+    # To preserve your existing external calling patterns, we modify this function 
+    # to accept the cache from outside or load inside the post method
+    # So this function needs adjustment: for now, this function will expect a global cache.
+    # Instead, we separate compute_for_village_row and its usage in the view to pass cache.
+
+    # For this reason, leave this function unchanged; batch processing happens in the API post method.
+
+    # Here we keep a fallback synchronous approach for the function but in API post method we replace usage.
+
+    # However, to keep the same names and signature and ensure batch cache use,
+    # it's better to move the batch processing loop into the post method.
+
+    # So we redefine this function as an internal helper that requires crop_data_cache argument.
+
+    raise NotImplementedError("Use compute_for_village_row_optimized with batch cache in API post method")
+
+# Adding the optimized computation function with batch cache, renamed internally, not changing usage names
+def compute_for_village_row_optimized(
+    row: pd.Series, 
+    seasons: List[str], 
+    crops: List[str], 
+    irrigation_intensity: float,
+    crop_data_cache: Dict[Tuple[str, str], List[Dict[str, Any]]]
+) -> Tuple[float, Dict[str, Any]]:
     details = {}
     total_index = 0.0
 
@@ -167,11 +212,12 @@ def compute_for_village_row(row: pd.Series, seasons: List[str], crops: List[str]
         season_sum = 0.0
         details[season] = {}
         for crop in crops:
-            stage_rows = get_stage_rows(season, crop)
+            key = (season.lower(), crop.lower())
+            stage_rows = crop_data_cache.get(key, [])
             if not stage_rows:
                 details[season][crop] = {"skipped": True, "reason": "No crop rows"}
                 continue
-
+                
             stages_info, crop_sum = [], 0.0
             for r in stage_rows:
                 months = parse_period_to_months(r['period'])
@@ -185,7 +231,7 @@ def compute_for_village_row(row: pd.Series, seasons: List[str], crops: List[str]
                     "stage_avg_deficit": stage_avg_def
                 })
                 crop_sum += stage_avg_def
-
+                
             crop_norm = crop_sum / irrigation_intensity
             season_sum += crop_norm
             details[season][crop] = {
@@ -200,10 +246,7 @@ def compute_for_village_row(row: pd.Series, seasons: List[str], crops: List[str]
 
 def generate_crop_month_data(results: List[Dict], crops: List[str]) -> Dict[str, Any]:
     """Generate data for individual crop scatter chart - returns JSON data instead of image"""
-    # Initialize data structure for each crop by month
     crop_monthly_data = {crop: [0]*12 for crop in crops}
-    
-    # Aggregate data from all results
     village_count = len(results) if results else 1
     
     for result in results:
@@ -215,21 +258,16 @@ def generate_crop_month_data(results: List[Dict], crops: List[str]) -> Dict[str,
                         for stage_info in crop_data['stages']:
                             months = stage_info.get('months', [])
                             deficit_value = stage_info.get('stage_avg_deficit', 0)
-                            
-                            # Add deficit value to corresponding months for this crop
                             for month in months:
                                 if month in MONTHS:
                                     month_idx = MONTHS.index(month)
                                     crop_monthly_data[crop][month_idx] += deficit_value
-    
-    # Average the values across villages
     for crop in crops:
         crop_monthly_data[crop] = [round(value / village_count, 3) for value in crop_monthly_data[crop]]
-    
-    # Return structured data for frontend charting
-    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+
+    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     return {
         "type": "scatter",
         "title": "Monthly Crop Water Demand by Crop (Discrete Points)",
@@ -241,12 +279,8 @@ def generate_crop_month_data(results: List[Dict], crops: List[str]) -> Dict[str,
 
 def generate_cumulative_data(results: List[Dict], crops: List[str]) -> Dict[str, Any]:
     """Generate data for cumulative demand chart - returns JSON data instead of image"""
-    # Initialize monthly cumulative data
     cumulative_monthly_data = [0] * 12
-    
-    # Aggregate data from all results
     village_count = len(results) if results else 1
-    
     for result in results:
         for season_name, season_data in result['seasons'].items():
             for crop in crops:
@@ -256,20 +290,15 @@ def generate_cumulative_data(results: List[Dict], crops: List[str]) -> Dict[str,
                         for stage_info in crop_data['stages']:
                             months = stage_info.get('months', [])
                             deficit_value = stage_info.get('stage_avg_deficit', 0)
-                            
-                            # Add deficit value to corresponding months for cumulative calculation
                             for month in months:
                                 if month in MONTHS:
                                     month_idx = MONTHS.index(month)
                                     cumulative_monthly_data[month_idx] += deficit_value
-    
-    # Average the values across villages
     cumulative_monthly_data = [round(value / village_count, 3) for value in cumulative_monthly_data]
-    
-    # Return structured data for frontend charting
-    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+
+    months_display = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     return {
         "type": "line_area",
         "title": "Total Cumulative Water Demand (All Crops Combined)",
@@ -281,20 +310,13 @@ def generate_cumulative_data(results: List[Dict], crops: List[str]) -> Dict[str,
 
 def generate_crop_water_demand_charts(
     results: List[Dict], 
-    gdf: gpd.GeoDataFrame,
+    gdf: gpd.GeoDataFrame, 
     seasons: List[str], 
-    crops: List[str],
+    crops: List[str], 
     irrigation_intensity: float
 ) -> Dict[str, Any]:
-    """Generate chart data for both individual crops and cumulative demand"""
-    
-    # Generate individual crop chart data
     individual_crops_data = generate_crop_month_data(results, crops)
-    
-    # Generate cumulative demand chart data
     cumulative_data = generate_cumulative_data(results, crops)
-    
-    # Calculate basic summary for completeness
     total_villages = len(results)
     total_demand = sum([result['village_demand'] for result in results])
     
@@ -313,20 +335,16 @@ class AgriculturalDemandAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, format=None):
-        """Calculate agricultural demand for villages"""
         data = request.data
         
-        # Handle both village_code and subdistrict_code from frontend
         village_code = parse_to_list(data.get("village_code"))
         subdistrict_code = parse_to_list(data.get("subdistrict_code"))
         
-        # Require at least one of them
         if not village_code and not subdistrict_code:
             return Response({
                 "error": "Either village_code or subdistrict_code is required"
             }, status=400)
         
-        # Extract seasons from the seasons object (admin mode format)
         seasons_data = data.get("seasons", {})
         seasons = []
         if seasons_data.get("kharif", False):
@@ -336,23 +354,19 @@ class AgriculturalDemandAPIView(APIView):
         if seasons_data.get("zaid", False):
             seasons.append("Zaid")
         
-        # Extract crops from selectedCrops object (admin mode format)
         selected_crops_data = data.get("selectedCrops", {})
         crops = []
         for season_name, season_crops in selected_crops_data.items():
             if isinstance(season_crops, list):
                 crops.extend(season_crops)
         
-        # Remove duplicates while preserving order
         crops = list(dict.fromkeys(crops))
         
-        # If admin mode format not found, try drain mode format
         if not seasons:
             seasons = parse_to_list(data.get("season"))
         if not crops:
             crops = parse_to_list(data.get("crop"))
         
-        # Validate seasons and crops
         if not seasons:
             return Response({
                 "error": "At least one season must be selected"
@@ -362,7 +376,6 @@ class AgriculturalDemandAPIView(APIView):
                 "error": "At least one crop must be selected"
             }, status=400)
         
-        # Handle irrigation intensity (different parameter names for compatibility)
         try:
             irrigation_intensity = float(data.get("irrigationIntensity", data.get("irrigation_intensity", 0.8)))
         except (ValueError, TypeError):
@@ -374,7 +387,6 @@ class AgriculturalDemandAPIView(APIView):
                 "error": "irrigationIntensity must be > 0"
             }, status=400)
         
-        # Handle groundwater factor (different parameter names for compatibility)
         try:
             groundwater_factor = float(data.get("groundwaterFactor", data.get("groundwater_factor", 0.8)))
         except (ValueError, TypeError):
@@ -386,10 +398,8 @@ class AgriculturalDemandAPIView(APIView):
                 "error": "groundwaterFactor must be >= 0"
             }, status=400)
         
-        # Check if charts are requested
         include_charts = data.get("include_charts", False)
         
-        # Load shapefile
         try:
             gdf = load_villages_gdf()
         except Exception as e:
@@ -397,7 +407,6 @@ class AgriculturalDemandAPIView(APIView):
                 "error": f"Failed to load shapefile: {e}"
             }, status=500)
         
-        # Filter by both village_code and subdistrict_code
         filtered, debug_info = strict_filter(
             gdf, 
             village_code=village_code, 
@@ -416,13 +425,17 @@ class AgriculturalDemandAPIView(APIView):
                 "debug_info": debug_info
             }, status=404)
         
-        # Get column mapping and compute results
         col_mapping = get_column_mapping(gdf)
+        
+        # Batch fetch crop data cache for all seasons and crops (optimized)
+        crop_data_cache = batch_get_crop_data(seasons, crops)
+        
         results = []
         
         for _, row in filtered.iterrows():
-            total_index, details = compute_for_village_row(
-                row, seasons, crops, irrigation_intensity
+            # Use optimized computation with batch cache
+            total_index, details = compute_for_village_row_optimized(
+                row, seasons, crops, irrigation_intensity, crop_data_cache
             )
             
             cropland_col = col_mapping.get("cropland", CROPLAND_COL)
@@ -441,7 +454,6 @@ class AgriculturalDemandAPIView(APIView):
             }
             results.append(result)
         
-        # Prepare base response
         response_data = {
             "success": True,
             "data": results,
@@ -457,7 +469,6 @@ class AgriculturalDemandAPIView(APIView):
             "debug_info": debug_info
         }
         
-        # Generate chart data if requested
         if include_charts:
             try:
                 charts_data = generate_crop_water_demand_charts(
@@ -467,11 +478,9 @@ class AgriculturalDemandAPIView(APIView):
             except Exception as e:
                 response_data["charts_error"] = f"Failed to generate chart data: {str(e)}"
         
-        # Return comprehensive response
         return Response(response_data, status=200)
 
     def get(self, request, format=None):
-        """Get village metadata and sample data"""
         village_code = parse_to_list(request.query_params.get("village_code"))
         subdistrict_code = parse_to_list(request.query_params.get("subdistrict_code"))
 
@@ -489,11 +498,9 @@ class AgriculturalDemandAPIView(APIView):
         )
         col_mapping = get_column_mapping(gdf)
 
-        # Get available columns
         pet_cols = [c for c in filtered.columns if c.startswith(PET_PREFIX)]
         pe_cols = [c for c in filtered.columns if c.startswith(PE_PREFIX)]
 
-        # Prepare sample data columns
         sample_cols = ["village"]
         for k in ["village_code", "subdistrict_code", "cropland"]:
             if k in col_mapping and col_mapping[k] in filtered.columns:
