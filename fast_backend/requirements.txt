@@ -1,5 +1,5 @@
 fastapi
-pydantic
+pydantic==2.11.10
 sqlalchemy
 psycopg2-binary
 uvicorn[standard]
@@ -13,7 +13,6 @@ lxml
 rasterstats
 flower
 python-decouple
-pydantic-settings
 requests
 fastapi-pagination
 geopandas

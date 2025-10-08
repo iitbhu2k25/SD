@@ -36,6 +36,7 @@ def logout(response:Response,user: Annotated[str, Depends(get_current_user)]):
 
 @app.post("/email_otp",status_code=status.HTTP_201_CREATED)
 def generate_email_opt(backgroud:BackgroundTasks,user: Annotated[str, Depends(get_current_user)])->bool:
+
     return AuthService().send_email_otp(backgroud=backgroud,email=user.email)
 
 @app.post("/email_verify",status_code=status.HTTP_201_CREATED)
