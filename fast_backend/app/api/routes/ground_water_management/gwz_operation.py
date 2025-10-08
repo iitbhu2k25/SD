@@ -69,10 +69,10 @@ async def get_raster_mar_suitability(db:db_dependency,category:str,all_data: boo
 @router.post("/mar_suitability_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def gwz_raster_dislay(db:db_dependency,payload:category_raster):
-    return MARsuitabilityMapper().get_visual_raster(db,payload.clip)
+    return MARSuitabilityMapper().get_visual_raster(db,payload.clip)
 
     
 @router.post("/mar_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_classify(db:db_dependency,payload:STPsuitabilityInput):
-    return MARsuitabilityMapper().create_suitability_map(db,payload)
+    return MARSuitabilityMapper().create_suitability_map(db,payload)

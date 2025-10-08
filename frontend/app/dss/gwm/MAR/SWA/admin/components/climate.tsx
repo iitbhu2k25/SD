@@ -52,7 +52,7 @@ export default function ClimateAdmin() {
     setSelectedSourceId, setSelectedStartYear, setSelectedEndYear, run
   } = useClimateAdmin();
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const canRunBase = selectionConfirmed && selectedSubdistrictIds.length > 0 && !posting && selectedSourceId !== null && selectedSourceId !== '';
 

@@ -75,7 +75,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const [stressDataMap, setStressDataMap] = useState<Map<number, VillageStressData>>(new Map());
   const [stressColumns, setStressColumns] = useState<string[]>([]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   // Load stress data from localStorage on mount
   useEffect(() => {

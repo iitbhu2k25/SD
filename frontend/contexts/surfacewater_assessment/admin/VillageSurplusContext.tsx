@@ -47,7 +47,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const fetchSurplusBulk = useCallback(
     async (subdistrictIds: number[]) => {
