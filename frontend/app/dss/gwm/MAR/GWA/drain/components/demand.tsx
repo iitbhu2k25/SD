@@ -1122,16 +1122,24 @@ const Demand = () => {
 
             )}
           </div>
+{agriculturalTableData.length > 0 && (
+  <div className="mt-6 grid grid-cols-1 gap-6">
+    {/* Left: Table (always visible when toggled on) */}
+    <div className="overflow-auto">
+      {showAgriculturalTable && (
+        <AgriculturalTableDisplay
+          tableData={agriculturalTableData}
+          title="Groundwater Consumption for Agricultural Need"
+        />
+      )}
+    </div>
 
-          {/* Agricultural Table */}
-          {showAgriculturalTable && agriculturalTableData.length > 0 && (
-            <AgriculturalTableDisplay
-              tableData={agriculturalTableData}
-              title="Groundwater Consumption for Agricultural Need"
-            />
-          )}
-          {/* Chart Display */}
-          <ChartDisplay />
+    {/* Right: Chart Panel (persistent — does not re-render table) */}
+    <div>
+      <ChartDisplay />
+    </div>
+  </div>
+)}
         </div>
       )}
 
