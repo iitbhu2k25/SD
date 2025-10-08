@@ -303,11 +303,14 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
             {wellsError}
           </div>
         )}
-        {(wellsLoading || isConfirming) && (
-          <div className="mb-4 p-2 bg-blue-100 text-blue-700 rounded">
-            {isConfirming ? 'Saving and confirming wells...' : 'Loading wells data...'}
+        {isConfirming && (
+          <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+            <div className="p-4 rounded shadow bg-blue-100 text-blue-700">
+              Saving and confirming wells...
+            </div>
           </div>
         )}
+
 
         {/* WELL SELECTION SECTION */}
         <div className="mb-6">

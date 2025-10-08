@@ -143,9 +143,9 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
     completeWellData['LONGITUDE'] = wellData['LONGITUDE'] || coordinates[0].toString();
 
     // Set default block if empty
- if (!completeWellData['BLOCK'] || completeWellData['BLOCK']?.toString().trim() === '') {
-  completeWellData['BLOCK'] = 'Unknown';
-}
+    if (!completeWellData['BLOCK'] || completeWellData['BLOCK']?.toString().trim() === '') {
+      completeWellData['BLOCK'] = 'Unknown';
+    }
 
 
     console.log("Complete well data for table:", completeWellData);
@@ -305,11 +305,14 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
             {wellsError}
           </div>
         )}
-        {(wellsLoading || isConfirming) && (
-          <div className="mb-4 p-2 bg-blue-100 text-blue-700 rounded">
-            {isConfirming ? 'Saving and confirming wells...' : 'Loading wells data...'}
+        {isConfirming && (
+          <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-10">
+            <div className="p-4 rounded shadow bg-blue-100 text-blue-700">
+              Saving and confirming wells...
+            </div>
           </div>
         )}
+
 
         {/* WELL SELECTION SECTION */}
         <div className="mb-6">

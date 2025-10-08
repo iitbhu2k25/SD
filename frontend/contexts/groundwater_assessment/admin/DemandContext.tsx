@@ -361,7 +361,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       const result = await response.json();
       console.log('Agricultural demand computation result:', result);
 
-      // Set the table data from API response
+     
       if (result.data && Array.isArray(result.data)) {
         setAgriculturalTableData(result.data);
       } else {

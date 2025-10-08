@@ -31,6 +31,32 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
 
   const [activeResultTab, setActiveResultTab] = useState<'overview' | 'table' | 'charts'>('overview');
   const [selectedVillages, setSelectedVillages] = useState<string[]>([]);
+  const [hoveredData, setHoveredData] = useState<any>(null);
+
+  // Handle chart click to show data
+  const handleChartClick = (event: any) => {
+    if (event && event.activeLabel !== undefined) {
+      // Find the data point for the clicked year
+      const clickedYear = event.activeLabel;
+      const dataPoint = chartData.find((d: any) => d.year === clickedYear);
+      
+      if (dataPoint) {
+        // Convert data point to payload format
+        const payload = Object.keys(dataPoint)
+          .filter(key => key !== 'year' && dataPoint[key] !== undefined && dataPoint[key] !== null)
+          .map(key => ({
+            dataKey: key,
+            value: dataPoint[key],
+            name: key
+          }));
+        
+        setHoveredData({
+          year: clickedYear,
+          data: payload
+        });
+      }
+    }
+  };
 
   // Extract available years from wells data for historical reference
   const availableHistoricalYears = useMemo(() => {
@@ -815,54 +841,166 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
                       </div>
                     ) : (
                       <div>
-                        <h5 className="text-md font-medium text-gray-700 mb-3">
-                          Combined Forecast Chart ({selectedVillages.length} village{selectedVillages.length !== 1 ? 's' : ''} selected)
-                        </h5>
-                        <ResponsiveContainer width="100%" height={400}>
-                          <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="year" />
-                            <YAxis />
-                            <Tooltip
-                              formatter={(value, name) => [
-                                typeof value === 'number' ? value.toFixed(2) : value,
-                                String(name) // convert to string first
-                                  .replace('_', ' ')
-                                  .replace(/\b\w/g, (l: string) => l.toUpperCase())
-                              ]}
-                            />
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="text-md font-medium text-gray-700">
+                            Combined Forecast Chart ({selectedVillages.length} village{selectedVillages.length !== 1 ? 's' : ''} selected)
+                          </h5>
+                          <div className="flex items-center gap-3">
+                            {hoveredData && (
+                              <div className="flex items-center gap-2 bg-blue-100 border border-blue-300 rounded-full px-3 py-1">
+                                <svg className="w-3 h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-xs font-semibold text-blue-700">Selected: {hoveredData.year}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                              </svg>
+                              <span>Click on any year to view details</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Two Column Layout: 80% Chart + 20% Tooltip */}
+                        <div className="grid grid-cols-12 gap-4">
+                          {/* Left Column - Chart (80%) */}
+                          <div className="col-span-10 cursor-pointer">
+                            <ResponsiveContainer width="100%" height={400}>
+                              <LineChart 
+                                data={chartData}
+                                onClick={handleChartClick}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="year" />
+                                <YAxis />
+                               
 
-                            {selectedVillages.map((villageName, idx) => {
-                              const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
-                              const historicalColor = colors[idx % colors.length];
-                              const forecastColor = colors[(idx + 1) % colors.length];
+                                {selectedVillages.map((villageName, idx) => {
+                                  const colors = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#84CC16'];
+                                  const historicalColor = colors[idx % colors.length];
+                                  const forecastColor = colors[(idx + 1) % colors.length];
 
-                              return (
-                                <React.Fragment key={villageName}>
-                                  <Line
-                                    type="monotone"
-                                    dataKey={`${villageName}_historical`}
-                                    stroke={historicalColor}
-                                    strokeWidth={2}
-                                    name={`${villageName} (Historical)`}
-                                    connectNulls={false}
-                                    dot={{ r: 3 }}
-                                  />
-                                  <Line
-                                    type="monotone"
-                                    dataKey={`${villageName}_forecast`}
-                                    stroke={forecastColor}
-                                    strokeWidth={2}
-                                    strokeDasharray="5 5"
-                                    name={`${villageName} (Forecast)`}
-                                    connectNulls={false}
-                                    dot={{ r: 3 }}
-                                  />
-                                </React.Fragment>
-                              );
-                            })}
-                          </LineChart>
-                        </ResponsiveContainer>
+                                  return (
+                                    <React.Fragment key={villageName}>
+                                      <Line
+                                        type="monotone"
+                                        dataKey={`${villageName}_historical`}
+                                        stroke={historicalColor}
+                                        strokeWidth={2}
+                                        name={`${villageName} (Historical)`}
+                                        connectNulls={false}
+                                        dot={{ r: 4 }}
+                                        activeDot={{ r: 7 }}
+                                      />
+                                      <Line
+                                        type="monotone"
+                                        dataKey={`${villageName}_forecast`}
+                                        stroke={forecastColor}
+                                        strokeWidth={2}
+                                        strokeDasharray="5 5"
+                                        name={`${villageName} (Forecast)`}
+                                        connectNulls={false}
+                                        dot={{ r: 4 }}
+                                        activeDot={{ r: 7 }}
+                                      />
+                                    </React.Fragment>
+                                  );
+                                })}
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* Right Column - Tooltip Data Display (20%) */}
+                          <div className="col-span-2">
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4 h-[400px] overflow-y-auto shadow-inner">
+                              <div className="flex items-center justify-between mb-3 border-b border-blue-300 pb-2">
+                                <h6 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                                  Data Details
+                                </h6>
+                                {hoveredData && (
+                                  <button
+                                    onClick={() => setHoveredData(null)}
+                                    className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                    title="Clear selection"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {hoveredData ? (
+                                <div className="space-y-3">
+                                  <div className="bg-white rounded-md p-2 shadow-sm border border-blue-100">
+                                    <p className="text-xs text-gray-500 font-medium">Year</p>
+                                    <p className="text-lg font-bold text-blue-600">{hoveredData.year}</p>
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    {hoveredData.data && hoveredData.data.length > 0 ? (
+                                      hoveredData.data.map((item: any, index: number) => {
+                                        // Skip if no value
+                                        if (item.value === null || item.value === undefined || item.value === '') return null;
+                                        
+                                        // Get the data key (name of the series)
+                                        const dataKey = item.dataKey || item.name || 'Unknown';
+                                        
+                                        // Format the display name
+                                        const displayName = String(dataKey)
+                                          .replace(/_/g, ' ')
+                                          .split(' ')
+                                          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                                          .join(' ');
+                                        
+                                        // Determine if historical or forecast
+                                        const isHistorical = String(dataKey).toLowerCase().includes('historical');
+                                        const bgColor = isHistorical ? 'bg-blue-50' : 'bg-red-50';
+                                        const borderColor = isHistorical ? 'border-blue-200' : 'border-red-200';
+                                        const textColor = isHistorical ? 'text-blue-700' : 'text-red-700';
+                                        const dotColor = isHistorical ? 'bg-blue-500' : 'bg-red-500';
+                                        
+                                        return (
+                                          <div 
+                                            key={index} 
+                                            className={`${bgColor} ${borderColor} border rounded-md p-2 shadow-sm transition-all hover:shadow-md`}
+                                          >
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <div className={`w-2 h-2 rounded-full ${dotColor}`}></div>
+                                              <p className="text-xs text-gray-600 truncate flex-1" title={displayName}>
+                                                {displayName}
+                                              </p>
+                                            </div>
+                                            <div className="flex items-baseline gap-1 pl-4">
+                                              <p className={`text-base font-bold ${textColor}`}>
+                                                {typeof item.value === 'number' ? item.value.toFixed(2) : item.value}
+                                              </p>
+                                              <span className="text-xs text-gray-500">m</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })
+                                    ) : (
+                                      <p className="text-xs text-gray-500 text-center py-4">No data available for this point</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center h-[300px] text-center">
+                                  <svg className="w-12 h-12 text-blue-200 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                  </svg>
+                                  <p className="text-xs text-gray-500 px-2 font-medium mb-1">
+                                    Click on the chart
+                                  </p>
+                                  <p className="text-xs text-gray-400 px-2">
+                                    Click any data point to view detailed information
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
 
                         {/* Selected Villages Legend */}
                         <div className="mt-4 p-3 bg-gray-50 rounded-md">
@@ -890,9 +1028,6 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
                               );
                             })}
                           </div>
-
-
-
                         </div>
                       </div>
                     )}

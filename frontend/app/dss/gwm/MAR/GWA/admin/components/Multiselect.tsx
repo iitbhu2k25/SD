@@ -30,6 +30,9 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
   const allItemIds = items.map(item => Number(item.id));
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
+  // Ref and saved scroll position for preserving scrollTop
+  const savedScrollTop = useRef(0);
+
   // Filter items based on search query
   const filteredItems = items.filter(item =>
     displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -136,6 +139,18 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     }
   };
 
+  // Save scroll position on scroll event
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    savedScrollTop.current = e.currentTarget.scrollTop;
+  };
+
+  // Restore scroll position on filteredItems or selectedItems changes
+  useEffect(() => {
+    if (dropdownRef.current) {
+      dropdownRef.current.scrollTop = savedScrollTop.current;
+    }
+  }, [filteredItems, selectedItems]);
+
   return (
     <div className="relative" ref={dropdownRef}>
       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -167,7 +182,11 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
       </div>
 
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
+        <div
+          ref={dropdownRef}
+          className={getDropdownClasses()}
+          onScroll={onScroll}
+        >
           {/* Search box */}
           <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
             <div className="relative">

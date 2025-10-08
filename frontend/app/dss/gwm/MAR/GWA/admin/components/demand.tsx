@@ -73,10 +73,10 @@ const Demand = () => {
 
   // State for chart selection between individual and cumulative charts
   const [selectedChart, setSelectedChart] = useState<'individual' | 'cumulative'>('individual');
-  const [showDomesticTable, setShowDomesticTable] = useState(false);
+  const [showDomesticTable, setShowDomesticTable] = useState(true);
   const toggleDomesticTable = () => setShowDomesticTable((prev) => !prev);
   // ✅ Add this state at top of Demand component
-  const [showAgriculturalTable, setShowAgriculturalTable] = useState(false);
+  const [showAgriculturalTable, setShowAgriculturalTable] = useState(true);
   const toggleAgriculturalTable = () => setShowAgriculturalTable((prev) => !prev);
   // Add the hover state for tracking the hovered data
   // const [hoveredMonth, setHoveredMonth] = useState<string | null>(null);
@@ -589,32 +589,66 @@ const Demand = () => {
               <>
                 <button
                   onClick={toggleDomesticTable}
-                  className={[
-                    "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5 shadow-md focus:outline-none focus:ring-4",
-                    showDomesticTable
-                      ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 focus:ring-yellow-400 focus:ring-opacity-50"
-                      : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-400 focus:ring-opacity-50",
-                  ].join(" ")}
+                  className="inline-flex items-center justify-center p-2 rounded-full focus:outline-none"
+                  aria-label={showDomesticTable ? "Hide Table" : "Show Table"}
+                  title={showDomesticTable ? "Hide Table" : "Show Table"}
                 >
-                  <svg
-                    className={[
-                      "w-4 h-4 transition-transform",
-                      showDomesticTable ? "rotate-180" : "",
-                    ].join(" ")}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                  {showDomesticTable ? "Hide Table" : "Show Domestic Demand Table"}
+                  {showDomesticTable ? (
+                    // Eye icon (table visible)
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {/* Center circle (iris) */}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      {/* Eye outline */}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5
+           c4.477 0 8.268 2.943 9.542 7
+           -1.274 4.057-5.065 7-9.542 7
+           -4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  ) : (
+                    // Eye-off icon (table hidden, with center circle)
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {/* Center circle (iris) */}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      {/* Eye outline */}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.94 17.94A10.016 10.016 0 0112 19
+           c-4.477 0-8.268-2.943-9.542-7
+           a9.96 9.96 0 012.293-3.95
+           M6.06 6.06A9.991 9.991 0 0112 5
+           c4.477 0 8.268 2.943 9.542 7
+           a9.958 9.958 0 01-4.042 5.142"
+                      />
+                      {/* Diagonal slash */}
+                      <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                    </svg>
+                  )}
                 </button>
 
+
+
                 {/* Quick stats */}
-                <span className="text-sm text-blue-600 font-medium">
+                {/* <span className="text-sm text-blue-600 font-medium">
                   {domesticTableData.length} record
                   {domesticTableData.length !== 1 ? "s" : ""} computed
-                </span>
+                </span> */}
               </>
             )}
           </div>
@@ -982,37 +1016,51 @@ const Demand = () => {
               <>
                 <button
                   onClick={toggleAgriculturalTable}
-                  className={[
-                    "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5 shadow-md focus:outline-none focus:ring-4",
-                    showAgriculturalTable
-                      ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 focus:ring-yellow-400 focus:ring-opacity-50"
-                      : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-400 focus:ring-opacity-50",
-                  ].join(" ")}
+                  className="inline-flex items-center justify-center p-2 rounded-full focus:outline-none"
+                  aria-label={showAgriculturalTable ? "Hide Table" : "Show Table"}
+                  title={showAgriculturalTable ? "Hide Table" : "Show Table"}
                 >
-                  <svg
-                    className={[
-                      "w-4 h-4 transition-transform",
-                      showAgriculturalTable ? "rotate-180" : "",
-                    ].join(" ")}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                  {showAgriculturalTable ? "Hide Table" : "Show Agricultural Demand Table"}
+                  {showAgriculturalTable ? (
+                    // Eye icon (table visible)
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {/* Center circle (iris) */}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      {/* Eye outline */}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5
+           c4.477 0 8.268 2.943 9.542 7
+           -1.274 4.057-5.065 7-9.542 7
+           -4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  ) : (
+                    // Eye-off icon (hidden, with center circle)
+                    <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {/* Center circle (iris) */}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      {/* Eye outline */}
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M17.94 17.94A10.016 10.016 0 0112 19
+           c-4.477 0-8.268-2.943-9.542-7
+           a9.96 9.96 0 012.293-3.95
+           M6.06 6.06A9.991 9.991 0 0112 5
+           c4.477 0 8.268 2.943 9.542 7
+           a9.958 9.958 0 01-4.042 5.142"
+                      />
+                      {/* Diagonal slash */}
+                      <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+                    </svg>
+                  )}
                 </button>
 
+
                 {/* Quick stats */}
-                <span className="text-sm text-yellow-700 font-medium">
+                {/* <span className="text-sm text-yellow-700 font-medium">
                   {agriculturalTableData.length} village
                   {agriculturalTableData.length !== 1 ? "s" : ""} computed
-                </span>
+                </span> */}
               </>
             )}
           </div>

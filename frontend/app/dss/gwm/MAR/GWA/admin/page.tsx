@@ -61,7 +61,7 @@ function ComputeAvailableWaterButton() {
       console.log('⚠️ No stress data available to transfer');
     }
 
-    const url = `/dss/GWM/MAR/SWA?${params.toString()}`;
+    const url = `/dss/gwm/MAR/SWA?${params.toString()}`;
     
     // Log what we're sending
     console.log('=== SENDING DATA TO SWA MODULE ===');

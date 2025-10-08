@@ -182,7 +182,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     const fetchAvailableYears = async () => {
       try {
         console.log("Fetching available years from backend");
-        const response = await fetch('django/wqa/available-years');
+        const response = await fetch('/django/wqa/available-years');
         
         if (!response.ok) {
           throw new Error(`Failed to fetch years: ${response.status}`);

@@ -34,6 +34,9 @@ export const MultiSelect = <T extends WithIdName>({
   const allItemIds = items.map(item => item.id);
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
+  // Scroll position preservation
+  const savedScrollTop = useRef(0);
+
   const filteredItems = items.filter(item =>
     displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -110,6 +113,16 @@ export const MultiSelect = <T extends WithIdName>({
     return dropdownPosition === 'top' ? `${baseClasses} bottom-full mb-1` : `${baseClasses} top-full mt-1`;
   };
 
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    savedScrollTop.current = e.currentTarget.scrollTop;
+  };
+
+  useEffect(() => {
+    if (dropdownRef.current) {
+      dropdownRef.current.scrollTop = savedScrollTop.current;
+    }
+  }, [filteredItems, selectedItems]);
+
   return (
     <div className="relative" ref={dropdownRef}>
       <label className="block text-sm font-semibold text-gray-700 mb-2">{label}:</label>
@@ -125,7 +138,7 @@ export const MultiSelect = <T extends WithIdName>({
       </div>
 
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
+        <div className={getDropdownClasses()} onScroll={onScroll}>
           <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
             <div className="relative">
               <input
@@ -140,10 +153,13 @@ export const MultiSelect = <T extends WithIdName>({
               {searchQuery && (
                 <button
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchQuery('');
+                  }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}

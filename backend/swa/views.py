@@ -2,35 +2,36 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from django.db.models import Avg
+from .models import AdminFlow
 from .models import SubbasinFlow
 import numpy as np
 from django.db.models import Q
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework import status
+import matplotlib.pyplot as plt
+import io
+import base64
+import matplotlib
+matplotlib.use("Agg")  # non-GUI backend for servers
+
+from io import BytesIO
+from typing import List, Dict, Any, Tuple, Optional
+matplotlib.use("Agg")
+
+from django.db.models import QuerySet
+from .models import AdminFlow 
 
 
-
+# ------------------------------------
 class Subbasin(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        
         subs = SubbasinFlow.objects.values("sub").distinct().order_by("sub")
-
         if not subs.exists():
-            return Response(
-                {"message": "No subbasins found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
+            return Response({"message": "No subbasins found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(list(subs), status=status.HTTP_200_OK)
-    
 
-
-
-
+#Drain mode FDC Curve API
 def compute_fdc_and_quantiles(flows, targets=[10, 25, 50, 75, 90]):
     flows = np.array([f for f in flows if f is not None], dtype=float)
     if flows.size == 0:
@@ -55,6 +56,33 @@ def compute_fdc_and_quantiles(flows, targets=[10, 25, 50, 75, 90]):
     }
 
 
+def render_fdc_png(exceed_prob, sorted_flows, sub_id, q25=None, width=800, height=450, dpi=160):
+    # Build a PNG image using matplotlib
+    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
+    # Line
+    ax.plot(exceed_prob, sorted_flows, color="#2563eb", linewidth=2, label=f"Subbasin {sub_id}")
+    # Grid and labels
+    ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.6)
+    ax.set_xlim(0, 100)
+    ax.set_xlabel("Percent exceedance probability")
+    ax.set_ylabel("Runoff (m³/s)")
+    # Q25 reference
+    ax.axvline(x=25, color="#dc2626", linestyle="--", linewidth=1.5)
+    if q25 is not None:
+        ax.axhline(y=q25, color="#dc2626", linestyle="--", linewidth=2)
+        ax.text(26, q25, "Q25", color="#dc2626", fontsize=9, va="bottom")
+    ax.set_title("Flow Duration Curve")
+    ax.legend(loc="best")
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    fig.savefig(buf, format="png", dpi=dpi, facecolor="white")
+    plt.close(fig)
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode("utf-8")
+    return b64
+
+
 class FlowDurationCurveAPI(APIView):
     permission_classes = [AllowAny]
 
@@ -76,10 +104,23 @@ class FlowDurationCurveAPI(APIView):
             if not computed:
                 errors[str(sub)] = "No data found for this subbasin"
             else:
-                results[str(sub)] = computed
+                # Generate PNG for each sub using computed arrays
+                exceed_prob = computed["exceed_prob"]
+                sorted_flows = computed["sorted_flows"]
+                q25 = computed["quantiles"].get("Q25")
+                png_b64 = render_fdc_png(exceed_prob, sorted_flows, sub_id=sub, q25=q25)
+
+                results[str(sub)] = {
+                    **computed,
+                    "image_base64": png_b64,  # New: base64-encoded PNG image
+                }
 
         return Response({
             "subs": subs,
             "results": results,
             "errors": errors or None
         }, status=status.HTTP_200_OK)
+#---------------------------------------+Ended Drain mode FDC Curve API+------------------------------------------
+
+
+

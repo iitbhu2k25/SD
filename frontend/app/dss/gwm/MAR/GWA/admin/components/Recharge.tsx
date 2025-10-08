@@ -57,7 +57,7 @@ const Recharge = () => {
   const { csvFilename } = useWell();
 
   // State to control table visibility
-  const [showTable, setShowTable] = useState(false);
+  const [showTable, setShowTable] = useState(true);
 
   const handleComputeRecharge = async () => {
     await computeRecharge();
@@ -196,28 +196,48 @@ const Recharge = () => {
           <>
             <button
               onClick={toggleTable}
-              className={[
-                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5 shadow-md focus:outline-none focus:ring-4",
-                showTable
-                  ? "bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 focus:ring-yellow-400 focus:ring-opacity-50"
-                  : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 focus:ring-blue-400 focus:ring-opacity-50",
-              ].join(" ")}
+              className="inline-flex items-center justify-center p-2 rounded-full focus:outline-none"
+              aria-label={showTable ? "Hide Table" : "Show Table"}
+              title={showTable ? "Hide Table" : "Show Table"}
             >
-              <svg
-                className={["w-4 h-4 transition-transform", showTable ? "rotate-180" : ""].join(" ")}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-              {showTable ? "Hide Table" : "Show Recharge Table"}
+              {showTable ? (
+                // Eye icon (visible)
+                <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+              ) : (
+                // Eye-off icon (hidden/closed)
+                <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17.94 17.94A10.016 10.016 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.96 9.96 0 012.293-3.95M6.06 6.06A9.991 9.991 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.958 9.958 0 01-4.042 5.142"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 01-3 3m0-6a3 3 0 013 3m0 0a3 3 0 01-3 3m0 0L3 3m0 0l18 18"
+                  />
+                </svg>
+              )}
             </button>
-
-            {/* Quick stats */}
-            <span className="text-sm text-blue-600 font-medium">
+            {/* <span className="-ml-4 text-sm text-black-600 font-medium ">
               {tableData.length} village{tableData.length !== 1 ? "s" : ""} computed
-            </span>
+            </span> */}
+
           </>
         )}
       </div>

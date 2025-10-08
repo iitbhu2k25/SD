@@ -92,7 +92,11 @@ async def stp_suitability_area(db:db_dependency):
 @router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED)
 @validate
 async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
-    return STP_Area().stp_area_finding(db,payload)
+    try:
+        
+        return STP_Area().stp_area_finding(db,payload)
+    except Exception as e:
+        print(e)
 
 @router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate
