@@ -1,5 +1,5 @@
 "use client";
-
+import {LAYER_NAMES} from "@/contexts/stp_priority/users/DrainMapContext"
 import React, { useState } from "react";
 
 // Types
@@ -15,12 +15,15 @@ interface ModernSwitchProps {
 import PriorityAdmin from "./admin/page";
 import PriorityDrain from "./users/page";
 
+
+
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
   rightLabel,
   value,
   onChange,
 }) => {
+  LAYER_NAMES.CATCHMENT=null
   const handleToggle = (): void => {
     onChange(value === "admin" ? "user" : "admin");
   };

@@ -512,9 +512,9 @@ const Maping: React.FC = () => {
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
 
         <div className="hidden md:block">
-            <div className="hidden md:block">
-          <GISCompass />
-        </div>
+          <div className="hidden md:block">
+            <GISCompass />
+          </div>
         </div>
 
 
@@ -781,9 +781,18 @@ const Maping: React.FC = () => {
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-
+              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 

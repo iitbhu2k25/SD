@@ -514,9 +514,9 @@ const Maping: React.FC = () => {
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
 
         <div className="hidden md:block">
-            <div className="hidden md:block">
-          <GISCompass />
-        </div>
+          <div className="hidden md:block">
+            <GISCompass />
+          </div>
         </div>
 
 
@@ -771,8 +771,6 @@ const Maping: React.FC = () => {
                 </svg>
                 <span className="text-sm font-medium">Home View</span>
               </button>
-
-
             </div>
           </div>
         )}
@@ -783,16 +781,25 @@ const Maping: React.FC = () => {
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-200">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-
+              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 
         {/* Coordinates */}
         <div className="absolute right-4 bottom-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-2 h-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             </svg>
             <div className="text-xs font-medium text-gray-800 font-mono" id="mouse-position"></div>

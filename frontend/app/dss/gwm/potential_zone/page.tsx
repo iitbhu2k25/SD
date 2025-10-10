@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-// Types
+import {LAYER_NAMES} from "@/contexts/groundwaterzone/users/DrainMapContext"
 type ViewType = "admin" | "user";
 
 interface ModernSwitchProps {
@@ -21,6 +21,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   value,
   onChange,
 }) => {
+  LAYER_NAMES.CATCHMENT=null
   const handleToggle = (): void => {
     onChange(value === "admin" ? "user" : "admin");
   };

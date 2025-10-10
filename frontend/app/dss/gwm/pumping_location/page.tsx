@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-// Types
+import {LAYER_NAMES} from "@/contexts/groundwaterIdent/users/DrainMapContext"
 type ViewType = "admin" | "user";
 
 interface ModernSwitchProps {
@@ -14,7 +14,7 @@ interface ModernSwitchProps {
 
 import GWPLAdmin from "./admin/page";
 import GWPLDrain from "./users/page";
-// import GWPIDrain from "./users/page";
+
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -22,6 +22,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   value,
   onChange,
 }) => {
+  LAYER_NAMES.CATCHMENT=null
   const handleToggle = (): void => {
     onChange(value === "admin" ? "user" : "admin");
   };

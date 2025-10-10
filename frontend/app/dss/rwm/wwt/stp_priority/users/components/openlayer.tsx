@@ -65,8 +65,6 @@ const LAYER_COLORS: LayerColorsType = {
   },
 };
 
-
-
 const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
   const geometry = feature.getGeometry();
   const geometryType = geometry.getType();
@@ -93,12 +91,11 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
       image: new Circle({
         radius: 6,
         fill: new Fill({ color: colorConfig.color + "80" }),
-        stroke: new Stroke({ color: colorConfig.color, width: 2 })
+        stroke: new Stroke({ color: colorConfig.color, width: 4 })
       })
     }));
   }
 
-  // Add labels when titles are enabled
   if (showLabels && zoom > 8 && featureName) {
     styles.push(new Style({
       text: new Text({
@@ -123,7 +120,6 @@ const Maping: React.FC = () => {
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const boundaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
 
-  // Individual layer refs for river system
   const riverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -134,7 +130,6 @@ const Maping: React.FC = () => {
   const hoverInteractionRef = useRef<Select | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
 
-  // State management
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({
     primary: 0,
@@ -154,13 +149,12 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [buttonClicked, setButtonClicked] = useState(false);
 
-  // Layer visibility states
+
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
   const [showStretchLayer, setShowStretchLayer] = useState<boolean>(true);
   const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
   const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
 
-  // Context hooks
   const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked } = useRiverSystem();
 
   const {
@@ -189,7 +183,6 @@ const Maping: React.FC = () => {
     selectedradioLayer,
   } = useMap();
 
-  // Helper functions
   const toggleFullScreen = () => {
     if (!containerRef.current) return;
     if (!isFullScreen) {
@@ -238,7 +231,7 @@ const Maping: React.FC = () => {
     });
   };
 
-  // Layer toggle functions
+
   const toggleRiverLayer = () => {
     if (riverLayerRef.current) {
       const newVisibility = !showRiverLayer;
@@ -841,7 +834,7 @@ const Maping: React.FC = () => {
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="space-y-3">
-              { (
+              {(
                 <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -852,7 +845,7 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
- 
+
               {Object.entries(featureCounts).map(([layerType, count]) => {
                 if (layerType === 'primary') return null;
 
@@ -991,15 +984,25 @@ const Maping: React.FC = () => {
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-bold text-gray-700">Legend</span>
 
+              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg border border-gray-200" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 
         {/* Coordinates */}
         <div className="absolute right-4 bottom-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-lg shadow-lg border border-gray-200">
           <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-2 h-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             </svg>
             <div className="text-xs font-medium text-gray-800 font-mono" id="mouse-position"></div>

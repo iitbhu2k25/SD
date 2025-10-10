@@ -30,13 +30,21 @@ export default function Footer() {
               >
                 <Image
                   src={logo.src}
-                  alt={logo.alt}
-                  fill
-                  sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, (max-width: 1280px) 112px, 128px"
+                  alt={logo.alt || 'App logo'}
+                  width={128}
+                  height={128}
+                  sizes="(max-width: 640px) 64px, 
+                      (max-width: 768px) 80px, 
+                      (max-width: 1024px) 96px, 
+                      (max-width: 1280px) 112px, 
+                      128px"
                   style={{ objectFit: 'contain', padding: '4px' }}
-                  unoptimized={logo.unoptimized || false}
+                  priority
+                  unoptimized={logo.unoptimized ?? false}
                   className="rounded-md"
+                  placeholder="empty"
                 />
+
               </a>
             ))}
           </div>

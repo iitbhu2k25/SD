@@ -42,7 +42,6 @@ class Settings(BaseSettings):
     MAIL_FROM:str
     MAIL_FROM_NAME:str
     CELERY_BROKER_URL:str
-    JWT_SIGNATURE:str
     #media path
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     TEMP_DIR:str = os.path.dirname(BASE_DIR)+'/temp'

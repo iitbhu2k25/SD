@@ -1035,7 +1035,8 @@ export default function Map(props: MapProps) {
 
         {compassVisible && (
           <div id="compass" className="absolute top-10 left-10 w-24 h-24 pointer-events-auto">
-            <Image src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" />
+            <Image src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" 
+              width={96} height={96}/>
           </div>
         )}
 

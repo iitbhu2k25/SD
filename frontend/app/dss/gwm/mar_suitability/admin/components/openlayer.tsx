@@ -270,8 +270,8 @@ const Mapping: React.FC = () => {
     if (!mapInstanceRef.current || !layer) return;
 
     const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857${type === 'secondary' && LayerFilterValue && LayerFilter
-        ? `&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue) ? LayerFilterValue.map(v => `'${v}'`).join(",") : `'${LayerFilterValue}'`})`
-        : ''
+      ? `&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue) ? LayerFilterValue.map(v => `'${v}'`).join(",") : `'${LayerFilterValue}'`})`
+      : ''
       }`;
 
     const vectorSource = new VectorSource({
@@ -705,7 +705,16 @@ const Mapping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 

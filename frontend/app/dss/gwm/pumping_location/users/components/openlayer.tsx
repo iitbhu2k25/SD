@@ -414,7 +414,7 @@ const Maping: React.FC = () => {
       wellPointsLayerRef.current.setVisible(showWellPoints);
     }
   }, [showWellPoints]);
-useEffect(() => {
+  useEffect(() => {
     if (!mapInstanceRef.current || !primaryLayer) return;
 
     setIsLoading(true);
@@ -774,7 +774,7 @@ useEffect(() => {
                       <span className={`font-semibold ${layerVisibility.river ? "text-blue-800" : "text-gray-600"}`}>Rivers {hasSelections && riverFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button onClick={() => toggleLayerVisibility('river')} className={`w-12 h-6 rounded-full ${layerVisibility.river ? "bg-blue-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.river ? "translate-x-6" : ""}`} />
                       </button>
@@ -791,7 +791,7 @@ useEffect(() => {
                       <span className={`font-semibold ${layerVisibility.stretch ? "text-green-800" : "text-gray-600"}`}>Stretches {hasSelections && stretchFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                  
+
                       <button onClick={() => toggleLayerVisibility('stretch')} className={`w-12 h-6 rounded-full ${layerVisibility.stretch ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.stretch ? "translate-x-6" : ""}`} />
                       </button>
@@ -800,7 +800,7 @@ useEffect(() => {
                 </div>
               )}
 
-              { (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.drain ? "bg-gradient-to-r from-red-50 to-red-100 border-red-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -824,7 +824,7 @@ useEffect(() => {
                       <span className={`font-semibold ${layerVisibility.catchment ? "text-yellow-800" : "text-gray-600"}`}>Catchments {hasSelections && catchmentFilter.filterValue ? "(Filtered)" : "(All)"}</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                    
+
                       <button onClick={() => toggleLayerVisibility('catchment')} className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}>
                         <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.catchment ? "translate-x-6" : ""}`} />
                       </button>
@@ -892,7 +892,16 @@ useEffect(() => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 

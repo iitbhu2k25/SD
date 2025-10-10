@@ -678,8 +678,11 @@ const OpenLayersRasterViewer: React.FC = () => {
               <Image
                 src={legendUrl}
                 alt="Layer Legend"
-                className="max-w-full h-auto"
-                onError={() => setError("Failed to load legend")}
+                className="max-w-full h-auto object-contain"
+                width={110}
+                height={100}
+                onErrorCapture={() => setError("Failed to load legend")}
+                unoptimized
               />
             </div>
           </div>

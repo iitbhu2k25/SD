@@ -181,6 +181,7 @@ export default function GovernmentStyleAboutPage() {
               src="/Images/about/Varanasi_Munshi_Ghat.jpg"
               alt="Volunteers cleaning a riverbank"
               className="h-full w-full object-cover"
+              
             />
           </div>
         </div>

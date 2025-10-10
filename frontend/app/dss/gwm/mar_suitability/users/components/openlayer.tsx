@@ -406,10 +406,10 @@ const Maping: React.FC = () => {
     }
 
     const vectorSource = createWFSVectorSource({
-          workspace: defaultWorkspace,
-          layerName: layer,
-          layerFilter: filter,
-        });
+      workspace: defaultWorkspace,
+      layerName: layer,
+      layerFilter: filter,
+    });
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: createVectorStyle(layerType),
@@ -786,7 +786,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      
+
                       <button
                         onClick={() => toggleLayerVisibility('river')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.river ? "bg-blue-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -799,7 +799,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Stretch Layer */}
-              { (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.stretch ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -809,7 +809,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button
                         onClick={() => toggleLayerVisibility('stretch')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.stretch ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -822,7 +822,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Drain Layer */}
-              { (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.drain ? "bg-gradient-to-r from-red-50 to-red-100 border-red-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -832,7 +832,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button
                         onClick={() => toggleLayerVisibility('drain')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.drain ? "bg-red-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -845,7 +845,7 @@ const Maping: React.FC = () => {
               )}
 
               {/* Catchment Layer */}
-              { (
+              {(
                 <div className={`p-4 rounded-xl border ${layerVisibility.catchment ? "bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -855,7 +855,7 @@ const Maping: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center space-x-3">
-                     
+
                       <button
                         onClick={() => toggleLayerVisibility('catchment')}
                         className={`w-12 h-6 rounded-full ${layerVisibility.catchment ? "bg-yellow-500" : "bg-gray-300"} relative transition-all duration-300`}
@@ -932,7 +932,16 @@ const Maping: React.FC = () => {
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <Image src={legendUrl} alt="Layer Legend" className="max-w-full h-auto rounded-lg" />
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+              width={150}
+              height={150}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
+
           </div>
         )}
 
