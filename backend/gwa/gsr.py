@@ -355,7 +355,7 @@ def get_classification_color(classification: str) -> str:
         'Very Safe': 'teal',               # Was #059669 (Emerald-600)
         'Over Exploited': 'darkred',       # Was #991b1b (Red-800 - Most severe)
         'Very Semi-Critical': 'orange',    # Was #ea580c (Orange-600)
-        'No Data': 'gold',                 # Was #ca8a04 (Yellow-600)
+        'No Data': 'transparent',                 # Was #ca8a04 (Yellow-600)
     }
     return color_map.get(classification, 'gray')  # Default to gray
 
@@ -773,7 +773,7 @@ class GSRComputeAPIView(APIView):
                 },
                 "No Data": {
                     "description": "Missing GSR data",
-                    "color": "gold"
+                    "color": "transparent"
                 }
             }
         }, status=200)

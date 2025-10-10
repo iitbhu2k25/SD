@@ -21,6 +21,8 @@ import { RechargeProvider } from "@/contexts/groundwater_assessment/admin/Rechar
 import { DemandProvider } from "@/contexts/groundwater_assessment/admin/DemandContext";
 import { GSRProvider, useGSR } from "@/contexts/groundwater_assessment/admin/GSRContext";
 import ResizablePanels from "./components/resizable-panels";
+import { useRecharge } from "@/contexts/groundwater_assessment/admin/RechargeContext";
+
 
 interface Step {
   id: number;
@@ -93,6 +95,7 @@ function GroundwaterAssessmentContent() {
   const [isMobileMapVisible, setIsMobileMapVisible] = useState<boolean>(false);
   const { selectionsLocked } = useLocation();
   const { stressTableData } = useGSR();
+  const { computeRecharge, tableData, isLoading, canComputeRecharge } = useRecharge();
 
   const steps: Step[] = [
     { id: 1, name: "Data Collection" },
@@ -135,6 +138,14 @@ function GroundwaterAssessmentContent() {
   const availableSteps = getAvailableSteps();
   const isLastStep = activeStep === availableSteps[availableSteps.length - 1];
   const isFirstStep = activeStep === availableSteps[0];
+  
+
+  React.useEffect(() => {
+  if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
+    console.log("🔄 Auto-triggering groundwater recharge computation...");
+    computeRecharge();
+  }
+}, [activeStep]);
 
   // Left Panel Content
   const leftPanel = (

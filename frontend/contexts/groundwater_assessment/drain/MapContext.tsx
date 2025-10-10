@@ -22,7 +22,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import { fromLonLat, transformExtent, toLonLat } from "ol/proj";
 import { Feature } from 'ol';
-import { Point } from 'ol/geom';
+import { Geometry, Point } from 'ol/geom';
 import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationContext";
 import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellContext";
 
@@ -527,7 +527,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   // GSR polygons layer
   const gsrLayerRef = useRef<VectorLayer<any> | null>(null);
   const [isGsrDisplayed, setIsGsrDisplayed] = useState<boolean>(false);
-
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const hoverOverlayRef = useRef<Overlay | null>(null);
+  const highlightLayerRef = useRef<VectorLayer<any> | null>(null);
   // Get location context data
   const {
     selectedRiver,
@@ -767,27 +769,27 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   };
 
 
-const buildGsrLegend = (features: any[]) => {
-  const counts: Record<string, { color: string; count: number }> = {};
-  
-  for (const f of features) {
-    const p = f.getProperties() || {};
-    const label = p.gsr_classification || p.classification || 'Unknown';
-    const color = p.classification_color || gsrFallbackColorMap[label] || '#9CA3AF';
-    
-    if (counts[label]) {
-      counts[label].count += 1;
-    } else {
-      counts[label] = { color, count: 1 };
+  const buildGsrLegend = (features: any[]) => {
+    const counts: Record<string, { color: string; count: number }> = {};
+
+    for (const f of features) {
+      const p = f.getProperties() || {};
+      const label = p.gsr_classification || p.classification || 'Unknown';
+      const color = p.classification_color || gsrFallbackColorMap[label] || '#9CA3AF';
+
+      if (counts[label]) {
+        counts[label].count += 1;
+      } else {
+        counts[label] = { color, count: 1 };
+      }
     }
-  }
-  
-  return Object.entries(counts).map(([label, { color, count }]) => ({
-    label,
-    color,
-    count
-  }));
-};
+
+    return Object.entries(counts).map(([label, { color, count }]) => ({
+      label,
+      color,
+      count
+    }));
+  };
 
   // NEW: Function to set layer opacity
   const setLayerOpacity = (layerType: keyof LayerOpacityState, opacity: number) => {
@@ -1186,15 +1188,16 @@ const buildGsrLegend = (features: any[]) => {
       }),
     });
 
-    // NEW: Apply opacity
+    // Apply opacity
     applyLayerOpacity(initialBaseLayer, 'basemap');
 
     mapInstanceRef.current = map;
     console.log("Map initialized");
 
-    // ADD BASIN BOUNDARY LAYER HERE - RIGHT AFTER MAP INITIALIZATION
-    console.log("Adding permanent basin boundary layer from GeoServer");
+    // ============ ADD ALL PERMANENT LAYERS HERE ============
 
+    // 1. BASIN BOUNDARY LAYER
+    console.log("Adding permanent basin boundary layer from GeoServer");
     const basinBoundaryLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
@@ -1208,8 +1211,6 @@ const buildGsrLegend = (features: any[]) => {
     basinBoundaryLayer.set('name', 'basin-boundary');
     basinBoundaryLayer.set('type', 'drainage');
     basinBoundaryLayer.set('permanent', true);
-
-    // NEW: Apply opacity
     applyLayerOpacity(basinBoundaryLayer, 'boundaries');
 
     // Add event listeners for debugging
@@ -1217,20 +1218,153 @@ const buildGsrLegend = (features: any[]) => {
     basinSource?.on("featuresloaderror", (event) => {
       console.log("Error loading basin boundary layer:", event);
     });
-
     basinSource?.on("featuresloadstart", () => {
       console.log("Started loading basin boundary layer");
     });
-
     basinSource?.on("featuresloadend", () => {
       console.log("Successfully loaded basin boundary layer");
       const features = basinSource.getFeatures();
       console.log(`Loaded ${features.length} basin boundary features`);
     });
 
-    // Store reference and add to map
     basinBoundaryLayerRef.current = basinBoundaryLayer;
     map.addLayer(basinBoundaryLayer);
+
+    // 2. RIVERS LAYER (Show ALL rivers)
+    console.log("Adding permanent rivers layer from GeoServer");
+    const riversLayer = new VectorLayer({
+      source: new VectorSource({
+        format: new GeoJSON(),
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Rivers&outputFormat=application/json&CQL_FILTER=1=1`,
+      }),
+      style: riverStyle,
+      zIndex: 10,
+      visible: true,
+    });
+
+    riversLayer.set('name', 'rivers');
+    riversLayer.set('type', 'drainage');
+    riversLayer.set('permanent', true);
+    applyLayerOpacity(riversLayer, 'boundaries');
+
+    // Add event listeners for rivers
+    const riversSource = riversLayer.getSource();
+    riversSource?.on("featuresloaderror", (event) => {
+      console.log("Error loading rivers layer:", event);
+    });
+    riversSource?.on("featuresloadstart", () => {
+      console.log("Started loading rivers layer");
+    });
+    riversSource?.on("featuresloadend", () => {
+      console.log("Successfully loaded rivers layer");
+      const features = riversSource.getFeatures();
+      console.log(`Loaded ${features.length} river features`);
+    });
+
+    riversLayerRef.current = riversLayer;
+    map.addLayer(riversLayer);
+
+    // 3. STRETCHES LAYER (Show ALL stretches)
+    console.log("Adding permanent stretches layer from GeoServer");
+    const stretchesLayer = new VectorLayer({
+      source: new VectorSource({
+        format: new GeoJSON(),
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Stretches&outputFormat=application/json&CQL_FILTER=1=1`,
+      }),
+      style: (feature) => {
+        const stretchId = feature.get('Stretch_ID');
+        const baseStyle = stretchId === selectedStretch ? selectedStretchStyle : stretchStyle;
+
+        // Get current zoom level
+        const currentZoom = map.getView().getZoom() || 0;
+
+        // Determine if label should be shown
+        const shouldShow = shouldShowStretchLabel(stretchId, currentZoom, showLabels);
+
+        if (shouldShow) {
+          return [
+            baseStyle,
+            createStretchLabelStyle(`S-${stretchId}`)
+          ];
+        }
+
+        return baseStyle;
+      },
+      zIndex: 11,
+      visible: true,
+    });
+
+    stretchesLayer.set('name', 'stretches');
+    stretchesLayer.set('type', 'drainage');
+    stretchesLayer.set('permanent', true);
+    applyLayerOpacity(stretchesLayer, 'boundaries');
+
+    // Add event listeners for stretches
+    const stretchesSource = stretchesLayer.getSource();
+    stretchesSource?.on("featuresloaderror", (event) => {
+      console.log("Error loading stretches layer:", event);
+    });
+    stretchesSource?.on("featuresloadstart", () => {
+      console.log("Started loading stretches layer");
+    });
+    stretchesSource?.on("featuresloadend", () => {
+      console.log("Successfully loaded stretches layer");
+      const features = stretchesSource.getFeatures();
+      console.log(`Loaded ${features.length} stretch features`);
+    });
+
+    // Add view change listener for stretch labels
+    const view = map.getView();
+    const stretchZoomChangeHandler = () => {
+      const currentZoom = view.getZoom() || 0;
+      console.log(`Zoom changed to: ${currentZoom.toFixed(1)} - Refreshing stretch labels`);
+      stretchesLayer.changed();
+    };
+    view.on('change:resolution', stretchZoomChangeHandler);
+    stretchesLayer.set('zoomChangeHandler', stretchZoomChangeHandler);
+
+    stretchesLayerRef.current = stretchesLayer;
+    map.addLayer(stretchesLayer);
+
+    // 4. DRAINS LAYER (Show ALL drains)
+    console.log("Adding permanent drains layer from GeoServer");
+    const drainsLayer = new VectorLayer({
+      source: new VectorSource({
+        format: new GeoJSON(),
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Drain&outputFormat=application/json&CQL_FILTER=1=1`,
+      }),
+      style: (feature) => {
+        const drainNo = feature.get('Drain_No');
+        return drainNo === selectedDrain ? selectedDrainStyle : drainStyle;
+      },
+      zIndex: 12,
+      visible: true,
+    });
+
+    drainsLayer.set('name', 'drains');
+    drainsLayer.set('type', 'drainage');
+    drainsLayer.set('permanent', true);
+    applyLayerOpacity(drainsLayer, 'boundaries');
+
+    // Add event listeners for drains
+    const drainsSource = drainsLayer.getSource();
+    drainsSource?.on("featuresloaderror", (event) => {
+      console.log("Error loading drains layer:", event);
+    });
+    drainsSource?.on("featuresloadstart", () => {
+      console.log("Started loading drains layer");
+    });
+    drainsSource?.on("featuresloadend", () => {
+      console.log("Successfully loaded drains layer");
+      const features = drainsSource.getFeatures();
+      console.log(`Loaded ${features.length} drain features`);
+    });
+
+    drainsLayerRef.current = drainsLayer;
+    map.addLayer(drainsLayer);
+
+    // ============ END OF PERMANENT LAYERS ============
+
 
     const popupElement = document.createElement('div');
     popupElement.className = 'ol-popup';
@@ -1251,11 +1385,235 @@ const buildGsrLegend = (features: any[]) => {
     map.addOverlay(overlay);
     popupOverlayRef.current = overlay;
 
+    // Auto-zoom to basin boundary extent after all layers are loaded
+    basinSource?.on("featuresloadend", () => {
+      setTimeout(() => {
+        const extent = basinBoundaryLayer.getSource()?.getExtent();
+        if (extent && map) {
+          map.getView().fit(extent, {
+            padding: [50, 50, 50, 50],
+            duration: 1000,
+          });
+        }
+      }, 500);
+    });
+
     return () => {
+      // Clean up zoom listener
+      if (stretchZoomChangeHandler) {
+        view.un('change:resolution', stretchZoomChangeHandler);
+      }
       map.setTarget(undefined);
       mapInstanceRef.current = null;
     };
   }, [mapContainer]);
+
+  // Add hover functionality
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Create hover overlay element
+    const hoverElement = document.createElement('div');
+    hoverElement.className = 'ol-hover-popup';
+    hoverElement.style.cssText = `
+      background: rgba(255, 255, 255, 1);
+      border: 2px solid #3B82F6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1F2937;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 300px;
+      z-index: 1000;
+    `;
+
+    // Create hover overlay
+    const hoverOverlay = new Overlay({
+      element: hoverElement,
+      positioning: 'bottom-center',
+      stopEvent: false,
+      offset: [0, -10],
+    });
+
+    mapInstanceRef.current.addOverlay(hoverOverlay);
+    hoverOverlayRef.current = hoverOverlay;
+
+    // Create a highlight layer for the hovered feature
+    const highlightStyle = new Style({
+      fill: new Fill({
+        color: 'rgba(59, 130, 246, 0.2)', // Light blue fill
+      }),
+      stroke: new Stroke({
+        color: '#fffb00ff', // Gold border
+        width: 3,
+      }),
+    });
+
+    const highlightLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: highlightStyle,
+      zIndex: 999, // High z-index to appear on top
+    });
+
+    highlightLayer.set('name', 'highlight-layer');
+    mapInstanceRef.current.addLayer(highlightLayer);
+    highlightLayerRef.current = highlightLayer;
+
+    // Handle pointer move for hover
+    const handlePointerMove = (event: any) => {
+      if (!mapInstanceRef.current || !highlightLayerRef.current) return;
+
+      const pixel = event.pixel;
+      let foundFeature = false;
+      const highlightSource = highlightLayerRef.current.getSource();
+
+      // Clear previous highlight
+      if (highlightSource) {
+        highlightSource.clear();
+      }
+
+      // Check for features at pixel
+      mapInstanceRef.current.forEachFeatureAtPixel(
+        pixel,
+        (feature, layer) => {
+          const layerName = layer?.get('name');
+
+          // Skip highlight layer itself
+          if (layerName === 'highlight-layer') {
+            return false;
+          }
+
+          const properties = feature.getProperties();
+          let label = '';
+          let isWellPoint = false;
+
+          // Determine label based on layer name
+          switch (layerName) {
+            // case 'basin-boundary':
+            //   label = 'Basin Boundary';
+            //   break;
+
+            case 'rivers':
+              label = properties.River_Name || properties.river_name || 'River';
+              break;
+
+            case 'stretches':
+              const stretchId = properties.Stretch_ID || properties.stretch_id;
+              label = stretchId ? `Stretch S-${stretchId}` : 'Stretch';
+              break;
+
+            case 'drains':
+              const drainNo = properties.Drain_No || properties.drain_no;
+              label = drainNo ? `Drain ${drainNo}` : 'Drain';
+              break;
+
+            case 'catchments':
+              const catchmentDrain = properties.Drain_No || properties.drain_no;
+              label = catchmentDrain ? `Catchment (Drain ${catchmentDrain})` : 'Catchment';
+              break;
+
+            case 'villages':
+            case 'village-overlay':
+              label = properties.shapeName || properties.village || properties.Village || properties.VILLAGE || 'Village';
+              break;
+
+            case 'manual-wells':
+              // Well points - show label but no polygon highlight
+              isWellPoint = true;
+              label = properties.hydrographCode || properties.HYDROGRAPH || properties.hydrograph || 'Well';
+              if (properties.block || properties.BLOCK) {
+                label += ` (${properties.block || properties.BLOCK})`;
+              }
+              break;
+
+            case 'contours':
+              const elevation = properties.elevation || properties.level;
+              label = elevation ? `Contour: ${elevation}m` : 'Contour';
+              break;
+
+            case 'trend-villages':
+              const trendVillage = properties.Village_Name || properties.village_name || '';
+              const trendStatus = properties.Trend_Status || properties.trend || '';
+              label = trendVillage ? `${trendVillage} (${trendStatus})` : trendStatus;
+              break;
+
+            case 'gsr':
+              const classification = properties.gsr_classification || properties.classification || 'N/A';
+              const villageName = properties.Village_Name || properties.village_name || '';
+              label = villageName ? `${villageName} (${classification})` : classification;
+              break;
+
+            default:
+              label = properties.name || properties.NAME || properties.River_Name || properties.shapeName;
+          }
+
+          if (label && hoverOverlay) {
+            // Only highlight if it's NOT a well point
+            if (!isWellPoint && highlightSource) {
+              if (feature instanceof Feature) {
+                const clonedFeature = feature.clone() as Feature<Geometry>;
+                clonedFeature.setId(feature.getId());
+                highlightSource.addFeature(clonedFeature);
+              }
+            }
+
+            // Show label for both polygons and well points
+            hoverElement.textContent = label;
+            hoverOverlay.setPosition(event.coordinate);
+            foundFeature = true;
+            setHoveredFeature(feature);
+
+            const target = mapInstanceRef.current?.getTargetElement();
+            if (target && !isWellAddModeActive) {
+              target.style.cursor = "pointer";
+            }
+
+            return true;
+          }
+          return false;
+        },
+        {
+          layerFilter: (layer) => {
+            const layerName = layer.get('name');
+            return layerName !== 'highlight-layer';
+          },
+          hitTolerance: 5
+        }
+      );
+
+      // Hide overlay and clear highlight if no feature found
+      if (!foundFeature) {
+        if (hoverOverlay) {
+          hoverOverlay.setPosition(undefined);
+        }
+        if (highlightSource) {
+          highlightSource.clear();
+        }
+        setHoveredFeature(null);
+
+        const target = mapInstanceRef.current?.getTargetElement();
+        if (target && !isWellAddModeActive) {
+          target.style.cursor = '';
+        }
+      }
+    };
+
+    mapInstanceRef.current.on('pointermove', handlePointerMove);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.un('pointermove', handlePointerMove);
+
+        if (highlightLayerRef.current) {
+          mapInstanceRef.current.removeLayer(highlightLayerRef.current);
+          highlightLayerRef.current = null;
+        }
+      }
+    };
+  }, [mapInstanceRef.current, isWellAddModeActive]);
 
   // Effect to handle rivers layer
   useEffect(() => {
@@ -1383,121 +1741,30 @@ const buildGsrLegend = (features: any[]) => {
     });
   };
 
-  // Effect to handle stretches layer when river is selected
+  // Effect to handle rivers layer - NO CHANGES NEEDED, already permanent
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    // Remove existing stretches layer
-    removeLayerByRef(stretchesLayerRef, "stretches");
+    if (!riversLayerRef.current) {
+      console.log("Adding rivers layer");
+      const riversLayer = createDrainageWFSLayer(
+        "Rivers",
+        "1=1", // Show all rivers
+        riverStyle,
+        10,
+        "rivers"
+      );
 
-    if (selectedRiver) {
-      console.log(`Adding stretches layer for river: ${selectedRiver}`);
-      const cqlFilter = `River_Code=${selectedRiver}`;
+      // Apply opacity
+      applyLayerOpacity(riversLayer, 'boundaries');
 
-      // Create stretches layer with dynamic styling based on selection
-      const stretchesLayer = new VectorLayer({
-        source: new VectorSource({
-          format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Stretches&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
-        }),
-        style: (feature) => {
-          const stretchId = feature.get('Stretch_ID');
-          const baseStyle = stretchId === selectedStretch ? selectedStretchStyle : stretchStyle;
+      riversLayerRef.current = riversLayer;
+      mapInstanceRef.current.addLayer(riversLayer);
 
-          // Get current zoom level
-          const currentZoom = mapInstanceRef.current?.getView().getZoom() || 0;
-
-          // Determine if label should be shown using our helper function
-          const shouldShow = shouldShowStretchLabel(stretchId, currentZoom, showLabels);
-
-          if (shouldShow) {
-            return [
-              baseStyle,
-              createStretchLabelStyle(`S-${stretchId}`)
-            ];
-          }
-
-          return baseStyle;
-        },
-        zIndex: 11,
-        visible: true,
-      });
-
-      stretchesLayer.set('name', 'stretches');
-      stretchesLayer.set('type', 'drainage');
-
-      // NEW: Apply opacity
-      applyLayerOpacity(stretchesLayer, 'boundaries');
-
-      stretchesLayerRef.current = stretchesLayer;
-      mapInstanceRef.current.addLayer(stretchesLayer);
-
-      // Add view change listener to refresh styles when zoom changes
-      const view = mapInstanceRef.current.getView();
-      const zoomChangeHandler = () => {
-        const currentZoom = view.getZoom() || 0;
-        console.log(`Zoom changed to: ${currentZoom.toFixed(1)} - Refreshing stretch labels`);
-        stretchesLayer.changed(); // Force re-render of the layer
-      };
-
-      view.on('change:resolution', zoomChangeHandler);
-
-      // Store the handler for cleanup
-      stretchesLayer.set('zoomChangeHandler', zoomChangeHandler);
-
-      // Cleanup function to remove zoom listener
-      const cleanup = () => {
-        view.un('change:resolution', zoomChangeHandler);
-      };
-      stretchesLayer.set('cleanup', cleanup);
-
-      // Just log when features are loaded
-      stretchesLayer.getSource()?.on("featuresloadend", () => {
-        console.log(`Successfully loaded stretches for river ${selectedRiver}`);
-        const currentZoom = view.getZoom() || 0;
-        console.log(`Current zoom level: ${currentZoom.toFixed(1)}`);
-      });
-    }
-  }, [selectedRiver, selectedStretch, showLabels]);
-
-  // Effect to handle drains layer when stretch is selected
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-
-    // Remove existing drains layer
-    removeLayerByRef(drainsLayerRef, "drains");
-
-    if (selectedStretch && selectedRiver) {
-      console.log(`Adding drains layer for stretch: ${selectedStretch}, river: ${selectedRiver}`);
-      const cqlFilter = `Stretch_ID=${selectedStretch} AND River_Code=${selectedRiver}`;
-
-      // Create drains layer with point styling for selected drain
-      const drainsLayer = new VectorLayer({
-        source: new VectorSource({
-          format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Drain&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
-        }),
-        style: (feature) => {
-          const drainNo = feature.get('Drain_No');
-          return drainNo === selectedDrain ? selectedDrainStyle : drainStyle;
-        },
-        zIndex: 12,
-        visible: true,
-      });
-
-      drainsLayer.set('name', 'drains');
-      drainsLayer.set('type', 'drainage');
-
-      // NEW: Apply opacity
-      applyLayerOpacity(drainsLayer, 'boundaries');
-
-      drainsLayerRef.current = drainsLayer;
-      mapInstanceRef.current.addLayer(drainsLayer);
-
-      // Auto-zoom to drains
-      drainsLayer.getSource()?.on("featuresloadend", () => {
+      // Auto-zoom to rivers extent
+      riversLayer.getSource()?.on("featuresloadend", () => {
         setTimeout(() => {
-          const extent = drainsLayer.getSource()?.getExtent();
+          const extent = riversLayer.getSource()?.getExtent();
           if (extent && mapInstanceRef.current) {
             mapInstanceRef.current.getView().fit(extent, {
               padding: [50, 50, 50, 50],
@@ -1507,9 +1774,208 @@ const buildGsrLegend = (features: any[]) => {
         }, 500);
       });
     }
+  }, []);
+
+  // Effect to UPDATE stretches styling when river/stretch is selected
+  useEffect(() => {
+    if (!mapInstanceRef.current || !stretchesLayerRef.current) return;
+
+    console.log(`Updating stretches layer styling for river: ${selectedRiver}, stretch: ${selectedStretch}`);
+
+    // Update the style function to highlight selected items
+    stretchesLayerRef.current.setStyle((feature) => {
+      const stretchId = feature.get('Stretch_ID');
+      const riverCode = feature.get('River_Code');
+
+      let baseStyle;
+      if (selectedStretch && stretchId === selectedStretch) {
+        baseStyle = selectedStretchStyle;
+      } else if (selectedRiver && riverCode === selectedRiver && !selectedStretch) {
+        baseStyle = new Style({
+          stroke: new Stroke({
+            color: "rgba(202, 12, 12, 1)ff",
+            width: 3,
+          }),
+        });
+      } else {
+        baseStyle = stretchStyle;
+      }
+
+      const currentZoom = mapInstanceRef.current?.getView().getZoom() || 0;
+      const shouldShow = shouldShowStretchLabel(stretchId, currentZoom, showLabels);
+
+      if (shouldShow) {
+        return [
+          baseStyle,
+          createStretchLabelStyle(`S-${stretchId}`)
+        ];
+      }
+
+      return baseStyle;
+    });
+
+    // Force layer refresh
+    stretchesLayerRef.current.changed();
+
+    // ZOOM TO SELECTION
+    setTimeout(() => {
+      const source = stretchesLayerRef.current?.getSource();
+      if (!source || !mapInstanceRef.current) return;
+
+      const features = source.getFeatures();
+
+      if (selectedStretch) {
+        // Zoom to specific stretch
+        const selectedFeature = features.find((f: { get: (arg0: string) => number; }) => f.get('Stretch_ID') === selectedStretch);
+        if (selectedFeature) {
+          const geometry = selectedFeature.getGeometry();
+          if (geometry) {
+            const extent = geometry.getExtent();
+            mapInstanceRef.current.getView().fit(extent, {
+              padding: [100, 100, 100, 100],
+              duration: 1000,
+              maxZoom: 12,
+            });
+            console.log(`Zoomed to stretch ${selectedStretch}`);
+          }
+        }
+      } else if (selectedRiver) {
+        // Zoom to all stretches of the selected river
+        const riverFeatures = features.filter((f: { get: (arg0: string) => number; }) => f.get('River_Code') === selectedRiver);
+        if (riverFeatures.length > 0) {
+          // Calculate combined extent of all river stretches
+          let combinedExtent: any = null;
+          riverFeatures.forEach((feature: { getGeometry: () => any; }) => {
+            const geometry = feature.getGeometry();
+            if (geometry) {
+              const featureExtent = geometry.getExtent();
+              if (!combinedExtent) {
+                combinedExtent = [...featureExtent];
+              } else {
+                // Extend the combined extent
+                combinedExtent[0] = Math.min(combinedExtent[0], featureExtent[0]);
+                combinedExtent[1] = Math.min(combinedExtent[1], featureExtent[1]);
+                combinedExtent[2] = Math.max(combinedExtent[2], featureExtent[2]);
+                combinedExtent[3] = Math.max(combinedExtent[3], featureExtent[3]);
+              }
+            }
+          });
+
+          if (combinedExtent) {
+            mapInstanceRef.current.getView().fit(combinedExtent, {
+              padding: [80, 80, 80, 80],
+              duration: 1000,
+              maxZoom: 11,
+            });
+            console.log(`Zoomed to river ${selectedRiver} with ${riverFeatures.length} stretches`);
+          }
+        }
+      }
+    }, 300); // Small delay to ensure style update is complete
+
+    console.log(`Stretches layer styling updated`);
+  }, [selectedRiver, selectedStretch, showLabels]);
+
+  // Effect to UPDATE drains styling when stretch/drain is selected
+  useEffect(() => {
+    if (!mapInstanceRef.current || !drainsLayerRef.current) return;
+
+    console.log(`Updating drains layer styling for stretch: ${selectedStretch}, drain: ${selectedDrain}`);
+
+    // Update the style function to highlight selected items
+    drainsLayerRef.current.setStyle((feature) => {
+      const drainNo = feature.get('Drain_No');
+      const stretchId = feature.get('Stretch_ID');
+      const riverCode = feature.get('River_Code');
+
+      if (selectedDrain && drainNo === selectedDrain) {
+        return selectedDrainStyle;
+      } else if (selectedStretch && stretchId === selectedStretch && !selectedDrain) {
+        return new Style({
+          image: new CircleStyle({
+            radius: 6,
+            fill: new Fill({
+              color: '#1d05f3ff',
+            }),
+            stroke: new Stroke({
+              color: '#FFFFFF',
+              width: 2,
+            }),
+          }),
+        });
+      } else if (selectedRiver && riverCode === selectedRiver && !selectedStretch && !selectedDrain) {
+        return new Style({
+          stroke: new Stroke({
+            color: "#10B981",
+            width: 2.5,
+          }),
+        });
+      } else {
+        return drainStyle;
+      }
+    });
+
+    // Force layer refresh
+    drainsLayerRef.current.changed();
+
+    // ZOOM TO SELECTION
+    setTimeout(() => {
+      const source = drainsLayerRef.current?.getSource();
+      if (!source || !mapInstanceRef.current) return;
+
+      const features = source.getFeatures();
+
+      if (selectedDrain) {
+        // Zoom to specific drain
+        const selectedFeature = features.find((f: { get: (arg0: string) => number; }) => f.get('Drain_No') === selectedDrain);
+        if (selectedFeature) {
+          const geometry = selectedFeature.getGeometry();
+          if (geometry) {
+            const extent = geometry.getExtent();
+            mapInstanceRef.current.getView().fit(extent, {
+              padding: [150, 150, 150, 150],
+              duration: 1000,
+              maxZoom: 13,
+            });
+            console.log(`Zoomed to drain ${selectedDrain}`);
+          }
+        }
+      } else if (selectedStretch) {
+        // Zoom to all drains of the selected stretch
+        const stretchFeatures = features.filter((f: { get: (arg0: string) => number; }) => f.get('Stretch_ID') === selectedStretch);
+        if (stretchFeatures.length > 0) {
+          let combinedExtent: any = null;
+          stretchFeatures.forEach((feature: { getGeometry: () => any; }) => {
+            const geometry = feature.getGeometry();
+            if (geometry) {
+              const featureExtent = geometry.getExtent();
+              if (!combinedExtent) {
+                combinedExtent = [...featureExtent];
+              } else {
+                combinedExtent[0] = Math.min(combinedExtent[0], featureExtent[0]);
+                combinedExtent[1] = Math.min(combinedExtent[1], featureExtent[1]);
+                combinedExtent[2] = Math.max(combinedExtent[2], featureExtent[2]);
+                combinedExtent[3] = Math.max(combinedExtent[3], featureExtent[3]);
+              }
+            }
+          });
+
+          if (combinedExtent) {
+            mapInstanceRef.current.getView().fit(combinedExtent, {
+              padding: [100, 100, 100, 100],
+              duration: 1000,
+              maxZoom: 12,
+            });
+            console.log(`Zoomed to stretch ${selectedStretch} drains: ${stretchFeatures.length}`);
+          }
+        }
+      }
+    }, 300);
+
+    console.log(`Drains layer styling updated`);
   }, [selectedStretch, selectedRiver, selectedDrain]);
 
-  // Effect to handle catchments ONLY when drain is selected (based on Drain_No)
+  // Effect to handle catchments - Keep as is (only show when drain selected)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -1520,10 +1986,7 @@ const buildGsrLegend = (features: any[]) => {
     if (selectedDrain) {
       console.log(`Adding catchments layer for drain number: ${selectedDrain}`);
 
-      // Filter catchments by the selected drain number
       const catchmentsCqlFilter = `Drain_No=${selectedDrain}`;
-
-      console.log(`Using CQL filter for catchments: ${catchmentsCqlFilter}`);
 
       const catchmentsLayer = new VectorLayer({
         source: new VectorSource({
@@ -1538,14 +2001,11 @@ const buildGsrLegend = (features: any[]) => {
       catchmentsLayer.set('name', 'catchments');
       catchmentsLayer.set('type', 'drainage');
 
-      // NEW: Apply opacity
       applyLayerOpacity(catchmentsLayer, 'boundaries');
 
-      // Enhanced error handling
       const source = catchmentsLayer.getSource();
       source?.on("featuresloaderror", (event: any) => {
         console.log(`Error loading Catchment layer for drain ${selectedDrain}:`, event);
-        console.log(`URL attempted: ${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Catchment&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(catchmentsCqlFilter)}`);
       });
 
       source?.on("featuresloadstart", () => {
@@ -1576,7 +2036,7 @@ const buildGsrLegend = (features: any[]) => {
     }
   }, [selectedDrain]);
 
-  // Effect to handle villages ONLY when explicitly selected from dropdown
+  // Effect to handle villages - UPDATE styling when selected
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -1587,7 +2047,6 @@ const buildGsrLegend = (features: any[]) => {
     if (selectedVillages.length > 0) {
       console.log(`Adding villages layer for selected villages: ${selectedVillages}`);
 
-      // Create filter for selected villages using village codes from LocationContext
       const villageCodeFilter = selectedVillages.map(code => `'${code}'`).join(',');
       const villagesCqlFilter = `village_co IN (${villageCodeFilter})`;
 
@@ -1613,7 +2072,6 @@ const buildGsrLegend = (features: any[]) => {
       villagesLayer.set('name', 'villages');
       villagesLayer.set('type', 'drainage');
 
-      // NEW: Apply opacity
       applyLayerOpacity(villagesLayer, 'boundaries');
 
       villagesLayerRef.current = villagesLayer;

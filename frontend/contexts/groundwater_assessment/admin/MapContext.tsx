@@ -22,7 +22,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import { fromLonLat, transformExtent, toLonLat } from "ol/proj";
 import { Feature } from 'ol';
-import { Point } from 'ol/geom';
+import { Geometry, Point } from 'ol/geom';
 import { useLocation } from "@/contexts/groundwater_assessment/admin/LocationContext";
 import { useWell, WellData } from "@/contexts/groundwater_assessment/admin/WellContext";
 
@@ -485,8 +485,8 @@ const PopupForm: React.FC<PopupFormProps> = React.memo(({
           onClick={onSubmit}
           disabled={!formData['HYDROGRAPH'] || (typeof formData['HYDROGRAPH'] === 'string' && !formData['HYDROGRAPH'].trim())}
           className={`flex-1 py-3 px-6 rounded-lg text-sm font-medium transition-colors ${typeof formData['HYDROGRAPH'] === 'string' && formData['HYDROGRAPH'].trim()
-              ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
+            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
         >
           Add Well to Table
@@ -543,6 +543,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const [formData, setFormData] = useState<WellData>({});
   const popupRef = useRef<HTMLDivElement>(null);
   const popupOverlayRef = useRef<Overlay | null>(null);
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const hoverOverlayRef = useRef<Overlay | null>(null);
+  const highlightLayerRef = useRef<VectorLayer<any> | null>(null);
+
 
   // NEW: Function to set layer opacity
   const setLayerOpacity = (layerType: keyof LayerOpacityState, opacity: number) => {
@@ -640,6 +644,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   });
 
   const boundaryLayerStyle = new Style({
+    fill: new Fill({
+      color: 'rgba(0, 0, 0, 0.01)', // Nearly transparent fill - KEY CHANGE!
+    }),
     stroke: new Stroke({
       color: "blue",
       width: 2,
@@ -1314,6 +1321,216 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       mapInstanceRef.current = null;
     };
   }, [mapContainer]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Create hover overlay element
+    const hoverElement = document.createElement('div');
+    hoverElement.className = 'ol-hover-popup';
+    hoverElement.style.cssText = `
+    background: rgba(255, 255, 255, 1);
+    border: 2px solid #3B82F6;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1F2937;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 300px;
+    z-index: 1000;
+  `;
+
+    // Create hover overlay
+    const hoverOverlay = new Overlay({
+      element: hoverElement,
+      positioning: 'bottom-center',
+      stopEvent: false,
+      offset: [0, -10],
+    });
+
+    mapInstanceRef.current.addOverlay(hoverOverlay);
+    hoverOverlayRef.current = hoverOverlay;
+
+    // Create a highlight layer for the hovered feature
+    const highlightStyle = new Style({
+      fill: new Fill({
+        color: 'rgba(59, 130, 246, 0.2)', // Light blue fill
+      }),
+      stroke: new Stroke({
+        color: '#fffb00ff', // Gold border
+        width: 3,
+      }),
+    });
+
+    const highlightLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: highlightStyle,
+      zIndex: 999, // High z-index to appear on top
+    });
+
+    highlightLayer.set('name', 'highlight-layer');
+    mapInstanceRef.current.addLayer(highlightLayer);
+    highlightLayerRef.current = highlightLayer;
+
+    // Handle pointer move for hover
+    const handlePointerMove = (event: any) => {
+      if (!mapInstanceRef.current || !highlightLayerRef.current) return;
+
+      const pixel = event.pixel;
+      let foundFeature = false;
+      const highlightSource = highlightLayerRef.current.getSource();
+
+      // Clear previous highlight
+      if (highlightSource) {
+        highlightSource.clear();
+      }
+
+      // Check for features at pixel - use hitTolerance for better detection
+      mapInstanceRef.current.forEachFeatureAtPixel(
+        pixel,
+        (feature, layer) => {
+          const layerName = layer?.get('name');
+          const layerType = layer?.get('type');
+
+          // Skip highlight layer itself
+          if (layerName === 'highlight-layer') {
+            return false;
+          }
+
+          const properties = feature.getProperties();
+          let label = '';
+          let isWellPoint = false;
+
+          // Determine label based on layer name
+          switch (layerName) {
+            case 'india':
+              label = properties.STATE || properties.State || properties.state;
+              break;
+
+            case 'state':
+              label = properties.DISTRICT || properties.District || properties.district;
+              break;
+
+            case 'district':
+              label = properties.SUB_DISTRI || properties.Sub_Distri || properties.subdistrict || properties.subdistric;
+              break;
+
+            case 'villages':
+              label = properties.village || properties.Village || properties.VILLAGE;
+              break;
+
+            case 'village-overlay':
+              label = properties.village || properties.Village || properties.VILLAGE;
+              break;
+
+            case 'manual-wells':
+              // Well points - show label but no polygon highlight
+              isWellPoint = true;
+              label = properties.hydrographCode || properties.HYDROGRAPH || properties.hydrograph || 'Well';
+              // Add additional info if available
+              if (properties.block || properties.BLOCK) {
+                label += ` (${properties.block || properties.BLOCK})`;
+              }
+              break;
+
+            case 'gsr':
+              const classification = properties.gsr_classification || properties.classification || 'N/A';
+              const villageName = properties.Village_Name || properties.village_name || '';
+              label = villageName ? `${villageName} (${classification})` : classification;
+              break;
+
+            case 'trend-villages':
+              const trendVillage = properties.Village_Name || properties.village_name || '';
+              const trendStatus = properties.Trend_Status || properties.trend || '';
+              label = trendVillage ? `${trendVillage} (${trendStatus})` : trendStatus;
+              break;
+
+            default:
+              label = properties.Village_Name ||
+                properties.village_name ||
+                properties.village ||
+                properties.Village ||
+                properties.name ||
+                properties.NAME ||
+                properties.gsr_classification ||
+                properties.Trend_Status ||
+                properties.HYDROGRAPH ||
+                properties.hydrographCode ||
+                properties.DISTRICT ||
+                properties.SUB_DISTRI;
+          }
+
+          if (label && hoverOverlay) {
+            // Only highlight if it's NOT a well point
+            if (!isWellPoint && highlightSource) {
+              if (feature instanceof Feature) {
+                const clonedFeature = feature.clone() as Feature<Geometry>;
+                clonedFeature.setId(feature.getId());
+                highlightSource.addFeature(clonedFeature);
+              }
+            }
+
+            // Show label for both polygons and well points
+            hoverElement.textContent = label;
+            hoverOverlay.setPosition(event.coordinate);
+            foundFeature = true;
+            setHoveredFeature(feature);
+
+            const target = mapInstanceRef.current?.getTargetElement();
+            if (target && !isWellAddModeActive) {
+              target.style.cursor = "pointer";
+            }
+
+            return true;
+          }
+          return false;
+        },
+        {
+          // Enable layer filter and hit tolerance
+          layerFilter: (layer) => {
+            const layerName = layer.get('name');
+            // Check all layers including well points
+            return layerName !== 'highlight-layer';
+          },
+          hitTolerance: 5 // Pixels of tolerance around features
+        }
+      );
+
+      // Hide overlay and clear highlight if no feature found
+      if (!foundFeature) {
+        if (hoverOverlay) {
+          hoverOverlay.setPosition(undefined);
+        }
+        if (highlightSource) {
+          highlightSource.clear();
+        }
+        setHoveredFeature(null);
+
+        // Reset cursor
+        const target = mapInstanceRef.current?.getTargetElement();
+        if (target && !isWellAddModeActive) {
+          target.style.cursor = '';
+        }
+      }
+    };
+
+    mapInstanceRef.current.on('pointermove', handlePointerMove);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.un('pointermove', handlePointerMove);
+
+        // Remove highlight layer
+        if (highlightLayerRef.current) {
+          mapInstanceRef.current.removeLayer(highlightLayerRef.current);
+          highlightLayerRef.current = null;
+        }
+      }
+    };
+  }, [mapInstanceRef.current, isWellAddModeActive]);
 
   const createWFSLayer = (
     layerName: string,

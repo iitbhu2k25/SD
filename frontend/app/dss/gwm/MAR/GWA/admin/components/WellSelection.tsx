@@ -299,7 +299,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 p-4 bg-white rounded-lg shadow-md">
+      <div className=" relative flex-shrink-0 p-4 bg-white rounded-lg shadow-md">
         {wellsError && (
           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
             {wellsError}
