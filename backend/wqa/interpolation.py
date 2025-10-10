@@ -189,7 +189,7 @@ def interpolate_csv_to_rasters(
         }
     
     # ===== SETUP GRID IN UTM =====
-    idw_cell_size = 30.0  # 30 meters resolution
+    idw_cell_size = 60.0  # 30 meters resolution
     
     sel_minx, sel_miny, sel_maxx, sel_maxy = bounds_utm
     pts_minx, pts_miny = coords_xy_utm[:,0].min(), coords_xy_utm[:,1].min()
