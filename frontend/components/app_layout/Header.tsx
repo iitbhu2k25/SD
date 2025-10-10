@@ -25,7 +25,7 @@ export default function Header() {
                   alt="अशोक स्तंभ"
                   title="अशोक स्तंभ"
                   className="w-16 h-auto sm:w-20"
-                  width={100} height={100}
+                  width={1000} height={1000}
                 />
               </Link>
               <Link href="https://iitbhu.ac.in/" className="transition-transform hover:scale-105">
@@ -34,7 +34,7 @@ export default function Header() {
                   alt="IIT BHU"
                   title="IIT BHU"
                   className="w-16 h-auto sm:w-20"
-                  width={100} height={100}
+                  width={1000} height={1000}
                 />
               </Link>
             </div>
@@ -45,7 +45,7 @@ export default function Header() {
                   alt="Smart Laboratory on Clean River"
                   title="Smart Laboratory on Clean River"
                   className="w-16 h-auto sm:w-20"
-                  width={100} height={100}
+                  width={1000} height={1000}
                 />
               </Link>
               <Link href="https://nmcg.nic.in/" className="transition-transform hover:scale-105">
@@ -54,7 +54,7 @@ export default function Header() {
                   alt="Namami Gange"
                   title="Namami Gange"
                   className="w-12 h-auto sm:w-16"
-                  width={100} height={100}
+                  width={1000} height={1000}
                 />
               </Link>
             </div>
@@ -68,7 +68,7 @@ export default function Header() {
                 alt="अशोक स्तंभ"
                 title="अशोक स्तंभ"
                 className="w-16 xl:w-20 h-auto"
-                width={100} height={100}
+                width={1000} height={1000}
               />
             </Link>
             <Link href="https://iitbhu.ac.in/" className="transition-transform hover:scale-105">
@@ -77,7 +77,7 @@ export default function Header() {
                 alt="IIT BHU"
                 title="IIT BHU"
                 className="w-24 xl:w-32 h-auto transform scale-125 xl:scale-150 ml-4 xl:ml-6 transition-transform duration-300"
-                width={100} height={100}
+                width={1000} height={1000}
               />
             </Link>
           </div>
@@ -109,7 +109,7 @@ export default function Header() {
                 alt="Smart Laboratory on Clean River"
                 title="Smart Laboratory on Clean River"
                 className="max-w-full h-auto w-32 xl:w-40"
-                 width={100} height={100}
+                 width={1000} height={1000}
               />
             </Link>
             <Link href="https://nmcg.nic.in/" className="transition-transform hover:scale-105">
@@ -118,7 +118,7 @@ export default function Header() {
                 alt="Namami Gange"
                 title="Namami Gange"
                 className="w-20 xl:w-26 h-auto"
-                 width={100} height={100}
+                 width={1000} height={1000}
               />
             </Link>
           </div>

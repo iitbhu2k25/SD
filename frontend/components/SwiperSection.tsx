@@ -129,7 +129,7 @@ export function SwiperSection({
                   </div>
                 )}
 
-               
+
                 {/* Tile type: grid (3 or 4 people) */}
                 {tile.type === "grid" && (
                   <div className="h-full w-full flex items-center pt-10 md:pt-14">
@@ -159,12 +159,14 @@ export function SwiperSection({
                                     src={p.image}
                                     alt={p.alt || p.title || "Portrait"}
                                     className="h-full w-full object-cover"
+                                    width={400}
+                                    height={600}
                                   />
                                 ) : (
                                   <div className="h-full w-full bg-gray-200" />
                                 )}
                               </div>
-                               <figcaption className={`mt-3 w-full bg-white/80 backdrop-blur-md rounded-lg shadow-lg ring-1 ring-blue-100 px-3 py-2 text-xs sm:text-sm md:text-base leading-snug flex items-center justify-center text-center overflow-hidden ${p.title_type === 'normal' ? 'h-16' : 'h-28'}`}>
+                              <figcaption className={`mt-3 w-full bg-white/80 backdrop-blur-md rounded-lg shadow-lg ring-1 ring-blue-100 px-3 py-2 text-xs sm:text-sm md:text-base leading-snug flex items-center justify-center text-center overflow-hidden ${p.title_type === 'normal' ? 'h-16' : 'h-28'}`}>
                                 <div>
                                   <span className="text-blue-700 block font-bold">
                                     {p.title}
@@ -199,7 +201,11 @@ export function SwiperSection({
                                     <Image
                                       src={p.image}
                                       alt={p.alt || p.title || "Portrait"}
-                                      className="h-full w-full object-cover"
+                                      fill
+                                      className="object-cover"
+                                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                      priority
+                                      unoptimized={true}
                                     />
                                   ) : (
                                     <div className="h-full w-full bg-gray-200" />

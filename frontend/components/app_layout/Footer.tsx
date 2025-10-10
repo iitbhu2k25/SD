@@ -16,47 +16,38 @@ export default function Footer() {
 
   return (
     <footer className="w-full mt-auto">
-      {/* Partner logos section */}
-      <div className="bg-gray-100 text-gray-800 py-2 sm:py-6 lg:py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-between items-center">
+      <div className="bg-gray-100 text-gray-800 py-2 sm:py-2 lg:py-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 md:gap-8">
             {partnerLogos.map((logo, index) => (
               <a
                 key={index}
                 href={logo.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative w-16 h-10 sm:w-20 sm:h-12 md:w-24 md:h-14 lg:w-28 lg:h-16 xl:w-32 xl:h-18 hover:opacity-80 transition-opacity duration-200"
+                className="relative flex items-center justify-center 
+                 w-16 h-10 sm:w-20 sm:h-12 md:w-24 md:h-14 
+                 hover:opacity-80 transition-opacity duration-200"
               >
                 <Image
                   src={logo.src}
-                  alt={logo.alt || 'App logo'}
-                  width={128}
-                  height={128}
-                  sizes="(max-width: 640px) 64px, 
-                      (max-width: 768px) 80px, 
-                      (max-width: 1024px) 96px, 
-                      (max-width: 1280px) 112px, 
-                      128px"
-                  style={{ objectFit: 'contain', padding: '4px' }}
-                  priority
+                  alt={logo.alt || 'Partner logo'}
+                  fill
                   unoptimized={logo.unoptimized ?? false}
-                  className="rounded-md"
-                  placeholder="empty"
+                  className="object-contain "
+                  sizes="(max-width: 640px) 64px, (max-width: 1024px) 96px, 128px"
+                  priority
                 />
-
               </a>
             ))}
           </div>
+
         </div>
       </div>
 
       {/* Copyright and footer info */}
       <div className="bg-[#000066] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Main footer content */}
-
-          {/* Bottom copyright bar */}
           <div className="border-t border-white/20 py-3 sm:py-4">
             <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
               <div className="text-center sm:text-left">
@@ -68,7 +59,7 @@ export default function Footer() {
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-center sm:justify-end space-x-4 sm:space-x-6 text-xs sm:text-sm">
+              <div className="flex flex-wrap justify-center sm:justify-end gap-4 sm:gap-6 text-xs sm:text-sm">
                 <a href="#" className="text-white/70 hover:text-white transition-colors duration-200">
                   Privacy Policy
                 </a>
@@ -81,7 +72,6 @@ export default function Footer() {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </footer>

@@ -899,7 +899,7 @@ const Maping: React.FC = () => {
               width={150}
               height={150}
               onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
+              unoptimized 
             />
 
           </div>

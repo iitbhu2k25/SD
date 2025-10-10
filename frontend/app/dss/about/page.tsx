@@ -152,7 +152,7 @@ export default function GovernmentStyleAboutPage() {
       <section className="w-full min-h-screen lg:h-screen bg-neutral-50 text-neutral-900">
         <div className="h-px bg-slate-200/80" aria-hidden />{" "}
         {/* subtle divider */}
-        <div className="flex flex-col lg:grid lg:grid-cols-[70%_30%] min-h-screen lg:h-full">
+        <div className="flex flex-col lg:grid lg:grid-cols-[60%_40%] min-h-screen lg:h-full">
           <div className="flex items-center order-first lg:order-none flex-none lg:flex-auto">
             <div className="p-6 sm:px-8 md:px-12 lg:px-16 sm:py-10 max-w-3xl mx-auto">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl max-lg:text-center font-bold tracking-tight text-neutral-800">
@@ -181,7 +181,8 @@ export default function GovernmentStyleAboutPage() {
               src="/Images/about/Varanasi_Munshi_Ghat.jpg"
               alt="Volunteers cleaning a riverbank"
               className="h-full w-full object-cover"
-              
+              width={2000}
+              height={2000}
             />
           </div>
         </div>
@@ -195,12 +196,13 @@ export default function GovernmentStyleAboutPage() {
       </div>
 
       <section className="w-full min-h-screen lg:h-screen bg-neutral-900 text-neutral-100">
-        <div className="flex flex-col lg:grid lg:grid-cols-[30%_70%] min-h-screen lg:h-full">
+        <div className="flex flex-col lg:grid lg:grid-cols-[40%_60%] min-h-screen lg:h-full">
           <div className="order-last lg:order-none flex-1 lg:flex-none">
             <Image
               src="/Images/about/Doppler_Weather_Radar_Station_Kailasagiri.jpg"
               alt="Community river cleanup effort"
               className="h-full w-full object-cover"
+              width={1000} height={1000}
             />
           </div>
           <div className="flex items-center order-first lg:order-none flex-none lg:flex-auto">
@@ -241,7 +243,7 @@ export default function GovernmentStyleAboutPage() {
       </section>
 
       <section className="w-full min-h-screen lg:h-screen bg-neutral-50 text-neutral-900">
-        <div className="flex flex-col lg:grid lg:grid-cols-[70%_30%] min-h-screen lg:h-full">
+        <div className="flex flex-col lg:grid lg:grid-cols-[60%_40%] min-h-screen lg:h-full">
           <div className="flex items-center order-first lg:order-none flex-none lg:flex-auto">
             <div className="p-6 sm:px-8 md:px-12 lg:px-16 sm:py-10 max-w-3xl mx-auto">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl max-lg:text-center font-bold tracking-tight text-neutral-800">
@@ -281,18 +283,21 @@ export default function GovernmentStyleAboutPage() {
               src="/Images/about/varuna1.png"
               alt="Riverside flood protection levee"
               className="h-full w-full object-cover"
+              width={1000} height={1000}
+              unoptimized={false}
             />
           </div>
         </div>
       </section>
 
       <section className="w-full min-h-screen lg:h-screen bg-neutral-900 text-neutral-100">
-        <div className="flex flex-col lg:grid lg:grid-cols-[30%_70%] min-h-screen lg:h-full">
+        <div className="flex flex-col lg:grid lg:grid-cols-[40%_60%] min-h-screen lg:h-full">
           <div className="order-last lg:order-none flex-1 lg:flex-none">
             <Image
               src="/Images/about/Kendujhar_Odisha.jpg"
               alt="Coastal cleanup volunteers at work"
               className="h-full w-full object-cover"
+              width={1000} height={1000}
             />
           </div>
           <div className="flex items-center order-first lg:order-none flex-none lg:flex-auto">
@@ -335,7 +340,7 @@ export default function GovernmentStyleAboutPage() {
       </section>
 
       <section className="w-full min-h-screen lg:h-screen bg-neutral-50 text-neutral-900">
-        <div className="flex flex-col lg:grid lg:grid-cols-[70%_30%] min-h-screen lg:h-full">
+        <div className="flex flex-col lg:grid lg:grid-cols-[60%_40%] min-h-screen lg:h-full">
           <div className="flex items-center order-first lg:order-none flex-none lg:flex-auto">
             <div className="p-6 sm:px-8 md:px-12 lg:px-16 sm:py-10 max-w-3xl mx-auto">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl max-lg:text-center font-bold tracking-tight text-neutral-800">
@@ -364,6 +369,8 @@ export default function GovernmentStyleAboutPage() {
               src="/Images/about/AWS(Automatic_Weather_station).jpg"
               alt="Groundwater monitoring well"
               className="h-full w-full object-cover"
+              width={1920}
+              height={1080}
             />
           </div>
         </div>

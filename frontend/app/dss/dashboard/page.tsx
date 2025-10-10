@@ -205,7 +205,8 @@ const ImageCarousel = () => {
         <div><h2 className="text-xl font-bold">🌊 Varuna River Gallery</h2></div>
       </div>
       <div className="relative h-[638px] overflow-hidden">
-        <Image src={images[currentImageIndex]} alt={`Varuna River ${currentImageIndex + 1}`} className="w-full h-full object-cover transition-all duration-500 ease-in-out" />
+        <Image src={images[currentImageIndex]} alt={`Varuna River ${currentImageIndex + 1}`} className="w-full h-full object-cover transition-all duration-500 ease-in-out" 
+          width={1000} height={1000}/>
         <button onClick={prevImage} className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-200">
           <ChevronLeft size={20} />
         </button>
@@ -1561,7 +1562,7 @@ export default function VarunaRiverDashboard() {
                       {[
              {
             title: "Organic Pollution",
-            image: "https://dialogue.earth/content/uploads/2015/12/India-Ganga-pollution-scaled.jpg",
+            image: "/Images/dashboard/Organic_Pollution.webp",
             icon: "🧪",
             value: (
              <>
@@ -1575,7 +1576,7 @@ export default function VarunaRiverDashboard() {
           {
             title: "Pathogen Risk",
             icon: "🦠",
-            image:"https://t4.ftcdn.net/jpg/08/42/76/07/360_F_842760775_8ccQDE8g6eKeuVy2jHffnZxU13MZrpEG.jpg",
+            image:"/Images/dashboard/Pathogen_Risk.jpg",
            value: (
            <>
              Safe Limit: Faecal Coliform ≤ 500 MPN/100mL <br />
@@ -1588,7 +1589,7 @@ export default function VarunaRiverDashboard() {
           {
             title: "Chemical Pollution",
             icon: "⚗️",
-            image:"https://static.vecteezy.com/system/resources/thumbnails/057/512/892/small_2x/close-up-of-a-barrel-with-green-leaking-toxic-waste-standing-in-nature-photo.jpg",
+            image:"/Images/dashboard/Chemical_Pollution.jpg",
             value: (
             <>
               Safe Limit: COD ≤ 30 mg/L, TSS ≤ 100 mg/L <br />
@@ -1600,7 +1601,7 @@ export default function VarunaRiverDashboard() {
           },
           {
             title: "Turbidity",
-            image:"https://ecoreportcard.org/site/assets/files/2218/chesterville_branch_turbidity.700x0.jpg",
+            image:"/Images/dashboard/Turbidity.jpg",
             icon: "🌫️",
             value: (
             <>
@@ -1613,7 +1614,7 @@ export default function VarunaRiverDashboard() {
           },
           {
             title: "Salinity / Conductivity",
-            image:"https://www.waterquality.gov.au/sites/default/files/images/salt.jpg",
+            image:"/Images/dashboard/Salinity_Conductivity.jpg",
             icon: "🧂",
             value: (
             <>
@@ -1627,7 +1628,7 @@ export default function VarunaRiverDashboard() {
            {
           title: "Nitrates from Agriculture & Sewage",
           icon: "🌾",
-          image: "https://nexteel.in/wp-content/uploads/2025/04/Nitrate-Pollution-in-water-1024x576.jpg",
+          image: "/Images/dashboard/Nitrates.jpg",
           value: (
           <>
             Safe Limit: Nitrate ≤ 2.00 mg/L<br />
@@ -1640,7 +1641,7 @@ export default function VarunaRiverDashboard() {
         {
           title: "Algae Growth",
           icon: "🌿",
-          image: " https://assets.telegraphindia.com/telegraph/5jamriver2.jpg",
+          image: "/Images/dashboard/Algae_Growth.jpg",
           value: (
           <>
             Safe Limit: Nitrate ≤ 2.00 mg/L & BOD ≤ 5.00 mg/L<br />
@@ -1653,7 +1654,7 @@ export default function VarunaRiverDashboard() {
         {
           title: "Industrial Contaminants",
           icon: "🧪",
-          image:"https://images.assettype.com/english-sentinelassam/import/wp-content/uploads/2019/01/industrial-wastewater.jpg",
+          image:"/Images/dashboard/Industrial_Contaminants.webp",
           value: (
            <>
             Safe Limit: COD ≤ 30 mg/L, TDS ≤ 1000 ppm<br />
@@ -1666,7 +1667,7 @@ export default function VarunaRiverDashboard() {
         {
           title: "Phosphates & Detergents",
           icon: "🧼",
-          image:"https://asset.library.wisc.edu/1711.dl/ER5CSR223WOWA8F/M/h1380-2ce93.jpg",
+          image:"/Images/dashboard/Phosphates_Detergents.jpg",
           value: (
           <>
             Safe Limit: BOD ≤ 5 mg/L, COD ≤ 30 mg/L<br />
@@ -1679,7 +1680,7 @@ export default function VarunaRiverDashboard() {
         {
           title: "Land Use & Waste Dumping",
           icon: "🗑️",
-          image:"https://dialogue.earth/content/uploads/2021/12/2CMW2JH-1-scaled.jpg",
+          image:"/Images/dashboard/Land_Use.webp",
           value: (
           <>
             Safe Limit: TSS ≤ 100 mg/L, Turbidity ≤ 25 NTU, TS ≤ 500 mg/L <br />
@@ -1694,13 +1695,15 @@ export default function VarunaRiverDashboard() {
               key={index}
               className={`w-[255px] h-[425px] flex flex-col justify-between rounded-2xl px-5 py-5 bg-gradient-to-br ${item.bgColor} shadow-md border border-gray-200 transform hover:scale-105 hover:shadow-2xl transition-transform duration-300 ease-in-out`}
             >
-               {/* Top Half - Image or Icon */}
+            
           {item.image ? (
             <div className="-mx-5 -mt-5">
               <Image
                 src={item.image}
                 alt={item.title}
                 className="w-full h-[140px] object-cover rounded-t-2xl"
+                width={255}
+                height={140}
                
               />
             </div>
