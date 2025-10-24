@@ -14,7 +14,7 @@ def rainwater_raster(db:db_dependency,data:Rainwater):
     
     raster_path = obj[0].file_path
     
-    response= RainwaterMapper().rasterclip_tif(db,data.district_id,data.subdistrict_id,raster_path,output_dir="temp_rasters")
+    response= RainwaterMapper().rasterclip_tif(db,data.district_id,data.subdistrict_id,raster_path,output_dir="temp")
     return response
 
 @router.post("/polygon_rainfall", status_code=status.HTTP_200_OK)
