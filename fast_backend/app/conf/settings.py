@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     TEMP_DIR:str = os.path.dirname(BASE_DIR)+'/temp'
     subdistrict_path:str
     villages_path :str
+    MODELED_WATER:str
     
     DATABSE_URL:AnyHttpUrl = Field(get_db_url(
         drivername="postgresql+psycopg2",

@@ -15,8 +15,10 @@ rasterstats
 flower
 python-decouple
 requests
+openpyxl
 fastapi-pagination
 geopandas
+selenium
 tqdm
 rasterio
 matplotlib
@@ -50,3 +52,4 @@ scipy
 jenkspy
 cartopy
 celery-progress
+bs4
