@@ -65,7 +65,7 @@ export const createWFSVectorSource = ({
           vectorSource.addFeatures(features);
         })
         .catch((err) => {
-          console.error(`Error loading WFS features (${layerName}):`, err);
+          console.log(`Error loading WFS features (${layerName}):`, err);
         });
     },
   });

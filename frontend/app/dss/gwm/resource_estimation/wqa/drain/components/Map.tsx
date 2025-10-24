@@ -405,7 +405,7 @@ if (selectedVillages.includes(villageCode)) {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error('Error toggling fullscreen:', error);
+      console.log('Error toggling fullscreen:', error);
     }
   };
 

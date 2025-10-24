@@ -24,3 +24,4 @@ from app.database.models.model_gwz import(
     MAR_suitability_visual_raster,
 )
 from app.database.models.auth_model import User,Report,UserDetails
+from app.database.models.model_rainwater import Rainwater_raster

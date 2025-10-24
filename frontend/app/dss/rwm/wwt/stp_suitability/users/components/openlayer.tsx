@@ -442,7 +442,7 @@ const Maping: React.FC = () => {
       }
     };
     const handleFeaturesError = () => {
-      console.error(`Failed to load ${layerType} layer`);
+      console.log(`Failed to load ${layerType} layer`);
       setError(`Failed to load ${layerType} layer`);
     };
 

@@ -1,8 +1,8 @@
-"""temp
+"""start
 
-Revision ID: 338050234e43
+Revision ID: 88ea37cd31a8
 Revises: 
-Create Date: 2025-10-07 05:28:19.057605
+Create Date: 2025-10-24 09:16:53.330002
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '338050234e43'
+revision: str = '88ea37cd31a8'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -91,6 +91,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_mar_suitability_visual_raster_id'), 'mar_suitability_visual_raster', ['id'], unique=True)
+    op.create_table('rainwater_raster',
+    sa.Column('layer_name', sa.String(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('layer_month', sa.Integer(), nullable=False),
+    sa.Column('layer_class', sa.String(), nullable=False),
+    sa.Column('sld_path', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_rainwater_raster_id'), 'rainwater_raster', ['id'], unique=True)
     op.create_table('stp_priority_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -331,6 +343,8 @@ def downgrade() -> None:
     op.drop_table('stp_priority_visual_raster')
     op.drop_index(op.f('ix_stp_priority_raster_id'), table_name='stp_priority_raster')
     op.drop_table('stp_priority_raster')
+    op.drop_index(op.f('ix_rainwater_raster_id'), table_name='rainwater_raster')
+    op.drop_table('rainwater_raster')
     op.drop_index(op.f('ix_mar_suitability_visual_raster_id'), table_name='mar_suitability_visual_raster')
     op.drop_table('mar_suitability_visual_raster')
     op.drop_index(op.f('ix_mar_suitability_raster_id'), table_name='mar_suitability_raster')

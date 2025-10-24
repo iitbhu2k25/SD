@@ -1,10 +1,11 @@
 fastapi
-pydantic==2.11.10
+pydantic
 sqlalchemy
 psycopg2-binary
 uvicorn[standard]
 python-multipart
 python-jose
+rioxarray
 python-dotenv
 alembic
 fiona
@@ -14,8 +15,10 @@ rasterstats
 flower
 python-decouple
 requests
+openpyxl
 fastapi-pagination
 geopandas
+selenium
 tqdm
 rasterio
 matplotlib
@@ -38,9 +41,7 @@ pyjwt[crypto]
 pyjwt
 redis[hiredis]
 aiosmtplib
-fastapi-mail
-fastapi-mail[aioredis]
-fastapi-mail[httpx]
+fastapi-mail==1.5.7
 pyotp
 datashader
 reportlab
@@ -51,3 +52,4 @@ scipy
 jenkspy
 cartopy
 celery-progress
+bs4
