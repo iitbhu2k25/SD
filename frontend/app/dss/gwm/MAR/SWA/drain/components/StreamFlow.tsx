@@ -201,7 +201,7 @@ export default function StreamFlow() {
         await requestElFullscreen(chartWrapRef.current);
       }
     } catch (e) {
-      console.error('Fullscreen error:', e);
+      console.log('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 

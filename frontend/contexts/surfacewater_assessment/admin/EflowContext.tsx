@@ -114,7 +114,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
         }
       }
     } catch (e) {
-      console.error('Failed to load stress data from localStorage:', e);
+      console.log('Failed to load stress data from localStorage:', e);
     }
   }, []);
 
@@ -237,7 +237,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.error('Failed to fetch PNG:', err);
+        console.log('Failed to fetch PNG:', err);
         return null;
       }
     },

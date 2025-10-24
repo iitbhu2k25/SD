@@ -287,12 +287,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       });
 
       fullSrc?.on("featuresloaderror", (error) => {
-        console.error('Error loading Varuna features:', error);
+        console.log('Error loading Varuna features:', error);
         setError("Failed to load Varuna basin. Check GeoServer or network.");
       });
 
       streamsSrc?.on("featuresloaderror", (error) => {
-        console.error('Error loading streams:', error);
+        console.log('Error loading streams:', error);
         setError("Failed to load streams. Check GeoServer or network.");
       });
 
@@ -340,7 +340,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         streamsLayerRef.current = null;
       };
     } catch (err) {
-      console.error('Error initializing map:', err);
+      console.log('Error initializing map:', err);
       setError("Failed to initialize map");
       setIsLoading(false);
     }

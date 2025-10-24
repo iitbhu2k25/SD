@@ -608,6 +608,9 @@ const Navbar = (): JSX.Element => {
                     </li>
                   </ul>
                 </li>
+                <li>
+                  <Link href="/dss/rwm/rainwater" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">Rain Water Harvesting</Link>
+                </li>
               </ul>
             </li>
 

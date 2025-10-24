@@ -393,7 +393,7 @@ const Maping: React.FC = () => {
             vectorSource.addFeatures(features);
           })
           .catch(error => {
-            console.error('Error loading WFS features:', error);
+            console.log('Error loading WFS features:', error);
           });
       }
     });
