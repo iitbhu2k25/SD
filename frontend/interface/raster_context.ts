@@ -84,6 +84,13 @@ export interface Catchment {
   name?: string;
 }
 
+export interface Towns {
+  id: string | number;
+  name: string;
+  population: number;
+  subdistrictId: string | number;
+}
+
 export interface RiverSelectionsData {
   rivers: River[];
   stretches: Stretch[];

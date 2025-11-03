@@ -2,31 +2,8 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
 import { api } from '@/services/api';
-// Define types
-export interface Category {
-  id: number;
-  file_name: string;
-  weight: number;
-  raster_category: string;
-}
+import { Category,Stp_area,SelectRasterLayer,RasterLayer } from '@/interface/raster_context';
 
-// Interface for raster layer selection with added weight field
-export interface SelectRasterLayer {
-  file_name: string;
-  Influence: string;
-  weight?: string;
-  id: number; 
-}
-
-export interface Stp_area{
-  tech_name:string;
-  tech_value:number;
-  id:number
-}
-export interface RasterLayer{
-  workspace: string;
-  layer_name: string;
-}
 interface CategoryContextType {
   condition_categories: Category[];
   constraint_categories: Category[];

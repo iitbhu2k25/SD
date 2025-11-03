@@ -6,37 +6,8 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { LAYER_NAMES } from "./DrainMapContext";
+import { DRAIN_LAYER_NAMES,River,Stretch,Drain,Catchment,ClipRasters } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
-
-// Define types for the river system data
-export interface River {
-  River_Name: string;
-  River_Code: number;
-}
-
-export interface Stretch {
-  id: number;
-  Stretch_ID: number;
-  river_code: number;
-  name?: string; // Optional name field
-}
-
-export interface Drain {
-  id: number;
-  Drain_No: number;
-  stretch_id: number;
-  name?: string; // Optional name field
-}
-
-export interface Catchment {
-  id: number;
-  village_name: string
-  area: number
-  name?: string;
-}
-
-// Interface for selections return data
 export interface RiverSelectionsData {
   rivers: River[];
   stretches: Stretch[];
@@ -45,13 +16,6 @@ export interface RiverSelectionsData {
   totalArea: number;
 }
 
-interface ClipRasters {
-  file_name: string;
-  layer_name: string;
-  workspace: string;
-}
-
-// Define the context type
 interface RiverSystemContextType {
   rivers: River[];
   stretches: Stretch[];
@@ -309,7 +273,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
         const data = await response.json();
         const layer_name=data.layer_name
-        LAYER_NAMES.CATCHMENT=layer_name
+        DRAIN_LAYER_NAMES.CATCHMENT=layer_name
         const new_data=data.data
         const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
           id: catchment.id,

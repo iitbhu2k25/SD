@@ -1,42 +1,14 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/services/api';
+import { State,District,SubDistrict,villages,ClipRasters } from '@/interface/raster_context';
 
-// Define types for the location data
-export interface State {
-  id: string | number;
-  name: string;
-}
-
-export interface District {
-  id: string | number;
-  name: string;
-  stateId: string | number;
-}
-
-export interface SubDistrict {
-  id: string | number;
-  name: string;
-  districtId: string | number;
-}
-
-export interface villages {
-  id: string | number;
-  name: string;
-}
-
-// Interface for selections return data
 
 export interface SelectionsData {
   subDistricts: SubDistrict[];
   villages: villages[];
 }
 
-interface clip_rasters {
-  file_name: string;
-  layer_name: string;
-  workspace: string;
-}
 // Define the context type
 interface LocationContextType {
   states: State[];
@@ -48,8 +20,8 @@ interface LocationContextType {
   selectedSubDistricts: number | null;
   selectedvillages: number[];
   selectionsLocked: boolean;
-  displayRaster: clip_rasters[];
-  setdisplay_raster: (layer: clip_rasters[]) => void;
+  displayRaster: ClipRasters[];
+  setdisplay_raster: (layer: ClipRasters[]) => void;
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number) => void;
@@ -103,7 +75,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [displayRaster, setdisplay_raster] = useState<clip_rasters[]>([]);
+  const [displayRaster, setdisplay_raster] = useState<ClipRasters[]>([]);
   // Load states on component mount
   useEffect(() => {
     const fetchStates = async () => {
@@ -235,7 +207,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
               place: "District",
             },
           })
-          const data = await response.message as clip_rasters[];
+          const data = await response.message as ClipRasters[];
           setdisplay_raster(data);
         } catch (error) {
           console.log("Error:", error);

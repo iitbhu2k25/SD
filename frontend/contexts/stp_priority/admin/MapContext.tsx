@@ -4,14 +4,7 @@ import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
 import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
 import { api } from '@/services/api';
 import { ClipRasters,stp_priority_Output } from '@/interface/raster_context';
-// Define layer name constants to ensure consistency
-const LAYER_NAMES = {
-  INDIA:"STP_State",
-  STATE: "STP_district",
-  DISTRICT: "STP_subdistrict",
-  SUB_DISTRICT: "STP_Village",
-};
-
+import { ADMIN_LAYER_NAMES } from '@/interface/raster_context';
 
 // Type definitions for the context
 interface MapContextType {
@@ -28,7 +21,7 @@ interface MapContextType {
   resetMapView: () => void;
   geoServerUrl: string;
   defaultWorkspace: string;
-  LAYER_NAMES: typeof LAYER_NAMES;
+  ADMIN_LAYER_NAMES: typeof ADMIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   setSecondaryLayer: (layer: string | null) => void;
@@ -58,7 +51,7 @@ interface MapProviderProps {
 
 // Create the map context with default values
 const MapContext = createContext<MapContextType>({
-  primaryLayer: LAYER_NAMES.STATE,
+  primaryLayer: ADMIN_LAYER_NAMES.STATE,
   secondaryLayer: null,
   LayerFilter:null,
   LayerFilterValue :null,
@@ -72,7 +65,7 @@ const MapContext = createContext<MapContextType>({
   resetMapView: () => {},
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
-  LAYER_NAMES,
+  ADMIN_LAYER_NAMES,
   loading: false,
   setLoading: () => {},
   rasterLoading: false,
@@ -99,7 +92,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "vector_work"
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.STATE);
+  const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
   const [LayerFilter, setLayerFilter] = useState<string|null>(null);
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
@@ -140,24 +133,24 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setIsMapLoading(true);
     
     // Default to showing states
-    let primary: string = LAYER_NAMES.INDIA ;
+    let primary: string = ADMIN_LAYER_NAMES.INDIA ;
     let secondary: string | null = null;
     let filters_type:string | null = null;
     let filters_value: number[] = [];
     
     // Logic for determining which layers to show based on selection state
     if (selectedSubDistricts.length) {
-      secondary = LAYER_NAMES.SUB_DISTRICT;
+      secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
       filters_value = selectedSubDistricts;
       }
     else if (selectedDistricts.length ) {
-      secondary = LAYER_NAMES.DISTRICT;
+      secondary = ADMIN_LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
       filters_value = selectedDistricts;
      }
     else if(selectedState) {
-      secondary = LAYER_NAMES.STATE;
+      secondary = ADMIN_LAYER_NAMES.STATE;
       filters_type = 'State_Code';
       filters_value = [selectedState];
     }
@@ -189,9 +182,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       setError(null);
       setWmsDebugInfo(null);
       setStpProcess(true);
-
-
-
       try {
         const resp = await api.post("/stp_operation/stp_priority", {
           body:{
@@ -216,14 +206,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           };
           setTableData(result.csv_details);
 
-          // Check if file_name already exists
+       
           const index = displayRaster.findIndex(
             (item) => item.file_name === "STP_Priority"
           );
 
           let newData;
           if (index !== -1) {
-            // Update existing entry
+
             newData = [...displayRaster];
             newData[index] = append_data;
           } else {
@@ -267,7 +257,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resetMapView,
     geoServerUrl,
     defaultWorkspace,
-    LAYER_NAMES,
+    ADMIN_LAYER_NAMES,
     loading: false,
     setLoading: () => {},
     rasterLayerInfo,

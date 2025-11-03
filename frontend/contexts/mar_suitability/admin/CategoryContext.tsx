@@ -2,31 +2,9 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
 import { api } from '@/services/api';
-// Define types
-export interface Category {
-  id: number;
-  file_name: string;
-  weight: number;
-  raster_category: string;
-}
+import { Category,SelectRasterLayer,Stp_area,RasterLayer } from '@/interface/raster_context';
 
-// Interface for raster layer selection with added weight field
-export interface SelectRasterLayer {
-  file_name: string;
-  Influence: string;
-  weight?: string;
-  id: number; 
-}
 
-export interface Stp_area{
-  tech_name:string;
-  tech_value:number;
-  id:number
-}
-export interface RasterLayer{
-  workspace: string;
-  layer_name: string;
-}
 interface CategoryContextType {
   condition_categories: Category[];
   constraint_categories: Category[];
@@ -94,9 +72,6 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
-        console.log("Condition Data:", data);
-        
-        // Enhance the categories with default icons and colors if not provided
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
@@ -118,9 +93,6 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
           throw new Error('Failed to fetch condition categories');
         }
         const data = await response.message as Category[];
-        console.log("Condition Data:", data);
-        
-        // Enhance the categories with default icons and colors if not provided
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
@@ -133,9 +105,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
 
       }
     };
-   
 
-    // Execute both fetch operations and set loading to false when completed
     Promise.all([fetchConditionCategories(), fetchConstraintCategories()])
       .finally(() => {
         setIsLoading(false);

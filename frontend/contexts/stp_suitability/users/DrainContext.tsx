@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { LAYER_NAMES } from "./DrainMapContext";
+import { DRAIN_LAYER_NAMES,Layer_name } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
 import { api } from "@/services/api";
 
@@ -267,10 +267,10 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.message as LAYER_NAME;
+        const data = await response.message as Layer_name;
         const layer_name = data.layer_name
-        LAYER_NAMES.CATCHMENT = layer_name
-        const new_data = data.data
+        DRAIN_LAYER_NAMES.CATCHMENT = layer_name
+        const new_data = data.catchments
         const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
           id: catchment.id,
           village_name: catchment.village_name,
