@@ -121,7 +121,7 @@ class StaticTextData:
     Drainage_Distance: str = ""
     Groundwater_Depth: str = ""
     Groundwater_Quality: str = ""
-    LULC: str = ""
+    Land_Use_Land_Cover: str = ""
     Major_City_Risk: str = ""
     Population: str = ""
     Proximity_River_Quality: str = ""
@@ -712,7 +712,7 @@ class StpDocument:
                 Drainage_Distance="Drainage distance was calculated using Euclidean and cost-distance algorithms to determine village proximity to the nearest major drain. Villages located closer to these drains are prioritized to reduce unregulated discharge (USEPA, 2004).",
                 Groundwater_Depth="Depth-to-groundwater data were used to assess contamination risk. Shallow aquifers are more vulnerable to pollution, especially where STPs are absent or underperforming (CGWB, 2022)",
                 Groundwater_Quality="Groundwater quality data were used to identify areas of potential contamination. Aquifers with poor groundwater quality were given greater priority (CGWB, 2022).",
-                LULC="The influence of land use was examined using classified satellite imagery to identify dense built-up zones, agricultural fields, and open areas. Urban clusters with high impervious surfaces were given greater priority due to higher sewage production and runoff (Anderson et al., 1976; NRSC, 2021).",
+                Land_Use_Land_Cover="The influence of land use was examined using classified satellite imagery to identify dense built-up zones, agricultural fields, and open areas. Urban clusters with high impervious surfaces were given greater priority due to higher sewage production and runoff (Anderson et al., 1976; NRSC, 2021).",
                 Major_City_Risk="Villages in close proximity to major cities are at higher risk of pollution load migration and infrastructure overload. This proximity buffer was used to highlight peri-urban villages lacking STPs but within the influence zone of major urban nodes.",
                 Population="Population data were sourced from Census 2011 and projected using appropriate demographic models. Higher population zones were weighted more heavily under the assumption of greater sewage load (National Commission on Population, 2019).",
                 Proximity_River_Quality="Proximity to poor-quality river segments (based on BOD and DO from CPCB datasets) was considered a critical factor. Villages draining into these segments were prioritized for immediate intervention to mitigate ecological degradation (CPCB, 2020).",
@@ -966,7 +966,7 @@ class ReportGenerator:
                 ("Drainage Distance", self.static_data.Drainage_Distance),
                 ("Groundwater Depth", self.static_data.Groundwater_Depth),
                 ("Groundwater Quality", self.static_data.Groundwater_Quality),
-                ("LULC", self.static_data.LULC),
+                ("Land Use Land Cover", self.static_data.Land_Use_Land_Cover),
                 ("Major City Risk", self.static_data.Major_City_Risk),
                 ("Population", self.static_data.Population),
                 ("Proximity to River Quality", self.static_data.Proximity_River_Quality),

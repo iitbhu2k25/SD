@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper,STP_Area
 from app.api.service.celery.stp_priority_admin_document import document_gen
 from app.api.service.celery.stp_priority_drain_document import document_gen1
@@ -19,6 +19,7 @@ from pathlib import Path
 connection_manager=ConnectionManager()
 router=APIRouter()
 
+# stp priority
 @router.get("/get_priority_category",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityOutput])
 @validate
 async def get_priority_category(db:db_dependency,all_data: bool = False):
@@ -34,7 +35,13 @@ async def stp_priority_visual_display(db:db_dependency,payload:category_raster):
 async def stp_priority(db:db_dependency,payload: STPCategory):
     raster_path,raster_weights=Stp_service.get_raster(db,payload)
     return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
-   
+
+@router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
+@validate
+async def get_priority_cachement(db:db_dependency,payload:STPCatchmentInput):
+    ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
+    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
+
 @router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_priority_admin_report(payload:StpPriorityAdminReport):
@@ -45,11 +52,7 @@ async def stp_priority_admin_report(payload:StpPriorityAdminReport):
 @validate
 async def stp_priority_drain_report(payload:StpPriorityDrainReport):
     task_id= document_gen1.delay(payload=payload.model_dump())
-    return celery_id(task_id=task_id.id)
- 
- 
- 
- 
+    return celery_id(task_id=task_id.id) 
  
 # stp suitability
 @router.get("/get_suitability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPsuitabilityOutput])
@@ -82,7 +85,13 @@ async def stp_suitability_drain_report(payload:StpsuitabilityDrainReport):
     task_id= document_gen3.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
+@router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
+@validate
+async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput):
+    ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
+    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
+# stp area
 @router.get("/get_stp_suitability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)
 @validate
 async def stp_suitability_area(db:db_dependency):
@@ -93,7 +102,6 @@ async def stp_suitability_area(db:db_dependency):
 @validate
 async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
     try:
-        
         return STP_Area().stp_area_finding(db,payload)
     except Exception as e:
         print(e)

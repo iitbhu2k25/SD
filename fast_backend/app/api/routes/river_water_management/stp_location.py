@@ -6,15 +6,12 @@ from app.api.service.river_water_management.stp_operation import STPPriorityMapp
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
 router=APIRouter()
-# return all the state polygon
-
 
 @router.get("/get_states",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_states(db:db_dependency,all_data: bool = False):
     return Stp_location.get_state(db,all_data)
 
-    
 
 @router.post("/get_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate

@@ -678,11 +678,9 @@ class STPPriorityMapper:
     
     def cachement_villages(self,drain_no:List[int]):        
         try:
-            
             catchment_villages=self.vectorProcess.catchment
             villages=self.vectorProcess.village
             catchment_polygon = catchment_villages[catchment_villages["Drain_No"].isin(drain_no)].geometry.union_all()
-            
             villages_intersect = villages[villages.intersects(catchment_polygon)]
             villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
             villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
@@ -709,8 +707,6 @@ class STPPriorityMapper:
             name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
 
             upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
-
-            # Update data array to use the new column name
             data = [
                 {
                     "id": village_id,  # Now using village_id instead of ID
