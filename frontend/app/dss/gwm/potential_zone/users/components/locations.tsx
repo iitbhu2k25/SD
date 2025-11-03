@@ -3,11 +3,11 @@ import React from "react";
 import { RiverMultiSelect } from "./Multiselect";
 import {
   useRiverSystem,
-  Stretch,
-  Drain,
-  Catchment,
 } from "@/contexts/groundwaterzone/users/DrainContext";
 import WholeLoading from "@/components/app_layout/newLoading";
+import {  Stretch,
+  Drain,
+  Catchment} from "@/interface/raster_context"
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];

@@ -24,11 +24,8 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
-
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
-
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
+import { INDIA_CENTER,INITIAL_ZOOM } from "@/interface/openlayer";
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -65,7 +62,7 @@ const Maping: React.FC = () => {
     defaultWorkspace,
     setShowLegend,
     handleLayerSelection,
-    rasterLoading,
+
     setRasterLoading,
     setError,
     error,

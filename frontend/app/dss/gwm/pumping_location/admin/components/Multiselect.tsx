@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import {District, SubDistrict,villages}from '@/contexts/groundwaterIdent/admin/LocationContext';
+import {District, SubDistrict,villages}from '@/interface/raster_context';
 
 interface MultiSelectProps<T> {
   items: T[];

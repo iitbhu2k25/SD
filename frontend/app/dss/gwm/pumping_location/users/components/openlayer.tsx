@@ -27,19 +27,10 @@ import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/groundwaterIdent/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
-
 import { CsvRow } from '@/interface/table'
+import { LAYER_COLORS,INDIA_CENTER,INITIAL_ZOOM } from "@/interface/openlayer";
 
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
 
-const LAYER_COLORS = {
-  primary: { color: "#3b82f6", fill: "rgba(59, 130, 246, 0.3)" },
-  river: { color: "#1E40AF", fill: "rgba(30, 64, 175, 0.3)" },
-  stretch: { color: "#059669", fill: "rgba(5, 150, 105, 0.3)" },
-  drain: { color: "#DC2626", fill: "rgba(220, 38, 38, 0.3)" },
-  catchment: { color: "#7C2D12", fill: "rgba(124, 45, 18, 0.3)" },
-};
 
 const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
   const geometry = feature.getGeometry();

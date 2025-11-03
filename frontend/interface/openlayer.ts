@@ -1,4 +1,4 @@
-import { DataRow } from '@/interface/table';
+
 export const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 export const INITIAL_ZOOM = 6;
 
@@ -72,23 +72,3 @@ export const LAYER_COLORS: LayerColorsType = {
   },
 };
 
-export interface clip_rasters{
-  file_name:string;
-  layer_name:string;
-  workspace:string;
-}
-
-export interface stp_priority_Output{
-  workspace:string,                  
-  layer_name:string,
-  csv_path:string,
-  csv_details:DataRow[]
-}
-
-export interface stp_sutability_Output{
-  workspace:string,                  
-  layer_name:string,
-  vector_name:string
-  clip_villages:number[],
-  csv_details:DataRow[]
-}

@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
 import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
 import { api } from '@/services/api';
-import { clip_rasters,stp_priority_Output } from '@/interface/openlayer';
+import { ClipRasters,stp_priority_Output } from '@/interface/raster_context';
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {
   INDIA:"STP_State",
@@ -42,7 +42,7 @@ interface MapContextType {
   setSelectedradioLayer: (layer: string | null) => void; 
   showLayer: boolean;
   setShowLayer: (layer: boolean) => void;
-  rasterLayerInfo: clip_rasters | null;
+  rasterLayerInfo: ClipRasters | null;
   setRasterLayerInfo: (layer: null) => void;
   setShowLegend: (layer: boolean) => void;
   showLegend: boolean;
@@ -108,7 +108,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<clip_rasters | null>(null);
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [showLegend, setShowLegend] = useState<boolean>(true);
 

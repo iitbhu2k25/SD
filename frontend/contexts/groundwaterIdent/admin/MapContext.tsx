@@ -1,14 +1,8 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/groundwaterIdent/admin/LocationContext';
+import { ADMIN_LAYER_NAMES} from '@/interface/raster_context';
 
-// Define layer name constants to ensure consistency
-const LAYER_NAMES = {
-  INDIA:"STP_State",
-  STATE: "STP_district",
-  DISTRICT: "STP_subdistrict",
-  SUB_DISTRICT: "STP_Village",
-};
 
 
 interface MapContextType {
@@ -30,7 +24,7 @@ interface MapContextType {
   resetMapView: () => void;
   geoServerUrl: string;
   defaultWorkspace: string;
-  LAYER_NAMES: typeof LAYER_NAMES;
+  ADMIN_LAYER_NAMES: typeof ADMIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 
@@ -45,7 +39,7 @@ interface MapProviderProps {
 
 // Create the map context with default values
 const MapContext = createContext<MapContextType>({
-  primaryLayer: LAYER_NAMES.STATE,
+  primaryLayer: ADMIN_LAYER_NAMES.STATE,
   secondaryLayer: null,
   LayerFilter:null,
   setLayerFilter: () => {},
@@ -61,7 +55,7 @@ const MapContext = createContext<MapContextType>({
   resetMapView: () => {},
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
-  LAYER_NAMES,
+  ADMIN_LAYER_NAMES,
   loading: false,
   setLoading: () => {},
   resultLayer: null,
@@ -75,7 +69,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "vector_work"
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.STATE);
+  const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
   const [resultLayer, setResultLayer] = useState<string | null>(null);
   const [LayerFilter, setLayerFilter] = useState<string|null>(null);
@@ -108,28 +102,28 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setIsMapLoading(true);
     
     // Default to showing states
-    let primary: string = LAYER_NAMES.INDIA ;
+    let primary: string = ADMIN_LAYER_NAMES.INDIA ;
     let secondary: string | null = null;
     let filters_type:string | null = null;
     let filters_value: number[] = [];
     if (selectedvillages.length) {
-      secondary = LAYER_NAMES.SUB_DISTRICT;
+      secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = '"ID"';
       filters_value = selectedvillages;
     }
     // Logic for determining which layers to show based on selection state
     else if (selectedSubDistricts) {
-      secondary = LAYER_NAMES.SUB_DISTRICT;
+      secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
       filters_value = [selectedSubDistricts];
       }
     else if (selectedDistricts ) {
-      secondary = LAYER_NAMES.DISTRICT;
+      secondary = ADMIN_LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
       filters_value = [selectedDistricts];
      }
     else if(selectedState) {
-      secondary = LAYER_NAMES.STATE;
+      secondary = ADMIN_LAYER_NAMES.STATE;
       filters_type = 'State_Code';
       filters_value = [selectedState];
     }
@@ -172,7 +166,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resetMapView,
     geoServerUrl,
     defaultWorkspace,
-    LAYER_NAMES,
+    ADMIN_LAYER_NAMES,
     loading: false,
     setLoading: () => {},
     resultLayer,

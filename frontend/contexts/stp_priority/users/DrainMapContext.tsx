@@ -15,7 +15,7 @@ export const LAYER_NAMES = {
   RIVER: "Rivers",
   DRAIN: "Drain",
   STRETCH: "Stretches",
-  CATCHMENT: null,
+  CATCHMENT: null as string|null,
 };
 
 interface clip_rasters {

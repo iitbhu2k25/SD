@@ -10,22 +10,7 @@ import React, {
 import { api } from "@/services/api";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import { useCategory } from "../admin/CategoryContext";
-import { stp_sutability_Output } from "@/interface/openlayer";
-// Define layer name constants to ensure consistency
-export const LAYER_NAMES = {
-  INDIA: "Boundary",
-  BOUNDARY: "Boundary",
-  RIVER: "Rivers",
-  DRAIN: "Drain",
-  STRETCH: "Stretches",
-  CATCHMENT: null,
-};
-
-interface clip_rasters {
-  file_name: string;
-  layer_name: string;
-  workspace: string;
-}
+import { stp_sutability_Output, DRAIN_LAYER_NAMES } from "@/interface/raster_context";
 
 // Updated interface with separate filters for each layer
 interface LayerFilter {
@@ -66,7 +51,7 @@ interface MapContextType {
   resetMapView: () => void;
   geoServerUrl: string;
   defaultWorkspace: string;
-  LAYER_NAMES: typeof LAYER_NAMES;
+  DRAIN_LAYER_NAMES: typeof DRAIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   setIsMapLoading: (loading: boolean) => void;
@@ -84,7 +69,7 @@ interface MapProviderProps {
 
 // Create the map context with default values
 const MapContext = createContext<MapContextType>({
-  primaryLayer: LAYER_NAMES.INDIA,
+  primaryLayer: DRAIN_LAYER_NAMES.INDIA,
   riverLayer: null,
   stretchLayer: null,
   drainLayer: null,
@@ -111,13 +96,13 @@ const MapContext = createContext<MapContextType>({
   resetMapView: () => { },
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
-  LAYER_NAMES,
+  DRAIN_LAYER_NAMES,
   loading: false,
   setLoading: () => { },
   resultLayer: null,
   setResultLayer: () => { },
-  handleLayerSelection: () => {},
-  setSelectedradioLayer: () => {},
+  handleLayerSelection: () => { },
+  setSelectedradioLayer: () => { },
   selectedradioLayer: null,
 });
 
@@ -128,12 +113,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "vector_work",
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.INDIA);
-  const [boundarylayer, setboundarylayer] = useState<string | null>(LAYER_NAMES.BOUNDARY);
-  const [riverLayer, setRiverLayer] = useState<string | null>(LAYER_NAMES.RIVER); // Always load river layer
-  const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); // Always load stretch layer
-  const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); // Always load drain layer
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); // Always load catchment layer
+  const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
+  const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
+  const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER); // Always load river layer
+  const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH); // Always load stretch layer
+  const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); // Always load drain layer
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT); // Always load catchment layer
   const [resultLayer, setResultLayer] = useState<string | null>(null);
   // Separate filter states for each layer
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
@@ -158,7 +143,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
-    const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const { selectedCategory } = useCategory();
   // Get river system context data
   const {
@@ -206,10 +191,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setHasSelections(hasAnySelections);
 
     // Always keep layers loaded
-    setRiverLayer(LAYER_NAMES.RIVER);
-    setStretchLayer(LAYER_NAMES.STRETCH);
-    setDrainLayer(LAYER_NAMES.DRAIN);
-    setCatchmentLayer(LAYER_NAMES.CATCHMENT);
+    setRiverLayer(DRAIN_LAYER_NAMES.RIVER);
+    setStretchLayer(DRAIN_LAYER_NAMES.STRETCH);
+    setDrainLayer(DRAIN_LAYER_NAMES.DRAIN);
+    setCatchmentLayer(DRAIN_LAYER_NAMES.CATCHMENT);
 
     // 1. River Filter - Only filter rivers by selected river
     if (selectedRiver) {
@@ -332,7 +317,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           }
 
           setDisplayRaster(newData);
-           handleLayerSelection(append_data.file_name)
+          handleLayerSelection(append_data.file_name)
 
         }
       } catch (error: any) {
@@ -366,7 +351,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     catchmentFilter,
     handleLayerSelection,
     selectedradioLayer,
-    setSelectedradioLayer: () => {},
+    setSelectedradioLayer: () => { },
     shouldLoadAllLayers,
     hasSelections,
     stpOperation,
@@ -382,7 +367,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resetMapView,
     geoServerUrl,
     defaultWorkspace,
-    LAYER_NAMES,
+    DRAIN_LAYER_NAMES,
     loading,
     setLoading,
     resultLayer,

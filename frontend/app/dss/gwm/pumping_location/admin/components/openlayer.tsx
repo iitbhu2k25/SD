@@ -28,9 +28,8 @@ import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
 import "ol/ol.css";
 import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
 import { CsvRow } from '@/interface/table'
+import { INDIA_CENTER,INITIAL_ZOOM } from "@/interface/openlayer";
 
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
 
 const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
