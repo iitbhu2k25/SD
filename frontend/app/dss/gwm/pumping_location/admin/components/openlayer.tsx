@@ -905,34 +905,6 @@ const Mapping: React.FC = () => {
             <div className="text-xs font-medium text-gray-800 font-mono" id="mouse-position"></div>
           </div>
         </div>
-
-        {/* Loading Overlay */}
-        {(isLoading || stpOperation) && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">
-              <div className="flex flex-col items-center space-y-6">
-                <div className="relative w-20 h-20">
-                  <svg className="w-20 h-20 transform -rotate-90 animate-spin" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-200" />
-                    <circle cx="40" cy="40" r="35" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="220" strokeDashoffset="60" className="text-blue-500" />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                    {stpOperation ? "Processing Analysis" : "Loading Resources"}
-                  </h3>
-                  <p className="text-gray-600 text-sm">
-                    {stpOperation ? "Analyzing data and generating results..." : "Fetching map data..."}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Error Message */}
         {error && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-red-50/95 backdrop-blur-md border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-2xl flex items-center max-w-sm mx-2">

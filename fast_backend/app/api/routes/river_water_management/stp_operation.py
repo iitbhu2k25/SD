@@ -40,7 +40,7 @@ async def stp_priority(db:db_dependency,payload: STPCategory):
 @validate
 async def get_priority_cachement(db:db_dependency,payload:STPCatchmentInput):
     ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
-    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
+    return STPCatchmentOutput(catchments=ans[0],layer_name=ans[1])
 
 @router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
@@ -89,7 +89,7 @@ async def stp_suitability_drain_report(payload:StpsuitabilityDrainReport):
 @validate
 async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput):
     ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
-    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
+    return STPCatchmentOutput(catchments=ans[0],layer_name=ans[1])
 
 # stp area
 @router.get("/get_stp_suitability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)

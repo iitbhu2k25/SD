@@ -137,7 +137,7 @@ class cachement_village(BaseModel):
     area:float
 
 class STPCatchmentOutput(BaseModel):
-    data:list[cachement_village]=None
+    catchments:list[cachement_village]=None
     layer_name:str
 
 

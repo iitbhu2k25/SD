@@ -144,7 +144,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchRivers = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get("/api/location/get_river");
+        const response = await api.get("/location/get_river");
         if (response.status >201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
@@ -176,7 +176,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchStretches = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/api/location/get_stretch",{
+        const response = await api.post("/location/get_stretch",{
             body: {
               river_code: selectedRiver,
               all_data: true,
@@ -226,7 +226,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchDrains = async () => {
       try {
-        const response = await api.post("/api/location/get_drain",{
+        const response = await api.post("/location/get_drain",{
             body:{
               stretch_ids: selectedStretches,
               all_data: true,
@@ -274,7 +274,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchCatchments = async () => {
       try {
-        const response = await api.post( "/api/stp_operation/get_priority_cachement",{
+        const response = await api.post( "/stp_operation/get_priority_cachement",{
             body: {
               drain_nos: selectedDrains,
               all_data: true,
@@ -321,7 +321,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       if (selectionsLocked === true && selectedCatchments.length > 0) {
         setIsLoading(true);
         try {
-          const response = await api.post("/api/gwz_operation/gwz_visual_display",{
+          const response = await api.post("/gwz_operation/gwz_visual_display",{
               body: { 
                 clip: selectedCatchments,
                 place:"Drain",

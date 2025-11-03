@@ -298,7 +298,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
     const performSTP = async () => {
       try {
-        const resp = await api.post("/api/gwz_operation/gwz_operation", {
+        const resp = await api.post("/gwz_operation/gwz_operation", {
           body: {
             data: selectedCategories,
             clip: selectedCatchments,
