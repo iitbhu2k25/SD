@@ -25,7 +25,7 @@ import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
-import {INDIA_CENTER,INITIAL_ZOOM,LAYER_COLORS} from '@/interface/openlayer'
+import {INDIA_CENTER,INITIAL_ZOOM} from '@/interface/openlayer'
 
 const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -56,7 +56,7 @@ const Mapping: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Context hooks
-  const { displayRaster, selectedTowns, setdisplay_raster, setSelectedVillages } = useLocation();
+  const { displayRaster } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -69,7 +69,7 @@ const Mapping: React.FC = () => {
 
 
   } = useMap();
-  const { selectedCategory, setTableData, setRasterLayerInfo, rasterLayerInfo } = useCategory();
+  const { setRasterLayerInfo, rasterLayerInfo } = useCategory();
 
   // Helper functions
   const toggleFullScreen = () => {

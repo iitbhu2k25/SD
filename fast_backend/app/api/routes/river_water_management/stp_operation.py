@@ -1,4 +1,4 @@
-from fastapi import APIRouter,status
+from fastapi import APIRouter,status,HTTPException
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
 from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
@@ -98,13 +98,14 @@ async def stp_suitability_area(db:db_dependency):
     return  Stp_service.get_suitability_area(db)
 
 
-@router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED)
+@router.post("/stp_suitability_area")
 @validate
 async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
     try:
         return STP_Area().stp_area_finding(db,payload)
     except Exception as e:
-        print(e)
+        if "No clusters found" in str(e):
+            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT,detail=str(e))
 
 @router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate

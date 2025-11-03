@@ -5,6 +5,12 @@ export const ADMIN_LAYER_NAMES = {
   DISTRICT: "STP_subdistrict",
   SUB_DISTRICT: "STP_Village",
 };
+export const ADMIN_TOWN_LAYER_NAMES = {
+  INDIA:"STP_State",
+  STATE: "STP_district",
+  DISTRICT: "STP_subdistrict",
+  SUB_DISTRICT: "Town",
+};
 export const DRAIN_LAYER_NAMES = {
   INDIA: "Boundary",
   BOUNDARY:"Boundary",

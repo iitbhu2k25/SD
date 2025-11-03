@@ -18,7 +18,7 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
-import { LAYER_NAMES } from "@/contexts/stp_priority/users/DrainMapContext";
+import { DRAIN_LAYER_NAMES } from "@/interface/raster_context";
 import { downloadCSV } from "@/components/utils/downloadCsv";
 
 const MainContent = () => {
@@ -56,7 +56,7 @@ const MainContent = () => {
   const handleReset = () => {
     resetSelections();
     setCatchmentLayer(null);
-    LAYER_NAMES.CATCHMENT = null;
+    DRAIN_LAYER_NAMES.CATCHMENT = null;
     setShowCategories(false);
   };
 

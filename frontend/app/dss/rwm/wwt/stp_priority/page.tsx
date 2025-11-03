@@ -1,5 +1,5 @@
 "use client";
-import {LAYER_NAMES} from "@/contexts/stp_priority/users/DrainMapContext"
+import {DRAIN_LAYER_NAMES} from "@/interface/raster_context"
 import React, { useState } from "react";
 
 // Types
@@ -23,7 +23,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   value,
   onChange,
 }) => {
-  LAYER_NAMES.CATCHMENT=null
+  DRAIN_LAYER_NAMES.CATCHMENT=null
   const handleToggle = (): void => {
     onChange(value === "admin" ? "user" : "admin");
   };

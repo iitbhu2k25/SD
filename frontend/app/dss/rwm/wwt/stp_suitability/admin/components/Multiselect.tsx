@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import {District, SubDistrict,Towns}from '@/contexts/stp_suitability/admin/LocationContext';
+import {District, SubDistrict,Towns}from '@/interface/raster_context';
 
 interface MultiSelectProps<T> {
   items: T[];

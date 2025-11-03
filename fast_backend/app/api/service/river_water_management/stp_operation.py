@@ -2,6 +2,7 @@ import os
 from typing import List, Tuple
 import geopandas as gpd
 import rasterio
+from fastapi import HTTPException,status
 from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
@@ -1168,8 +1169,8 @@ class STP_Area:
                 else:
                     break
         if len(selected) == 0:
-            print("❌ No clusters found even after tolerance expansion!")
-            return None
+            return
+
         selected["closeness"] = (selected["area_ha"] - required_area_ha).abs()
         selected = selected.sort_values("closeness").head(top_n).reset_index(drop=True)
         print(f"✅ Selected {len(selected)} cluster(s) within {tolerance*100:.0f}% tolerance\n")

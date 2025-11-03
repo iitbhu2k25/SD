@@ -9,21 +9,7 @@ import React, {
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-export const LAYER_NAMES = {
-  INDIA: "Boundary",
-  BOUNDARY:"Boundary",
-  RIVER: "Rivers",
-  DRAIN: "Drain",
-  STRETCH: "Stretches",
-  CATCHMENT: null as string|null,
-};
-
-interface clip_rasters {
-  file_name: string;
-  layer_name: string;
-  workspace: string;
-}
-
+import { DRAIN_LAYER_NAMES,ClipRasters } from "@/interface/raster_context";
 interface LayerFilter {
   filterField: string | null;
   filterValue: number[] |string[] | null;
@@ -59,12 +45,12 @@ interface MapContextType {
   resetMapView: () => void;
   geoServerUrl: string;
   defaultWorkspace: string;
-  LAYER_NAMES: typeof LAYER_NAMES;
+  DRAIN_LAYER_NAMES: typeof DRAIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
   showLayer: boolean;
   setShowLayer: (layer: boolean) => void;
-  rasterLayerInfo: clip_rasters | null;
+  rasterLayerInfo: ClipRasters | null;
   setRasterLayerInfo: (layer: null) => void;
   setShowLegend: (layer: boolean) => void;
   showLegend: boolean;
@@ -88,7 +74,7 @@ interface MapProviderProps {
 
 // Create the map context with default values
 const MapContext = createContext<MapContextType>({
-  primaryLayer: LAYER_NAMES.INDIA,
+  primaryLayer: DRAIN_LAYER_NAMES.INDIA,
   riverLayer: null,
   stretchLayer: null,
   drainLayer: null,
@@ -114,7 +100,7 @@ const MapContext = createContext<MapContextType>({
   resetMapView: () => {},
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
-  LAYER_NAMES,
+  DRAIN_LAYER_NAMES,
   loading: false,
   setLoading: () => {},
   setShowLayer: () => {},
@@ -140,16 +126,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "vector_work",
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(LAYER_NAMES.INDIA);
-  const [boundarylayer, setboundarylayer] = useState<string | null>(LAYER_NAMES.BOUNDARY);
-  const [riverLayer, setRiverLayer] = useState<string | null>(LAYER_NAMES.RIVER); 
-  const [stretchLayer, setStretchLayer] = useState<string | null>(LAYER_NAMES.STRETCH); 
-  const [drainLayer, setDrainLayer] = useState<string | null>(LAYER_NAMES.DRAIN); 
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(LAYER_NAMES.CATCHMENT); 
+  const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
+  const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
+  const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER); 
+  const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH); 
+  const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); 
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT); 
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(true);
-    const [rasterLayerInfo, setRasterLayerInfo] = useState<clip_rasters | null>(null);
+    const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({ 
     filterField: null, 
     filterValue: null 
@@ -213,10 +199,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setHasSelections(hasAnySelections);
 
     // Always keep layers loaded
-    setRiverLayer(LAYER_NAMES.RIVER);
-    setStretchLayer(LAYER_NAMES.STRETCH);
-    setDrainLayer(LAYER_NAMES.DRAIN);
-    setCatchmentLayer(LAYER_NAMES.CATCHMENT);
+    setRiverLayer(DRAIN_LAYER_NAMES.RIVER);
+    setStretchLayer(DRAIN_LAYER_NAMES.STRETCH);
+    setDrainLayer(DRAIN_LAYER_NAMES.DRAIN);
+    setCatchmentLayer(DRAIN_LAYER_NAMES.CATCHMENT);
 
     // 1. River Filter - Only filter rivers by selected river
     if (selectedRiver) {
@@ -403,7 +389,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resetMapView,
     geoServerUrl,
     defaultWorkspace,
-    LAYER_NAMES,
+    DRAIN_LAYER_NAMES,
     loading,
     setLoading,
     handleLayerSelection,
