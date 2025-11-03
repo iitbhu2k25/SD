@@ -19,16 +19,12 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-
+import {INDIA_CENTER,INITIAL_ZOOM} from '@/interface/openlayer'
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/admin/MapContext";
 import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
-
-// Constants
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
 
 
 

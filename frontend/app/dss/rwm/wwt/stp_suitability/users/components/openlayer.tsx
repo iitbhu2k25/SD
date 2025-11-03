@@ -26,18 +26,8 @@ import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { createWFSVectorSource } from "@/components/utils/geoserver_url";
+import {INDIA_CENTER,INITIAL_ZOOM,LAYER_COLORS} from '@/interface/openlayer'
 
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
-
-const LAYER_COLORS = {
-  primary: { color: "#3b82f6", fill: "rgba(59, 130, 246, 0.3)" },
-  river: { color: "#1E40AF", fill: "rgba(30, 64, 175, 0.3)" },
-  stretch: { color: "#059669", fill: "rgba(5, 150, 105, 0.3)" },
-  drain: { color: "#DC2626", fill: "rgba(220, 38, 38, 0.3)" },
-  catchment: { color: "#7C2D12", fill: "rgba(124, 45, 18, 0.3)" },
-  result: { color: "#4eea33ff", fill: "rgba(147, 51, 234, 0.3)" },
-};
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -80,7 +70,6 @@ const Maping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -89,11 +78,7 @@ const Maping: React.FC = () => {
   // Context hooks
   const {
     selectedDrains,
-    selectedCatchments,
     displayRaster,
-    setDisplayRaster,
-    setShowTable,
-    setTableData,
     setShowCatchment,
   } = useRiverSystem();
 
@@ -109,15 +94,12 @@ const Maping: React.FC = () => {
     drainFilter,
     catchmentFilter,
     defaultWorkspace,
-    setstpOperation,
     stpOperation,
     resultLayer,
-    setResultLayer,
     hasSelections,
+    handleLayerSelection,
+    selectedradioLayer,
   } = useMap();
-
-  const { selectedCategory } = useCategory();
-
   // Helper functions
   const toggleFullScreen = () => {
     if (!containerRef.current) return;
@@ -153,14 +135,7 @@ const Maping: React.FC = () => {
     });
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    displayRaster.forEach((item: any) => {
-      if (item.file_name === layerName) {
-        setRasterLayerInfo(item);
-      }
-    });
-  };
+
 
   const toggleLayerVisibility = (layerType: 'river' | 'stretch' | 'drain' | 'catchment' | 'result') => {
     const layerRefs = {
@@ -491,56 +466,7 @@ const Maping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-    if (stpOperation) {
-      const performSTP = async () => {
-        try {
-          const resp = await fetch("/api/stp_operation/stp_suitability", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: selectedCategory, clip: selectedCatchments, place: "Drain", drain_clip: selectedDrains }),
-          });
 
-          if (!resp.ok) throw new Error(`STP operation failed: ${resp.status}`);
-
-          const result = await resp.json();
-          if (result && result.status === "success") {
-            const append_data = {
-              file_name: "STP_suitability",
-              workspace: result.workspace,
-              layer_name: result.layer_name,
-            };
-            setTableData(result.csv_details);
-
-            // Set result layer if available
-            if (result.vector_name && result.vector_name !== "none") {
-              setResultLayer(result.vector_name);
-            }
-
-            const newData = [...displayRaster];
-            const index = newData.findIndex(item => item.file_name === "STP_suitability");
-            if (index !== -1) {
-              newData[index] = append_data;
-            } else {
-              newData.push(append_data);
-            }
-
-            setDisplayRaster(newData);
-            setRasterLayerInfo(result);
-            handleLayerSelection(append_data.file_name);
-            setShowTable(true);
-          }
-        } catch (error: any) {
-          setError(`STP operation failed: ${error.message}`);
-        } finally {
-          setstpOperation(false);
-        }
-      };
-
-      performSTP();
-      return;
-    }
-
-    // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
       delete layersRef.current[id];
@@ -588,8 +514,14 @@ const Maping: React.FC = () => {
     } catch (error: any) {
       setError(`Error setting up raster layer: ${error.message}`);
     }
-  }, [rasterLayerInfo, layerOpacity, stpOperation]);
-
+  }, [rasterLayerInfo, layerOpacity]);
+    useEffect(() => {
+      displayRaster.forEach((item: any) => {
+        if (item.file_name === selectedradioLayer) {
+          setRasterLayerInfo(item);
+        }
+      });
+    }, [selectedradioLayer, displayRaster]);
   // Fullscreen event listener
   useEffect(() => {
     const handleFullScreenChange = () => {

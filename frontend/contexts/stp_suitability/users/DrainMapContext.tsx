@@ -7,8 +7,10 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
+import { api } from "@/services/api";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
-
+import { useCategory } from "../admin/CategoryContext";
+import { stp_sutability_Output } from "@/interface/openlayer";
 // Define layer name constants to ensure consistency
 export const LAYER_NAMES = {
   INDIA: "Boundary",
@@ -68,6 +70,9 @@ interface MapContextType {
   loading: boolean;
   setLoading: (loading: boolean) => void;
   setIsMapLoading: (loading: boolean) => void;
+  handleLayerSelection: (layer: string) => void;
+  setSelectedradioLayer: (layer: string | null) => void;
+  selectedradioLayer: string | null;
 }
 
 // Props for the MapProvider
@@ -111,6 +116,9 @@ const MapContext = createContext<MapContextType>({
   setLoading: () => { },
   resultLayer: null,
   setResultLayer: () => { },
+  handleLayerSelection: () => {},
+  setSelectedradioLayer: () => {},
+  selectedradioLayer: null,
 });
 
 // Create the provider component
@@ -150,13 +158,18 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
-
+    const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const { selectedCategory } = useCategory();
   // Get river system context data
   const {
     selectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
+    setTableData,
+    displayRaster,
+    setDisplayRaster,
+
   } = useRiverSystem();
 
   // Function to reset map view (zoom to default)
@@ -168,7 +181,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const zoomToFeature = (featureId: string, layerName: string): void => {
     console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
-
+  const handleLayerSelection = (layerName: string) => {
+    setSelectedradioLayer(layerName);
+  };
   // Synchronize layers based on river system selections with hierarchical filtering
   const syncLayersWithRiverSystem = useCallback((): void => {
     console.log("Syncing layers with river system (hierarchical filtering)...", {
@@ -278,6 +293,64 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithRiverSystem();
   }, [syncLayersWithRiverSystem]);
 
+  useEffect(() => {
+    if (!stpOperation) return;
+
+    const performSTP = async () => {
+      try {
+        const resp = await api.post("/stp_operation/stp_suitability", {
+
+          body: { data: selectedCategory, clip: selectedCatchments, place: "Drain", drain_clip: selectedDrains },
+        });
+
+        if (resp.status > 201) throw new Error(`STP operation failed: ${resp.status}`);
+
+        const result = await resp.message as stp_sutability_Output;
+        if (result) {
+          const append_data = {
+            file_name: "STP_Suitability",
+            workspace: result.workspace,
+            layer_name: result.layer_name,
+          };
+          setTableData(result.csv_details);
+
+          // Set result layer if available
+          if (result.vector_name && result.vector_name !== "none") {
+            setResultLayer(result.vector_name);
+          }
+
+          const index = displayRaster.findIndex(
+            (item) => item.file_name === "STP_Suitability"
+          );
+
+          let newData;
+          if (index !== -1) {
+            newData = [...displayRaster];
+            newData[index] = append_data;
+          } else {
+            newData = displayRaster.concat(append_data);
+          }
+
+          setDisplayRaster(newData);
+           handleLayerSelection(append_data.file_name)
+
+        }
+      } catch (error: any) {
+        console.log(`STP operation failed: ${error.message}`);
+      } finally {
+        setstpOperation(false);
+      }
+    };
+
+    performSTP();
+  }, [
+    stpOperation,
+  ]);
+
+
+
+
+
   // Context value
   const contextValue: MapContextType = {
     primaryLayer,
@@ -291,7 +364,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     stretchFilter,
     drainFilter,
     catchmentFilter,
-
+    handleLayerSelection,
+    selectedradioLayer,
+    setSelectedradioLayer: () => {},
     shouldLoadAllLayers,
     hasSelections,
     stpOperation,

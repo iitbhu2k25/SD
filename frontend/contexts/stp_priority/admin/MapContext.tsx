@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
 import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
 import { api } from '@/services/api';
-import { DataRow } from '@/interface/table';
+import { clip_rasters,stp_priority_Output } from '@/interface/openlayer';
 // Define layer name constants to ensure consistency
 const LAYER_NAMES = {
   INDIA:"STP_State",
@@ -12,18 +12,7 @@ const LAYER_NAMES = {
   SUB_DISTRICT: "STP_Village",
 };
 
-interface clip_rasters{
-  file_name:string;
-  layer_name:string;
-  workspace:string;
-}
 
-interface rasterOutput{
-  workspace:string,                  
-  layer_name:string,
-  csv_path:string,
-  csv_details:DataRow[]
-}
 // Type definitions for the context
 interface MapContextType {
   primaryLayer: string;
@@ -217,7 +206,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           throw new Error(`STP operation failed with status: ${resp.status}`);
         }
 
-        const result = await resp.message as rasterOutput;
+        const result = await resp.message as stp_priority_Output;
 
         if (result) {
           const append_data = {

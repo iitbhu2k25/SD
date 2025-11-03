@@ -11,7 +11,7 @@ interface LocationSelectorProps {
   onReset?: () => void;
 }
 
-const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset }) => {
+const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
   // Use the location context instead of local state
   const { 
     states,
@@ -26,7 +26,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     setSelectedDistricts,
     setSelectedSubDistricts,
     confirmSelections,
-    resetSelections
   } = useLocation();
   
   // Handle state selection from select input
@@ -61,15 +60,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     }
   };
   
-  // Handle reset button click
-  const handleReset = (): void => {
-    resetSelections();
-    
-    // Call the onReset prop to notify parent component
-    if (onReset) {
-      onReset();
-    }
-  };
+ 
   
   // Format sub-district display to include population
   const formatSubDistrictDisplay = (subDistrict: SubDistrict): string => {

@@ -1,4 +1,4 @@
-import { RasterMetadata } from '@/interface/raster';
+import { RasterMetadata } from '@/interface/openlayer';
 
 // Sample raster data for demo purposes
 export const sampleRasters: RasterMetadata[] = [

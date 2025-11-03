@@ -60,7 +60,7 @@ interface LocationContextType {
   setSelectedDistricts: (districtIds: number[]) => void;
   setSelectedSubDistricts: (subDistrictIds: number[]) => void;
   confirmSelections: () => SelectionsData | null;
-  resetSelections: () => void;
+
   setSelectedState: (stateId: number | null) => void;
 }
 
@@ -89,7 +89,6 @@ const LocationContext = createContext<LocationContextType>({
   setSelectedDistricts: () => { },
   setSelectedSubDistricts: () => { },
   confirmSelections: () => null,
-  resetSelections: () => { },
   setSelectedState: () => { },
 });
 
@@ -315,7 +314,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedDistricts,
     setSelectedSubDistricts,
     confirmSelections,
-    resetSelections,
     displayRaster,
     setdisplay_raster,
     selectedStateName,

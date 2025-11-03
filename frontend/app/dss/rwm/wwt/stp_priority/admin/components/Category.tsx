@@ -55,7 +55,7 @@ const CategorySelector: React.FC = () => {
       
       <div className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* First column of categories */}
+
           <div className="space-y-3 md:border-r md:pr-3 border-gray-200">
             {firstHalf.map(category => (
               <div key={category.id} className="flex items-start">
@@ -83,7 +83,7 @@ const CategorySelector: React.FC = () => {
             ))}
           </div>
           
-          {/* Second column of categories */}
+         
           <div className="space-y-3">
             {secondHalf.map(category => (
               <div key={category.id} className="flex items-start">

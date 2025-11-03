@@ -35,7 +35,7 @@ export const TreatmentForm: React.FC = () => {
         OptSetStpArea(chosen);
 
         const layer_name = displayRaster.find(
-          (opt) => opt.file_name === "STP_suitability"
+          (opt) => opt.file_name === "STP_Suitability"
         )?.layer_name;
 
         const response = await api.post("/stp_operation/stp_suitability_area", {
