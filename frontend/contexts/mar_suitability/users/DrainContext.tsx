@@ -6,8 +6,9 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { DRAIN_LAYER_NAMES,River,Stretch,Drain,Catchment,ClipRasters } from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES,River,Stretch,Drain,Catchment,ClipRasters ,Layer_name} from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
+import { api } from "@/services/api";
 export interface RiverSelectionsData {
   rivers: River[];
   stretches: Stretch[];
@@ -253,28 +254,23 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchCatchments = async () => {
       try {
-        const response = await fetch(
-          "/api/stp_operation/get_suitability_cachement",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
+        const response = await api.post("/stp_operation/get_suitability_cachement",{
+        
+            body: {
               drain_nos: selectedDrains,
               all_data: true,
-            }),
+            },
           }
         );
 
-        if (!response.ok) {
+        if (response.status>201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.message as Layer_name;
         const layer_name=data.layer_name
         DRAIN_LAYER_NAMES.CATCHMENT=layer_name
-        const new_data=data.data
+        const new_data=data.catchments
         const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
           id: catchment.id,
           village_name: catchment.village_name,
