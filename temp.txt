@@ -253,7 +253,7 @@ const Maping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [longitude, latitude] = coordinate;
-          return `Lat: ${latitude.toFixed(6)}° | Long: ${longitude.toFixed(6)}°`;
+         return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",

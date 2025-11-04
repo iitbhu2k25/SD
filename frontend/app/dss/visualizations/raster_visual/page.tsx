@@ -19,13 +19,7 @@ import { api } from "@/services/api";
 import { toast } from "react-toastify";
 import { baseMaps } from "@/components/MapComponents";
 import Image from "next/image";
-
-// TypeScript interfaces
-interface BaseMap {
-  name: string;
-  source: () => OSM | XYZ;
-  icon: string;
-}
+import{INDIA_CENTER,INITIAL_ZOOM} from "@/interface/openlayer";
 
 interface RasterLayer {
   file_name: string;
@@ -38,8 +32,7 @@ interface Module {
   category: boolean;
   raster: RasterLayer[];
 }
-const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-const INITIAL_ZOOM = 6;
+
 
 const OpenLayersRasterViewer: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -89,10 +82,6 @@ const OpenLayersRasterViewer: React.FC = () => {
   const Vector_workspace = "vector_work";
   const Raster_workspace = "raster_visualization";
   const FIXED_VECTOR_LAYER = "STP_State";
-  const INDIA_CENTER_LON = 78.9629;
-  const INDIA_CENTER_LAT = 23.5937;
-  const INITIAL_ZOOM = 5;
-
   // Filter rasters
   const filteredRasters: (RasterLayer & { module: string })[] = [];
 
@@ -652,11 +641,9 @@ const OpenLayersRasterViewer: React.FC = () => {
         {/* Coordinates */}
         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            <svg className="w-40 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>
-            <div className="text-xs font-mono text-slate-200" id="mouse-position"></div>
+            <div className="text-xs font-mono text-slate-100 " id="mouse-position"></div>
           </div>
         </div>
 

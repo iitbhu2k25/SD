@@ -264,7 +264,7 @@ const Maping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-          return `Lat: ${latitude.toFixed(6)}° | Long: ${Longitude.toFixed(6)}°`;
+         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -895,15 +895,13 @@ const Maping: React.FC = () => {
           </div>
         )}
 
-        <div className="absolute right-4 bottom-4 z-20 bg-white/95 backdrop-blur-md p-3 rounded-lg shadow-lg">
+       <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>
-            <div className="text-xs font-medium text-gray-800 font-mono" id="mouse-position"></div>
+            <div className="text-xs font-mono text-slate-100 " id="mouse-position"></div>
           </div>
         </div>
-
         {error && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-xl flex items-center">
             <svg className="w-5 h-5 mr-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
