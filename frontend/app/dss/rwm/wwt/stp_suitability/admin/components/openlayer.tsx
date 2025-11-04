@@ -25,7 +25,7 @@ import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
-import {INDIA_CENTER,INITIAL_ZOOM} from '@/interface/openlayer'
+import { INDIA_CENTER, INITIAL_ZOOM } from '@/interface/openlayer'
 
 const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -376,12 +376,12 @@ const Mapping: React.FC = () => {
     }
   }, [rasterLayerInfo, layerOpacity]);
   useEffect(() => {
-      displayRaster.forEach((item: any) => {
-        if (item.file_name === selectedradioLayer) {
-          setRasterLayerInfo(item);
-        }
-      });
-    }, [selectedradioLayer, displayRaster]);
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
   // Fullscreen event listener
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -663,23 +663,21 @@ const Mapping: React.FC = () => {
           </div>
         )}
 
-        {/* Legend */}
         {legendUrl && rasterLayerInfo && (
-          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center mb-3">
+          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
+            <div className="flex justify-between items-center ">
               <span className="text-sm font-bold text-gray-700">Legend</span>
               <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <Image
               src={legendUrl}
               alt="Layer Legend"
-              className="rounded-lg border border-gray-200 object-contain"
-              width={150}
-              height={150}
+              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+              width={100}
+              height={100}
               onErrorCapture={() => setError("Failed to load legend")}
               unoptimized // remove this if the image domain is configured in next.config.js
             />
-
           </div>
         )}
 

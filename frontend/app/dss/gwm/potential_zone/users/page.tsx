@@ -25,6 +25,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
+
   const {
     selectedCatchments,
     totalArea,
@@ -40,34 +41,25 @@ const MainContent = () => {
     tableData,
   } = useRiverSystem();
 
-  const { setstpOperation, loading, isMapLoading, stpOperation, setCatchmentLayer } = useMap();
+  const { setstpOperation, loading, isMapLoading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
 
-  const handleConfirm = (selectedData: any) => {
-    const result = confirmSelections();
-  };
-
+  const handleConfirm = () => confirmSelections();
   const handleReset = () => {
     resetSelections();
     setShowCategories(false);
   };
 
-
   const handleSubmit = () => {
     if (selectedCategories.length < 1) {
-      toast.error("Please select at least one category", {
-        position: "top-center",
-      });
+      toast.error("Please select at least one category", { position: "top-center" });
     } else if (selectedCatchments.length < 1) {
-      toast.error("Please select at least one catchment", {
-        position: "top-center",
-      });
+      toast.error("Please select at least one catchment", { position: "top-center" });
     } else {
-      // Start the river system analysis
       setstpOperation(true);
     }
   };
@@ -91,19 +83,13 @@ const MainContent = () => {
         location: locationData,
         weight_data: selectedCategories,
       };
-      const response = await api.post(
-        "/gwz_operation/gwz_drain_report",
-        { body: data }
-      );
+      const response = await api.post("/gwz_operation/gwz_drain_report", { body: data });
       if (response.status != 201) {
-
         setReportLoading(false);
-        toast.error("Report failed", {
-          position: "top-center",
-        });
-        return null;
+        toast.error("Report failed", { position: "top-center" });
+        return;
       }
-      toast.success("Report generated started");
+      toast.success("Report generation started");
       const task = response.message as Record<string, string>;
       setTaskId(task["task_id"]);
       setShowPdfStatus(true);
@@ -119,70 +105,63 @@ const MainContent = () => {
     <div className="min-h-screen bg-gray-50">
       <WholeLoading
         visible={loading || isMapLoading || stpOperation || reportLoading}
-        title={stpOperation ? "Analyzing potential zones" : reportLoading ? "Generating report for STP priorities" : "Loading Resources"}
+        title={
+          stpOperation
+            ? "Analyzing potential zones"
+            : reportLoading
+            ? "Generating report for STP priorities"
+            : "Loading Resources"
+        }
         message={
           stpOperation
             ? "Analyzing site priorities and generating results..."
             : reportLoading
-              ? "Generating report, please wait..."
-              : "Fetching map data and initializing components..."
+            ? "Generating report, please wait..."
+            : "Fetching map data and initializing components..."
         }
       />
 
       <main className="px-4 py-8">
-        {/* Changed from grid-cols-2 to grid-cols-3 to create a 2:1 ratio */}
-        <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
-          {/* Main content area - Now spans 4/8 columns on large screens */}
-          <div className="lg:col-span-4 space-y-4">
-            {/* Selection Components Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-8 gap-6 h-[calc(100vh-4rem)] overflow-hidden">
+          {/* LEFT PANEL - scrollable */}
+          <div className="lg:col-span-4 space-y-4 overflow-y-auto pr-2">
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  River System Selection
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-800">River System Selection</h2>
                 {selectionsLocked && (
                   <p className="text-sm text-green-600 mt-1">
-                    {totalCatchments} catchments selected • Total area:{" "}
-                    {totalArea.toFixed(2)} sq Km
+                    {totalCatchments} catchments selected • Total area: {totalArea.toFixed(2)} sq Km
                   </p>
                 )}
               </div>
 
               <div className="p-6">
-                {/* River System Selection Components with improved styling */}
                 <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <RiverSelector
-                    onConfirm={handleConfirm}
-                    onReset={handleReset}
-                  />
+                  <RiverSelector onConfirm={handleConfirm} onReset={handleReset} />
                 </div>
 
-                {/* Categories Section - Only shown after confirmation */}
                 {showCategories && (
                   <div className="animate-fadeIn">
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="mb-4">
-                        <h3 className="text-lg font-medium text-gray-800 mb-2">
-                          Analysis Categories
-                        </h3>
+                        <h3 className="text-lg font-medium text-gray-800 mb-2">Analysis Categories</h3>
                         <p className="text-sm text-gray-600">
-                          Select the categories to analyze for the selected
-                          river catchments
+                          Select the categories to analyze for the selected river catchments
                         </p>
                       </div>
                       <CategorySelector />
                     </div>
 
-                    {/* Submit Button */}
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
                         onClick={handleSubmit}
                         disabled={stpProcess}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${stpProcess
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                          } flex items-center transition duration-200`}
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
+                          stpProcess
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                        } flex items-center transition duration-200`}
                       >
                         {!stpProcess && (
                           <>
@@ -209,12 +188,11 @@ const MainContent = () => {
                 )}
               </div>
 
-              {/* River System Summary */}
               {tableData.length > 0 && (
                 <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
                   <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
-                    <div className="mb-4 flex justify-between ">
-                      <h2 className="text-xl font-semibold mb-4">Groundwater potential zones Analysis:</h2>
+                    <div className="mb-4 flex justify-between">
+                      <h2 className="text-xl font-semibold mb-4">Groundwater Potential Zones Analysis:</h2>
                       <button
                         onClick={() => downloadCSV(tableData, "Groundwater_potential_drain.csv")}
                         className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
@@ -224,7 +202,6 @@ const MainContent = () => {
                         </svg>
                         Download CSV
                       </button>
-
                     </div>
                     <DataTable
                       columns={Village_columns}
@@ -237,60 +214,40 @@ const MainContent = () => {
                   </div>
                 </section>
               )}
-              <div className="flex m-8 justify-center">
-                {tableData.length > 0 && (
-                  <div className="flex justify-start mt-8">
-                    <button
-                      type="button"
-                      onClick={handlereport}
-                      className="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 16h8M8 12h8m-8-4h8M4 6h16M4 6v12M20 6v12"
-                        />
-                      </svg>
-                      {reportLoading ? "Starting..." : "Generate Report"}
-                    </button>
-                    <WholeLoading
-                      visible={reportLoading}
-                      title={"Generating report for STP priorities"}
-                      message={
-                        "Analyzing site priorities and generating results..."
-                      }
-                    />
-                  </div>
-                )}
-              </div>
+
+              {tableData.length > 0 && (
+                <div className="flex justify-center m-8">
+                  <button
+                    onClick={handlereport}
+                    disabled={reportLoading}
+                    className={`px-8 py-3 rounded-full font-medium shadow-md ${
+                      reportLoading
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                    } flex items-center gap-2 transition duration-200`}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16h8M8 12h8m-8-4h8M4 6h16M4 6v12M20 6v12" />
+                    </svg>
+                    {reportLoading ? "Starting..." : "Generate Report"}
+                  </button>
+                </div>
+              )}
             </section>
           </div>
 
-          {/* Map and Slider area - Now spans 4/8 columns on large screens */}
-          <div className="lg:col-span-4 space-y-4">
-            {/* Map Section with Larger Height */}
+          {/* RIGHT PANEL - independent scroll */}
+          <div className="lg:col-span-4 space-y-4 overflow-y-auto pl-2">
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
-              {/* Larger Map Component */}
-              <div className="w-full p-4  md:min-h-[500px]">
+              <div className="w-full p-4 md:min-h-[500px]">
                 <MapView />
               </div>
             </section>
 
-            {/* Category Influence Sliders in a separate box below the map */}
             {showCategories && selectedCategories.length > 0 && (
               <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    Analysis Weights
-                  </h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Analysis Weights</h2>
                   <p className="text-sm text-gray-600 mt-1">
                     Adjust the influence of each category on the analysis
                   </p>
@@ -301,6 +258,7 @@ const MainContent = () => {
           </div>
         </div>
       </main>
+
       {showPdfStatus && taskId && (
         <PDFGenerationStatus
           taskId={taskId}
@@ -314,17 +272,14 @@ const MainContent = () => {
   );
 };
 
-// Main App component that provides the context
-const GWPZDrain = () => {
-  return (
-    <RiverSystemProvider>
-      <CategoryProvider>
-        <MapProvider>
-          <MainContent />
-        </MapProvider>
-      </CategoryProvider>
-    </RiverSystemProvider>
-  );
-};
+const GWPZDrain = () => (
+  <RiverSystemProvider>
+    <CategoryProvider>
+      <MapProvider>
+        <MainContent />
+      </MapProvider>
+    </CategoryProvider>
+  </RiverSystemProvider>
+);
 
 export default GWPZDrain;

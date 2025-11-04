@@ -50,7 +50,6 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
     const hasErrors = Object.values(newErrors).some((err) => err !== "");
 
     if (!hasErrors) {
-      console.log("Form data:", formValues);
       try {
         const response = await api.post("/authentication/signup", {
           body: {
@@ -66,9 +65,9 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
           onSwitch();
         }
       } catch (error: unknown) {
-        toast.error("sign up failed Retry again")
         if (isErrorWithMessage(error)) {
           console.log("Error while signing up:", error.message.detail);
+          toast.error(error.message.detail);
         } else {
           console.log("Error while signing up");
           console.log(error);

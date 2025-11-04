@@ -14,24 +14,17 @@ import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DataTable from "react-data-table-component";
-import { Gwpl_columns} from "@/interface/table";
+import { Gwpl_columns } from "@/interface/table";
 import WholeLoading from "@/components/app_layout/newLoading";
 import CsvUploader from "./components/handle_csv";
 
 const MainContent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [Uploadcsv, setUploadcsv] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<"condition" | "constraint">(
-    "condition")
-  const {
-    selectedCondition,
-    selectedConstraint,
-    setSelectedCategory,
-  } = useCategory();
+  const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
 
-  const { selectionsLocked, displayRaster, setValidateTable, well_points,tableData } =
-    useLocation();
-
+  const { selectedCondition, selectedConstraint, setSelectedCategory } = useCategory();
+  const { selectionsLocked, displayRaster, setValidateTable, well_points, tableData } = useLocation();
   const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
@@ -50,146 +43,135 @@ const MainContent = () => {
       });
     } else {
       setSubmitting(true);
-
-      const selectedData = [
-        ...selectedCondition,
-        ...selectedConstraint,
-      ]
+      const selectedData = [...selectedCondition, ...selectedConstraint];
       setSelectedCategory(selectedData);
       setstpOperation(true);
-
-
-      setTimeout(() => {
-        setSubmitting(false);
-      }, 2000);
+      setTimeout(() => setSubmitting(false), 2000);
     }
   };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <WholeLoading
+        visible={loading || isMapLoading || stpOperation}
+        title={stpOperation ? "Analyzing pumping zones" : "Loading Resources"}
+        message={
+          stpOperation
+            ? "Analyzing pumping locations and generating results..."
+            : "Fetching map data and initializing components..."
+        }
+      />
 
-      {
-        <WholeLoading
-          visible={loading || isMapLoading || stpOperation}
-          title={
-            stpOperation ? "Analyzing pumping zones" : "Loading Resources"
-          }
-          message={
-            stpOperation
-              ? "Analyzing pumping locations and generating results..."
-              : "Fetching map data and initializing components..."
-          }
-        />
-      }
-      <main className="px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-8 gap-6">
-          <div className="lg:col-span-4 space-y-4">
-
+      <main className="px-4 py-6 h-[calc(100vh-4rem)] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-8 gap-6 h-full overflow-hidden">
+          {/* LEFT SIDE (scrollable independently) */}
+          <div className="lg:col-span-4 space-y-4 overflow-y-auto pr-2 h-full">
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
               <div className="border-b border-gray-200 bg-gray-50 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Selection Criteria
-                </h2>
+                <h2 className="text-xl font-semibold text-gray-800">Selection Criteria</h2>
               </div>
 
               <div className="p-6">
-                <div className="mb-8  bg-gray-50 rounded-lg border border-gray-200">
+                <div className="mb-8 bg-gray-50 rounded-lg border border-gray-200">
                   <LocationSelector />
                 </div>
 
-                {displayRaster.find(item => item.file_name === "Pumping_location") && tableData.length == 0 && (
-                  <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
-
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="flex-1">
-                        <h2 className="text-lg font-semibold text-gray-800">
-                          Input Method
-                        </h2>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Choose how you want to provide location data.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-
-                        <div className="flex items-center space-x-3">
-                          <span
-                            className={`text-sm font-medium transition-colors ${!Uploadcsv ? "text-blue-600" : "text-gray-400"
-                              }`}
-                          >
-                            Manual
-                          </span>
-                          <button
-                            onClick={() => setUploadcsv(!Uploadcsv)}
-                            className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${Uploadcsv ? "bg-blue-600" : "bg-gray-300"
-                              }`}
-                            aria-label="Toggle input method"
-                          >
-                            <span
-                              className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${Uploadcsv ? "translate-x-6" : ""
-                                }`}
-                            />
-                          </button>
-                          <span
-                            className={`text-sm font-medium transition-colors ${Uploadcsv ? "text-blue-600" : "text-gray-400"
-                              }`}
-                          >
-                            CSV
-                          </span>
+                {displayRaster.find(item => item.file_name === "Pumping_location") &&
+                  tableData.length === 0 && (
+                    <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition-all duration-300 hover:shadow-md">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="flex-1">
+                          <h2 className="text-lg font-semibold text-gray-800">
+                            Input Method
+                          </h2>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Choose how you want to provide location data.
+                          </p>
                         </div>
 
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center space-x-3">
+                            <span
+                              className={`text-sm font-medium transition-colors ${
+                                !Uploadcsv ? "text-blue-600" : "text-gray-400"
+                              }`}
+                            >
+                              Manual
+                            </span>
+                            <button
+                              onClick={() => setUploadcsv(!Uploadcsv)}
+                              className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none ${
+                                Uploadcsv ? "bg-blue-600" : "bg-gray-300"
+                              }`}
+                              aria-label="Toggle input method"
+                            >
+                              <span
+                                className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
+                                  Uploadcsv ? "translate-x-6" : ""
+                                }`}
+                              />
+                            </button>
+                            <span
+                              className={`text-sm font-medium transition-colors ${
+                                Uploadcsv ? "text-blue-600" : "text-gray-400"
+                              }`}
+                            >
+                              CSV
+                            </span>
+                          </div>
 
-                        {well_points && well_points.length > 0 && (
-                          <button
-                            onClick={() => setValidateTable(true)}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm animate-fadeIn"
-                          >
-                            Validate
-                          </button>
+                          {well_points && well_points.length > 0 && (
+                            <button
+                              onClick={() => setValidateTable(true)}
+                              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition duration-200"
+                            >
+                              Validate
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        {Uploadcsv ? (
+                          <CsvUploader />
+                        ) : (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Mark the location on Map
+                            </label>
+                            <p className="text-xs text-gray-500">
+                              Click on the map to add pumping location points
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
+                  )}
 
-                    {/* Content Area */}
-                    <div className="mt-4">
-                      {Uploadcsv ? (
-                        <div className="animate-fadeIn">
-                          <CsvUploader />
-                        </div>
-                      ) : (
-                        <div className="animate-fadeIn">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Mark the location on Map
-                          </label>
-                          <p className="text-xs text-gray-500">
-                            Click on the map to add pumping location points
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
                 {tableData.length > 0 && (
-                <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
-                  <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
-                    <h2 className="text-xl font-semibold mb-4">
-                      Groundwater  Well points wise Analysis :-
-                    </h2>
-                    <DataTable
-                      columns={Gwpl_columns}
-                      data={tableData}
-                      pagination
-                      responsive
-                      paginationPerPage={5}
-                      paginationRowsPerPageOptions={[5, 10]}
-                    />
-                  </div>
-                </section>
-              )}
+                  <section className="bg-blue-50 rounded-xl border border-blue-200 p-4 animate-fadeIn">
+                    <div className="p-6 bg-white rounded-2xl shadow-md mt-3">
+                      <h2 className="text-xl font-semibold mb-4">
+                        Groundwater Well Points Analysis
+                      </h2>
+                      <DataTable
+                        columns={Gwpl_columns}
+                        data={tableData}
+                        pagination
+                        responsive
+                        paginationPerPage={5}
+                        paginationRowsPerPageOptions={[5, 10]}
+                      />
+                    </div>
+                  </section>
+                )}
+
                 {showCategories && (
                   <div className="animate-fadeIn">
                     <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <CategorySelector />
                     </div>
+
                     <div className="mb-4 text-sm text-red-600 font-medium flex items-center">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -205,15 +187,17 @@ const MainContent = () => {
                       </svg>
                       At least one condition category must be selected
                     </div>
+
                     <div className="flex justify-start mt-8">
                       <button
                         type="button"
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className={`px-8 py-3 rounded-full font-medium shadow-md ${submitting
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
-                          } flex items-center transition duration-200`}
+                        className={`px-8 py-3 rounded-full font-medium shadow-md ${
+                          submitting
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-green-500 hover:bg-green-600 text-white transform hover:scale-105"
+                        } flex items-center transition duration-200`}
                       >
                         {submitting ? (
                           <>
@@ -266,35 +250,35 @@ const MainContent = () => {
             </section>
           </div>
 
-   
-          <div className="lg:col-span-4 space-y-4">
-
+          {/* RIGHT SIDE (scrollable independently) */}
+          <div className="lg:col-span-4 space-y-4 overflow-y-auto pl-2 h-full">
             <section className="bg-white rounded-xl shadow-md overflow-hidden">
-             
               <div className="w-full p-4 md:min-h-[500px]">
                 <MapView />
               </div>
             </section>
+
             {showCategories && (
               <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
                 <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
-              
                   <div className="flex border-b border-gray-200">
                     <button
                       onClick={() => setActiveTab("condition")}
-                      className={`flex-1 py-2 font-medium ${activeTab === "condition"
-                        ? "text-blue-600 border-b-2 border-blue-500"
-                        : "text-gray-500 hover:text-gray-700"
-                        }`}
+                      className={`flex-1 py-2 font-medium ${
+                        activeTab === "condition"
+                          ? "text-blue-600 border-b-2 border-blue-500"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
                     >
                       Condition Influences
                     </button>
                     <button
                       onClick={() => setActiveTab("constraint")}
-                      className={`flex-1 py-2 font-medium ${activeTab === "constraint"
-                        ? "text-blue-600 border-b-2 border-blue-500"
-                        : "text-gray-500 hover:text-gray-700"
-                        }`}
+                      className={`flex-1 py-2 font-medium ${
+                        activeTab === "constraint"
+                          ? "text-blue-600 border-b-2 border-blue-500"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
                     >
                       Constraint Influences
                     </button>
@@ -304,8 +288,7 @@ const MainContent = () => {
                 {activeTab === "condition" &&
                   (selectedCondition.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
-                      No condition categories selected. Please select at least
-                      one condition category.
+                      No condition categories selected.
                     </div>
                   ) : (
                     <div className="p-4">
@@ -320,20 +303,17 @@ const MainContent = () => {
                     </div>
                   ) : (
                     <div className="p-4">
-           
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-semibold mb-4 text-gray-800">
-                          Selected Constraints
-                        </h3>
-                        {selectedConstraint.map((constraint, index) => (
-                          <div
-                            key={index}
-                            className="p-2 bg-gray-50 rounded-md"
-                          >
-                            {formatName(constraint.file_name)}
-                          </div>
-                        ))}
-                      </div>
+                      <h3 className="text-lg font-semibold mb-4 text-gray-800">
+                        Selected Constraints
+                      </h3>
+                      {selectedConstraint.map((constraint, index) => (
+                        <div
+                          key={index}
+                          className="p-2 bg-gray-50 rounded-md"
+                        >
+                          {formatName(constraint.file_name)}
+                        </div>
+                      ))}
                     </div>
                   ))}
               </section>
@@ -341,23 +321,18 @@ const MainContent = () => {
           </div>
         </div>
       </main>
-
     </div>
-
   );
 };
 
-// Main App component that provides the context
-const GWPLAdmin = () => {
-  return (
-    <LocationProvider>
-      <CategoryProvider>
-        <MapProvider>
-          <MainContent />
-        </MapProvider>
-      </CategoryProvider>
-    </LocationProvider>
-  );
-};
+const GWPLAdmin = () => (
+  <LocationProvider>
+    <CategoryProvider>
+      <MapProvider>
+        <MainContent />
+      </MapProvider>
+    </CategoryProvider>
+  </LocationProvider>
+);
 
 export default GWPLAdmin;

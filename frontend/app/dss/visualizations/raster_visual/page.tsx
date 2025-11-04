@@ -660,31 +660,21 @@ const OpenLayersRasterViewer: React.FC = () => {
           </div>
         </div>
 
-        {/* Legend */}
-        {showLegend && legendUrl && (
-          <div className="absolute bottom-28 right-6 z-10 bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-slate-700 shadow-xl w-64">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="text-xs font-semibold text-slate-200 uppercase tracking-wide">Legend</h4>
-              <button
-                onClick={() => setShowLegend(false)}
-                className="text-slate-400 hover:text-white transition-colors p-1 rounded"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        {legendUrl && (
+          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
+            <div className="flex justify-between items-center ">
+              <span className="text-sm font-bold text-gray-700">Legend</span>
+              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <div className="overflow-hidden rounded-lg border border-slate-600 bg-white">
-              <Image
-                src={legendUrl}
-                alt="Layer Legend"
-                className="max-w-full h-auto object-contain"
-                width={110}
-                height={100}
-                onErrorCapture={() => setError("Failed to load legend")}
-                unoptimized
-              />
-            </div>
+            <Image
+              src={legendUrl}
+              alt="Layer Legend"
+              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+              width={100}
+              height={100}
+              onErrorCapture={() => setError("Failed to load legend")}
+              unoptimized // remove this if the image domain is configured in next.config.js
+            />
           </div>
         )}
 
