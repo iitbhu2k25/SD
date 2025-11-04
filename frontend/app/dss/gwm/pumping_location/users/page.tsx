@@ -88,7 +88,7 @@ const MainContent = () => {
           {/* Header */}
           <section className="border-b pb-4">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              Groundwater Pumping Zone Selection
+              Drain System Selection
             </h2>
             {selectionsLocked && (
               <p className="text-sm text-green-600">
@@ -174,26 +174,6 @@ const MainContent = () => {
                   <h2 className="text-xl font-semibold mb-4">
                     Groundwater Well Points Analysis
                   </h2>
-                  <button
-                    onClick={() => downloadCSV(tableData, "GWPL_Drain.csv")}
-                    className="flex items-center bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg shadow transition duration-200 gap-2"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
-                      />
-                    </svg>
-                    Download CSV
-                  </button>
                 </div>
                 <DataTable
                   columns={Gwpl_columns}

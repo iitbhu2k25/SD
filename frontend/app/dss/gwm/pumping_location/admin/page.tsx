@@ -67,7 +67,7 @@ const MainContent = () => {
           {/* Administrative Selection */}
           <section className="border-b pb-4">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
-              Pumping Zone Selection
+              Administrative Selection
             </h2>
             {selectionsLocked && (
               <p className="text-sm text-green-600">
