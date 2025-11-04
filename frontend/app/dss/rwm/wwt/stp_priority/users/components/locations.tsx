@@ -3,10 +3,10 @@ import React from "react";
 import { RiverMultiSelect } from "./Multiselect";
 import {
   useRiverSystem,
-  Stretch,
-  Drain,
-  Catchment,
 } from "@/contexts/stp_priority/users/DrainContext";
+import   {Stretch,
+  Drain,
+  Catchment,} from "@/interface/raster_context";
 import WholeLoading from "@/components/app_layout/newLoading";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {

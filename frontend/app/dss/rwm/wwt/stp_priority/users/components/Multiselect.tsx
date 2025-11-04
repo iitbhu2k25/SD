@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import { River, Stretch, Drain, Catchment} from '@/contexts/stp_priority/users/DrainContext';
+import { River, Stretch, Drain, Catchment} from '@/interface/raster_context';
 
 
 // Base interface for items that can be selected

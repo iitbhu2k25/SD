@@ -3,11 +3,13 @@ import React from "react";
 import { RiverMultiSelect } from "./Multiselect";
 import {
   useRiverSystem,
-  Stretch,
-  Drain,
-  Catchment,
 } from "@/contexts/mar_suitability/users/DrainContext";
 import WholeLoading from "@/components/app_layout/newLoading";
+import {
+  Stretch,
+  Drain,
+  Catchment
+} from "@/interface/raster_context";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];
@@ -204,9 +206,9 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
                 ? selectedStretches.length === stretches.length
                   ? "All Stretches"
                   : stretches
-                      .filter((s) => selectedStretches.includes(Number(s.id)))
-                      .map((s) => formatStretchDisplay(s))
-                      .join(", ")
+                    .filter((s) => selectedStretches.includes(Number(s.id)))
+                    .map((s) => formatStretchDisplay(s))
+                    .join(", ")
                 : "None"}
             </p>
             <p>
@@ -215,9 +217,9 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
                 ? selectedDrains.length === drains.length
                   ? "All Drains"
                   : drains
-                      .filter((d) => selectedDrains.includes(Number(d.id)))
-                      .map((d) => formatDrainDisplay(d))
-                      .join(", ")
+                    .filter((d) => selectedDrains.includes(Number(d.id)))
+                    .map((d) => formatDrainDisplay(d))
+                    .join(", ")
                 : "None"}
             </p>
             <p>
@@ -226,9 +228,9 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
                 ? selectedCatchments.length === catchments.length
                   ? "All Catchments"
                   : catchments
-                      .filter((c) => selectedCatchments.includes(Number(c.id)))
-                      .map((c) => formatCatchmentDisplay(c))
-                      .join(", ")
+                    .filter((c) => selectedCatchments.includes(Number(c.id)))
+                    .map((c) => formatCatchmentDisplay(c))
+                    .join(", ")
                 : "None"}
             </p>
 
@@ -256,11 +258,10 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
         {/* Action buttons */}
         <div className="flex space-x-4 mt-4">
           <button
-            className={`${
-              selectedCatchments.length > 0 && !selectionsLocked
+            className={`${selectedCatchments.length > 0 && !selectionsLocked
                 ? "bg-blue-500 hover:bg-blue-700"
                 : "bg-gray-400 cursor-not-allowed"
-            } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+              } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
             onClick={handleConfirm}
             disabled={
               selectedCatchments.length === 0 || selectionsLocked || isLoading
@@ -268,10 +269,10 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
           >
             Confirm Selection
           </button>
-          
+
         </div>
       </div>
-       {isLoading && (
+      {isLoading && (
         <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
       )}
     </div>

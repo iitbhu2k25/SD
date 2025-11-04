@@ -1,7 +1,8 @@
 'use client'
 import React from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation, SubDistrict } from '@/contexts/stp_priority/admin/LocationContext';
+import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
+import { SubDistrict } from '@/interface/raster_context';
 import WholeLoading from "@/components/app_layout/newLoading";
 interface LocationSelectorProps {
   onConfirm?: (selectedData: {

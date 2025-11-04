@@ -126,7 +126,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
         params: { chord_id },
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(response.message);
+      const url = response.message ? window.URL.createObjectURL(response.message) : '';
       const link = document.createElement("a");
       link.href = url;
       link.download = `report_${chord_id}_${Date.now()}.pdf`;
@@ -185,57 +185,57 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
   const cfg = statusConfig[status];
 
   return (
-   <div className={className}>
-  <div className="relative w-80 p-5 rounded-2xl shadow-2xl bg-gradient-to-br from-blue-800 to-purple-900 text-white flex flex-col items-center gap-4 border border-white/20">
-    {(status === "complete" || status === "failure") && (
-      <button
-        onClick={handleClose}
-        className="absolute top-3 right-3 text-white hover:text-gray-300 font-bold text-lg"
-      >
-        ✕
-      </button>
-    )}
+    <div className={className}>
+      <div className="relative w-80 p-5 rounded-2xl shadow-2xl bg-gradient-to-br from-blue-800 to-purple-900 text-white flex flex-col items-center gap-4 border border-white/20">
+        {(status === "complete" || status === "failure") && (
+          <button
+            onClick={handleClose}
+            className="absolute top-3 right-3 text-white hover:text-gray-300 font-bold text-lg"
+          >
+            ✕
+          </button>
+        )}
 
-    <div className="flex flex-col items-center gap-3">
-      <div className={`p-4 rounded-full bg-gradient-to-tr from-purple-500 to-blue-400 shadow-lg flex items-center justify-center w-16 h-16`}>
-        {cfg.icon}
-      </div>
-      <p className="text-xl font-bold">{cfg.title}</p>
-      <p className="text-sm text-white/80 text-center">{description}</p>
-    </div>
-
-    {/* Linear progress bar */}
-    {["pending", "started", "progress", "downloading"].includes(status) && (
-      <div className="w-full mt-3">
-        <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-green-400 to-blue-500 transition-all"
-            style={{ width: `${progressPercent}%` }}
-          />
+        <div className="flex flex-col items-center gap-3">
+          <div className={`p-4 rounded-full bg-gradient-to-tr from-purple-500 to-blue-400 shadow-lg flex items-center justify-center w-16 h-16`}>
+            {cfg.icon}
+          </div>
+          <p className="text-xl font-bold">{cfg.title}</p>
+          <p className="text-sm text-white/80 text-center">{description}</p>
         </div>
-        <p className="text-right text-xs mt-1 opacity-80">{progressPercent}%</p>
+
+        {/* Linear progress bar */}
+        {["pending", "started", "progress", "downloading"].includes(status) && (
+          <div className="w-full mt-3">
+            <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-green-400 to-blue-500 transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="text-right text-xs mt-1 opacity-80">{progressPercent}%</p>
+          </div>
+        )}
+
+        {status === "success" && !enableAutoDownload && chordId && (
+          <button
+            onClick={() => downloadPDF(chordId)}
+            className="w-full py-2 font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 mt-2 shadow-lg flex justify-center items-center gap-2"
+          >
+            <Download className="w-5 h-5" /> Download PDF
+          </button>
+        )}
+
+        {status === "failure" && (
+          <button
+            onClick={handleClose}
+            className="w-full py-2 font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 mt-2 shadow-lg"
+          >
+            Dismiss
+          </button>
+        )}
       </div>
-    )}
-
-    {status === "success" && !enableAutoDownload && chordId && (
-      <button
-        onClick={() => downloadPDF(chordId)}
-        className="w-full py-2 font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 mt-2 shadow-lg flex justify-center items-center gap-2"
-      >
-        <Download className="w-5 h-5" /> Download PDF
-      </button>
-    )}
-
-    {status === "failure" && (
-      <button
-        onClick={handleClose}
-        className="w-full py-2 font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 mt-2 shadow-lg"
-      >
-        Dismiss
-      </button>
-    )}
-  </div>
-</div>
+    </div>
 
   );
 };
