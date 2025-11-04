@@ -46,15 +46,17 @@ export const TreatmentForm: React.FC = () => {
             layer_name: layer_name,
           },
         });
-        if (response.message ==false) {
+        if (response.status == 204){
           console.log("No cluster found")
           toast.error("No cluster found")
           return
         }
+        
         toast.success("cluster found")
         setResultLayer(response.message as string);
       }
       catch (err) {
+        toast.error("unknown internal error")
         console.log(err)
       }
       finally {

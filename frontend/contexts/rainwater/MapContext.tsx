@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/rainwater/LocationContext';
 
-// Define layer name constants to ensure consistency
 const LAYER_NAMES = {
   INDIA:"STP_State",
   STATE: "STP_district",

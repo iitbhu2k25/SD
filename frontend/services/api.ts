@@ -6,8 +6,8 @@ interface RequestOptions {
   headers?: Record<string, string>;
   params?: Record<string, string | number>;
   body?: any;
-  authToken?: string; // optional override
-  responseType?: 'json' | 'blob' | 'text'; // ⬅️ new
+  authToken?: string;
+  responseType?: 'json' | 'blob' | 'text';
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -25,11 +25,10 @@ async function request<T>(
   method: HttpMethod,
   endpoint: string,
   options: RequestOptions = {}
-): Promise<{ status: number; message: T }> {
+): Promise<{ status: number; message: T | null }> {
   const { headers = {}, params, body, authToken, responseType = 'json' } = options;
 
   const token = authToken ?? useAuthStore.getState().accessToken;
-
   const url = `${BASE_URL}${endpoint}${buildQuery(params)}`;
 
   const res = await fetch(url, {
@@ -39,17 +38,25 @@ async function request<T>(
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
-    credentials: 'include', // send cookies (for refresh token, if used)
+    credentials: 'include',
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  let responseData: any;
-  if (responseType === 'blob') {
-    responseData = await res.blob();
-  } else if (responseType === 'text') {
-    responseData = await res.text();
-  } else {
-    responseData = await res.json();
+  if (res.status === 204) {
+    return { status: res.status, message: null };
+  }
+
+  let responseData: any = null;
+  try {
+    if (responseType === 'blob') {
+      responseData = await res.blob();
+    } else if (responseType === 'text') {
+      responseData = await res.text();
+    } else {
+      responseData = await res.json();
+    }
+  } catch {
+    responseData = null;
   }
 
   if (!res.ok) {
@@ -67,12 +74,8 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(url: string, options?: RequestOptions) =>
-    request<T>('GET', url, options),
-  post: <T>(url: string, options?: RequestOptions) =>
-    request<T>('POST', url, options),
-  put: <T>(url: string, options?: RequestOptions) =>
-    request<T>('PUT', url, options),
-  delete: <T>(url: string, options?: RequestOptions) =>
-    request<T>('DELETE', url, options),
+  get: <T>(url: string, options?: RequestOptions) => request<T>('GET', url, options),
+  post: <T>(url: string, options?: RequestOptions) => request<T>('POST', url, options),
+  put: <T>(url: string, options?: RequestOptions) => request<T>('PUT', url, options),
+  delete: <T>(url: string, options?: RequestOptions) => request<T>('DELETE', url, options),
 };
