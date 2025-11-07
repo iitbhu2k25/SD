@@ -101,11 +101,9 @@ async def stp_suitability_area(db:db_dependency):
 @router.post("/stp_suitability_area")
 @validate
 async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
-    try:
-        return STP_Area().stp_area_finding(db,payload)
-    except Exception as e:
-        if "No clusters found" in str(e):
-            raise HTTPException(status_code=status.HTTP_204_NO_CONTENT,detail=str(e))
+    return STP_Area().stp_area_finding(db,payload)
+        
+   
 
 @router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate
@@ -114,11 +112,8 @@ async def get_report(chord_id:str):
     file_path = Path(file_path)
     if not file_path.exists():
         return {"error": "File not found"}
-    return FileResponse(
-        path=file_path,
-        filename=file_path.name,
-        media_type="application/pdf"  
-    )
+    return FileResponse(path=file_path, filename=file_path.name, media_type="application/pdf")
+
 
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):

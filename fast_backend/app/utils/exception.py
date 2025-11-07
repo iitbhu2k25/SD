@@ -15,6 +15,8 @@ def validate(func):
             )
         except Exception as e:
             print("error is here",e)
+            if "No clusters found" in str(e):
+                raise HTTPException(status_code=status.HTTP_204_NO_CONTENT,detail=str(e))
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str(e)
