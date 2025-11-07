@@ -47,8 +47,6 @@ class Towns(Base):
     subdistrict_code: Mapped[int] = mapped_column(ForeignKey("stp_subdistrict.subdistrict_code"), nullable=False)
     subdistrict: Mapped["SubDistrict"] = relationship(back_populates="towns")
 
-
-
 class STP_River(Base):
     __tablename__ = "stp_river"
     River_Code: Mapped[int] = mapped_column(Integer, primary_key=True, unique=True, nullable=False)

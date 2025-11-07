@@ -7,7 +7,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-
+import { api } from "@/services/api";
 // Define types for the location data
 export interface State {
   id: string | number;
@@ -106,7 +106,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setError(null);
       try {
         console.log("Fetching states from /django/state");
-        const response = await fetch("/django/state", {
+        const response = await fetch("/api/location/get_states?all_data=True", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -118,8 +118,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         const data = await response.json();
         console.log("States response:", data);
         const stateData: State[] = data.length > 0 ? data.map((state: any) => ({
-          id: state.state_code,
-          name: state.state_name,
+          id: state.id,
+          name: state.name,
         })) : [];
         setStates(stateData);
         if (data.length === 0) {
@@ -152,12 +152,12 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setError(null);
       try {
         console.log("Fetching districts for state:", selectedState);
-        const response = await fetch("/django/district/", {
+        const response = await fetch("/api/location/get_districts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ state_code: selectedState }),
+          body: JSON.stringify({ state: selectedState }),
         });
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -165,8 +165,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         const data = await response.json();
         console.log("Districts response:", data);
         const districtData: District[] = data.map((district: any) => ({
-          id: district.district_code,
-          name: district.district_name,
+          id: district.id,
+          name: district.name,
           stateId: selectedState,
         }));
         const sortedDistricts = [...districtData].sort((a, b) =>
@@ -201,12 +201,12 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setError(null);
       try {
         console.log("Fetching sub-districts for districts:", selectedDistricts);
-        const response = await fetch("/django/subdistrict/", {
+        const response = await fetch("/api/location/get_sub_districts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ district_code: selectedDistricts }),
+          body: JSON.stringify({ districts: selectedDistricts }),
         });
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
@@ -217,10 +217,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           districts.map((district) => [district.id.toString(), district.name])
         );
         const subDistrictData: SubDistrict[] = data.map((subDistrict: any) => {
-          const districtId = subDistrict.district_code.toString();
+          const districtId = subDistrict.id.toString();
           return {
-            id: subDistrict.subdistrict_code,
-            name: subDistrict.subdistrict_name,
+            id: subDistrict.id,
+            name: subDistrict.name,
             districtId: parseInt(districtId),
             districtName: districtMap.get(districtId) || "Unknown District",
             population: subDistrict.population || 0,

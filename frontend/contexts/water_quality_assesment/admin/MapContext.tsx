@@ -24,6 +24,7 @@ import { Feature } from 'ol';
 import { Point } from 'ol/geom';
 import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
 import { useWell, WellData } from "@/contexts/water_quality_assesment/admin/WellContext";
+import {ADMIN_TOWN_LAYER_NAMES} from "@/interface/raster_context"
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -499,7 +500,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: "/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json",
+        url: `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=vector_work:${ADMIN_TOWN_LAYER_NAMES.INDIA}&outputFormat=application/json&srsname=EPSG:3857`,
       }),
       style: boundaryLayerStyle,
       zIndex: 1,
