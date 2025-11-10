@@ -1,5 +1,6 @@
 "use client";
 
+import { api } from "@/services/api";
 import React, {
   createContext,
   useContext,
@@ -297,23 +298,16 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     try {
       console.log("Fetching wells data for year:", year, "subdistricts:", selectedSubDistricts);
       
-      const response = await fetch('/django/wqa/wells', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await api.post("/wqi/wells",{
+        body:{
           subdis_cod: selectedSubDistricts,
           year: year
-        }),
+        }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+      if (response.status>201){
+        console.log("error in accessing the well data")
       }
-
-      const data = await response.json();
+      const data = response.message as WellData[]
       console.log("Wells data received for year", year, ":", data.length, "wells");
       setWellsData(data);
       
