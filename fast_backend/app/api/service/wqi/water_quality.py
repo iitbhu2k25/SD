@@ -792,12 +792,14 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, idw_cell_size, idw_cell_size)
         return cols,rows,coords_xy_utm,proj_transform
 
-    def _get_interpolate(self,df:pd.DataFrame):   
-        selected_parameters=df  
+    def _get_interpolate(self,df:pd.DataFrame,parameter_thresholds:dict):   
+        selected_parameters=df.drop(columns=['Longitude','Latitude'])  
         cols,rows,coords_xy_utm,proj_transform=self._vector_area(df)
         interpolated_rasters = []
         for param in selected_parameters:
             temp_name=Unique_name.unique_name_with_ext(param,"tif")
+            threshold_val=parameter_thresholds.get(param)
+            print("threshold_val",threshold_val,param)
             try:
                 param_df=selected_parameters
                 valid_mask = ~param_df[param].isna()
@@ -879,7 +881,6 @@ class WQ_Index:
                 with rasterio.open(output_path) as src:
                     data_4326 = src.read(1)
                     valid_data = data_4326[~np.isnan(data_4326)]
-
                 interpolated_rasters.append({
                     'parameter': param,
                     'output_path': str(output_path),
@@ -890,6 +891,8 @@ class WQ_Index:
                         'max': float(np.max(valid_data)),
                         'mean': float(np.mean(valid_data))
                     }
+                   
+
                 })
             
             except Exception as e:
@@ -919,17 +922,18 @@ class WQ_Index:
         rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
         return rank
     
+    
     def calculate_GWQI(self,db:session,payload:List[Well_response]):
         df=self._correct_pandas(payload)   
-        # result=self._get_interpolate(df)    
         thresholds = WQI_threshold(db).get_threshold()
         df_columns = set(df.columns)
-        parameter_thresholds = [
-            {"parameter": t.parameter, "value": t.value}
+        parameter_thresholds = {
+            t.parameter: t.value
             for t in thresholds
             if t.parameter in df_columns
-        ]
-        ci_index=self._calculate_index
+        }
+        result=self._get_interpolate(df)   
+        print(result )
 
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
