@@ -4,6 +4,7 @@ import React, { createContext, useState, useEffect, ReactNode, useContext, useRe
 import { useLocation } from '@/contexts/water_quality_assesment/admin/LocationContext';
 import { useMap } from '@/contexts/water_quality_assesment/admin/MapContext';
 import { useWell } from '@/contexts/water_quality_assesment/admin/WellContext';
+import { api } from '@/services/api';
 
 interface GroundwaterContourContextType {
   gwqiData: any;
@@ -224,40 +225,17 @@ export const GroundwaterContourProvider: React.FC<GroundwaterContourProviderProp
         session_id: currentSessionId
       });
 
-      const response = await fetch('/django/wqa/gwqi_overlay/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const response = await api.post('/wqi/well_interpolation', {
+        body: wellsData,
       });
 
-      console.log('[GWQI] Response status:', response.status);
+  
 
-      if (!response.ok) {
-        let errorMessage = `GWQI generation failed: ${response.status} ${response.statusText}`;
-        try {
-          const errorData = await response.json();
-         console.log('[GWQI] API error:', errorData);
-          if (errorData?.error) {
-            errorMessage = errorData.error;
-          }
-        } catch (e) {
-         console.log('[GWQI] Could not parse error response');
-        }
-        throw new Error(errorMessage);
-      }
+     if (response.status>201){
+      console.log("finding the error")
+     }
 
-      const data = await response.json();
-      console.log('[GWQI] Response data received');
-      console.log(`[GWQI] Session ID in response: ${data.session_id}`);
-
-      if (data.session_id && data.session_id !== currentSessionId) {
-        console.warn(`[SESSION WARNING] Session ID mismatch! Expected: ${currentSessionId}, Got: ${data.session_id}`);
-        setSessionId(data.session_id);
-        currentSessionId = data.session_id;
-      }
+      const data = response.message as any;
 
       const processedData = {
         ...data,
