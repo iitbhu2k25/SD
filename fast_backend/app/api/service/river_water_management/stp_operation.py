@@ -22,7 +22,6 @@ from pathlib import Path
 from app.api.service.river_water_management import spt_service
 from app.database.crud.stp_crud import STP_suitability_crud
 from app.conf.settings import Settings
-from datetime import datetime
 import zipfile
 import tempfile
 import geopandas as gpd

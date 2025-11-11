@@ -77,3 +77,9 @@ class WaterQualityAssessment(Base):
     village_code:Mapped[int]=mapped_column(Integer,nullable=False)
     subdis_code:Mapped[int]=mapped_column(Integer,nullable=False)
     year:Mapped[int]=mapped_column(Integer,nullable=False)
+
+class GWQI_Threshold(Base):
+    __tablename__='GWQI_param_Index'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    parameter:Mapped[str]=mapped_column(String,nullable=False)
+    value:Mapped[float]=mapped_column(Float,nullable=False)
