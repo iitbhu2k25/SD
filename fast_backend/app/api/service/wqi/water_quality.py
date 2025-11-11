@@ -10,28 +10,12 @@ from scipy.spatial import cKDTree
 import geopandas as gpd
 from app.api.service.river_water_management.stp_operation import VectorProcess
 from app.conf.settings import Settings
+from pathlib import Path
 
 
 
 def arcgis_style_idw_ckdtree(coords_xy, values, grid_transform, grid_shape,
                               power=2.0, search_mode="variable", n_neighbors=12, radius=None):
-    """
-    ArcGIS-style IDW using cKDTree for fast nearest neighbor search
-    From working reference implementation
-    
-    Args:
-        coords_xy: Nx2 array of point coordinates
-        values: N array of values at points
-        grid_transform: Affine transform for output grid
-        grid_shape: (rows, cols) tuple
-        power: IDW power parameter
-        search_mode: 'variable' (k nearest) or 'fixed' (radius)
-        n_neighbors: Number of neighbors for variable search
-        radius: Search radius for fixed search
-    
-    Returns:
-        2D array of interpolated values
-    """
     print(f"[IDW] cKDTree IDW start | mode={search_mode}, k={n_neighbors}, radius={radius}, power={power}")
     
     if isinstance(grid_shape, (tuple, list)) and len(grid_shape) == 2:
@@ -117,10 +101,13 @@ def arcgis_style_idw_ckdtree(coords_xy, values, grid_transform, grid_shape,
 
 
 class WQ_Index:
+    def __init__(self):
+        self.output=Path(Settings().TEMP_DIR)
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
     
     def get_interpolate(self,db:session,payload:List[Well_response]):
+        print(self.output)
         drop_column=['year','Location']
         df = pd.DataFrame([item.model_dump() for item in payload]).drop(columns=drop_column)
         if 'Latitude' not in df.columns or 'Longitude' not in df.columns:
@@ -165,7 +152,7 @@ class WQ_Index:
         print(f"[INTERPOLATION] Converted {len(coords_xy_utm)} points to UTM (EPSG:32644)")
         print(f"[INTERPOLATION] UTM X range: {coords_xy_utm[:,0].min():.2f} to {coords_xy_utm[:,0].max():.2f}")
         print(f"[INTERPOLATION] UTM Y range: {coords_xy_utm[:,1].min():.2f} to {coords_xy_utm[:,1].max():.2f}")
-        idw_cell_size = 10.0
+        idw_cell_size = 100.0
         vectors=VectorProcess()
         selected_area=vectors.get_basin()
         bounds_original = selected_area.total_bounds
@@ -221,10 +208,9 @@ class WQ_Index:
                 
                 # Convert UTM raster to EPSG:4326
                 print(f"[INTERPOLATION] Converting raster to EPSG:4326...")
-                
-
-                temp_utm_path = Settings().TEMP_DIR / f"temp_{param}_utm.tif"
-                
+                print("px",param)
+                temp_utm_path = self.output / f"temp_{param}_utm.tif"
+                print("22x")
                 with rasterio.open(
                     temp_utm_path,
                     'w',
@@ -238,8 +224,8 @@ class WQ_Index:
                     nodata=np.nan
                 ) as dst:
                     dst.write(Z_utm.astype(rasterio.float32), 1)
-                
-                # Reproject to EPSG:4326
+
+                print("1x")
                 from rasterio.warp import calculate_default_transform, reproject, Resampling
                 
                 with rasterio.open(temp_utm_path) as src:
@@ -250,7 +236,7 @@ class WQ_Index:
                     )
                     
                     # Create output raster in EPSG:4326
-                    output_path = Settings().TEMP_DIR / f"{param}_.tif"
+                    output_path = self.output/ f"{param}_.tif"
                     
                     with rasterio.open(
                         output_path,
@@ -285,13 +271,13 @@ class WQ_Index:
                             ORIGINAL_CRS='EPSG:32644',
                             OUTPUT_CRS='EPSG:4326'
                         )
-                
+                print("2x")
                 # Read back to get statistics
                 with rasterio.open(output_path) as src:
                     data_4326 = src.read(1)
                     valid_data = data_4326[~np.isnan(data_4326)]
                 
-
+                print("3x")
                 
                 interpolated_rasters.append({
                     'parameter': param,
