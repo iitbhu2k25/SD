@@ -22,7 +22,8 @@ from app.database.models.model_gwz import(
     Groundwater_Identification_visual_raster,
     MAR_suitability_raster,
     MAR_suitability_visual_raster,
-    WaterQualityAssessment
+    WaterQualityAssessment,
+    GWQI_Threshold
 )
 from app.database.models.auth_model import User,Report,UserDetails
 from app.database.models.model_rainwater import Rainwater_raster

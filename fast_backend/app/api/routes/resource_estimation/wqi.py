@@ -10,6 +10,6 @@ async def get_well(db:db_dependency,payload:Well_input):
     return WQ_Index().get_well(db,payload)
 
 @router.post('/well_interpolation',status_code=status.HTTP_201_CREATED)
-async def make_interpolation(payload:List[Well_response]):
-    return WQ_Index().calculate_GWQI(payload)
+async def make_interpolation(db:db_dependency,payload:List[Well_response]):
+    return WQ_Index().calculate_GWQI(db,payload)
     

@@ -1,7 +1,7 @@
 from app.api.schema.wqi import Well_input,Well_response
 from typing import List,Tuple
 from sqlalchemy.orm import session
-from app.database.crud.gwpz_crud import WQI
+from app.database.crud.gwpz_crud import WQI,WQI_threshold
 import os
 from tqdm import tqdm
 import zipfile
@@ -792,8 +792,7 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, idw_cell_size, idw_cell_size)
         return cols,rows,coords_xy_utm,proj_transform
 
-    def _get_interpolate(self,payload:List[Well_response]):
-        df=self._correct_pandas(payload)      
+    def _get_interpolate(self,df:pd.DataFrame):   
         selected_parameters=df  
         cols,rows,coords_xy_utm,proj_transform=self._vector_area(df)
         interpolated_rasters = []
@@ -897,15 +896,40 @@ class WQ_Index:
                 print(f"[INTERPOLATION] ✗ {param}: {str(e)}")
         return interpolated_rasters
 
-    def calculate_GWQI(self,payload:List[Well_response]):
-        result=self._get_interpolate(payload)
-        print("result",result)
-        parameter_thresholds = {
-                'ph_level': 7.5, 'electrical_conductivity': 1500.0, 'carbonate': 100.0,
-                'bicarbonate': 500.0, 'chloride': 250.0, 'fluoride': 1.5, 'sulfate': 250.0,
-                'nitrate': 50.0, 'Hardness': 500.0, 'calcium': 200.0,
-                'magnesium': 150.0, 'sodium': 200.0, 'potassium': 12.0, 'iron': 0.3
-            }
+    def _calculate_index(self,p_array, threshold):
+        if hasattr(p_array, 'mask'):
+            valid_mask = ~p_array.mask
+            p_array = p_array.data
+        else:
+            valid_mask = np.isfinite(p_array) & (p_array > 0)
+
+        numerator = p_array - threshold
+        denominator = p_array + threshold
+        ci = np.full_like(p_array, np.nan, dtype=np.float32)
+        calc_mask = valid_mask & (denominator != 0)
+        ci[calc_mask] = numerator[calc_mask] / denominator[calc_mask]
+        ci = np.clip(ci, -1, 1)
+        return ci
+
+    def _calculate_ranking(self, ci_array):
+        valid_mask = ~np.isnan(ci_array) & np.isfinite(ci_array)
+        rank = np.full_like(ci_array, np.nan, dtype=np.float32)
+        valid_ci = ci_array[valid_mask]
+        rank[valid_mask] = 0.5 * (valid_ci ** 2) + 4.5 * valid_ci + 5
+        rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
+        return rank
+    
+    def calculate_GWQI(self,db:session,payload:List[Well_response]):
+        df=self._correct_pandas(payload)   
+        # result=self._get_interpolate(df)    
+        thresholds = WQI_threshold(db).get_threshold()
+        df_columns = set(df.columns)
+        parameter_thresholds = [
+            {"parameter": t.parameter, "value": t.value}
+            for t in thresholds
+            if t.parameter in df_columns
+        ]
+        ci_index=self._calculate_index
 
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
