@@ -792,14 +792,12 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, idw_cell_size, idw_cell_size)
         return cols,rows,coords_xy_utm,proj_transform
 
-    def _get_interpolate(self,df:pd.DataFrame,parameter_thresholds:dict):   
+    def _get_interpolate(self,df:pd.DataFrame):   
         selected_parameters=df.drop(columns=['Longitude','Latitude'])  
         cols,rows,coords_xy_utm,proj_transform=self._vector_area(df)
         interpolated_rasters = []
         for param in selected_parameters:
             temp_name=Unique_name.unique_name_with_ext(param,"tif")
-            threshold_val=parameter_thresholds.get(param)
-            print("threshold_val",threshold_val,param)
             try:
                 param_df=selected_parameters
                 valid_mask = ~param_df[param].isna()
@@ -899,7 +897,7 @@ class WQ_Index:
                 print(f"[INTERPOLATION] ✗ {param}: {str(e)}")
         return interpolated_rasters
 
-    def _calculate_index(self,p_array, threshold):
+    def __calculate_index(self,p_array, threshold):
         if hasattr(p_array, 'mask'):
             valid_mask = ~p_array.mask
             p_array = p_array.data
@@ -914,7 +912,7 @@ class WQ_Index:
         ci = np.clip(ci, -1, 1)
         return ci
 
-    def _calculate_ranking(self, ci_array):
+    def __calculate_ranking(self, ci_array):
         valid_mask = ~np.isnan(ci_array) & np.isfinite(ci_array)
         rank = np.full_like(ci_array, np.nan, dtype=np.float32)
         valid_ci = ci_array[valid_mask]
@@ -922,7 +920,46 @@ class WQ_Index:
         rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
         return rank
     
-    
+    def _calulate_concentration_index(self, arr,threshold):
+        CI_raster=[]
+        rank_raster=[]
+        for i in arr:
+            CI_raster.append(
+                {
+                "parameter":i["parameter"],
+                "P_raster":i["output_path"],
+                "threshold":threshold.get(i['parameter'])
+                }
+            )
+        for i in CI_raster:
+      
+            with rasterio.open(i["P_raster"]) as src:
+                p_array = src.read(1)
+                profile = src.profile
+            result = self.__calculate_index(p_array, i["threshold"])
+
+        # Define output CI raster path
+            base, ext = os.path.splitext(i["P_raster"])
+            ci_raster_path = f"{base}_ci{ext}"
+
+        # Update metadata
+            profile.update(
+                dtype=rasterio.float32,
+                count=1,
+                compress="lzw"
+            )
+
+        # Write the CI raster
+            with rasterio.open(ci_raster_path, "w", **profile) as dst:
+                dst.write(result.astype(np.float32), 1)
+            rank_raster.append({
+                "parameter":i["parameter"],
+                "CI_raster":ci_raster_path
+            })
+            print(f"✅ CI raster saved: {ci_raster_path}")
+        return rank_raster
+
+
     def calculate_GWQI(self,db:session,payload:List[Well_response]):
         df=self._correct_pandas(payload.data,payload.params)
         thresholds = WQI_threshold(db).get_threshold()
@@ -932,8 +969,9 @@ class WQ_Index:
             for t in thresholds
             if t.parameter in df_columns
         }
-        result=self._get_interpolate(df,parameter_thresholds)   
-        print(result )
+        result=self._get_interpolate(df)   
+        result_CI=self._calulate_concentration_index(result,parameter_thresholds)
+        print(result_CI)
 
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
