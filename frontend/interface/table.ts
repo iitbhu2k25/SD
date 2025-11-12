@@ -149,23 +149,23 @@ export interface WQIInterface {
   Latitude: number;
   Longitude: number;
   Location: string;
-  arsenic: number;
-  bicarbonate: number;
-  calcium: number;
-  carbonate: number;
-  chloride: number;
-  electrical_conductivity: number;
-  fluoride: number;
-  iron: number;
-  magnesium: number;
-  nitrate: number;
-  ph_level: number;
-  phosphate: number;
-  potassium: number;
-  sodium: number;
-  sulfate: number;
-  uranium: number;
-  year: number;
+  Arsenic: number;
+  Bicarbonate: number;
+  Calcium: number;
+  Carbonate: number;
+  Chloride: number;
+  Electrical_Conductivity: number;
+  Fluoride: number;
+  Iron: number;
+  Magnesium: number;
+  Nitrate: number;
+  pH_Level: number;
+  Phosphate: number;
+  Potassium: number;
+  Sodium: number;
+  Sulfate: number;
+  Uranium: number;
+  Year: number;
 }
 
 export const WQI_columns: TableColumn<WQIInterface>[] = [
@@ -190,24 +190,19 @@ export const WQI_columns: TableColumn<WQIInterface>[] = [
     format: row => row.Longitude.toFixed(4),
     width: '120px',
   },
-  {
-    name: 'Year',
-    selector: row => row.year,
-    sortable: true,
-    width: '100px',
-  },
+  
   {
     name: 'pH Level',
-    selector: row => row.ph_level,
+    selector: row => row.pH_Level,
     sortable: true,
-    format: row => row.ph_level.toFixed(2),
+    format: row => row.pH_Level.toFixed(2),
     width: '120px',
   },
   {
     name: 'Electrical Conductivity',
-    selector: row => row.electrical_conductivity,
+    selector: row => row.Electrical_Conductivity,
     sortable: true,
-    format: row => row.electrical_conductivity.toFixed(2),
+    format: row => row.Electrical_Conductivity.toFixed(2),
     width: '180px',
   },
   {
@@ -219,100 +214,100 @@ export const WQI_columns: TableColumn<WQIInterface>[] = [
   },
   {
     name: 'Calcium',
-    selector: row => row.calcium,
+    selector: row => row.Calcium,
     sortable: true,
-    format: row => row.calcium.toFixed(2),
+    format: row => row.Calcium.toFixed(2),
     width: '120px',
   },
   {
     name: 'Magnesium',
-    selector: row => row.magnesium,
+    selector: row => row.Magnesium,
     sortable: true,
-    format: row => row.magnesium.toFixed(2),
+    format: row => row.Magnesium.toFixed(2),
     width: '120px',
   },
   {
     name: 'Sodium',
-    selector: row => row.sodium,
+    selector: row => row.Sodium,
     sortable: true,
-    format: row => row.sodium.toFixed(2),
+    format: row => row.Sodium.toFixed(2),
     width: '120px',
   },
   {
     name: 'Potassium',
-    selector: row => row.potassium,
+    selector: row => row.Potassium,
     sortable: true,
-    format: row => row.potassium.toFixed(2),
+    format: row => row.Potassium.toFixed(2),
     width: '120px',
   },
   {
     name: 'Carbonate',
-    selector: row => row.carbonate,
+    selector: row => row.Carbonate,
     sortable: true,
-    format: row => row.carbonate.toFixed(2),
+    format: row => row.Carbonate.toFixed(2),
     width: '120px',
   },
   {
     name: 'Bicarbonate',
-    selector: row => row.bicarbonate,
+    selector: row => row.Bicarbonate,
     sortable: true,
-    format: row => row.bicarbonate.toFixed(2),
+    format: row => row.Bicarbonate.toFixed(2),
     width: '140px',
   },
   {
     name: 'Chloride',
-    selector: row => row.chloride,
+    selector: row => row.Chloride,
     sortable: true,
-    format: row => row.chloride.toFixed(2),
+    format: row => row.Chloride.toFixed(2),
     width: '120px',
   },
   {
     name: 'Nitrate',
-    selector: row => row.nitrate,
+    selector: row => row.Nitrate,
     sortable: true,
-    format: row => row.nitrate.toFixed(2),
+    format: row => row.Nitrate.toFixed(2),
     width: '120px',
   },
   {
     name: 'Phosphate',
-    selector: row => row.phosphate,
+    selector: row => row.Phosphate,
     sortable: true,
-    format: row => row.phosphate.toFixed(2),
+    format: row => row.Phosphate.toFixed(2),
     width: '120px',
   },
   {
     name: 'Sulfate',
-    selector: row => row.sulfate,
+    selector: row => row.Sulfate,
     sortable: true,
-    format: row => row.sulfate.toFixed(2),
+    format: row => row.Sulfate.toFixed(2),
     width: '120px',
   },
   {
     name: 'Fluoride',
-    selector: row => row.fluoride,
+    selector: row => row.Fluoride,
     sortable: true,
-    format: row => row.fluoride.toFixed(2),
+    format: row => row.Fluoride.toFixed(2),
     width: '120px',
   },
   {
     name: 'Arsenic',
-    selector: row => row.arsenic,
+    selector: row => row.Arsenic,
     sortable: true,
-    format: row => row.arsenic.toFixed(2),
+    format: row => row.Arsenic.toFixed(2),
     width: '120px',
   },
   {
     name: 'Iron',
-    selector: row => row.iron,
+    selector: row => row.Iron,
     sortable: true,
-    format: row => row.iron.toFixed(2),
+    format: row => row.Iron.toFixed(2),
     width: '120px',
   },
   {
     name: 'Uranium',
-    selector: row => row.uranium,
+    selector: row => row.Uranium,
     sortable: true,
-    format: row => row.uranium.toFixed(2),
+    format: row => row.Uranium.toFixed(2),
     width: '120px',
   },
 ];

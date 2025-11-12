@@ -1,8 +1,8 @@
-"""fix the code 
+"""fix new
 
-Revision ID: 134914d42b22
+Revision ID: 5817217180d7
 Revises: 
-Create Date: 2025-11-11 10:31:23.708998
+Create Date: 2025-11-12 09:38:23.672017
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '134914d42b22'
+revision: str = '5817217180d7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -203,26 +203,26 @@ def upgrade() -> None:
     sa.Column('Location', sa.String(), nullable=False),
     sa.Column('Longitude', sa.Float(), nullable=False),
     sa.Column('Latitude', sa.Float(), nullable=False),
-    sa.Column('ph_level', sa.Float(), nullable=False),
-    sa.Column('electrical_conductivity', sa.Float(), nullable=False),
-    sa.Column('carbonate', sa.Float(), nullable=False),
-    sa.Column('bicarbonate', sa.Float(), nullable=False),
-    sa.Column('chloride', sa.Float(), nullable=False),
-    sa.Column('fluoride', sa.Float(), nullable=False),
-    sa.Column('sulfate', sa.Float(), nullable=False),
-    sa.Column('nitrate', sa.Float(), nullable=False),
-    sa.Column('phosphate', sa.Float(), nullable=False),
+    sa.Column('pH_Level', sa.Float(), nullable=False),
+    sa.Column('Electrical_Conductivity', sa.Float(), nullable=False),
+    sa.Column('Carbonate', sa.Float(), nullable=False),
+    sa.Column('Bicarbonate', sa.Float(), nullable=False),
+    sa.Column('Chloride', sa.Float(), nullable=False),
+    sa.Column('Fluoride', sa.Float(), nullable=False),
+    sa.Column('Sulfate', sa.Float(), nullable=False),
+    sa.Column('Nitrate', sa.Float(), nullable=False),
+    sa.Column('Phosphate', sa.Float(), nullable=False),
     sa.Column('Hardness', sa.Float(), nullable=False),
-    sa.Column('calcium', sa.Float(), nullable=False),
-    sa.Column('magnesium', sa.Float(), nullable=False),
-    sa.Column('sodium', sa.Float(), nullable=False),
-    sa.Column('potassium', sa.Float(), nullable=False),
-    sa.Column('iron', sa.Float(), nullable=False),
-    sa.Column('arsenic', sa.Float(), nullable=False),
-    sa.Column('uranium', sa.Float(), nullable=False),
+    sa.Column('Calcium', sa.Float(), nullable=False),
+    sa.Column('Magnesium', sa.Float(), nullable=False),
+    sa.Column('Sodium', sa.Float(), nullable=False),
+    sa.Column('Potassium', sa.Float(), nullable=False),
+    sa.Column('Iron', sa.Float(), nullable=False),
+    sa.Column('Arsenic', sa.Float(), nullable=False),
+    sa.Column('Uranium', sa.Float(), nullable=False),
     sa.Column('village_code', sa.Integer(), nullable=False),
     sa.Column('subdis_code', sa.Integer(), nullable=False),
-    sa.Column('year', sa.Integer(), nullable=False),
+    sa.Column('Year', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/water_quality_assesment/admin/LocationContext';
 import { api } from '@/services/api';
 import { ClipRasters,stp_priority_Output } from '@/interface/raster_context';
+import { useYear } from './yearContext';
 import { ADMIN_LAYER_NAMES } from '@/interface/raster_context';
 
 // Type definitions for the context
@@ -103,6 +104,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [showLegend, setShowLegend] = useState<boolean>(true);
+  const {wqi_data, selectedParam, qualityParam} = useYear();
 
   const {
     selectedState,
@@ -181,11 +183,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       setWmsDebugInfo(null);
      
       try {
-        const resp = await api.post("/stp_operation/water_quality_assesment", {
+        const resp = await api.post("/wqi/well_interpolation", {
           body:{
-          
-            clip: selectedSubDistricts,
-            place: "sub_district",
+            data: wqi_data,
+            params: selectedParam
           }
         }
       );
@@ -198,7 +199,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
         if (result) {
           const append_data = {
-            file_name: "STP_Priority",
+            file_name: "Water_quality",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
@@ -206,7 +207,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
        
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
+            (item) => item.file_name === "Water_quality"
           );
 
           let newData;

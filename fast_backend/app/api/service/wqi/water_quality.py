@@ -671,9 +671,9 @@ class WQ_Index:
         self.output.mkdir(exist_ok=True)
         self.vector_work=VectorProcess()
         
-    def _correct_pandas(self,payload:List[Well_response]):
-        drop_column=['year','Location']
-        df = pd.DataFrame([item.model_dump() for item in payload]).drop(columns=drop_column)   
+    def _correct_pandas(self,payload:List[Well_response],params:List[str]):
+        df = pd.DataFrame([item.model_dump() for item in payload])
+        df = df[params]
         for param in df:
             param_df = df[[param]].copy()
             param_df[param] = pd.to_numeric(param_df[param], errors='coerce')
@@ -924,7 +924,7 @@ class WQ_Index:
     
     
     def calculate_GWQI(self,db:session,payload:List[Well_response]):
-        df=self._correct_pandas(payload)   
+        df=self._correct_pandas(payload.data,payload.params)
         thresholds = WQI_threshold(db).get_threshold()
         df_columns = set(df.columns)
         parameter_thresholds = {
@@ -932,7 +932,7 @@ class WQ_Index:
             for t in thresholds
             if t.parameter in df_columns
         }
-        result=self._get_interpolate(df)   
+        result=self._get_interpolate(df,parameter_thresholds)   
         print(result )
 
     def get_well(self,db: session,payload:Well_input):

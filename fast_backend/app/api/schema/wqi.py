@@ -1,27 +1,37 @@
-from pydantic import BaseModel,Field
+
+from typing import List
+from pydantic import BaseModel, field_validator, model_validator
 class Well_input(BaseModel):
     subdis_cod:list
     year:int
 
 class Well_response(BaseModel):
-    carbonate:float
-    calcium: float
-    bicarbonate: float
-    magnesium: float
+    Carbonate:float
+    Calcium: float
+    Bicarbonate: float
+    Magnesium: float
     Location: str
-    chloride: float
-    sodium: float
-    year: int
+    Chloride: float
+    Sodium: float
+    Year: int
     Longitude: float
-    fluoride: float
-    potassium: float
-    sulfate: float
-    iron: float
+    Fluoride: float
+    Potassium: float
+    Sulfate: float
+    Iron: float
     Latitude: float
-    nitrate: float
-    arsenic: float
-    ph_level: float
-    phosphate: float
-    uranium: float
-    electrical_conductivity: float
+    Nitrate: float
+    Arsenic: float
+    pH_Level: float
+    Phosphate: float
+    Uranium: float
+    Electrical_Conductivity: float
     Hardness: float
+
+class WQIOperation(BaseModel):
+    data:List[Well_response]
+    params:List[str]
+    @model_validator(mode="after")
+    def inserting(self):
+        self.params.extend(["Longitude", "Latitude"])
+        return self

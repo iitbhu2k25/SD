@@ -81,7 +81,7 @@ class WQI(CrudBase):
         query = (
         self.db.query(self.Model)
         .filter(
-            self.Model.year==year
+            self.Model.Year == year,
         )
         .all()
         )

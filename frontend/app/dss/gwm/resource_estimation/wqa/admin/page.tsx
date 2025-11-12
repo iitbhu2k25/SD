@@ -28,12 +28,13 @@ const MainContent = () => {
     selectedSubDistrictsNames,
   } = useLocation();
  
-  const { loading, isMapLoading, stpOperation } = useMap();
+  const { loading, isMapLoading, stpOperation,setstpOperation } = useMap();
   const [showYears, setshowYears] = useState(false);
 
   useEffect(() => {
     setshowYears(selectionsLocked);
   }, [selectionsLocked]);
+
 
 
   return (
@@ -114,22 +115,16 @@ const MainContent = () => {
               </section>
             </div>
           )}
-          {selectedParam.length > 0 && (
+          {wqi_data && wqi_data.length > 0 && selectedParam.length > 0 && (
             <div className="animate-fadeIn">
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
-                onClick={() => console.log(selectedParam)}
+                onClick={() => setstpOperation(true)}
               >
                 Analysis Water Quality
               </button>
             </div>
           )}
-
-
-
-
-
-
         </div>
 
         {/* RIGHT PANEL */}
