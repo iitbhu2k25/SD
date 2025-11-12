@@ -15,24 +15,24 @@ services:
   #   command: npm start
 
 
-  backend:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: backend:latest
-    ports:
-      - "9000:9000"
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/home/app:z
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:9000"
-    restart: always
-    depends_on:
-      - db
-      - geoserver
+  # backend:
+  #   build:
+  #     context: ./backend/
+  #     dockerfile: docker/dockerfile.backend
+  #   image: backend:latest
+  #   ports:
+  #     - "9000:9000"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./backend:/home/app:z
+  #   command: >
+  #     sh -c "python manage.py migrate &&
+  #            python manage.py runserver 0.0.0.0:9000"
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #     - geoserver
 
   fast_backend:
     build:
@@ -52,21 +52,21 @@ services:
       - fast_db
       - geoserver
 
-  db:
-    image: postgres:16
-    ports:
-      - "5440:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis
-      - geoserver
+  # db:
+  #   image: postgres:16
+  #   ports:
+  #     - "5440:5432"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: always
+  #   depends_on:
+  #     - redis
+  #     - geoserver
 
   fast_db:
-    image: timescale/timescaledb:2.20.0-pg16
+    image: postgres:16
     ports:
       - "5450:5432"
     env_file:
@@ -128,7 +128,7 @@ services:
       GEOSERVER_ADMIN_USER: admin
       GEOSERVER_ADMIN_PASSWORD: geoserver
     env_file:
-      - .env
+      - .fastdb.env
     restart: always
  
 
