@@ -792,12 +792,13 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, idw_cell_size, idw_cell_size)
         return cols,rows,coords_xy_utm,proj_transform
 
-    def _get_interpolate(self,df:pd.DataFrame):   
+    def _get_interpolate(self,df:pd.DataFrame,threshold):   
         selected_parameters=df.drop(columns=['Longitude','Latitude'])  
         cols,rows,coords_xy_utm,proj_transform=self._vector_area(df)
         interpolated_rasters = []
         for param in selected_parameters:
             temp_name=Unique_name.unique_name_with_ext(param,"tif")
+            param_threshold=threshold[param]
             try:
                 param_df=selected_parameters
                 valid_mask = ~param_df[param].isna()
@@ -884,6 +885,7 @@ class WQ_Index:
                     'output_path': str(output_path),
                     'wells_used': len(valid_values),
                     'raster_shape': data_4326.shape,
+                    'threshold_bool': float(np.mean(valid_data))>param_threshold,
                     'value_range': {
                         'min': float(np.min(valid_data)),
                         'max': float(np.max(valid_data)),
@@ -928,7 +930,8 @@ class WQ_Index:
                 {
                 "parameter":i["parameter"],
                 "P_raster":i["output_path"],
-                "threshold":threshold.get(i['parameter'])
+                "threshold":threshold.get(i['parameter']),
+                "threshold_bool":i["threshold_bool"]  
                 }
             )
         for i in CI_raster:
@@ -954,11 +957,88 @@ class WQ_Index:
                 dst.write(result.astype(np.float32), 1)
             rank_raster.append({
                 "parameter":i["parameter"],
-                "CI_raster":ci_raster_path
+                "CI_raster":ci_raster_path,
+                "threshold_bool":i["threshold_bool"]  
             })
-            print(f"✅ CI raster saved: {ci_raster_path}")
         return rank_raster
 
+    def _calcluate_ranking_raster(self,arr):
+        rank_raster=[]
+        for i in arr:
+            with rasterio.open(i["CI_raster"]) as src:
+                p_array = src.read(1)
+                profile = src.profile
+            result=self.__calculate_ranking(p_array)
+            base, ext = os.path.splitext(i["CI_raster"])
+            rank_raster_path = f"{base}_rank{ext}"
+            profile.update(
+                dtype=rasterio.float32,
+                count=1,
+                compress="lzw"
+            )
+            with rasterio.open(rank_raster_path, "w", **profile) as dst:
+                dst.write(result.astype(np.float32), 1)
+            rank_raster.append({
+                "parameter":i["parameter"],
+                "Rank_raster":rank_raster_path,
+                "threshold_bool":i["threshold_bool"]    
+            })
+        return rank_raster
+    def _find_weight(self,arr):
+        weight_rank=[]
+        for i in arr:
+            with rasterio.open(i["Rank_raster"]) as src:
+                p_array = src.read(1, masked=True).filled(np.nan)
+                mean_val = np.nanmean(p_array)
+
+                weight = mean_val + 2 if i["threshold_bool"] else mean_val
+                weight_rank.append({
+                    "parameter": i["parameter"],
+                    "weight": float(weight)
+                })
+        return weight_rank
+    def _overlay(self, rank, weight):
+        weighted_arrays = []
+        meta = None
+
+       
+        weight_map = {w["parameter"]: w["weight"] for w in weight}
+
+        for i in rank:
+            param = i["parameter"]
+            if param not in weight_map:
+                continue
+
+            with rasterio.open(i["Rank_raster"]) as src:
+                array = src.read(1).astype(float)
+                weight_val = weight_map[param]
+                weighted_array = array * weight_val
+                weighted_arrays.append(weighted_array)
+
+             
+                if meta is None:
+                    meta = src.meta.copy()
+
+      
+        if not weighted_arrays:
+            return None
+
+        num_params = len(weighted_arrays)
+
+        final_overlay = np.sum(weighted_arrays, axis=0) / num_params
+
+        # optional: inverse (if required)
+        final_overlay = 100 - final_overlay
+
+        # output path
+        output_dir = "/home/app/temp"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, "overlay.tif")
+        meta.update(dtype=rasterio.float32, count=1)
+        with rasterio.open(output_path, "w", **meta) as dst:
+            dst.write(final_overlay.astype(rasterio.float32), 1)
+
+        return output_path
 
     def calculate_GWQI(self,db:session,payload:List[Well_response]):
         df=self._correct_pandas(payload.data,payload.params)
@@ -969,9 +1049,13 @@ class WQ_Index:
             for t in thresholds
             if t.parameter in df_columns
         }
-        result=self._get_interpolate(df)   
+        result=self._get_interpolate(df,parameter_thresholds)   
         result_CI=self._calulate_concentration_index(result,parameter_thresholds)
-        print(result_CI)
+        result_rank=self._calcluate_ranking_raster(result_CI)
+        result_weight=self._find_weight(result_rank)
+        overlay=self._overlay(result_rank,result_weight)
+        print("overlay",overlay)
+
 
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
