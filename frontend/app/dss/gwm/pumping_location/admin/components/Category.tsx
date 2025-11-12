@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { useCategory } from '@/contexts/groundwaterIdent/admin/CategoryContext';
+import { useCategory } from '@/contexts/pumping_location/admin/CategoryContext';
 
 const CategorySelector: React.FC = () => {
   // State to track which category type is currently active

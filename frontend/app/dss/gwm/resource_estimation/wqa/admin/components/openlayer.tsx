@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
@@ -9,9 +8,9 @@ import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
-import { doubleClick, pointerMove } from "ol/events/condition";
+import { doubleClick, pointerMove, singleClick } from "ol/events/condition";
 import Image from "next/image";
-import { createWFSVectorSource } from "@/components/utils/geoserver_url";
+
 import { fromLonLat } from "ol/proj";
 import {
   defaults as defaultControls,
@@ -20,76 +19,21 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-
+import { INDIA_CENTER, INITIAL_ZOOM } from '@/interface/openlayer'
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/potential_zone/users/DrainMapContext";
-import { useRiverSystem } from "@/contexts/potential_zone/users/DrainContext";
+import { useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
+import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
 import "ol/ol.css";
-import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
-import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from "@/interface/openlayer";
+import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 
-const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
-  const geometry = feature.getGeometry();
-  const geometryType = geometry.getType();
-  const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-  const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
-  const colorConfig = LAYER_COLORS[layerType] || LAYER_COLORS.primary;
-  const styles = [];
 
-  if (geometryType.includes("Polygon")) {
-    styles.push(new Style({
-      stroke: new Stroke({ color: colorConfig.color, width: 2 }),
-      fill: new Fill({ color: 'transparent' })
-    }));
-  }
-
-  if (geometryType.includes("LineString")) {
-    styles.push(new Style({
-      stroke: new Stroke({ color: colorConfig.color, width: 3 })
-    }));
-  }
-
-  if (geometryType.includes("Point")) {
-    styles.push(new Style({
-      image: new Circle({
-        radius: 6,
-        fill: new Fill({ color: colorConfig.color + "80" }),
-        stroke: new Stroke({ color: colorConfig.color, width: 2 })
-      })
-    }));
-  }
-
-  // Add labels when titles are enabled
-  if (showLabels && zoom > 8 && featureName) {
-    styles.push(new Style({
-      text: new Text({
-        text: featureName.toString(),
-        font: "12px Arial, sans-serif",
-        fill: new Fill({ color: colorConfig.color }),
-        stroke: new Stroke({ color: "#ffffff", width: 3 }),
-        offsetY: geometryType.includes("Point") ? -20 : 0,
-        textAlign: "center",
-        textBaseline: "middle",
-      })
-    }));
-  }
-
-  return styles;
-};
 
 const Maping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const boundaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-
-  // Individual layer refs for river system
-  const riverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-  const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-
+  const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
@@ -97,57 +41,37 @@ const Maping: React.FC = () => {
 
   // State management
   const [isLoading, setIsLoading] = useState(true);
-  const [featureCounts, setFeatureCounts] = useState({
-    primary: 0,
-    river: 0,
-    stretch: 0,
-    drain: 0,
-    catchment: 0
-  });
+  const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0 });
   const [layerOpacity, setLayerOpacity] = useState(70);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [buttonClicked, setButtonClicked] = useState(false);
-
-  // Layer visibility states
-  const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
-  const [showStretchLayer, setShowStretchLayer] = useState<boolean>(true);
-  const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
-  const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
 
   // Context hooks
-  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked } = useRiverSystem();
-
+  const { displayRaster, setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
   const {
     primaryLayer,
-    riverLayer,
-    boundarylayer,
-    stretchLayer,
-    drainLayer,
-    catchmentLayer,
-    riverFilter,
-    stretchFilter,
-    drainFilter,
-    catchmentFilter,
+    secondaryLayer,
+    LayerFilter,
+    LayerFilterValue,
     defaultWorkspace,
-    setLoading,
-    hasSelections,
-    showLegend,
     setShowLegend,
-    setRasterLayerInfo,
-    rasterLayerInfo,
-    error,
-    setError,
-    setRasterLoading,
-    rasterLoading,
     handleLayerSelection,
+    rasterLoading,
+    setRasterLoading,
+    setError,
+    error,
     selectedradioLayer,
+    setLoading,
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    showLegend
   } = useMap();
 
   // Helper functions
@@ -159,21 +83,15 @@ const Maping: React.FC = () => {
       document.exitFullscreen?.();
     }
   };
-
+  useEffect(() => {
+    if (primaryLayerRef.current && featureCounts.secondary > 0) {
+      primaryLayerRef.current.setVisible(!showSecondaryLayer);
+    } else if (primaryLayerRef.current) {
+      primaryLayerRef.current.setVisible(true);
+    }
+  }, [showSecondaryLayer, featureCounts.secondary]);
   const togglePanel = (panelName: string) => {
     setActivePanel(activePanel === panelName ? null : panelName);
-  };
-
-  const handleClick = () => {
-    setButtonClicked(true);
-    opencatchment();
-  };
-
-  const opencatchment = () => {
-    setButtonClicked(true);
-    if (selectedDrains.length > 0) {
-      setShowCatchment(true);
-    }
   };
 
   const changeBaseMap = (baseMapKey: string) => {
@@ -199,39 +117,57 @@ const Maping: React.FC = () => {
     });
   };
 
-  // Layer toggle functions
-  const toggleRiverLayer = () => {
-    if (riverLayerRef.current) {
-      const newVisibility = !showRiverLayer;
-      riverLayerRef.current.setVisible(newVisibility);
-      setShowRiverLayer(newVisibility);
+  const createVectorStyle = (isSecondary = false) => (feature: any, resolution: number) => {
+    const geometry = feature.getGeometry();
+    const geometryType = geometry.getType();
+    const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
+    const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
+    const styles = [];
+
+    const color = isSecondary ? "#5E1520" : "#3b82f6";
+    const width = isSecondary ? 3 : 2;
+
+    if (geometryType.includes("Polygon")) {
+      styles.push(new Style({
+        stroke: new Stroke({ color, width }),
+        fill: new Fill({ color: 'transparent' })
+      }));
     }
+
+    if (geometryType.includes("LineString")) {
+      styles.push(new Style({
+        stroke: new Stroke({ color, width: width + 2 })
+      }));
+    }
+
+    if (geometryType.includes("Point")) {
+      styles.push(new Style({
+        image: new Circle({
+          radius: 6,
+          fill: new Fill({ color: color + "80" }),
+          stroke: new Stroke({ color, width: 2 })
+        })
+      }));
+    }
+
+    if (showTitles && zoom > 5 && featureName) {
+      styles.push(new Style({
+        text: new Text({
+          text: featureName.toString(),
+          font: "12px Arial, sans-serif",
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          offsetY: geometryType.includes("Point") ? -20 : 0,
+          textAlign: "center",
+          textBaseline: "middle",
+        })
+      }));
+    }
+
+    return styles;
   };
 
-  const toggleStretchLayer = () => {
-    if (stretchLayerRef.current) {
-      const newVisibility = !showStretchLayer;
-      stretchLayerRef.current.setVisible(newVisibility);
-      setShowStretchLayer(newVisibility);
-    }
-  };
-
-  const toggleDrainLayer = () => {
-    if (drainLayerRef.current) {
-      const newVisibility = !showDrainLayer;
-      drainLayerRef.current.setVisible(newVisibility);
-      setShowDrainLayer(newVisibility);
-    }
-  };
-
-  const toggleCatchmentLayer = () => {
-    if (catchmentLayerRef.current) {
-      const newVisibility = !showCatchmentLayer;
-      catchmentLayerRef.current.setVisible(newVisibility);
-      setShowCatchmentLayer(newVisibility);
-    }
-  };
-
+  // Add this useEffect to handle interaction disabling based on selectionsLocked
   useEffect(() => {
     if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
     if (selectionsLocked) {
@@ -254,8 +190,8 @@ const Maping: React.FC = () => {
       new MousePosition({
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
-          const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          const [longitude, latitude] = coordinate;
+         return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -284,17 +220,14 @@ const Maping: React.FC = () => {
       }),
     });
 
-    // Add Select interaction for double-clicks (excluding boundary layer)
+    // Add Select interaction for double-clicks to select state
     const selectInteraction = new Select({
       condition: doubleClick,
       style: new Style({
         stroke: new Stroke({ color: '#ff0000', width: 3 }),
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
       }),
-      filter: (feature, layer) => {
-        // Exclude boundary layer from selection interactions
-        return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
-      }
+
     });
 
     selectInteraction.on('select', (event) => {
@@ -302,26 +235,22 @@ const Maping: React.FC = () => {
       if (selectedFeatures.length > 0) {
         const feature = selectedFeatures[0];
         const geometry = feature.getGeometry();
+        if (geometry && geometry.getType().includes('Polygon')) {
+          const stateCode = feature.get("State_Code")
+          const districtCode = feature.get("district_c")
+          const subdistrictCode = feature.get("subdis_cod")
 
-        if (geometry) {
-          const River_code = feature.get('River_Code')
-          const Stretch_id = feature.get('Stretch_ID')
-          const Drain_no = feature.get('Drain_No')
-          const village_id = feature.get('village_id')
 
-          console.log("selected stretch", River_code, Stretch_id, Drain_no, village_id);
-
-          if (village_id as number) {
-            setSelectedCatchments([village_id])
+          if (subdistrictCode as number) {
+            setSelectedSubDistricts([subdistrictCode]);
           }
-          else if (Drain_no as number) {
-            setSelectedDrains([Drain_no]);
+          else if (districtCode as number) {
+            setSelectedDistricts([districtCode]);
           }
-          else if (Stretch_id as number) {
-            setSelectedStretches([Stretch_id]);
-          }
-          else if (River_code as number) {
-            setSelectedRiver(River_code);
+          else if (stateCode) {
+            setSelectedState(stateCode);
+          } else {
+            console.log("No state code found in polygon properties:", feature.getProperties());
           }
         }
 
@@ -332,18 +261,15 @@ const Maping: React.FC = () => {
       }
     });
 
-    // Add Select interaction for hover (excluding boundary layer)
+    // Add Select interaction for hover
+
     const hoverInteraction = new Select({
       condition: pointerMove,
       style: new Style({
         stroke: new Stroke({ color: '#ffaa00', width: 2 }),
         fill: new Fill({ color: 'transparent' })
       }),
-      filter: (feature, layer) => {
-        return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
-      }
     });
-
     hoverInteraction.on('select', (event) => {
       const hoveredFeatures = event.selected;
       if (hoveredFeatures.length > 0) {
@@ -389,37 +315,16 @@ const Maping: React.FC = () => {
     setError(null);
 
     const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
-    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
       url: primaryWfsUrl,
     });
 
-    const boundaryVectorSource = new VectorSource({
-      format: new GeoJSON(),
-      url: boundaryWfsUrl,
-    });
-
     const primaryVectorLayer = new VectorLayer({
       source: primaryVectorSource,
-      style: createVectorStyle("primary", showTitles),
+      style: createVectorStyle(false),
       zIndex: 1,
-      visible: true,
-    });
-
-    const boundaryVectorLayer = new VectorLayer({
-      source: boundaryVectorSource,
-      style: new Style({
-        stroke: new Stroke({
-          color: "#301934",
-          width: 2
-        }),
-        fill: new Fill({
-          color: "rgba(48, 25, 52, 0.1)" // Very transparent fill for boundary
-        })
-      }),
-      zIndex: 2,
       visible: true,
     });
 
@@ -448,134 +353,73 @@ const Maping: React.FC = () => {
     if (primaryLayerRef.current) {
       mapInstanceRef.current.removeLayer(primaryLayerRef.current);
     }
-    if (boundaryLayerRef.current) {
-      mapInstanceRef.current.removeLayer(boundaryLayerRef.current);
-    }
 
-    mapInstanceRef.current.addLayer(boundaryVectorLayer);
     mapInstanceRef.current.addLayer(primaryVectorLayer);
     primaryLayerRef.current = primaryVectorLayer;
-    boundaryLayerRef.current = boundaryVectorLayer;
 
     return () => {
       primaryVectorSource.un("featuresloadend", handleFeaturesLoaded);
       primaryVectorSource.un("featuresloaderror", handleFeaturesError);
     };
-  }, [primaryLayer, boundarylayer, defaultWorkspace, showTitles]);
+  }, [primaryLayer, defaultWorkspace]);
 
-  // Create river system layer helper
-  const createRiverSystemLayer = (
-    layerName: string | null,
-    layerRef: React.MutableRefObject<VectorLayer<VectorSource> | null>,
-    layerType: string,
-    zIndex: number,
-    isVisible: boolean,
-    layerFilter: {
-      filterField: string | null;
-      filterValue: number[] | string[] | null;
-    }
-  ): (() => void) | void => {
-    if (!mapInstanceRef.current || !layerName) {
-      setFeatureCounts(prev => ({ ...prev, [layerType]: 0 }));
-      if (layerRef.current) {
-        mapInstanceRef.current?.removeLayer(layerRef.current);
-        layerRef.current = null;
+
+  useEffect(() => {
+    if (!mapInstanceRef.current || !secondaryLayer) {
+      setFeatureCounts(prev => ({ ...prev, secondary: 0 }));
+      if (secondaryLayerRef.current) {
+        mapInstanceRef.current?.removeLayer(secondaryLayerRef.current);
+        secondaryLayerRef.current = null;
       }
       return;
     }
 
-    const vectorSource = createWFSVectorSource({
-      workspace: defaultWorkspace,
-      layerName: layerName,
-      layerFilter,
+    setIsLoading(true);
+
+    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+      ? LayerFilterValue.map((v) => `'${v}'`).join(",")
+      : `'${LayerFilterValue}'`
+      })`;
+
+    const secondaryVectorSource = new VectorSource({
+      url: secondaryWfsUrl,
+      format: new GeoJSON(),
     });
 
-    const vectorLayer = new VectorLayer({
-      source: vectorSource,
-      style: createVectorStyle(layerType, showTitles),
-      zIndex: zIndex,
-      visible: isVisible,
+    const secondaryVectorLayer = new VectorLayer({
+      source: secondaryVectorSource,
+      style: createVectorStyle(true),
+      zIndex: 4,
+      visible: showSecondaryLayer,
     });
 
-    const handleFeaturesLoaded = (event: any) => {
+    const handleSecondaryFeaturesLoaded = (event: any) => {
       const numFeatures = event.features ? event.features.length : 0;
-      setFeatureCounts(prev => ({ ...prev, [layerType]: numFeatures }));
+      setFeatureCounts(prev => ({ ...prev, secondary: numFeatures }));
+      setIsLoading(false);
 
-      if (hasSelections && numFeatures > 0) {
-        const extent = vectorSource.getExtent();
-        if (extent && extent.some((val: number) => isFinite(val))) {
-          mapInstanceRef.current?.getView().fit(extent, {
-            padding: [50, 50, 50, 50],
-            duration: 1000,
-          });
-        }
+      const secondaryExtent = secondaryVectorSource.getExtent();
+      if (secondaryExtent && secondaryExtent.some((val) => isFinite(val))) {
+        mapInstanceRef.current?.getView().fit(secondaryExtent, {
+          padding: [50, 50, 50, 50],
+          duration: 1000,
+        });
       }
     };
 
-    const handleFeaturesError = () => {
-      console.log(`Error loading ${layerName} features`);
-    };
+    secondaryVectorSource.on("featuresloadend", handleSecondaryFeaturesLoaded);
 
-    vectorSource.on("featuresloadend", handleFeaturesLoaded);
-    vectorSource.on("featuresloaderror", handleFeaturesError);
-
-    if (layerRef.current) {
-      mapInstanceRef.current.removeLayer(layerRef.current);
+    if (secondaryLayerRef.current) {
+      mapInstanceRef.current.removeLayer(secondaryLayerRef.current);
     }
 
-    mapInstanceRef.current.addLayer(vectorLayer);
-    layerRef.current = vectorLayer;
+    mapInstanceRef.current.addLayer(secondaryVectorLayer);
+    secondaryLayerRef.current = secondaryVectorLayer;
 
     return () => {
-      vectorSource.un("featuresloadend", handleFeaturesLoaded);
-      vectorSource.un("featuresloaderror", handleFeaturesError);
+      secondaryVectorSource.un("featuresloadend", handleSecondaryFeaturesLoaded);
     };
-  };
-
-  // Handle river system layers
-  useEffect(() => {
-    return createRiverSystemLayer(
-      riverLayer,
-      riverLayerRef,
-      "river",
-      10,
-      showRiverLayer,
-      riverFilter as { filterField: string | null; filterValue: number[] | string[] | null; }
-    );
-  }, [riverLayer, riverFilter.filterField, riverFilter.filterValue, showRiverLayer, showTitles]);
-
-  useEffect(() => {
-    return createRiverSystemLayer(
-      stretchLayer,
-      stretchLayerRef,
-      "stretch",
-      5,
-      showStretchLayer,
-      stretchFilter as { filterField: string | null; filterValue: number[] | string[] | null; }
-    );
-  }, [stretchLayer, stretchFilter.filterField, stretchFilter.filterValue, showStretchLayer, showTitles]);
-
-  useEffect(() => {
-    return createRiverSystemLayer(
-      drainLayer,
-      drainLayerRef,
-      "drain",
-      6,
-      showDrainLayer,
-      drainFilter as { filterField: string | null; filterValue: number[] | string[] | null; }
-    );
-  }, [drainLayer, drainFilter.filterField, drainFilter.filterValue, showDrainLayer, showTitles]);
-
-  useEffect(() => {
-    return createRiverSystemLayer(
-      catchmentLayer,
-      catchmentLayerRef,
-      "catchment",
-      7,
-      showCatchmentLayer,
-      catchmentFilter as { filterField: string | null; filterValue: number[] | string[] | null; }
-    );
-  }, [catchmentLayer, catchmentFilter.filterField, catchmentFilter.filterValue, showCatchmentLayer, showTitles]);
+  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles, showSecondaryLayer]);
 
   // Handle raster layer
   useEffect(() => {
@@ -598,8 +442,8 @@ const Maping: React.FC = () => {
 
     try {
       const layerUrl = "/geoserver/api//wms";
-      const workspace = rasterLayerInfo.workspace || "raster_work";
-      const layerName = rasterLayerInfo.layer_name || "Clipped_STP_Priority_Map";
+      const workspace = rasterLayerInfo.workspace;
+      const layerName = rasterLayerInfo.layer_name;
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;
 
       const wmsSource = new ImageWMS({
@@ -665,12 +509,11 @@ const Maping: React.FC = () => {
         {/* The Map */}
         <div ref={mapRef} className="w-full h-full bg-blue-50" />
 
-        {/* Components */}
-        <div className="hidden md:block">
-          <GISCompass />
-        </div>
 
-        {/* Hover Tooltip */}
+          <div className="hidden md:block">
+            <GISCompass />
+          </div>
+
         <HoverTooltip
           hoveredFeature={hoveredFeature}
           mousePosition={mousePosition}
@@ -682,7 +525,7 @@ const Maping: React.FC = () => {
             <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            River System GIS
+            GIS Viewer
           </span>
 
           <div className="flex space-x-2">
@@ -727,19 +570,6 @@ const Maping: React.FC = () => {
             <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
           </button>
         </div>
-
-        {/* Catchment Analysis Button */}
-        {selectedDrains.length > 0 && !buttonClicked && (
-          <button
-            onClick={handleClick}
-            className="absolute left-4 bottom-20 flex items-center justify-center gap-2 text-gray-800 text-sm font-medium rounded-full bg-white/90 backdrop-blur-sm px-4 py-3 shadow-lg border border-white/20 hover:scale-105 transition-all duration-200 z-50"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2V7a2 2 0 012-2h2a2 2 0 002 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 00-2 2v6a2 2 0 01-2 2H11a2 2 0 01-2-2z" />
-            </svg>
-            Analyze Catchment
-          </button>
-        )}
 
         {/* Panels */}
         {activePanel === "basemap" && (
@@ -800,77 +630,63 @@ const Maping: React.FC = () => {
         {activePanel === "layers" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-800 text-lg">River System Layers</h3>
+              <h3 className="font-bold text-gray-800 text-lg">Map Layers</h3>
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="space-y-3">
-              {/* Primary Layer */}
               {featureCounts.primary > 0 && (
-                <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
+                <div className={`p-4 rounded-xl border ${featureCounts.secondary > 0 && showSecondaryLayer
+                  ? "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
+                  : "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200"
+                  }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
-                      <span className="font-semibold text-blue-800">India Layer</span>
+                      <div className={`w-4 h-4 ${featureCounts.secondary > 0 && showSecondaryLayer ? "bg-gray-400" : "bg-blue-500"
+                        } rounded-full mr-3`}></div>
+                      <span className={`font-semibold ${featureCounts.secondary > 0 && showSecondaryLayer ? "text-gray-600" : "text-blue-800"
+                        }`}>Primary Layer</span>
+                      {featureCounts.secondary > 0 && showSecondaryLayer && (
+                        <span className="text-xs text-gray-500 ml-2">(Hidden when secondary shown)</span>
+                      )}
                     </div>
-                    <span className="text-xs px-3 py-1 rounded-full bg-blue-200/80 text-blue-800">
+                    <span className={`text-xs px-3 py-1 rounded-full ${featureCounts.secondary > 0 && showSecondaryLayer
+                      ? "bg-gray-200/80 text-gray-700"
+                      : "bg-blue-200/80 text-blue-800"
+                      }`}>
                       {featureCounts.primary} features
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* River Layers */}
-              {Object.entries(featureCounts).map(([layerType, count]) => {
-                if (layerType === 'primary') return null;
-
-                const colorConfig = LAYER_COLORS[layerType];
-                const isVisible = layerType === 'river' ? showRiverLayer :
-                  layerType === 'stretch' ? showStretchLayer :
-                    layerType === 'drain' ? showDrainLayer :
-                      layerType === 'catchment' ? showCatchmentLayer : true;
-
-                const toggleFunction = layerType === 'river' ? toggleRiverLayer :
-                  layerType === 'stretch' ? toggleStretchLayer :
-                    layerType === 'drain' ? toggleDrainLayer :
-                      layerType === 'catchment' ? toggleCatchmentLayer : () => { };
-
-                return (
-                  <div key={layerType} className={`p-4 rounded-xl border transition-all duration-300 ${isVisible
-                    ? `bg-gradient-to-r from-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 to-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'emerald' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-50 border-${colorConfig.color.includes('blue') ? 'blue' : colorConfig.color.includes('green') ? 'green' : colorConfig.color.includes('red') ? 'red' : 'yellow'}-200`
-                    : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"
-                    }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full mr-3 ${isVisible ? colorConfig.color.replace('#', 'bg-[') + ']' : 'bg-gray-400'
-                          }`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
-                        <span className={`font-semibold ${isVisible ? colorConfig.color.includes('DC2626') ? 'text-red-800' :
-                          colorConfig.color.includes('059669') ? 'text-green-800' :
-                            colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
-                          : 'text-gray-600'
-                          }`}>
-                          {colorConfig.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-
-                        <button
-                          onClick={toggleFunction}
-                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :
-                            colorConfig.color.includes('059669') ? 'bg-green-500' :
-                              colorConfig.color.includes('7C2D12') ? 'bg-yellow-500' : 'bg-blue-500'
-                            : 'bg-gray-300'
-                            }`}
-                        >
-                          <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${isVisible ? 'translate-x-6' : ''
-                            }`} />
-                        </button>
-                      </div>
+              {featureCounts.secondary > 0 && (
+                <div className={`p-4 rounded-xl border ${showSecondaryLayer ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-4 h-4 ${showSecondaryLayer ? "bg-green-500" : "bg-gray-400"} rounded-full mr-3`}></div>
+                      <span className={`font-semibold ${showSecondaryLayer ? "text-green-800" : "text-gray-600"}`}>Secondary Layer</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className={`text-xs px-3 py-1 rounded-full ${showSecondaryLayer ? "bg-green-200/80 text-green-800" : "bg-gray-200/80 text-gray-700"}`}>
+                        {featureCounts.secondary} features
+                      </span>
+                      <button
+                        onClick={() => {
+                          setShowSecondaryLayer(!showSecondaryLayer);
+                          if (secondaryLayerRef.current) {
+                            secondaryLayerRef.current.setVisible(!showSecondaryLayer);
+                          }
+                        }}
+                        className={`w-12 h-6 rounded-full ${showSecondaryLayer ? "bg-green-500" : "bg-gray-300"} relative transition-all duration-300`}
+                        title={showSecondaryLayer ? "Hide secondary layer (show primary)" : "Show secondary layer (hide primary)"}
+                      >
+                        <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${showSecondaryLayer ? "translate-x-6" : ""}`} />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              )}
 
-              {/* Raster Layer */}
               {rasterLayerInfo && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200">
                   <div className="flex items-center justify-between mb-3">
@@ -878,6 +694,7 @@ const Maping: React.FC = () => {
                       <div className="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-purple-800">Raster Layer</span>
                     </div>
+
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-gray-700 mb-2">
@@ -916,7 +733,7 @@ const Maping: React.FC = () => {
                   }`}
               >
                 <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
-                <span className="text-sm font-medium">Display Labels</span>
+                <span className="text-sm font-medium">Display Titles</span>
               </button>
 
               <button
@@ -944,13 +761,14 @@ const Maping: React.FC = () => {
                 className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
               >
                 <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 <span className="text-sm font-medium">Home View</span>
               </button>
             </div>
           </div>
         )}
+
 
         {legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
@@ -969,6 +787,7 @@ const Maping: React.FC = () => {
             />
           </div>
         )}
+
         {/* Coordinates */}
          <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">

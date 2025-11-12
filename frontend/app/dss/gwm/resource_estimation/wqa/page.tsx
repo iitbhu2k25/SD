@@ -1,5 +1,5 @@
 "use client";
-
+import {DRAIN_LAYER_NAMES} from "@/interface/raster_context"
 import React, { useState } from "react";
 
 // Types
@@ -12,8 +12,8 @@ interface ModernSwitchProps {
   onChange: (value: ViewType) => void;
 }
 
-import  GroundwaterAssessmentAdmin  from "./admin/page";
-import GroundwaterAssessmentDrain from "./drain/page";
+import PriorityAdmin from "./admin/page";
+
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -21,6 +21,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   value,
   onChange,
 }) => {
+  DRAIN_LAYER_NAMES.CATCHMENT=null
   const handleToggle = (): void => {
     onChange(value === "admin" ? "user" : "admin");
   };
@@ -49,7 +50,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
         }}
       >
         <div
-          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
+          className={`absolute top-1 left-1 w-8 h-8  rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
             value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
           }`}
         >
@@ -96,7 +97,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   );
 };
 
-const GroundwaterAssessmentPage: React.FC = () => {
+const PriorityPage: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
 
   const handleViewChange = (newView: ViewType): void => {
@@ -104,27 +105,27 @@ const GroundwaterAssessmentPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
+    <div className=" flex flex-col min-h-screen">
+      <header className=" grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
           <h1 className="text-5xl font-bold">Water Quality Assessment</h1>
         </div>
-        <div className="flex justify-center w-full items-center font-medium">
+        <div className="flex justify-center w-full items-center font-medium ">
           <ModernSwitch
             leftLabel="Admin"
             rightLabel="Drain"
-            value={activeView}
+            value={activeView}  
             onChange={handleViewChange}
           />
         </div>
       </header>
 
       <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <GroundwaterAssessmentAdmin />}
-        {activeView === "user" && <GroundwaterAssessmentDrain />}
+        {activeView === "admin" && <PriorityAdmin />}
+      
       </div>
     </div>
   );
 };
 
-export default GroundwaterAssessmentPage;
+export default PriorityPage;

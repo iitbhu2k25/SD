@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
+import { useRiverSystem } from "@/contexts/potential_zone/users/DrainContext";
 import { DRAIN_LAYER_NAMES, ClipRasters,stp_priority_Output } from "@/interface/raster_context";
 import { api } from "@/services/api";
 interface LayerFilter {
@@ -314,14 +314,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
         if (result) {
           const append_data = {
-            file_name: "GroundWaterZone",
+            file_name: "potential_zone",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
           setTableData(result.csv_details);
 
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "GroundWaterZone"
+            (item) => item.file_name === "potential_zone"
           );
 
           let newData;

@@ -21,9 +21,9 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/groundwaterzone/admin/MapContext";
+import { useMap } from "@/contexts/potential_zone/admin/MapContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/groundwaterzone/admin/LocationContext";
+import { useLocation } from "@/contexts/potential_zone/admin/LocationContext";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM } from "@/interface/openlayer";
 

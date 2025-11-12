@@ -5,6 +5,10 @@ from app.api.schema.wqi import Well_input,Well_response
 from app.api.service.wqi.water_quality import WQ_Index
 router=APIRouter()
 
+@router.get('/year',status_code=status.HTTP_201_CREATED)
+async def make_interpolation():
+    return [2015,2016,2017,2018,2019,2020,2021,2023,2024]
+
 @router.post('/wells',status_code=status.HTTP_201_CREATED,response_model=List[Well_response])
 async def get_well(db:db_dependency,payload:Well_input):
     return WQ_Index().get_well(db,payload)

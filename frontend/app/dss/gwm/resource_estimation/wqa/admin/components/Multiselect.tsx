@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import { District, SubDistrict } from '@/contexts/water_quality_assesment/admin/LocationContext';
+import {District, SubDistrict}from '@/interface/raster_context';
 
 interface MultiSelectProps<T> {
   items: T[];
@@ -12,7 +12,7 @@ interface MultiSelectProps<T> {
   displayPattern?: (item: T) => string;
 }
 
-export const MultiSelect = <T extends District | SubDistrict  = District | SubDistrict >({
+export const MultiSelect = <T extends District|SubDistrict = District|SubDistrict>({
   items,
   selectedItems,
   onSelectionChange,
@@ -36,26 +36,6 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate dropdown position based on available space
-  const calculateDropdownPosition = () => {
-    if (!triggerRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240; // max-h-60 = 15rem = 240px
-    
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-    
-    // If there's not enough space below but there's space above, position on top
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
-    }
-  };
-
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -69,7 +49,7 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     };
   }, []);
 
-  // Reset search and position when dropdown closes
+
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery('');
@@ -78,14 +58,13 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     }
   }, [isOpen]);
 
-  // Toggle dropdown
   const toggleDropdown = () => {
     if (!disabled) {
       setIsOpen(!isOpen);
     }
   };
 
-  // Handle select all
+
   const handleSelectAll = () => {
     if (allSelected) {
       // If all are selected, deselect all
@@ -96,7 +75,6 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     }
   };
 
-  // Handle item selection without triggering position recalculation
   const handleItemSelect = (itemId: number) => {
     if (selectedItems.includes(itemId)) {
       // Item is already selected, remove it
@@ -107,7 +85,7 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     }
   };
 
-  // Format the display text
+
   const getDisplayText = () => {
     if (selectedItems.length === 0) {
       return placeholder;
@@ -125,7 +103,7 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
     return `${selectedItems.length} ${label}s selected`;
   };
 
-  // Get dropdown positioning classes
+
   const getDropdownClasses = () => {
     const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
     

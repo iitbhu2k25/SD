@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/groundwaterzone/users/DrainContext";
-import { CategoryProvider } from "@/contexts/groundwaterzone/admin/CategoryContext";
-import { MapProvider } from "@/contexts/groundwaterzone/users/DrainMapContext";
+import { RiverSystemProvider } from "@/contexts/potential_zone/users/DrainContext";
+import { CategoryProvider } from "@/contexts/potential_zone/admin/CategoryContext";
+import { MapProvider } from "@/contexts/potential_zone/users/DrainMapContext";
 import RiverSelector from "@/app/dss/gwm/potential_zone/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
 import CategorySelector from "@/app/dss/gwm/potential_zone/admin/components/Category";
-import { useRiverSystem } from "@/contexts/groundwaterzone/users/DrainContext";
-import { useCategory } from "@/contexts/groundwaterzone/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/potential_zone/users/DrainContext";
+import { useCategory } from "@/contexts/potential_zone/admin/CategoryContext";
 import MapView from "@/app/dss/gwm/potential_zone/users/components/openlayer";
-import { useMap } from "@/contexts/groundwaterzone/users/DrainMapContext";
+import { useMap } from "@/contexts/potential_zone/users/DrainMapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";

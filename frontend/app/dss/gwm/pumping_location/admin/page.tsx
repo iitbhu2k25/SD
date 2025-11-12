@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider, useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
-import { CategoryProvider, useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
-import { MapProvider, useMap } from "@/contexts/groundwaterIdent/admin/MapContext";
+import { LocationProvider, useLocation } from "@/contexts/pumping_location/admin/LocationContext";
+import { CategoryProvider, useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
+import { MapProvider, useMap } from "@/contexts/pumping_location/admin/MapContext";
 
 import LocationSelector from "@/app/dss/gwm/pumping_location/admin/components/locations";
 import CategorySelector from "@/app/dss/gwm/pumping_location/admin/components/Category";

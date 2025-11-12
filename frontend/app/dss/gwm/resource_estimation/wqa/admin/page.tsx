@@ -1,183 +1,170 @@
 "use client";
 
-import React, { useState } from "react";
-import { StatusBar } from "./components/StatusBar";
-import DataSelection from "./components/DataSelection";
-import GroundwaterContour from "./components/contour";
-import { GroundwaterContourProvider } from "@/contexts/water_quality_assesment/admin/ContourContext";
-import Map from "./components/Map";
-import { LocationProvider, useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
-import { WellProvider } from "@/contexts/water_quality_assesment/admin/WellContext";
-import { MapProvider, useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
+import React, { useState, useEffect, use } from "react";
+import { LocationProvider } from "@/contexts/water_quality_assesment/admin/LocationContext";
+import { MapProvider } from "@/contexts/water_quality_assesment/admin/MapContext";
+import LocationSelector from "@/app/dss/gwm/resource_estimation/wqa/admin/components/locations";
+import WholeLoading from "@/components/app_layout/newLoading";
+import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
+import MapView from "@/app/dss/gwm/resource_estimation/wqa/admin/components/openlayer";
+import { useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { downloadCSV } from "@/components/utils/downloadCsv";
+import DataTable from "react-data-table-component";
+import { WQIInterface, WQI_columns } from "@/interface/table";
+import PDFGenerationStatus from "@/components/utils/PdfGeneration";
+import { YearProvider, useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
+import YearSelector from "@/app/dss/gwm/resource_estimation/wqa/admin/components/year";
+import MultiSelectButtons from "@/app/dss/gwm/resource_estimation/wqa/admin/components/Params";
 
-interface Step {
-  id: number;
-  name: string;
-}
+const MainContent = () => {
+  const [reportLoading, setReportLoading] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [showPdfStatus, setShowPdfStatus] = useState(false);
+  const { wqi_data, selectedParam ,qualityParam} = useYear();
+  const {
+    selectionsLocked,
+    selectedSubDistrictsNames,
+  } = useLocation();
+ 
+  const { loading, isMapLoading, stpOperation } = useMap();
+  const [showYears, setshowYears] = useState(false);
 
-function GroundwaterAssessmentContent() {
-  const [activeStep, setActiveStep] = useState<number>(1);
-  const [contourData, setContourData] = useState<any>(null);
-  const { addRasterLayer, removeAllRasterLayers } = useMap();
-  const { selectionsLocked } = useLocation();
+  useEffect(() => {
+    setshowYears(selectionsLocked);
+  }, [selectionsLocked]);
 
-  const steps: Step[] = [
-    { id: 1, name: "Data Collection" },
-    { id: 2, name: "GWQI Analysis" },
-  ];
-
-  const handleNext = () => {
-    if (activeStep === 2) {
-      console.log("GWQI is the final step - use Generate Report button instead");
-      return;
-    }
-    
-    if (activeStep === 1 && !selectionsLocked) {
-      console.log("Cannot proceed: Location selections not confirmed");
-      return;
-    }
-    
-    if (activeStep < 2) {
-      setActiveStep(activeStep + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (activeStep > 1) {
-      console.log("Going back to previous step - clearing map layers");
-      
-      // Clear all raster layers from map when going back
-      removeAllRasterLayers();
-      
-      // Clear stored data
-      setContourData(null);
-      
-      setActiveStep(activeStep - 1);
-    }
-  };
-
-  const handleGeoJsonData = (data: { type: "unified" | "contour" | "raster"; payload: any; }) => {
-  
-    setContourData(data);
-    if (data.type === 'raster') {
-      const { layer_name, geoserver_url } = data.payload;
-      console.log('Received raster data:', { layer_name, geoserver_url });
-      if (layer_name && geoserver_url) {
-        addRasterLayer(layer_name, geoserver_url);
-        console.log(`Raster layer added to map: ${layer_name}`);
-      } else {
-       console.log('Invalid raster data:', data.payload);
-      }
-    }
-  };
 
   return (
-    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
-      {/* Fixed Top Step Bar */}
-      <div className="flex-shrink-0 z-10">
-        <StatusBar
-          activeStep={activeStep}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
-        />
-      </div>
+    <div className="bg-gray-50 flex flex-col">
+      <WholeLoading
+        visible={loading || isMapLoading || stpOperation || reportLoading}
+        title={
+          stpOperation
+            ? "Analyzing STP priorities"
+            : reportLoading
+              ? "Generating report for STP priorities"
+              : "Loading Resources"
+        }
+        message={
+          stpOperation
+            ? "Analyzing site priorities and generating results..."
+            : reportLoading
+              ? "Generating report, please wait..."
+              : "Fetching map data and initializing components..."
+        }
+      />
 
-      {/* Main Content - Fixed Height Layout */}
-      <div className="flex-grow flex overflow-hidden">
-        {/* Left Panel - Scrollable Content */}
-        <div className="w-[55%] flex flex-col">
-          {/* Scrollable Content Area */}
-          <div className="flex-grow overflow-y-auto bg-white mx-3 my-2 rounded-lg shadow-md">
-            <div className="p-6">
-              {activeStep === 1 ? (
-                <DataSelection step={activeStep} />
-              ) : activeStep === 2 ? (
-                <GroundwaterContourProvider
-                  activeTab="groundwater-contour"
-                  onGeoJsonData={handleGeoJsonData}
-                >
-                  <GroundwaterContour/>
-                </GroundwaterContourProvider>
-              ) : (
-                <div className="text-gray-500">
-                  <h2 className="text-xl font-semibold mb-4">{steps[activeStep - 1].name}</h2>
-                  <p>Content for this step is not yet implemented.</p>
-                </div>
-              )}
-            </div>
-          </div>
+      <main className="flex flex-col lg:flex-row gap-4 px-4 py-6 h-[calc(100vh-100px)]">
+        {/* LEFT PANEL */}
+        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-6 space-y-6">
+          <section className="border-b pb-4">
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              Administrative Selection
+            </h2>
+            {selectionsLocked && (
+              <p className="text-sm text-green-600">
+                {selectedSubDistrictsNames.length} sub-districts selected
+              </p>
+            )}
+          </section>
 
-          {/* Fixed Bottom Navigation for Left Panel */}
-          <div className="flex-shrink-0 bg-gray-100 p-4 border-t border-gray-300">
-            <div className="flex justify-center space-x-4">
-              <button
-                onClick={handlePrevious}
-                disabled={activeStep === 1}
-                className={`px-6 py-3 rounded-lg text-white font-semibold transition-all duration-300 ${
-                  activeStep === 1
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
-                }`}
-              >
-                Previous Step
-              </button>
-              
-              {/* Only show Next Step button if not on GWQI step */}
-              {activeStep < 2 && (
-                <button
-                  onClick={handleNext}
-                  disabled={activeStep === 1 && !selectionsLocked}
-                  className={`px-6 py-3 rounded-lg text-white font-semibold transition-all duration-300 ${
-                    (activeStep === 1 && !selectionsLocked)
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
-                  }`}
-                >
-                  Next Step
-                </button>
-              )}
-              
-              {/* Show info message on GWQI step */}
-              {activeStep === 2 && (
-                <div className="px-6 py-3 bg-green-100 text-green-800 rounded-lg font-medium flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Generate GWQI Report using the button above
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+          <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <LocationSelector />
+          </section>
 
-        {/* Right Panel - Fixed Map */}
-        <div className="w-[45%] h-[90%] flex flex-col">
-          <div className="flex-grow bg-white mr-3 my-2 rounded-lg shadow-md overflow-hidden">
-            <div className="w-full h-full relative">
-              <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  Interactive Map
+          {showYears && (
+            <div className="animate-fadeIn">
+              <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  Select year
                 </h3>
-              </div>
-              <div className="w-full h-full pt-13">
-                <Map />
-              </div>
+                <YearSelector />
+              </section>
             </div>
-          </div>
+          )}
+          {wqi_data && wqi_data.length > 0 && (
+            <div className="animate-fadeIn">
+              <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  Well Points
+                </h3>
+                <DataTable
+                  columns={WQI_columns}
+                  data={wqi_data}
+                  pagination
+                  responsive
+                  paginationPerPage={5}
+                  paginationRowsPerPageOptions={[5, 10]}
+                />
+              </section>
+            </div>
+          )}
+          {wqi_data && wqi_data.length > 0 && (
+            <div className="animate-fadeIn">
+              <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  Select Parameter
+                </h3>
+                <MultiSelectButtons
+                  options={qualityParam}
+                  onChange={(selected) => console.log("Selected:", selected)}
+                />
+              </section>
+            </div>
+          )}
+          {selectedParam.length > 0 && (
+            <div className="animate-fadeIn">
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all"
+                onClick={() => console.log(selectedParam)}
+              >
+                Analysis Water Quality
+              </button>
+            </div>
+          )}
+
+
+
+
+
+
         </div>
-      </div>
+
+        {/* RIGHT PANEL */}
+        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-4 space-y-6">
+          <section className="rounded-xl overflow-hidden">
+            <div className="w-full md:min-h-[400px]">
+              <MapView />
+            </div>
+          </section>
+
+
+        </div>
+      </main>
+
+      {showPdfStatus && taskId && (
+        <PDFGenerationStatus
+          taskId={taskId}
+          className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
+          autoClose={true}
+          closeDelay={3000}
+          enableAutoDownload={true}
+        />
+      )}
     </div>
   );
-}
+};
 
-export default function GroundwaterAssessmentAdmin() {
-  return (
-    <LocationProvider>
-      <WellProvider>
-        <MapProvider>
-          <GroundwaterAssessmentContent />
-        </MapProvider>
-      </WellProvider>
-    </LocationProvider>
-  );
-}
+const PriorityAdmin = () => (
+  <LocationProvider>
+    <YearProvider>
+      <MapProvider>
+        <MainContent />
+      </MapProvider>
+    </YearProvider>
+  </LocationProvider>
+);
+
+export default PriorityAdmin;

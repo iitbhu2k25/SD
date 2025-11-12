@@ -1,7 +1,7 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/groundwaterzone/admin/LocationContext';
-import { useCategory } from '@/contexts/groundwaterzone/admin/CategoryContext';
+import { useLocation } from '@/contexts/potential_zone/admin/LocationContext';
+import { useCategory } from '@/contexts/potential_zone/admin/CategoryContext';
 import { api } from '@/services/api';
 import { DataRow } from '@/interface/table';
 import { ADMIN_LAYER_NAMES,ClipRasters,stp_priority_Output } from '@/interface/raster_context';
@@ -204,7 +204,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
         if (result) {
           const append_data = {
-            file_name: "GroundWaterZone",
+            file_name: "potential_zone",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
@@ -212,7 +212,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
           // Check if file_name already exists
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "GroundWaterZone"
+            (item) => item.file_name === "potential_zone"
           );
 
           let newData;

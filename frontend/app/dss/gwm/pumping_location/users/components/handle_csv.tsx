@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { Upload, AlertCircle } from "lucide-react";
 import { CsvRow } from "@/interface/table";
-import { useRiverSystem} from "@/contexts/groundwaterIdent/users/DrainContext";
+import { useRiverSystem} from "@/contexts/pumping_location/users/DrainContext";
 
 const REQUIRED_HEADERS = ["Well_id", "Longitude", "Latitude"];
 

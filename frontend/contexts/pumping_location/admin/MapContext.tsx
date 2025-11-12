@@ -1,6 +1,6 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/groundwaterIdent/admin/LocationContext';
+import { useLocation } from '@/contexts/pumping_location/admin/LocationContext';
 import { ADMIN_LAYER_NAMES} from '@/interface/raster_context';
 
 

@@ -23,10 +23,10 @@ import {
   ZoomToExtent,
 } from "ol/control";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
-import { useMap } from "@/contexts/groundwaterIdent/admin/MapContext";
-import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
+import { useMap } from "@/contexts/pumping_location/admin/MapContext";
+import { useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
 import "ol/ol.css";
-import { useLocation } from "@/contexts/groundwaterIdent/admin/LocationContext";
+import { useLocation } from "@/contexts/pumping_location/admin/LocationContext";
 import { CsvRow } from '@/interface/table'
 import { INDIA_CENTER, INITIAL_ZOOM } from "@/interface/openlayer";
 

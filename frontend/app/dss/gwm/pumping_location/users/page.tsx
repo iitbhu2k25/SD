@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/groundwaterIdent/users/DrainContext";
-import { CategoryProvider } from "@/contexts/groundwaterIdent/admin/CategoryContext";
-import { MapProvider } from "@/contexts/groundwaterIdent/users/DrainMapContext";
+import { RiverSystemProvider } from "@/contexts/pumping_location/users/DrainContext";
+import { CategoryProvider } from "@/contexts/pumping_location/admin/CategoryContext";
+import { MapProvider } from "@/contexts/pumping_location/users/DrainMapContext";
 
 import RiverSelector from "@/app/dss/gwm/pumping_location/users/components/locations";
 import CategorySelector from "@/app/dss/gwm/pumping_location/users/components/Category";
@@ -17,9 +17,9 @@ import { Gwpl_columns } from "@/interface/table";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import { useRiverSystem } from "@/contexts/groundwaterIdent/users/DrainContext";
-import { useCategory } from "@/contexts/groundwaterIdent/admin/CategoryContext";
-import { useMap } from "@/contexts/groundwaterIdent/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/pumping_location/users/DrainContext";
+import { useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
+import { useMap } from "@/contexts/pumping_location/users/DrainMapContext";
 import { downloadCSV } from "@/components/utils/downloadCsv";
 
 const MainContent = () => {
