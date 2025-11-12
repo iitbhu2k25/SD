@@ -1000,10 +1000,7 @@ class WQ_Index:
     def _overlay(self, rank, weight):
         weighted_arrays = []
         meta = None
-
-       
         weight_map = {w["parameter"]: w["weight"] for w in weight}
-
         for i in rank:
             param = i["parameter"]
             if param not in weight_map:
@@ -1024,16 +1021,22 @@ class WQ_Index:
             return None
 
         num_params = len(weighted_arrays)
-
+        print(num_params)
         final_overlay = np.sum(weighted_arrays, axis=0) / num_params
 
-        # optional: inverse (if required)
         final_overlay = 100 - final_overlay
 
-        # output path
+        min_val = np.nanmin(final_overlay)
+        max_val = np.nanmax(final_overlay)
+
+        if max_val != min_val:  # avoid division by zero
+            final_overlay = (final_overlay - min_val) / (max_val - min_val)
+        else:
+            final_overlay[:] = 0
         output_dir = "/home/app/temp"
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, "overlay.tif")
+
         meta.update(dtype=rasterio.float32, count=1)
         with rasterio.open(output_path, "w", **meta) as dst:
             dst.write(final_overlay.astype(rasterio.float32), 1)
