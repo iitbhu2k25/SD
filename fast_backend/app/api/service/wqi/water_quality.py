@@ -32,6 +32,7 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from rasterstats import zonal_stats
 import tempfile
+from celery import group, chord
 from app.conf.celery import app
 
 
@@ -112,6 +113,7 @@ class WQ_Index:
 
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
+    
     def _save_raster(self,profile,raster_path:str,result:np.ndarray,ext:str):
         base, _ = os.path.splitext(raster_path)
         new_raster_path = f"{base}_{ext}.tif"
@@ -221,7 +223,7 @@ class WQ_Index:
         rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
         return rank
     
-    def _calulate_concentration_index(self, arr,threshold):
+    def _calulate_concentration_index(self, arr:list,threshold:float):
         CI_raster=[]
         rank_raster=[]
         for i in arr:
@@ -229,7 +231,7 @@ class WQ_Index:
                 {
                 "parameter":i["parameter"],
                 "P_raster":i["output_path"],
-                "threshold":threshold.get(i['parameter']),
+                "threshold":threshold,
                 "threshold_bool":i["threshold_bool"]  
                 }
             )
@@ -344,7 +346,7 @@ class WQ_Index:
 
 
 @app.task(bind=True,name='GQT_Interpolation')
-def start_interpolate(self, output_folder:str,param: str, df_json: str, threshold: float):
+def start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float):
     df = pd.read_json(StringIO(df_json), orient="records")
     wqi_obj=WQ_Index()
     
@@ -416,12 +418,21 @@ def calculate_GWQI(self,output_folder:str,payload_path:str):
     print("selected_parameters",selected_parameters.columns.to_list())
 
     df_json = df.to_json(orient="records")
-    raster_INP=[]
-    for params in selected_parameters:
-        result=start_interpolate.delay(output_folder,params,df_json,parameter_thresholds[params]) 
-        raster_INP.append(result)
-    print("sl",raster_INP)
-      
+    interpolation_group = group(
+        start_Interpolation.s(
+            output_folder=output_folder,
+            param=param,
+            df_json=df_json,
+            threshold=parameter_thresholds[param]
+        )
+        for param in selected_parameters
+    )
+    job = chord(interpolation_group)(
+        celery_Concentration_Index.s(
+            threshold=parameter_thresholds,
+            output_folder=output_folder
+        )
+    )
     # print(result)
     # result_CI=self._calulate_concentration_index(result,parameter_thresholds)
     # result_rank=self._calcluate_ranking_raster(result_CI)
@@ -430,6 +441,14 @@ def calculate_GWQI(self,output_folder:str,payload_path:str):
     # print("overlay",overlay)
 
 
+@app.task(bind=True,name='GQT_Concentration_Index')
+def start_concentration_Index(self,output_folder:str,threshold:float):
+    pass
+
+@app.task(bind=True,name='celery_single_CI')
+def celery_Concentration_Index(self,result,threshold:list,output_folder:str,*args, **kwargs):
+    print("celery_Concentration_Index")
+    print("result",result)
 
         
 
