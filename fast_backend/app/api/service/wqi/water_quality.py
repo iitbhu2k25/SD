@@ -411,7 +411,7 @@ def calculate_GWQI(self,payload_path:str):
     print("selected_parameters",selected_parameters.columns.to_list())
 
     df_json = df.to_json(orient="records")
-    
+    raster_INP=[]
     for params in selected_parameters:
         result=start_interpolate.delay(params,df_json,parameter_thresholds[params]) 
         raster_INP.append(result)
