@@ -1,8 +1,11 @@
-from app.api.schema.wqi import Well_input,Well_response
+from app.api.schema.wqi import WQIOperation, Well_input,Well_response
+from app.database.config.dependency import PostgresDb
 from typing import List,Tuple
+from io import StringIO
 from sqlalchemy.orm import session
 from app.database.crud.gwpz_crud import WQI,WQI_threshold
 import os
+import json
 from tqdm import tqdm
 import zipfile
 from xml.dom import minidom
@@ -29,6 +32,7 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from rasterstats import zonal_stats
 import tempfile
+from app.conf.celery import app
 
 
 geo=Geoserver()
@@ -108,6 +112,8 @@ class WQ_Index:
         self.vector_work=VectorProcess()
         self.idw_cell_size = 30.0
 
+    def get_well(self,db: session,payload:Well_input):
+        return WQI(db).get_wqi(payload.subdis_cod,payload.year)
     def _save_raster(self,profile,raster_path:str,result:np.ndarray,ext:str):
         base, _ = os.path.splitext(raster_path)
         new_raster_path = f"{base}_{ext}.tif"
@@ -115,13 +121,18 @@ class WQ_Index:
             dst.write(result.astype(np.float32), 1)
         return new_raster_path
         
-    def _correct_pandas(self,payload:List[Well_response],params:List[str]):
-        df = pd.DataFrame([item.model_dump() for item in payload])
-        df = df[params]
-        for param in df:
-            param_df = df[[param]].copy()
-            param_df[param] = pd.to_numeric(param_df[param], errors='coerce')
-        return df
+    def _correct_pandas(self,payload_path:str):
+        with open(payload_path, "r") as f:
+            raw_data = json.load(f)
+
+        payload = WQIOperation(**raw_data)
+        params = list(set(payload.params))
+        data_rows = [item.model_dump() for item in payload.data]
+
+        df = pd.DataFrame(data_rows)[params]
+        df = df.apply(pd.to_numeric, errors="coerce")
+        df_json = df.to_json(orient="records")
+        return df_json
 
     def _arcgis_style_idw_ckdtree(self,coords_xy, values, grid_transform, grid_shape,
                               power=2.0, search_mode="variable", n_neighbors=12, radius=None):
@@ -188,110 +199,7 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, self.idw_cell_size , self.idw_cell_size )
         return cols,rows,coords_xy_utm,proj_transform
 
-    def _get_interpolate(self,df:pd.DataFrame,threshold):   
-        selected_parameters=df.drop(columns=['Longitude','Latitude'])  
-        cols,rows,coords_xy_utm,proj_transform=self._vector_area(df)
-        interpolated_rasters = []
-        for param in selected_parameters:
-            temp_name=Unique_name.unique_name_with_ext(param,"tif")
-            param_threshold=threshold[param]
-            try:
-                param_df=selected_parameters
-                valid_mask = ~param_df[param].isna()
-                valid_values = param_df.loc[valid_mask, param].values.astype(float)
-                valid_coords = coords_xy_utm[valid_mask]
-                
-                if len(valid_values) < 3:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Only {len(valid_values)} valid points for {param} (need 3 minimum)"
-                    )                
-                # Perform IDW interpolation in UTM
-                Z_utm = self._arcgis_style_idw_ckdtree(
-                    coords_xy=valid_coords,
-                    values=valid_values,
-                    grid_transform=proj_transform,
-                    grid_shape=(rows, cols),
-                    power=2.0,
-                    search_mode='variable',
-                    n_neighbors=12,
-                    radius=None
-                )
-                temp_utm_path = self.output / f"temp_{temp_name}"
-
-                with rasterio.open(
-                    temp_utm_path,
-                    'w',
-                    driver='GTiff',
-                    height=Z_utm.shape[0],
-                    width=Z_utm.shape[1],
-                    count=1,
-                    dtype=rasterio.float32,
-                    crs='EPSG:32644',
-                    transform=proj_transform,
-                    nodata=np.nan
-                ) as dst:
-                    dst.write(Z_utm.astype(rasterio.float32), 1)
-
-                with rasterio.open(temp_utm_path) as src:
-                    transform_4326, width_4326, height_4326 = calculate_default_transform(
-                        src.crs, 'EPSG:4326', src.width, src.height, *src.bounds,
-                        resolution=(0.001, 0.001)  # ~100m resolution in degrees
-                    )
-                    output_path = self.output/ f"{temp_name}"
-                    
-                    with rasterio.open(
-                        output_path,
-                        'w',
-                        driver='GTiff',
-                        height=height_4326,
-                        width=width_4326,
-                        count=1,
-                        dtype=rasterio.float32,
-                        crs='EPSG:4326',
-                        transform=transform_4326,
-                        nodata=np.nan,
-                        compress='lzw'
-                        
-                    ) as dst:
-                        reproject(
-                            source=rasterio.band(src, 1),
-                            destination=rasterio.band(dst, 1),
-                            src_transform=src.transform,
-                            src_crs=src.crs,
-                            dst_transform=transform_4326,
-                            dst_crs='EPSG:4326',
-                            resampling=Resampling.bilinear,
-                            dst_nodata=np.nan
-                            
-                        )
-                        dst.update_tags(
-                            PARAMETER=param,
-                            INTERPOLATION_METHOD='IDW_cKDTree',
-                            WELLS_COUNT=str(len(valid_values)),
-                            ORIGINAL_CRS='EPSG:32644',
-                            OUTPUT_CRS='EPSG:4326'
-                        )
-                with rasterio.open(output_path) as src:
-                    data_4326 = src.read(1)
-                    valid_data = data_4326[~np.isnan(data_4326)]        
-
-                interpolated_rasters.append({
-                    'parameter': param,
-                    'output_path': str(output_path),
-                    'wells_used': len(valid_values),
-                    'raster_shape': data_4326.shape,
-                    'threshold_bool': float(np.mean(valid_data))>param_threshold,
-                    'value_range': {
-                        'min': float(np.min(valid_data)),
-                        'max': float(np.max(valid_data)),
-                        'mean': float(np.mean(valid_data))
-                    }
-                })
-            except Exception as e:
-                print(f"[INTERPOLATION] ✗ {param}: {str(e)}")
-        return interpolated_rasters
-
+   
     def __calculate_index(self,p_array, threshold):
         if hasattr(p_array, 'mask'):
             valid_mask = ~p_array.mask
@@ -415,27 +323,108 @@ class WQ_Index:
         meta.update(dtype=rasterio.float32, count=1)
         with rasterio.open(output_path, "w", **meta) as dst:
             dst.write(final_overlay.astype(rasterio.float32), 1)
-
         return output_path
+    def calculate_GWQI(self,db:session,payload:WQIOperation):
+        file_id=Unique_name.unique_name_with_ext("gwi_data","json")
+        temp_path=self.output/file_id
+        with open(temp_path, "w") as f:
+            json.dump(payload.model_dump(), f, default=str)
 
-    def calculate_GWQI(self,db:session,payload:List[Well_response]):
-        df=self._correct_pandas(payload.data,payload.params)
-        thresholds = WQI_threshold(db).get_threshold()
-        df_columns = set(df.columns)
-        parameter_thresholds = {
-            t.parameter: t.value
-            for t in thresholds
-            if t.parameter in df_columns
-        }
-        result=self._get_interpolate(df,parameter_thresholds)   
-        result_CI=self._calulate_concentration_index(result,parameter_thresholds)
-        result_rank=self._calcluate_ranking_raster(result_CI)
-        result_weight=self._find_weight(result_rank)
-        overlay=self._overlay(result_rank,result_weight)
-        print("overlay",overlay)
+        task_id=calculate_GWQI.delay(payload_path=str(temp_path))
+        # return task_id
+        # json_path=self.output
+        # save in temp folkder json
+        # send the husge data in celery 
 
 
-    def get_well(self,db: session,payload:Well_input):
-        return WQI(db).get_wqi(payload.subdis_cod,payload.year)
+
+@app.task(bind=True,name='GQT_Interpolation')
+def start_interpolate(self, param: str, df_json: str, threshold: float):
+    df = pd.read_json(StringIO(df_json), orient="records")
+    wqi_obj=WQ_Index()
+    
+    if param not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Parameter '{param}' not found")
+
+    valid_mask = ~df[param].isna()
+    values = df.loc[valid_mask, param].astype(float).values
+    if len(values) < 3:
+        raise HTTPException(status_code=400, detail=f"Only {len(values)} valid points for {param}")
+
+    cols, rows, coords, transform = wqi_obj._vector_area(df)
+
+    Z_utm = wqi_obj._arcgis_style_idw_ckdtree(
+        coords_xy=coords[valid_mask], values=values,
+        grid_transform=transform, grid_shape=(rows, cols),
+        power=2.0, search_mode='variable', n_neighbors=12
+    )
+
+    dst_transform, w, h = calculate_default_transform(
+        'EPSG:32644', 'EPSG:4326', cols, rows,
+        *rasterio.transform.array_bounds(rows, cols, transform),
+        resolution=(0.001, 0.001)
+    )
+
+    Z_4326 = np.empty((h, w), np.float32)
+    reproject(Z_utm, Z_4326, src_transform=transform, src_crs='EPSG:32644',
+            dst_transform=dst_transform, dst_crs='EPSG:4326',
+            resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
+
+    path = wqi_obj.output / Unique_name.unique_name_with_ext(param, "tif")
+    
+    with rasterio.open(path, 'w', driver='GTiff', height=h, width=w, count=1,
+                    dtype='float32', crs='EPSG:4326', transform=dst_transform,
+                    nodata=np.nan, compress='lzw') as dst:
+        dst.write(Z_4326, 1)
+        dst.update_tags(PARAMETER=param, METHOD='IDW_cKDTree', WELLS=str(len(values)))
+
+    v = Z_4326[~np.isnan(Z_4326)]
+    print(f"[✓] {param} done")
+    return {
+        'parameter': param,
+        'output_path': str(path),
+        'wells_used': len(values),
+        'raster_shape': Z_4326.shape,
+        'threshold_bool': float(np.mean(v)) > threshold,
+        'value_range': {'min': float(np.min(v)), 'max': float(np.max(v)), 'mean': float(np.mean(v))}
+    }
+
+
+
+@app.task(bind=True,name='ground_water_task')
+def calculate_GWQI(self,payload_path:str):
+    wqi_obj=WQ_Index()
+    df_json=wqi_obj._correct_pandas(payload_path)
+    df = pd.read_json(df_json, orient="records")
+    df_columns = set(df.columns)
+    with PostgresDb().session() as session:
+        thresholds = WQI_threshold(session).get_threshold()
+    parameter_thresholds = {
+        t.parameter: t.value
+        for t in thresholds
+        if t.parameter in df_columns
+    }
+    raster_INP=[]
+    
+    selected_parameters=df.drop(columns=['Longitude','Latitude'])
+
+    print("selected_parameters",selected_parameters.columns.to_list())
+
+    df_json = df.to_json(orient="records")
+    
+    for params in selected_parameters:
+        result=start_interpolate.delay(params,df_json,parameter_thresholds[params]) 
+        raster_INP.append(result)
+    print("sl",raster_INP)
+      
+    # print(result)
+    # result_CI=self._calulate_concentration_index(result,parameter_thresholds)
+    # result_rank=self._calcluate_ranking_raster(result_CI)
+    # result_weight=self._find_weight(result_rank)
+    # overlay=self._overlay(result_rank,result_weight)
+    # print("overlay",overlay)
+
+
+
         
 

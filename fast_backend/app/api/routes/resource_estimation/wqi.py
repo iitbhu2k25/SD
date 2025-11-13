@@ -3,6 +3,8 @@ from typing import List
 from app.database.config.dependency import db_dependency
 from app.api.schema.wqi import Well_input,Well_response,WQIOperation
 from app.api.service.wqi.water_quality import WQ_Index
+from app.api.service.celery.celery_task import calculate_GWQI
+from app.database.crud.gwpz_crud import WQI_threshold
 router=APIRouter()
 
 @router.get('/year',status_code=status.HTTP_201_CREATED)
@@ -16,4 +18,4 @@ async def get_well(db:db_dependency,payload:Well_input):
 @router.post('/well_interpolation',status_code=status.HTTP_201_CREATED)
 async def make_interpolation(db:db_dependency,payload:WQIOperation):
     return WQ_Index().calculate_GWQI(db,payload)
-    
+  
