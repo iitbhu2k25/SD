@@ -107,6 +107,7 @@ class WQ_Index:
         self.output.mkdir(exist_ok=True)
         self.vector_work=VectorProcess()
         self.idw_cell_size = 30.0
+
     def _save_raster(self,profile,raster_path:str,result:np.ndarray,ext:str):
         base, _ = os.path.splitext(raster_path)
         new_raster_path = f"{base}_{ext}.tif"
@@ -132,8 +133,6 @@ class WQ_Index:
         
         rows, cols = int(rows), int(cols)
 
-
-        # Generate grid coordinates
         xs = (np.arange(cols, dtype=np.float64) * grid_transform.a) + grid_transform.c + (grid_transform.a / 2.0)
         ys = (np.arange(rows, dtype=np.float64) * grid_transform.e) + grid_transform.f + (grid_transform.e / 2.0)
         grid_x, grid_y = np.meshgrid(xs, ys)
@@ -145,56 +144,17 @@ class WQ_Index:
         k = int(n_neighbors) if n_neighbors is not None else 12
         k = max(1, min(k, coords_xy.shape[0]))
 
-        # Build KDTree
         tree = cKDTree(coords_xy)
-
-        if search_mode == "variable":
-            # K nearest neighbors
-            dists, idxs = tree.query(xi, k=k)
-            if k == 1:
-                dists = dists[:, np.newaxis]
-                idxs = idxs[:, np.newaxis]
-            
-            dists[dists == 0] = 1e-10
-            weights = 1.0 / (dists ** float(power))
-            numer = np.sum(weights * values[idxs], axis=1)
-            denom = np.sum(weights, axis=1)
-            vals = numer / denom
-
-        elif search_mode == "fixed":
-            # Fixed radius search
-            if radius is None or float(radius) <= 0:
-                raise ValueError("Fixed search requires positive radius")
-            
-            r = float(radius)
-            neighbor_lists = tree.query_ball_point(xi, r=r)
-            vals = np.empty(len(xi), dtype=np.float64)
-            
-            for i, neighbors in enumerate(neighbor_lists):
-                if not neighbors:
-                    vals[i] = np.nan
-                    continue
-                
-                d = np.linalg.norm(coords_xy[neighbors] - xi[i], axis=1)
-                d[d == 0] = 1e-10
-                w = 1.0 / (d ** float(power))
-                vals[i] = np.sum(w * values[neighbors]) / np.sum(w)
-        else:
-            # Fallback: all points (slower)
-            N = len(xi)
-            chunk = 200000
-            out = np.empty(N, dtype=np.float64)
-            
-            for s in range(0, N, chunk):
-                e = min(s + chunk, N)
-                xchunk = xi[s:e]
-                d = np.linalg.norm(coords_xy[None, :, :] - xchunk[:, None, :], axis=2)
-                d[d == 0] = 1e-10
-                w = 1.0 / (d ** float(power))
-                numer = w.dot(values)
-                denom = np.sum(w, axis=1)
-                out[s:e] = numer / denom
-            vals = out
+        dists, idxs = tree.query(xi, k=k)
+        if k == 1:
+            dists = dists[:, np.newaxis]
+            idxs = idxs[:, np.newaxis]
+        
+        dists[dists == 0] = 1e-10
+        weights = 1.0 / (dists ** float(power))
+        numer = np.sum(weights * values[idxs], axis=1)
+        denom = np.sum(weights, axis=1)
+        vals = numer / denom
 
         grid = vals.reshape(rows, cols).astype(np.float32)    
         return grid
@@ -314,7 +274,8 @@ class WQ_Index:
                         )
                 with rasterio.open(output_path) as src:
                     data_4326 = src.read(1)
-                    valid_data = data_4326[~np.isnan(data_4326)]
+                    valid_data = data_4326[~np.isnan(data_4326)]        
+
                 interpolated_rasters.append({
                     'parameter': param,
                     'output_path': str(output_path),
@@ -404,6 +365,7 @@ class WQ_Index:
                 "threshold_bool":i["threshold_bool"]    
             })
         return rank_raster
+    
     def _find_weight(self,arr):
         weight_rank=[]
         for i in arr:
@@ -417,6 +379,7 @@ class WQ_Index:
                     "weight": float(weight)
                 })
         return weight_rank
+    
     def _overlay(self, rank, weight):
         weighted_arrays = []
         meta = None
@@ -444,7 +407,7 @@ class WQ_Index:
         min_val = np.nanmin(final_overlay)
         max_val = np.nanmax(final_overlay)
 
-        if max_val != min_val:  # avoid division by zero
+        if max_val != min_val: 
             final_overlay = (final_overlay - min_val) / (max_val - min_val + 1e-6)
         else:
             final_overlay[:] = 0

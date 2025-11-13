@@ -65,7 +65,6 @@ class WaterQualityAssessment(Base):
     Fluoride:Mapped[float]=mapped_column(Float,nullable=False)
     Sulfate:Mapped[float]=mapped_column(Float,nullable=False)
     Nitrate:Mapped[float]=mapped_column(Float,nullable=False)
-    Phosphate:Mapped[float]=mapped_column(Float,nullable=False)
     Hardness:Mapped[float]=mapped_column(Float,nullable=False)
     Calcium:Mapped[float]=mapped_column(Float,nullable=False)
     Magnesium:Mapped[float]=mapped_column(Float,nullable=False)

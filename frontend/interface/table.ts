@@ -160,7 +160,6 @@ export interface WQIInterface {
   Magnesium: number;
   Nitrate: number;
   pH_Level: number;
-  Phosphate: number;
   Potassium: number;
   Sodium: number;
   Sulfate: number;
@@ -266,13 +265,6 @@ export const WQI_columns: TableColumn<WQIInterface>[] = [
     selector: row => row.Nitrate,
     sortable: true,
     format: row => row.Nitrate.toFixed(2),
-    width: '120px',
-  },
-  {
-    name: 'Phosphate',
-    selector: row => row.Phosphate,
-    sortable: true,
-    format: row => row.Phosphate.toFixed(2),
     width: '120px',
   },
   {

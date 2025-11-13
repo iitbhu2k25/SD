@@ -23,7 +23,6 @@ class Well_response(BaseModel):
     Nitrate: float
     Arsenic: float
     pH_Level: float
-    Phosphate: float
     Uranium: float
     Electrical_Conductivity: float
     Hardness: float
