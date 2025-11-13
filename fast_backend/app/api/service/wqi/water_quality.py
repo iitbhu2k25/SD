@@ -106,9 +106,7 @@ class VectorProcess(GeoConfig):
 
 class WQ_Index:
     def __init__(self):
-        unique_name=Unique_name().unique_name('wqi')
-        self.output=Path(Settings().TEMP_DIR,unique_name)
-        self.output.mkdir(exist_ok=True)
+       
         self.vector_work=VectorProcess()
         self.idw_cell_size = 30.0
 
@@ -324,13 +322,20 @@ class WQ_Index:
         with rasterio.open(output_path, "w", **meta) as dst:
             dst.write(final_overlay.astype(rasterio.float32), 1)
         return output_path
+    def get_output_path(self):
+        unique_name=Unique_name().unique_name('wqi')
+        output_path=Path(Settings().TEMP_DIR,unique_name)
+        output_path.mkdir(exist_ok=True)
+        return output_path
+    
     def calculate_GWQI(self,db:session,payload:WQIOperation):
+        output_folder=self.get_output_path()
         file_id=Unique_name.unique_name_with_ext("gwi_data","json")
-        temp_path=self.output/file_id
+        temp_path=output_folder / file_id
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
 
-        task_id=calculate_GWQI.delay(payload_path=str(temp_path))
+        task_id=calculate_GWQI.delay(output_folder=str(output_folder),payload_path=str(temp_path))
         # return task_id
         # json_path=self.output
         # save in temp folkder json
@@ -339,7 +344,7 @@ class WQ_Index:
 
 
 @app.task(bind=True,name='GQT_Interpolation')
-def start_interpolate(self, param: str, df_json: str, threshold: float):
+def start_interpolate(self, output_folder:str,param: str, df_json: str, threshold: float):
     df = pd.read_json(StringIO(df_json), orient="records")
     wqi_obj=WQ_Index()
     
@@ -370,7 +375,7 @@ def start_interpolate(self, param: str, df_json: str, threshold: float):
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
 
-    path = wqi_obj.output / Unique_name.unique_name_with_ext(param, "tif")
+    path = Path(output_folder) / Unique_name.unique_name_with_ext(param, "tif")
     
     with rasterio.open(path, 'w', driver='GTiff', height=h, width=w, count=1,
                     dtype='float32', crs='EPSG:4326', transform=dst_transform,
@@ -392,7 +397,7 @@ def start_interpolate(self, param: str, df_json: str, threshold: float):
 
 
 @app.task(bind=True,name='ground_water_task')
-def calculate_GWQI(self,payload_path:str):
+def calculate_GWQI(self,output_folder:str,payload_path:str):
     wqi_obj=WQ_Index()
     df_json=wqi_obj._correct_pandas(payload_path)
     df = pd.read_json(df_json, orient="records")
@@ -413,7 +418,7 @@ def calculate_GWQI(self,payload_path:str):
     df_json = df.to_json(orient="records")
     raster_INP=[]
     for params in selected_parameters:
-        result=start_interpolate.delay(params,df_json,parameter_thresholds[params]) 
+        result=start_interpolate.delay(output_folder,params,df_json,parameter_thresholds[params]) 
         raster_INP.append(result)
     print("sl",raster_INP)
       
