@@ -6,8 +6,7 @@ from sqlalchemy.orm import session
 from app.database.crud.gwpz_crud import WQI,WQI_threshold
 import os
 import json
-from tqdm import tqdm
-import zipfile
+
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 import numpy as np
@@ -31,7 +30,7 @@ from fastapi import HTTPException,status
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from rasterstats import zonal_stats
-import tempfile
+redis_client = Settings().redis_client
 from celery import group, chord
 from app.conf.celery import app
 
@@ -199,9 +198,7 @@ class WQ_Index:
     
         proj_transform = from_origin(minx, maxy, self.idw_cell_size , self.idw_cell_size )
         return cols,rows,coords_xy_utm,proj_transform
-
-
-        
+  
     def get_output_path(self):
         unique_name=Unique_name().unique_name('wqi')
         output_path=Path(Settings().TEMP_DIR,unique_name)
@@ -216,6 +213,7 @@ class WQ_Index:
             json.dump(payload.model_dump(), f, default=str)
 
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path))
+        redis_client.setex(f"{task_id.id}:output", 3600, "start")
         return task_id.id
 
 wqi_obj=WQ_Index()
@@ -260,7 +258,11 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
         dst.update_tags(PARAMETER=param, METHOD='IDW_cKDTree', WELLS=str(len(values)))
 
     v = Z_4326[~np.isnan(Z_4326)]
-    print("ppp",self.request.root_id )
+
+    #using the redis and celery for update the status
+    unq_name= os.path.splitext(os.path.basename(str(path)))[0]
+    redis_client.hset(f"{self.request.root_id}:output",mapping={param : unq_name})
+
     return {
         'parameter': param,
         'output_path': str(path),
@@ -436,7 +438,6 @@ def start_weight_raster(self,result:list):
     if not weighted_arrays:
         return None
     num_params = len(weighted_arrays)
-    print(num_params)
     final_overlay = np.sum(weighted_arrays, axis=0) / num_params
 
     final_overlay = 100 - final_overlay
@@ -451,4 +452,5 @@ def start_weight_raster(self,result:list):
 
     meta.update(dtype=rasterio.float32, count=1)
     ans=wqi_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
-    print("ppp overweight",self.request.root_id)
+    unq_name= os.path.splitext(os.path.basename(str(ans)))[0]
+    redis_client.setex(f"{self.request.root_id}:output", 3600, "done")
