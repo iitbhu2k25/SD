@@ -10,6 +10,9 @@ import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
 import { doubleClick, pointerMove, singleClick } from "ol/events/condition";
 import Image from "next/image";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import { toLonLat } from "ol/proj";
 
 import { fromLonLat } from "ol/proj";
 import {
@@ -25,6 +28,8 @@ import { useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
 import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
+import AddPointModal from "./coordinate";
+
 
 
 
@@ -38,6 +43,7 @@ const Maping: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
+  const pointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
 
   // State management
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +58,13 @@ const Maping: React.FC = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [addedPoints, setAddedPoints] = useState<any[]>([]);
+  const [showPointModal, setShowPointModal] = useState(false);
+  const [pendingPoint, setPendingPoint] = useState<any>(null);
+  const [pointName, setPointName] = useState("");
+  const [pointDescription, setPointDescription] = useState("");
+  const [showPointsList, setShowPointsList] = useState(false);
 
   // Context hooks
   const { displayRaster, setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
@@ -83,6 +96,116 @@ const Maping: React.FC = () => {
       document.exitFullscreen?.();
     }
   };
+
+  // Toggle add point mode
+  const toggleAddPointMode = () => {
+    setIsAddingPoint(!isAddingPoint);
+    if (!isAddingPoint) {
+      // Entering add point mode
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(false);
+      }
+    } else {
+      // Exiting add point mode
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(!selectionsLocked);
+      }
+    }
+  };
+
+  // Clear all added points
+  const clearAllPoints = () => {
+    if (pointsLayerRef.current) {
+      const source = pointsLayerRef.current.getSource();
+      if (source) {
+        source.clear();
+      }
+    }
+    setAddedPoints([]);
+  };
+
+  // Save point with user details
+  const savePoint = () => {
+    if (!pendingPoint) return;
+
+    const pointData = {
+      ...pendingPoint,
+      name: pointName || `Point ${pendingPoint.id}`,
+      description: pointDescription
+    };
+
+    // Create a new point feature
+    const pointFeature = new Feature({
+      geometry: new Point(pendingPoint.coordinate),
+      pointData: pointData
+    });
+
+    // Add to the points layer
+    if (pointsLayerRef.current) {
+      const source = pointsLayerRef.current.getSource();
+      if (source) {
+        source.addFeature(pointFeature);
+      }
+    }
+
+    // Update state
+    setAddedPoints(prev => [...prev, pointData]);
+
+    console.log('Point added:', pointData);
+
+    // Reset modal
+    setShowPointModal(false);
+    setPendingPoint(null);
+    setPointName("");
+    setPointDescription("");
+  };
+
+  // Cancel adding point
+  const cancelPoint = () => {
+    setShowPointModal(false);
+    setPendingPoint(null);
+    setPointName("");
+    setPointDescription("");
+  };
+
+  // Zoom to fit all layers
+  const zoomToLayers = () => {
+    if (!mapInstanceRef.current) return;
+
+    const layers = [];
+    if (primaryLayerRef.current) layers.push(primaryLayerRef.current);
+    if (secondaryLayerRef.current && showSecondaryLayer) layers.push(secondaryLayerRef.current);
+
+    if (layers.length === 0) return;
+
+    let combinedExtent: any = null;
+
+    layers.forEach(layer => {
+      const source = layer.getSource();
+      if (source) {
+        const extent = source.getExtent();
+        if (extent && extent.every((val: number) => isFinite(val))) {
+          if (!combinedExtent) {
+            combinedExtent = [...extent];
+          } else {
+            // Extend the combined extent
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        }
+      }
+    });
+
+    if (combinedExtent) {
+      mapInstanceRef.current.getView().fit(combinedExtent, {
+        padding: [50, 50, 50, 50],
+        duration: 1000,
+      });
+    }
+  };
+
   useEffect(() => {
     if (primaryLayerRef.current && featureCounts.secondary > 0) {
       primaryLayerRef.current.setVisible(!showSecondaryLayer);
@@ -90,6 +213,7 @@ const Maping: React.FC = () => {
       primaryLayerRef.current.setVisible(true);
     }
   }, [showSecondaryLayer, featureCounts.secondary]);
+
   const togglePanel = (panelName: string) => {
     setActivePanel(activePanel === panelName ? null : panelName);
   };
@@ -167,6 +291,26 @@ const Maping: React.FC = () => {
     return styles;
   };
 
+  // Style for added points
+  const createPointStyle = (pointData: any) => {
+    return new Style({
+      image: new Circle({
+        radius: 8,
+        fill: new Fill({ color: '#10b981' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 })
+      }),
+      text: new Text({
+        text: pointData.name || `Point ${pointData.id}`,
+        font: "bold 12px Arial, sans-serif",
+        fill: new Fill({ color: '#10b981' }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+        offsetY: -15,
+        textAlign: "center",
+        textBaseline: "middle",
+      })
+    });
+  };
+
   // Add this useEffect to handle interaction disabling based on selectionsLocked
   useEffect(() => {
     if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
@@ -174,6 +318,41 @@ const Maping: React.FC = () => {
       selectInteractionRef.current.setActive(false);
     }
   }, [selectionsLocked]);
+
+  // Separate useEffect to handle click events based on isAddingPoint state
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+
+    const handleMapClick = (event: any) => {
+      if (!isAddingPoint) return;
+
+      const coordinate = event.coordinate;
+      const lonLat = toLonLat(coordinate);
+      
+      const pointId = addedPoints.length + 1;
+      
+      // Store pending point data and show modal
+      setPendingPoint({
+        id: pointId,
+        coordinate: coordinate,
+        longitude: lonLat[0],
+        latitude: lonLat[1],
+        timestamp: new Date().toISOString()
+      });
+      
+      setShowPointModal(true);
+    };
+
+    map.on('singleclick', handleMapClick);
+
+    return () => {
+      map.un('singleclick', handleMapClick);
+    };
+  }, [isAddingPoint, addedPoints.length]);
+
+  // Initialize map only once
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -189,13 +368,14 @@ const Maping: React.FC = () => {
       new ScaleLine({ units: "metric", bar: true, steps: 4, minWidth: 140 }),
       new MousePosition({
         coordinateFormat: (coordinate) => {
-          if (!coordinate) return "No coordinates";
+          if (!coordinate) return "";
           const [longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
         target: document.getElementById("mouse-position") as HTMLElement,
+       
       }),
       new ZoomSlider(),
       new ZoomToExtent({
@@ -220,6 +400,17 @@ const Maping: React.FC = () => {
       }),
     });
 
+    // Create a vector layer for added points
+    const pointsSource = new VectorSource();
+    const pointsLayer = new VectorLayer({
+      source: pointsSource,
+      zIndex: 10,
+      style: (feature) => createPointStyle(feature.get('pointData'))
+    });
+    
+    map.addLayer(pointsLayer);
+    pointsLayerRef.current = pointsLayer;
+
     // Add Select interaction for double-clicks to select state
     const selectInteraction = new Select({
       condition: doubleClick,
@@ -227,7 +418,6 @@ const Maping: React.FC = () => {
         stroke: new Stroke({ color: '#ff0000', width: 3 }),
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
       }),
-
     });
 
     selectInteraction.on('select', (event) => {
@@ -239,7 +429,6 @@ const Maping: React.FC = () => {
           const stateCode = feature.get("State_Code")
           const districtCode = feature.get("district_c")
           const subdistrictCode = feature.get("subdis_cod")
-
 
           if (subdistrictCode as number) {
             setSelectedSubDistricts([subdistrictCode]);
@@ -262,7 +451,6 @@ const Maping: React.FC = () => {
     });
 
     // Add Select interaction for hover
-
     const hoverInteraction = new Select({
       condition: pointerMove,
       style: new Style({
@@ -270,6 +458,7 @@ const Maping: React.FC = () => {
         fill: new Fill({ color: 'transparent' })
       }),
     });
+
     hoverInteraction.on('select', (event) => {
       const hoveredFeatures = event.selected;
       if (hoveredFeatures.length > 0) {
@@ -305,7 +494,7 @@ const Maping: React.FC = () => {
         map.setTarget("");
       }
     };
-  }, []);
+  }, []); // Empty dependency array - map initializes only once
 
   // Handle primary layer
   useEffect(() => {
@@ -507,12 +696,14 @@ const Maping: React.FC = () => {
     <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
         {/* The Map */}
-        <div ref={mapRef} className="w-full h-full bg-blue-50" />
+        <div 
+          ref={mapRef} 
+          className={`w-full h-full bg-blue-50 ${isAddingPoint ? 'cursor-crosshair' : ''}`}
+        />
 
-
-          <div className="hidden md:block">
-            <GISCompass />
-          </div>
+        <div className="hidden md:block">
+          <GISCompass />
+        </div>
 
         <HoverTooltip
           hoveredFeature={hoveredFeature}
@@ -687,6 +878,37 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
+              {/* Added Points Layer */}
+              {addedPoints.length > 0 && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                      <span className="font-semibold text-green-800">Added Points</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs px-3 py-1 rounded-full bg-green-200/80 text-green-800">
+                        {addedPoints.length} points
+                      </span>
+                      <button
+                        onClick={() => setShowPointsList(true)}
+                        className="text-xs bg-blue-500 text-white px-2 py-1 rounded-lg hover:bg-blue-600"
+                        title="View all points"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={clearAllPoints}
+                        className="text-xs bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600"
+                        title="Clear all points"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {rasterLayerInfo && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200">
                   <div className="flex items-center justify-between mb-3">
@@ -694,7 +916,6 @@ const Maping: React.FC = () => {
                       <div className="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-purple-800">Raster Layer</span>
                     </div>
-
                   </div>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-gray-700 mb-2">
@@ -737,6 +958,20 @@ const Maping: React.FC = () => {
               </button>
 
               <button
+                onClick={toggleAddPointMode}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${isAddingPoint
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  }`}
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm font-medium">{isAddingPoint ? "Stop Adding" : "Add Point"}</span>
+              </button>
+
+              <button
                 onClick={() => {
                   setHoveredFeature(null);
                   selectInteractionRef.current?.getFeatures().clear();
@@ -748,6 +983,16 @@ const Maping: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 <span className="text-sm font-medium">Clear Selection</span>
+              </button>
+
+              <button
+                onClick={zoomToLayers}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <span className="text-sm font-medium">Zoom to Layers</span>
               </button>
 
               <button
@@ -769,7 +1014,6 @@ const Maping: React.FC = () => {
           </div>
         )}
 
-
         {legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
             <div className="flex justify-between items-center ">
@@ -783,13 +1027,13 @@ const Maping: React.FC = () => {
               width={100}
               height={100}
               onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
+              unoptimized
             />
           </div>
         )}
 
         {/* Coordinates */}
-         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
+        <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>
@@ -807,6 +1051,21 @@ const Maping: React.FC = () => {
             <button onClick={() => setError(null)} className="absolute right-2 top-2 text-red-400 hover:text-red-600">×</button>
           </div>
         )}
+
+        {/* Add Point Modal */}
+        <AddPointModal
+          isOpen={showPointModal}
+          pendingPoint={pendingPoint}
+          pointName={pointName}
+          pointDescription={pointDescription}
+          onPointNameChange={setPointName}
+          onPointDescriptionChange={setPointDescription}
+          onSave={savePoint}
+          onCancel={cancelPoint}
+        />
+
+        {/* Points List Modal */}
+      
       </div>
     </div>
   );
