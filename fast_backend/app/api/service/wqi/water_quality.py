@@ -465,7 +465,6 @@ def celery_concentration_Index(self,raster_detail:dict):
             }
 
 
-
 @app.task(bind=True,name='start_Concentration_Index')
 def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
     CI_raster=[]
@@ -490,15 +489,9 @@ def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
 
 
 
-@app.task(bind=True,name='start_weight_raster')
-def start_weight_raster(self,result:list):
-    print("weight ans ******")
-    print(result)
-    pass
-
 @app.task(bind=True,name='celery_rank_raster')
-def celery_rank_raster(self,result:dict):
-    with rasterio.open(result["CI_raster"]) as src:
+def celery_rank_raster(self,raster_detail:dict):
+    with rasterio.open(raster_detail["CI_raster"]) as src:
         ci_array = src.read(1)
         profile = src.profile
         valid_mask = ~np.isnan(ci_array) & np.isfinite(ci_array)
@@ -506,7 +499,7 @@ def celery_rank_raster(self,result:dict):
         valid_ci = ci_array[valid_mask]
         rank[valid_mask] = 0.5 * (valid_ci ** 2) + 4.5 * valid_ci + 5
         rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
-        base, ext = os.path.splitext(result["CI_raster"])
+        base, ext = os.path.splitext(raster_detail["CI_raster"])
         rank_raster_path = f"{base}_rank{ext}"
         profile.update(
                 dtype=rasterio.float32,
@@ -514,11 +507,11 @@ def celery_rank_raster(self,result:dict):
                 compress="lzw"
             )
         with rasterio.open(rank_raster_path, "w", **profile) as dst:
-            dst.write(result.astype(np.float32), 1)
+            dst.write(rank.astype(np.float32), 1)
         return {
-                "parameter":result["parameter"],
+                "parameter":raster_detail["parameter"],
                 "Rank_raster":rank_raster_path,
-                "threshold_bool":result["threshold_bool"]    
+                "threshold_bool":raster_detail["threshold_bool"]    
         }
 
 
@@ -544,3 +537,57 @@ def start_rank_raster(self,result,*args, **kwargs):
     ) 
         
 
+@app.task(bind=True,name='start_weight_raster')
+def start_weight_raster(self,result:list):
+    weight_rank=[]
+    for i in result:
+        with rasterio.open(i["Rank_raster"]) as src:
+            p_array = src.read(1, masked=True).filled(np.nan)
+            mean_val = np.nanmean(p_array)
+
+            weight = mean_val + 2 if i["threshold_bool"] else mean_val
+            weight_rank.append({
+                "parameter": i["parameter"],
+                "weight": float(weight)
+            })
+    weighted_arrays = []
+    meta = None
+    weight_map = {w["parameter"]: w["weight"] for w in weight_rank}
+    for i in result:
+            param = i["parameter"]
+            if param not in weight_map:
+                continue
+
+            with rasterio.open(i["Rank_raster"]) as src:
+                array = src.read(1).astype(float)
+                weight_val = weight_map[param]
+                weighted_array = array * weight_val
+                weighted_arrays.append(weighted_array)
+
+             
+                if meta is None:
+                    meta = src.meta.copy()
+
+      
+    if not weighted_arrays:
+        return None
+    num_params = len(weighted_arrays)
+    print(num_params)
+    final_overlay = np.sum(weighted_arrays, axis=0) / num_params
+
+    final_overlay = 100 - final_overlay
+
+    min_val = np.nanmin(final_overlay)
+    max_val = np.nanmax(final_overlay)
+
+    if max_val != min_val:  # avoid division by zero
+        final_overlay = (final_overlay - min_val) / (max_val - min_val)
+    else:
+        final_overlay[:] = 0
+    output_dir = Settings().TEMP_DIR
+    file_name=Unique_name.unique_name_with_ext(name="overlay",extension="tif")
+    output_path = os.path.join(output_dir, file_name)
+
+    meta.update(dtype=rasterio.float32, count=1)
+    with rasterio.open(output_path, "w", **meta) as dst:
+        dst.write(final_overlay.astype(rasterio.float32), 1)

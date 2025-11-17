@@ -9,5 +9,8 @@ from app.api.service.wqi.water_quality import (
     start_Interpolation,
     celery_concentration_Index,
     celery_start_Interpolation,
-    start_rank_raster
+    start_rank_raster,
+    celery_rank_raster,
+    start_weight_raster,
+    
 )
