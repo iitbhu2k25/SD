@@ -3,7 +3,6 @@ from typing import List
 from app.database.config.dependency import db_dependency
 from app.api.schema.wqi import Well_input,Well_response,WQIOperation
 from app.api.service.wqi.water_quality import WQ_Index
-from app.api.service.celery.celery_task import calculate_GWQI
 from app.database.crud.gwpz_crud import WQI_threshold
 router=APIRouter()
 

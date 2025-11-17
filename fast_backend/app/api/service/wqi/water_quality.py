@@ -331,22 +331,20 @@ class WQ_Index:
         return output_path
     
     def calculate_GWQI(self,db:session,payload:WQIOperation):
+
         output_folder=self.get_output_path()
         file_id=Unique_name.unique_name_with_ext("gwi_data","json")
         temp_path=output_folder / file_id
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
 
-        task_id=calculate_GWQI.delay(output_folder=str(output_folder),payload_path=str(temp_path))
-        # return task_id
-        # json_path=self.output
-        # save in temp folkder json
-        # send the husge data in celery 
+        task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path))
 
 
 
-@app.task(bind=True,name='GQT_Interpolation')
-def start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float):
+
+@app.task(bind=True,name='celery_start_Interpolation')
+def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float):
     df = pd.read_json(StringIO(df_json), orient="records")
     wqi_obj=WQ_Index()
     
@@ -386,7 +384,6 @@ def start_Interpolation(self, output_folder:str,param: str, df_json: str, thresh
         dst.update_tags(PARAMETER=param, METHOD='IDW_cKDTree', WELLS=str(len(values)))
 
     v = Z_4326[~np.isnan(Z_4326)]
-    print(f"[✓] {param} done")
     return {
         'parameter': param,
         'output_path': str(path),
@@ -397,12 +394,11 @@ def start_Interpolation(self, output_folder:str,param: str, df_json: str, thresh
     }
 
 
-
-@app.task(bind=True,name='ground_water_task')
-def calculate_GWQI(self,output_folder:str,payload_path:str):
+@app.task(bind=True,name='start_Interpolation')
+def start_Interpolation(self,output_folder:str,payload_path:str):
     wqi_obj=WQ_Index()
     df_json=wqi_obj._correct_pandas(payload_path)
-    df = pd.read_json(df_json, orient="records")
+    df = pd.read_json(StringIO(df_json), orient="records")
     df_columns = set(df.columns)
     with PostgresDb().session() as session:
         thresholds = WQI_threshold(session).get_threshold()
@@ -411,15 +407,10 @@ def calculate_GWQI(self,output_folder:str,payload_path:str):
         for t in thresholds
         if t.parameter in df_columns
     }
-    raster_INP=[]
-    
     selected_parameters=df.drop(columns=['Longitude','Latitude'])
-
-    print("selected_parameters",selected_parameters.columns.to_list())
-
     df_json = df.to_json(orient="records")
     interpolation_group = group(
-        start_Interpolation.s(
+        celery_start_Interpolation.s(
             output_folder=output_folder,
             param=param,
             df_json=df_json,
@@ -428,9 +419,8 @@ def calculate_GWQI(self,output_folder:str,payload_path:str):
         for param in selected_parameters
     )
     job = chord(interpolation_group)(
-        celery_Concentration_Index.s(
+        start_Concentration_Index.s(
             threshold=parameter_thresholds,
-            output_folder=output_folder
         )
     )
     # print(result)
@@ -441,14 +431,116 @@ def calculate_GWQI(self,output_folder:str,payload_path:str):
     # print("overlay",overlay)
 
 
-@app.task(bind=True,name='GQT_Concentration_Index')
-def start_concentration_Index(self,output_folder:str,threshold:float):
+@app.task(bind=True,name='celery_concentration_Index')
+def celery_concentration_Index(self,raster_detail:dict):
+    with rasterio.open(raster_detail["P_raster"]) as src:
+        p_array = src.read(1)
+        profile = src.profile
+        if hasattr(p_array, 'mask'):
+            valid_mask = ~p_array.mask
+            p_array = p_array.data
+        else:
+            valid_mask = np.isfinite(p_array) & (p_array > 0)
+        numerator = p_array - raster_detail["threshold"]
+        denominator = p_array + raster_detail["threshold"]
+        ci = np.full_like(p_array, np.nan, dtype=np.float32)
+        calc_mask = valid_mask & (denominator != 0)
+        ci[calc_mask] = numerator[calc_mask] / denominator[calc_mask]
+        ci = np.clip(ci, -1, 1)
+        base, ext = os.path.splitext(raster_detail["P_raster"])
+        ci_raster_path = f"{base}_ci{ext}"
+        profile.update(
+            dtype=rasterio.float32,
+            count=1,
+            compress="lzw"
+        )
+
+        # Write the CI raster
+        with rasterio.open(ci_raster_path, "w", **profile) as dst:
+            dst.write(ci.astype(np.float32), 1)
+            return{
+                "parameter":raster_detail["parameter"],
+                "CI_raster":ci_raster_path,
+                "threshold_bool":raster_detail["threshold_bool"]  
+            }
+
+
+
+@app.task(bind=True,name='start_Concentration_Index')
+def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
+    CI_raster=[]
+    for i in result:
+        CI_raster.append(
+            {
+            "parameter":i["parameter"],
+            "P_raster":i["output_path"],
+            "threshold":threshold.get(i['parameter']),
+            "threshold_bool":i["threshold_bool"]  
+            }
+    )
+    ci_group = group(
+        celery_concentration_Index.s(
+            raster_detail=raster_details
+        )
+        for raster_details in CI_raster
+    )
+    job = chord(ci_group)(
+        start_rank_raster.s()
+    )
+
+
+
+@app.task(bind=True,name='start_weight_raster')
+def start_weight_raster(self,result:list):
+    print("weight ans ******")
+    print(result)
     pass
 
-@app.task(bind=True,name='celery_single_CI')
-def celery_Concentration_Index(self,result,threshold:list,output_folder:str,*args, **kwargs):
-    print("celery_Concentration_Index")
-    print("result",result)
+@app.task(bind=True,name='celery_rank_raster')
+def celery_rank_raster(self,result:dict):
+    with rasterio.open(result["CI_raster"]) as src:
+        ci_array = src.read(1)
+        profile = src.profile
+        valid_mask = ~np.isnan(ci_array) & np.isfinite(ci_array)
+        rank = np.full_like(ci_array, np.nan, dtype=np.float32)
+        valid_ci = ci_array[valid_mask]
+        rank[valid_mask] = 0.5 * (valid_ci ** 2) + 4.5 * valid_ci + 5
+        rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
+        base, ext = os.path.splitext(result["CI_raster"])
+        rank_raster_path = f"{base}_rank{ext}"
+        profile.update(
+                dtype=rasterio.float32,
+                count=1,
+                compress="lzw"
+            )
+        with rasterio.open(rank_raster_path, "w", **profile) as dst:
+            dst.write(result.astype(np.float32), 1)
+        return {
+                "parameter":result["parameter"],
+                "Rank_raster":rank_raster_path,
+                "threshold_bool":result["threshold_bool"]    
+        }
 
+
+@app.task(bind=True,name='start_rank_raster')  
+def start_rank_raster(self,result,*args, **kwargs):
+    rank_raster=[]
+    for i in result:
+        rank_raster.append(
+            {
+            "parameter":i["parameter"],
+            "CI_raster":i["CI_raster"],
+            "threshold_bool":i["threshold_bool"]  
+            }
+    )
+    rank_group = group(
+        celery_rank_raster.s(
+            raster_detail=raster_details
+        )
+        for raster_details in rank_raster
+    )
+    job = chord(rank_group)(
+        start_weight_raster.s()
+    ) 
         
 

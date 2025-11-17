@@ -4,4 +4,10 @@ from app.api.service.celery.stp_suitability_admin_report import document_gen2
 from app.api.service.celery.stp_suitability_drain_report import document_gen3
 from app.api.service.celery.gwz_admin_document  import document_gen4
 from app.api.service.celery.gwz_drain_document  import document_gen5
-from app.api.service.wqi.water_quality import calculate_GWQI,start_Interpolation,celery_Concentration_Index
+from app.api.service.wqi.water_quality import (
+    start_Concentration_Index,
+    start_Interpolation,
+    celery_concentration_Index,
+    celery_start_Interpolation,
+    start_rank_raster
+)
