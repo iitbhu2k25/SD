@@ -6,7 +6,6 @@ from sqlalchemy.orm import session
 from app.database.crud.gwpz_crud import WQI,WQI_threshold
 import os
 import json
-
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 import numpy as np
@@ -213,7 +212,7 @@ class WQ_Index:
             json.dump(payload.model_dump(), f, default=str)
 
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path))
-        redis_client.setex(f"{task_id.id}:output", 3600, "start")
+        redis_client.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
         return task_id.id
 
 wqi_obj=WQ_Index()
@@ -261,7 +260,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
 
     #using the redis and celery for update the status
     unq_name= os.path.splitext(os.path.basename(str(path)))[0]
-    redis_client.hset(f"{self.request.root_id}:output",mapping={param : unq_name})
+    redis_client.hset(self.request.root_id+"_Result", mapping={param: unq_name})
 
     return {
         'parameter': param,
@@ -336,6 +335,7 @@ def celery_concentration_Index(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_Concentration_Index')
 def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
+    redis_client.setex("self.request.root_id", 3600,"finish interpolation")
     CI_raster=[]
     for i in result:
         CI_raster.append(
@@ -382,6 +382,7 @@ def celery_rank_raster(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_rank_raster')  
 def start_rank_raster(self,result,*args, **kwargs):
+    redis_client.setex("self.request.root_id", 3600,"finish Ranking")
     rank_raster=[]
     for i in result:
         rank_raster.append(
@@ -404,6 +405,7 @@ def start_rank_raster(self,result,*args, **kwargs):
 
 @app.task(bind=True,name='start_weight_raster')
 def start_weight_raster(self,result:list):
+    redis_client.setex("self.request.root_id", 3600,"overlay started")
     weight_rank=[]
     output_path=result[0]["Rank_raster"]
     for i in result:
@@ -453,4 +455,5 @@ def start_weight_raster(self,result:list):
     meta.update(dtype=rasterio.float32, count=1)
     ans=wqi_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
     unq_name= os.path.splitext(os.path.basename(str(ans)))[0]
-    redis_client.setex(f"{self.request.root_id}:output", 3600, "done")
+    redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":unq_name})
+    redis_client.setex(self.request.root_id, 3600, "Done")
