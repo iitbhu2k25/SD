@@ -114,9 +114,10 @@ class WQ_Index:
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
     
-    def _save_raster(self,profile,raster_path:str,result:np.ndarray,ext:str):
-        base, _ = os.path.splitext(raster_path)
-        new_raster_path = f"{base}_{ext}.tif"
+    def _save_raster(self,profile,raster_path:str,result:np.ndarray,raster_name:str):
+        folder_path = os.path.dirname(raster_path)
+        name = Unique_name.unique_name_with_ext(name=raster_name,extension="tif")
+        new_raster_path = f"{folder_path}/{name}"
         with rasterio.open(new_raster_path, "w", **profile) as dst:
             dst.write(result.astype(np.float32), 1)
         return new_raster_path
@@ -199,131 +200,8 @@ class WQ_Index:
         proj_transform = from_origin(minx, maxy, self.idw_cell_size , self.idw_cell_size )
         return cols,rows,coords_xy_utm,proj_transform
 
-   
-    def __calculate_index(self,p_array, threshold):
-        if hasattr(p_array, 'mask'):
-            valid_mask = ~p_array.mask
-            p_array = p_array.data
-        else:
-            valid_mask = np.isfinite(p_array) & (p_array > 0)
 
-        numerator = p_array - threshold
-        denominator = p_array + threshold
-        ci = np.full_like(p_array, np.nan, dtype=np.float32)
-        calc_mask = valid_mask & (denominator != 0)
-        ci[calc_mask] = numerator[calc_mask] / denominator[calc_mask]
-        ci = np.clip(ci, -1, 1)
-        return ci
-
-    def __calculate_ranking(self, ci_array):
-        valid_mask = ~np.isnan(ci_array) & np.isfinite(ci_array)
-        rank = np.full_like(ci_array, np.nan, dtype=np.float32)
-        valid_ci = ci_array[valid_mask]
-        rank[valid_mask] = 0.5 * (valid_ci ** 2) + 4.5 * valid_ci + 5
-        rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
-        return rank
-    
-    def _calulate_concentration_index(self, arr:list,threshold:float):
-        CI_raster=[]
-        rank_raster=[]
-        for i in arr:
-            CI_raster.append(
-                {
-                "parameter":i["parameter"],
-                "P_raster":i["output_path"],
-                "threshold":threshold,
-                "threshold_bool":i["threshold_bool"]  
-                }
-            )
-        for i in CI_raster:
-            with rasterio.open(i["P_raster"]) as src:
-                p_array = src.read(1)
-                profile = src.profile
-            result = self.__calculate_index(p_array, i["threshold"])
-
-            profile.update(
-                dtype=rasterio.float32,
-                count=1,
-                compress="lzw"
-            )
-            ci_raster_path=self._save_raster(profile,i["P_raster"],result,"CI")
-            rank_raster.append({
-                "parameter":i["parameter"],
-                "CI_raster":ci_raster_path,
-                "threshold_bool":i["threshold_bool"]  
-            })
-        return rank_raster
-
-    def _calcluate_ranking_raster(self,arr):
-        rank_raster=[]
-        for i in arr:
-            with rasterio.open(i["CI_raster"]) as src:
-                p_array = src.read(1)
-                profile = src.profile
-            result=self.__calculate_ranking(p_array)
-            profile.update(
-                dtype=rasterio.float32,
-                count=1,
-                compress="lzw"
-            )
-            rank_raster_path=self._save_raster(profile,i["CI_raster"],result,"Rank")
-            rank_raster.append({
-                "parameter":i["parameter"],
-                "Rank_raster":rank_raster_path,
-                "threshold_bool":i["threshold_bool"]    
-            })
-        return rank_raster
-    
-    def _find_weight(self,arr):
-        weight_rank=[]
-        for i in arr:
-            with rasterio.open(i["Rank_raster"]) as src:
-                p_array = src.read(1, masked=True).filled(np.nan)
-                mean_val = np.nanmean(p_array)
-
-                weight = mean_val + 2 if i["threshold_bool"] else mean_val
-                weight_rank.append({
-                    "parameter": i["parameter"],
-                    "weight": float(weight)
-                })
-        return weight_rank
-    
-    def _overlay(self, rank, weight):
-        weighted_arrays = []
-        meta = None
-        weight_map = {w["parameter"]: w["weight"] for w in weight}
-        for i in rank:
-            param = i["parameter"]
-            if param not in weight_map:
-                continue
-            with rasterio.open(i["Rank_raster"]) as src:
-                array = src.read(1).astype(float)
-                weight_val = weight_map[param]
-                weighted_array = array * weight_val
-                weighted_arrays.append(weighted_array)
-                if meta is None:
-                    meta = src.meta.copy()
-
-        if not weighted_arrays:
-            return None
-
-        num_params = len(weighted_arrays)
-        final_overlay = np.sum(weighted_arrays, axis=0) / num_params
-
-        final_overlay = 100 - final_overlay
-
-        min_val = np.nanmin(final_overlay)
-        max_val = np.nanmax(final_overlay)
-
-        if max_val != min_val: 
-            final_overlay = (final_overlay - min_val) / (max_val - min_val + 1e-6)
-        else:
-            final_overlay[:] = 0
-        output_path = os.path.join(self.output, f"GWI{uuid.uuid4()}.tif")
-        meta.update(dtype=rasterio.float32, count=1)
-        with rasterio.open(output_path, "w", **meta) as dst:
-            dst.write(final_overlay.astype(rasterio.float32), 1)
-        return output_path
+        
     def get_output_path(self):
         unique_name=Unique_name().unique_name('wqi')
         output_path=Path(Settings().TEMP_DIR,unique_name)
@@ -331,7 +209,6 @@ class WQ_Index:
         return output_path
     
     def calculate_GWQI(self,db:session,payload:WQIOperation):
-
         output_folder=self.get_output_path()
         file_id=Unique_name.unique_name_with_ext("gwi_data","json")
         temp_path=output_folder / file_id
@@ -339,15 +216,14 @@ class WQ_Index:
             json.dump(payload.model_dump(), f, default=str)
 
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path))
+        return task_id.id
 
-
+wqi_obj=WQ_Index()
 
 
 @app.task(bind=True,name='celery_start_Interpolation')
 def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float):
     df = pd.read_json(StringIO(df_json), orient="records")
-    wqi_obj=WQ_Index()
-    
     if param not in df.columns:
         raise HTTPException(status_code=400, detail=f"Parameter '{param}' not found")
 
@@ -384,6 +260,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
         dst.update_tags(PARAMETER=param, METHOD='IDW_cKDTree', WELLS=str(len(values)))
 
     v = Z_4326[~np.isnan(Z_4326)]
+    print("ppp",self.request.root_id )
     return {
         'parameter': param,
         'output_path': str(path),
@@ -396,7 +273,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
 
 @app.task(bind=True,name='start_Interpolation')
 def start_Interpolation(self,output_folder:str,payload_path:str):
-    wqi_obj=WQ_Index()
+
     df_json=wqi_obj._correct_pandas(payload_path)
     df = pd.read_json(StringIO(df_json), orient="records")
     df_columns = set(df.columns)
@@ -423,13 +300,8 @@ def start_Interpolation(self,output_folder:str,payload_path:str):
             threshold=parameter_thresholds,
         )
     )
-    # print(result)
-    # result_CI=self._calulate_concentration_index(result,parameter_thresholds)
-    # result_rank=self._calcluate_ranking_raster(result_CI)
-    # result_weight=self._find_weight(result_rank)
-    # overlay=self._overlay(result_rank,result_weight)
-    # print("overlay",overlay)
 
+   
 
 @app.task(bind=True,name='celery_concentration_Index')
 def celery_concentration_Index(self,raster_detail:dict):
@@ -447,22 +319,17 @@ def celery_concentration_Index(self,raster_detail:dict):
         calc_mask = valid_mask & (denominator != 0)
         ci[calc_mask] = numerator[calc_mask] / denominator[calc_mask]
         ci = np.clip(ci, -1, 1)
-        base, ext = os.path.splitext(raster_detail["P_raster"])
-        ci_raster_path = f"{base}_ci{ext}"
         profile.update(
             dtype=rasterio.float32,
             count=1,
             compress="lzw"
         )
-
-        # Write the CI raster
-        with rasterio.open(ci_raster_path, "w", **profile) as dst:
-            dst.write(ci.astype(np.float32), 1)
-            return{
-                "parameter":raster_detail["parameter"],
-                "CI_raster":ci_raster_path,
-                "threshold_bool":raster_detail["threshold_bool"]  
-            }
+        ci_raster_path =wqi_obj._save_raster(profile=profile,raster_path=raster_detail["P_raster"],result=ci,raster_name=raster_detail["parameter"]+"_CI")
+        return{
+            "parameter":raster_detail["parameter"],
+            "CI_raster":ci_raster_path,
+            "threshold_bool":raster_detail["threshold_bool"]  
+        }
 
 
 @app.task(bind=True,name='start_Concentration_Index')
@@ -488,7 +355,6 @@ def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
     )
 
 
-
 @app.task(bind=True,name='celery_rank_raster')
 def celery_rank_raster(self,raster_detail:dict):
     with rasterio.open(raster_detail["CI_raster"]) as src:
@@ -499,15 +365,12 @@ def celery_rank_raster(self,raster_detail:dict):
         valid_ci = ci_array[valid_mask]
         rank[valid_mask] = 0.5 * (valid_ci ** 2) + 4.5 * valid_ci + 5
         rank[valid_mask] = np.clip(rank[valid_mask], 1, 10)
-        base, ext = os.path.splitext(raster_detail["CI_raster"])
-        rank_raster_path = f"{base}_rank{ext}"
         profile.update(
                 dtype=rasterio.float32,
                 count=1,
                 compress="lzw"
             )
-        with rasterio.open(rank_raster_path, "w", **profile) as dst:
-            dst.write(rank.astype(np.float32), 1)
+        rank_raster_path = wqi_obj._save_raster(profile=profile,raster_path=raster_detail["CI_raster"],result=rank,raster_name=raster_detail["parameter"]+"_Rank")
         return {
                 "parameter":raster_detail["parameter"],
                 "Rank_raster":rank_raster_path,
@@ -540,6 +403,7 @@ def start_rank_raster(self,result,*args, **kwargs):
 @app.task(bind=True,name='start_weight_raster')
 def start_weight_raster(self,result:list):
     weight_rank=[]
+    output_path=result[0]["Rank_raster"]
     for i in result:
         with rasterio.open(i["Rank_raster"]) as src:
             p_array = src.read(1, masked=True).filled(np.nan)
@@ -584,10 +448,7 @@ def start_weight_raster(self,result:list):
         final_overlay = (final_overlay - min_val) / (max_val - min_val)
     else:
         final_overlay[:] = 0
-    output_dir = Settings().TEMP_DIR
-    file_name=Unique_name.unique_name_with_ext(name="overlay",extension="tif")
-    output_path = os.path.join(output_dir, file_name)
 
     meta.update(dtype=rasterio.float32, count=1)
-    with rasterio.open(output_path, "w", **meta) as dst:
-        dst.write(final_overlay.astype(rasterio.float32), 1)
+    ans=wqi_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
+    print("ppp overweight",self.request.root_id)
