@@ -144,6 +144,7 @@ export const Village_columns: TableColumn<DataRow>[] = [
 ];
 
 
+
 export interface WQIInterface {
   Hardness: number;
   Latitude: number;

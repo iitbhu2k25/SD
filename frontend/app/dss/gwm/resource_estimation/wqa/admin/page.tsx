@@ -8,15 +8,12 @@ import WholeLoading from "@/components/app_layout/newLoading";
 import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
 import MapView from "@/app/dss/gwm/resource_estimation/wqa/admin/components/openlayer";
 import { useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
-import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { downloadCSV } from "@/components/utils/downloadCsv";
-import DataTable from "react-data-table-component";
-import { WQIInterface, WQI_columns } from "@/interface/table";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { YearProvider, useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
 import YearSelector from "@/app/dss/gwm/resource_estimation/wqa/admin/components/year";
 import MultiSelectButtons from "@/app/dss/gwm/resource_estimation/wqa/admin/components/Params";
+import WQIDataTable from "@/components/utils/dataTable"
 
 const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
@@ -87,18 +84,11 @@ const MainContent = () => {
           )}
           {wqi_data && wqi_data.length > 0 && (
             <div className="animate-fadeIn">
-              <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <section className="p-2 bg-gray-50 rounded-lg border border-gray-200">
                 <h3 className="text-lg font-medium text-gray-800 mb-2">
                   Well Points
                 </h3>
-                <DataTable
-                  columns={WQI_columns}
-                  data={wqi_data}
-                  pagination
-                  responsive
-                  paginationPerPage={5}
-                  paginationRowsPerPageOptions={[5, 10]}
-                />
+                <WQIDataTable initialData={wqi_data}/>
               </section>
             </div>
           )}

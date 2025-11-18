@@ -28,7 +28,9 @@ import { useMap } from "@/contexts/water_quality_assesment/admin/MapContext";
 import { useLocation } from "@/contexts/water_quality_assesment/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
+import { useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
 import AddPointModal from "./coordinate";
+import { WQIInterface } from "@/interface/table";
 
 
 
@@ -59,12 +61,40 @@ const Maping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isAddingPoint, setIsAddingPoint] = useState(false);
+
   const [addedPoints, setAddedPoints] = useState<any[]>([]);
   const [showPointModal, setShowPointModal] = useState(false);
-  const [pendingPoint, setPendingPoint] = useState<any>(null);
-  const [pointName, setPointName] = useState("");
-  const [pointDescription, setPointDescription] = useState("");
+  const [pendingPoint, setPendingPoint] = useState<{
+    id: number;
+    coordinate: [number, number];
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [showPointsList, setShowPointsList] = useState(false);
+  const [formData, setFormData] = useState<WQIInterface>({
+    Hardness: 0,
+    Latitude: 0,
+    Longitude: 0,
+    Location: "",
+    Arsenic: 0,
+    Bicarbonate: 0,
+    Calcium: 0,
+    Carbonate: 0,
+    Chloride: 0,
+    Electrical_Conductivity: 0,
+    Fluoride: 0,
+    Iron: 0,
+    Magnesium: 0,
+    Nitrate: 0,
+    pH_Level: 7,
+    Potassium: 0,
+    Sodium: 0,
+    Sulfate: 0,
+    Uranium: 0,
+    Year: new Date().getFullYear(),
+  });
+
+  const { setWqiData, wqi_data } = useYear();
 
   // Context hooks
   const { displayRaster, setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
@@ -113,59 +143,104 @@ const Maping: React.FC = () => {
     }
   };
 
-  // Clear all added points
+
   const clearAllPoints = () => {
-    if (pointsLayerRef.current) {
-      const source = pointsLayerRef.current.getSource();
-      if (source) {
-        source.clear();
-      }
+  if (pointsLayerRef.current) {
+    const source = pointsLayerRef.current.getSource();
+    if (source) {
+      source.clear();
     }
-    setAddedPoints([]);
-  };
+  }
+  setAddedPoints([]);
+  setWqiData(null); // Also clear the global state
+};
 
   // Save point with user details
   const savePoint = () => {
-    if (!pendingPoint) return;
+    if (!pendingPoint || wqi_data == null) return;
 
-    const pointData = {
-      ...pendingPoint,
-      name: pointName || `Point ${pendingPoint.id}`,
-      description: pointDescription
-    };
-
-    // Create a new point feature
-    const pointFeature = new Feature({
-      geometry: new Point(pendingPoint.coordinate),
-      pointData: pointData
-    });
-
-    // Add to the points layer
-    if (pointsLayerRef.current) {
-      const source = pointsLayerRef.current.getSource();
-      if (source) {
-        source.addFeature(pointFeature);
-      }
+    // Validate required fields
+    if (!formData.Location.trim()) {
+      alert("Please enter a location name");
+      return;
     }
 
-    // Update state
-    setAddedPoints(prev => [...prev, pointData]);
+    const finalData: WQIInterface = {
+      ...formData,
+      Latitude: pendingPoint.latitude,
+      Longitude: pendingPoint.longitude,
+    };
 
-    console.log('Point added:', pointData);
+    const pointFeature = new Feature({
+      geometry: new Point(pendingPoint.coordinate),
+      pointData: {
+        id: wqi_data.length + 1, // Use wqi_data length for consistent ID
+        name: formData.Location,
+        ...finalData
+      },
+      wqiData: finalData,
+    });
 
-    // Reset modal
-    setShowPointModal(false);
+    if (pointsLayerRef.current) {
+      pointsLayerRef.current.getSource()?.addFeature(pointFeature);
+    }
+
+    // Store in added points array
+    setAddedPoints(prev => [...prev, {
+      id: pendingPoint.id,
+      name: formData.Location,
+      coordinate: pendingPoint.coordinate,
+      latitude: pendingPoint.latitude,
+      longitude: pendingPoint.longitude,
+      ...finalData
+    }]);
+
+
+    setWqiData((prev) => [...prev, finalData]);
+
+    console.log("WQI Point Saved:", finalData);
+
+    // Reset form and close modal
+    setFormData({
+      Hardness: 0,
+      Latitude: 0,
+      Longitude: 0,
+      Location: "",
+      Arsenic: 0,
+      Bicarbonate: 0,
+      Calcium: 0,
+      Carbonate: 0,
+      Chloride: 0,
+      Electrical_Conductivity: 0,
+      Fluoride: 0,
+      Iron: 0,
+      Magnesium: 0,
+      Nitrate: 0,
+      pH_Level: 7,
+      Potassium: 0,
+      Sodium: 0,
+      Sulfate: 0,
+      Uranium: 0,
+      Year: new Date().getFullYear(),
+    });
     setPendingPoint(null);
-    setPointName("");
-    setPointDescription("");
+    setShowPointModal(false);
+    setIsAddingPoint(false); // Exit add point mode after saving
   };
 
+  useEffect(() => {
+    if (pendingPoint) {
+      setFormData(prev => ({
+        ...prev,
+        Latitude: pendingPoint.latitude,
+        Longitude: pendingPoint.longitude,
+      }));
+    }
+  }, [pendingPoint]);
   // Cancel adding point
   const cancelPoint = () => {
     setShowPointModal(false);
     setPendingPoint(null);
-    setPointName("");
-    setPointDescription("");
   };
 
   // Zoom to fit all layers
@@ -245,7 +320,7 @@ const Maping: React.FC = () => {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
     const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
+    const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME") || feature.get("Location");
     const styles = [];
 
     const color = isSecondary ? "#5E1520" : "#3b82f6";
@@ -290,7 +365,43 @@ const Maping: React.FC = () => {
 
     return styles;
   };
+  useEffect(() => {
+    if (!mapInstanceRef.current || !pointsLayerRef.current) return;
 
+    const source = pointsLayerRef.current.getSource();
+    if (!source) return;
+
+    // Clear existing features first
+    source.clear();
+
+
+    wqi_data?.forEach((data, index) => {
+      const coordinate = fromLonLat([data.Longitude, data.Latitude]);
+      const pointFeature = new Feature({
+        geometry: new Point(coordinate),
+        pointData: {
+          id: index + 1,
+          name: data.Location,
+          ...data
+        },
+        wqiData: data,
+      });
+
+      source.addFeature(pointFeature);
+    });
+
+    // Update addedPoints state to match
+    const mappedPoints = wqi_data?.map((data, index) => ({
+      id: index + 1,
+      name: data.Location,
+      coordinate: fromLonLat([data.Longitude, data.Latitude]),
+      latitude: data.Latitude,
+      longitude: data.Longitude,
+      ...data
+    }));
+
+    setAddedPoints(mappedPoints || []);
+  }, [wqi_data]);
   // Style for added points
   const createPointStyle = (pointData: any) => {
     return new Style({
@@ -330,18 +441,17 @@ const Maping: React.FC = () => {
 
       const coordinate = event.coordinate;
       const lonLat = toLonLat(coordinate);
-      
+
       const pointId = addedPoints.length + 1;
-      
+
       // Store pending point data and show modal
       setPendingPoint({
         id: pointId,
         coordinate: coordinate,
         longitude: lonLat[0],
         latitude: lonLat[1],
-        timestamp: new Date().toISOString()
       });
-      
+
       setShowPointModal(true);
     };
 
@@ -375,7 +485,7 @@ const Maping: React.FC = () => {
         projection: "EPSG:4326",
         className: "custom-mouse-position",
         target: document.getElementById("mouse-position") as HTMLElement,
-       
+
       }),
       new ZoomSlider(),
       new ZoomToExtent({
@@ -407,7 +517,7 @@ const Maping: React.FC = () => {
       zIndex: 10,
       style: (feature) => createPointStyle(feature.get('pointData'))
     });
-    
+
     map.addLayer(pointsLayer);
     pointsLayerRef.current = pointsLayer;
 
@@ -696,8 +806,8 @@ const Maping: React.FC = () => {
     <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
         {/* The Map */}
-        <div 
-          ref={mapRef} 
+        <div
+          ref={mapRef}
           className={`w-full h-full bg-blue-50 ${isAddingPoint ? 'cursor-crosshair' : ''}`}
         />
 
@@ -1056,16 +1166,14 @@ const Maping: React.FC = () => {
         <AddPointModal
           isOpen={showPointModal}
           pendingPoint={pendingPoint}
-          pointName={pointName}
-          pointDescription={pointDescription}
-          onPointNameChange={setPointName}
-          onPointDescriptionChange={setPointDescription}
+          formData={formData}
+          onFormChange={(updated) => setFormData(prev => ({ ...prev, ...updated }))}
           onSave={savePoint}
           onCancel={cancelPoint}
         />
 
         {/* Points List Modal */}
-      
+
       </div>
     </div>
   );
