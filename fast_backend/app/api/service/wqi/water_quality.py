@@ -252,8 +252,8 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
     
-    selected_area=wqi_obj.vector_work.get_basin().to_crs('EPSG:4326')
-    
+    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs("EPSG:4326")
+
 
     with MemoryFile() as memfile:
         with memfile.open(
@@ -269,8 +269,8 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
             # Perform mask/clip
             clipped_array, clipped_transform = mask(
                 tmp_ds,
-                selected_area.geometry,
                 crop=True,
+                shapes=selected_area.geometry,
                 nodata=np.nan,
                 filled=True
             )
