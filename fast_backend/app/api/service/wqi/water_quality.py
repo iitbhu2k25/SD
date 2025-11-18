@@ -181,7 +181,7 @@ class WQ_Index:
         coords_xy_utm = np.array([(geom.x, geom.y) for geom in points_utm.geometry], dtype=np.float64)
         
         
-        selected_area=self.vector_work.get_basin()
+        selected_area=self.vector_work.get_sub_village(clip=[990,991])
         bounds_original = selected_area.total_bounds
         selected_area_utm = selected_area.to_crs("EPSG:32644")
         bounds_utm = selected_area_utm.total_bounds
