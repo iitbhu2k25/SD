@@ -40,9 +40,9 @@ const MainContent = () => {
         visible={loading || isMapLoading || stpOperation || reportLoading}
         title={
           stpOperation
-            ? "Analyzing STP priorities"
+            ? "Analyzing Water quality"
             : reportLoading
-              ? "Generating report for STP priorities"
+              ? "Generating report"
               : "Loading Resources"
         }
         message={

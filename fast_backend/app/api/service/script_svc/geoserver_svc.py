@@ -135,7 +135,6 @@ def create_shapefile_store(workspace_name, store_name, geoserver_url):
 def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
     
     try:
-
         check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}"    
         check_response =geoserver_response(check_url)
         if check_response.status_code != 200:

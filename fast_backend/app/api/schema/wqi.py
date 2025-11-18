@@ -30,6 +30,7 @@ class Well_response(BaseModel):
 class WQIOperation(BaseModel):
     data:List[Well_response]
     params:List[str]
+    sub_dis:list
     @model_validator(mode="after")
     def inserting(self):
         self.params.extend(["Longitude", "Latitude"])

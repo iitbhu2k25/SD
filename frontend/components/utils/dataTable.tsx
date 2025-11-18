@@ -334,13 +334,7 @@ const WQIDataTable: React.FC<WQIDataTableProps> = ({ initialData = [] }) => {
                             </>
                           ) : (
                             <>
-                              <button
-                                onClick={() => handleView(index)}
-                                className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="View details in console"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
+                              
                               <button
                                 onClick={() => handleEdit(index)}
                                 className="inline-flex items-center justify-center p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"

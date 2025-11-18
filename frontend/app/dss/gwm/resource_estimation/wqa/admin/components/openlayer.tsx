@@ -145,15 +145,15 @@ const Maping: React.FC = () => {
 
 
   const clearAllPoints = () => {
-  if (pointsLayerRef.current) {
-    const source = pointsLayerRef.current.getSource();
-    if (source) {
-      source.clear();
+    if (pointsLayerRef.current) {
+      const source = pointsLayerRef.current.getSource();
+      if (source) {
+        source.clear();
+      }
     }
-  }
-  setAddedPoints([]);
-  setWqiData(null); // Also clear the global state
-};
+    setAddedPoints([]);
+    setWqiData(null); // Also clear the global state
+  };
 
   // Save point with user details
   const savePoint = () => {
@@ -196,7 +196,13 @@ const Maping: React.FC = () => {
     }]);
 
 
-    setWqiData((prev) => [...prev, finalData]);
+    setWqiData(prev => {
+      if (prev === null) {
+        return [finalData];
+      } else {
+        return [...prev, finalData];
+      }
+    });
 
     console.log("WQI Point Saved:", finalData);
 

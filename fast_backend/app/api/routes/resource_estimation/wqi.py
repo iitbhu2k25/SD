@@ -16,7 +16,7 @@ connection_manager=ConnectionManager()
 
 @router.get('/year',status_code=status.HTTP_201_CREATED)
 async def make_interpolation():
-    return [2015,2016,2017,2018,2019,2020,2021,2023,2024]
+    return [2018,2019,2020,2021,2022,2023,2024]
 
 @router.post('/wells',status_code=status.HTTP_201_CREATED,response_model=List[Well_response])
 async def get_well(db:db_dependency,payload:Well_input):
@@ -26,28 +26,24 @@ async def get_well(db:db_dependency,payload:Well_input):
 async def make_interpolation(db:db_dependency,payload:WQIOperation):
     return WQ_Index().calculate_GWQI(db,payload)
 
-import asyncio
-
 @router.websocket("/ws/{task_id}")
 async def groudwater_Interpolation(websocket: WebSocket, task_id: str):
     await connection_manager.connect(websocket)  
     try:
         while True:
-            data= redis_client.get(task_id)
-            if data == "null" or data is None:
+            data = redis_client.get(task_id)
+            if data is None or data == "null":
                 await websocket.send_json({"state": "NOT_FOUND"})
-                connection_manager.disconnect(websocket)
             elif data == "Done":
                 result = redis_client.hgetall(task_id + "_Result")
-                await websocket.send_json({"state": "DONE", "result": result})
-                connection_manager.disconnect(websocket)
+                await websocket.send_json({"state": "completed", "result": result})
+                break
             else:
+                # send current progress
                 await websocket.send_json({"state": data})
+
             await asyncio.sleep(1)
 
     except Exception as e:
-        await websocket.send_json({
-            "state": "ERROR",
-            "description": str(e)
-        })
+        await websocket.send_json({"state": "ERROR", "description": str(e)})
         connection_manager.disconnect(websocket)

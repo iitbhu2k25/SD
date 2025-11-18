@@ -23,7 +23,7 @@ export const DRAIN_LAYER_NAMES = {
 export interface ClipRasters{
   file_name:string;
   layer_name:string;
-  workspace:string;
+  workspace?:string;
 }
 
 export interface stp_priority_Output{

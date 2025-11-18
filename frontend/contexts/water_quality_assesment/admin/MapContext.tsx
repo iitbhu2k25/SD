@@ -2,10 +2,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/water_quality_assesment/admin/LocationContext';
 import { api } from '@/services/api';
-import { ClipRasters,stp_priority_Output } from '@/interface/raster_context';
+import { ClipRasters, stp_priority_Output } from '@/interface/raster_context';
 import { useYear } from './yearContext';
 import { ADMIN_LAYER_NAMES } from '@/interface/raster_context';
-
+import { useWebSocket } from "@/services/websocket";
+import { last } from 'lodash';
 // Type definitions for the context
 interface MapContextType {
   primaryLayer: string;
@@ -32,7 +33,7 @@ interface MapContextType {
   wmsDebugInfo: string | null;
   setWmsDebugInfo: (info: string | null) => void;
   selectedradioLayer: string | null;
-  setSelectedradioLayer: (layer: string | null) => void; 
+  setSelectedradioLayer: (layer: string | null) => void;
   showLayer: boolean;
   setShowLayer: (layer: boolean) => void;
   rasterLayerInfo: ClipRasters | null;
@@ -53,36 +54,36 @@ interface MapProviderProps {
 const MapContext = createContext<MapContextType>({
   primaryLayer: ADMIN_LAYER_NAMES.STATE,
   secondaryLayer: null,
-  LayerFilter:null,
-  LayerFilterValue :null,
+  LayerFilter: null,
+  LayerFilterValue: null,
   stpOperation: false,
-  setstpOperation: () => {},
-  setSecondaryLayer: () => {},
-  setPrimaryLayer: () => {},
-  syncLayersWithLocation: () => {},
+  setstpOperation: () => { },
+  setSecondaryLayer: () => { },
+  setPrimaryLayer: () => { },
+  syncLayersWithLocation: () => { },
   isMapLoading: false,
-  zoomToFeature: () => {},
-  resetMapView: () => {},
+  zoomToFeature: () => { },
+  resetMapView: () => { },
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
   ADMIN_LAYER_NAMES,
   loading: false,
-  setLoading: () => {},
+  setLoading: () => { },
   rasterLoading: false,
-  setRasterLoading: () => {},
+  setRasterLoading: () => { },
   error: null,
-  setError: () => {},
+  setError: () => { },
   wmsDebugInfo: null,
-  setWmsDebugInfo: () => {},
+  setWmsDebugInfo: () => { },
   selectedradioLayer: "",
-  setSelectedradioLayer: () => {},
+  setSelectedradioLayer: () => { },
   showLayer: true,
-  setShowLayer: () => {},
+  setShowLayer: () => { },
   rasterLayerInfo: null,
-  setRasterLayerInfo: () => {},
-  setShowLegend: () => {},
+  setRasterLayerInfo: () => { },
+  setShowLegend: () => { },
   showLegend: true,
-  handleLayerSelection: () => {},
+  handleLayerSelection: () => { },
 });
 
 // Create the provider component
@@ -94,7 +95,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
-  const [LayerFilter, setLayerFilter] = useState<string|null>(null);
+  const [LayerFilter, setLayerFilter] = useState<string | null>(null);
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
@@ -104,7 +105,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [showLegend, setShowLegend] = useState<boolean>(true);
-  const {wqi_data, selectedParam, qualityParam} = useYear();
+  const { wqi_data, selectedParam, qualityParam } = useYear();
 
   const {
     selectedState,
@@ -115,15 +116,50 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   } = useLocation();
 
- 
-  
+  function convertToClipRasters(data: Record<string, string>): ClipRasters[] {
+  return Object.entries(data).map(([key, value]) => ({
+    file_name: key,
+    layer_name: value,
+  }));
+}
+
+
+  const [activeTaskId, setActiveTaskId] = useState("");
+
+  const wsUrl = activeTaskId
+    ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/wqi/ws/${activeTaskId}`
+    : "";
+
+  const {lastMessage, isConnected, disconnect } = useWebSocket(wsUrl, { reconnect: false });
+
+  useEffect(() => {
+    if (!activeTaskId) return;
+    setstpOperation(true);
+    let dict_message = JSON.parse(lastMessage || "{}");
+    if (dict_message["state"] == "completed") {
+      console.log(dict_message["result"])
+      const resp:ClipRasters[] = convertToClipRasters(dict_message["result"]);
+      setdisplay_raster(resp);
+      setstpOperation(false);
+      setSelectedradioLayer("GWI_overlay");
+      disconnect();
+    }
+    else {
+      console.log("lastMessage", lastMessage);
+    }
+  }, [lastMessage, isConnected, activeTaskId,setActiveTaskId]);
+
+
+
+
+
   const resetMapView = (): void => {
-   
+
   };
 
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-  
+
   };
   const zoomToFeature = (featureId: string, layerName: string): void => {
   };
@@ -131,30 +167,30 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // Synchronize layers based on location selections
   const syncLayersWithLocation = (): void => {
     setIsMapLoading(true);
-    
+
     // Default to showing states
-    let primary: string = ADMIN_LAYER_NAMES.INDIA ;
+    let primary: string = ADMIN_LAYER_NAMES.INDIA;
     let secondary: string | null = null;
-    let filters_type:string | null = null;
+    let filters_type: string | null = null;
     let filters_value: number[] = [];
-    
+
     // Logic for determining which layers to show based on selection state
     if (selectedSubDistricts.length) {
       secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
       filters_value = selectedSubDistricts;
-      }
-    else if (selectedDistricts.length ) {
+    }
+    else if (selectedDistricts.length) {
       secondary = ADMIN_LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
       filters_value = selectedDistricts;
-     }
-    else if(selectedState) {
+    }
+    else if (selectedState) {
       secondary = ADMIN_LAYER_NAMES.STATE;
       filters_type = 'State_Code';
       filters_value = [selectedState];
     }
-    
+
 
     // Update state with new layer configuration
     setPrimaryLayer(primary);
@@ -172,69 +208,36 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedDistricts.length,
     selectedSubDistricts.length,
   ]);
-  
 
-   useEffect(() => {
+
+  useEffect(() => {
     if (!stpOperation) return;
 
     const performSTP = async () => {
       setRasterLoading(true);
       setError(null);
       setWmsDebugInfo(null);
-     
+
       try {
         const resp = await api.post("/wqi/well_interpolation", {
-          body:{
+          body: {
             data: wqi_data,
-            params: selectedParam
+            params: selectedParam,
+            sub_dis: selectedSubDistricts 
           }
         }
-      );
+        );
 
         if (resp.status != 201) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
+          console.log("get error is ", resp);
+          throw new Error(`WQI operation failed with status: ${resp.status}`);
         }
-
-        const result = await resp.message as stp_priority_Output;
-
-        if (result) {
-          const append_data = {
-            file_name: "Water_quality",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-        
-
-       
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "Water_quality"
-          );
-
-          let newData;
-          if (index !== -1) {
-
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            // Append new entry
-            newData = displayRaster.concat(append_data);
-          }
-          setdisplay_raster(newData);
-          setRasterLayerInfo(append_data);
-        
-          handleLayerSelection(append_data.file_name);
-          setShowLegend(true);
-        } else {
-          setRasterLoading(false);
-        }
+        const result = await resp.message as string;
+        setActiveTaskId(result);
       } catch (error: any) {
-      
         setError(`Error communicating with STP service: ${error.message}`);
         setRasterLoading(false);
-      
-      } finally {
-        setstpOperation(false);
-   
+
       }
     };
 
@@ -258,7 +261,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     defaultWorkspace,
     ADMIN_LAYER_NAMES,
     loading: false,
-    setLoading: () => {},
+    setLoading: () => { },
     rasterLayerInfo,
     setRasterLayerInfo,
     rasterLoading,
@@ -266,12 +269,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     error,
     setError,
     wmsDebugInfo,
-    setWmsDebugInfo: () => {},
+    setWmsDebugInfo: () => { },
     selectedradioLayer,
-    setSelectedradioLayer: () => {},
-    setShowLayer:()=>{},
+    setSelectedradioLayer: () => { },
+    setShowLayer: () => { },
     showLayer: false,
-    setShowLegend: () => {},
+    setShowLegend: () => { },
     showLegend,
     handleLayerSelection,
   };

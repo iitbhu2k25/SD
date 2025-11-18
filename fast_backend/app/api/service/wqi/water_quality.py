@@ -14,9 +14,9 @@ import rasterio
 from rasterio.warp import  reproject
 from rasterio.enums import Resampling
 from rasterio.transform import from_origin
+from rasterio.io import MemoryFile
 from rasterio.mask import mask
-from rasterio.features import shapes
-from shapely.geometry import mapping,shape
+
 from scipy.spatial import cKDTree
 import geopandas as gpd
 from app.utils.network_conf import GeoConfig
@@ -28,13 +28,14 @@ from app.utils.name import Unique_name
 from fastapi import HTTPException,status
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from rasterstats import zonal_stats
 redis_client = Settings().redis_client
 from celery import group, chord
 from app.conf.celery import app
 
 
 geo=Geoserver()
+geo_config=GeoConfig() 
+
 
 class VectorProcess(GeoConfig):
     def __init__(self):
@@ -57,6 +58,8 @@ class VectorProcess(GeoConfig):
     
     def get_sub_village(self,clip:List[int]=None):
         return self.village[self.village['subdis_cod'].isin(clip)]
+    
+   
     
     def get_town(self,clip:List[int]=None):
         town_vector = self.town[self.town['ID'].isin(clip)].copy()
@@ -211,15 +214,15 @@ class WQ_Index:
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
 
-        task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path))
+        task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.sub_dis)
         redis_client.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
         return task_id.id
 
-wqi_obj=WQ_Index()
+wqi_obj=WQ_Index() 
 
 
 @app.task(bind=True,name='celery_start_Interpolation')
-def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float):
+def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float,sub_dis:list):
     df = pd.read_json(StringIO(df_json), orient="records")
     if param not in df.columns:
         raise HTTPException(status_code=400, detail=f"Parameter '{param}' not found")
@@ -244,36 +247,60 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     )
 
     Z_4326 = np.empty((h, w), np.float32)
+
     reproject(Z_utm, Z_4326, src_transform=transform, src_crs='EPSG:32644',
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
+    
+    selected_area=wqi_obj.vector_work.get_basin().to_crs('EPSG:4326')
+    
+
+    with MemoryFile() as memfile:
+        with memfile.open(
+            driver='GTiff',
+            height=h, width=w, count=1,
+            dtype='float32',
+            crs='EPSG:4326',
+            transform=dst_transform,
+            nodata=np.nan
+        ) as tmp_ds:
+            tmp_ds.write(Z_4326, 1)
+
+            # Perform mask/clip
+            clipped_array, clipped_transform = mask(
+                tmp_ds,
+                selected_area.geometry,
+                crop=True,
+                nodata=np.nan,
+                filled=True
+            )
 
     path = Path(output_folder) / Unique_name.unique_name_with_ext(param, "tif")
     
     with rasterio.open(path, 'w', driver='GTiff', height=h, width=w, count=1,
-                    dtype='float32', crs='EPSG:4326', transform=dst_transform,
+                    dtype='float32', crs='EPSG:4326', transform=clipped_transform,
                     nodata=np.nan, compress='lzw') as dst:
-        dst.write(Z_4326, 1)
+        dst.write(clipped_array[0], 1)
         dst.update_tags(PARAMETER=param, METHOD='IDW_cKDTree', WELLS=str(len(values)))
 
-    v = Z_4326[~np.isnan(Z_4326)]
+    v =  clipped_array[0][~np.isnan(clipped_array[0])]
+    unique_store_name =Unique_name.unique_name("wqi_store")
 
-    #using the redis and celery for update the status
-    unq_name= os.path.splitext(os.path.basename(str(path)))[0]
-    redis_client.hset(self.request.root_id+"_Result", mapping={param: unq_name})
+    status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
+    redis_client.hset(self.request.root_id+"_Result", mapping={param: layer_name})
 
     return {
         'parameter': param,
         'output_path': str(path),
         'wells_used': len(values),
-        'raster_shape': Z_4326.shape,
+        'raster_shape': clipped_array.shape,
         'threshold_bool': float(np.mean(v)) > threshold,
         'value_range': {'min': float(np.min(v)), 'max': float(np.max(v)), 'mean': float(np.mean(v))}
     }
 
 
 @app.task(bind=True,name='start_Interpolation')
-def start_Interpolation(self,output_folder:str,payload_path:str):
+def start_Interpolation(self,output_folder:str,payload_path:str,sub_dis:list):
 
     df_json=wqi_obj._correct_pandas(payload_path)
     df = pd.read_json(StringIO(df_json), orient="records")
@@ -292,7 +319,8 @@ def start_Interpolation(self,output_folder:str,payload_path:str):
             output_folder=output_folder,
             param=param,
             df_json=df_json,
-            threshold=parameter_thresholds[param]
+            threshold=parameter_thresholds[param],
+            sub_dis=sub_dis
         )
         for param in selected_parameters
     )
@@ -301,8 +329,6 @@ def start_Interpolation(self,output_folder:str,payload_path:str):
             threshold=parameter_thresholds,
         )
     )
-
-   
 
 @app.task(bind=True,name='celery_concentration_Index')
 def celery_concentration_Index(self,raster_detail:dict):
@@ -454,6 +480,7 @@ def start_weight_raster(self,result:list):
 
     meta.update(dtype=rasterio.float32, count=1)
     ans=wqi_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
-    unq_name= os.path.splitext(os.path.basename(str(ans)))[0]
-    redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":unq_name})
+    unique_store_name =Unique_name.unique_name("wqi_store")
+    status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
+    redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
     redis_client.setex(self.request.root_id, 3600, "Done")

@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
+  const [lastMessage, setLastMessage] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectInterval = useRef<NodeJS.Timeout | null>(null);
 
@@ -19,7 +20,9 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
 
     socket.onmessage = (event) => {
       if (typeof event.data === 'string') {
+        // Handle text data
         setMessages((prev) => [...prev, event.data]);
+        setLastMessage(event.data);
       } else {
         // Handle binary data (PDF)
         try {
@@ -87,6 +90,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   return {
     messages,
     sendMessage,
+    lastMessage,
     isConnected,
     disconnect,
   };

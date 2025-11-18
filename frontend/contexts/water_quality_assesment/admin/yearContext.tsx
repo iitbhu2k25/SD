@@ -9,8 +9,8 @@ type YearContextType = {
   selectedYear: number | null;
   setSelectedYear: (year: number) => void;
   fetchYears: () => Promise<void>;
-  wqi_data: [WQIInterface] | null
-  setWqiData: React.Dispatch<React.SetStateAction<[WQIInterface] | null>>
+  wqi_data: WQIInterface[] | null
+  setWqiData: React.Dispatch<React.SetStateAction<WQIInterface[] | null>>
   qualityParam: string[]
   selectedParam: string[]
   setSelectedParam: (param: string[]) => void
@@ -22,7 +22,7 @@ const YearContext = createContext<YearContextType | undefined>(undefined);
 export const YearProvider = ({ children }: { children: React.ReactNode }) => {
   const [years, setYears] = useState<number[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [wqi_data, setWqiData] = useState<[WQIInterface] | null>(null);
+  const [wqi_data, setWqiData] = useState<WQIInterface[] | null>(null);
   const [selectedParam, setSelectedParam] = useState<string[]>([]);
   const [qualityOper, setQualityOper] = useState<boolean>(false);
   const excluded = ["Year", "Longitude", "Latitude", "Location"];
@@ -56,7 +56,7 @@ export const YearProvider = ({ children }: { children: React.ReactNode }) => {
           }
         });
         console.log("Response:", resp.message);
-        setWqiData(resp.message as [WQIInterface])
+        setWqiData(resp.message as WQIInterface[])
       } catch (error) {
         console.error("Error fetching WQI wells:", error);
       }
