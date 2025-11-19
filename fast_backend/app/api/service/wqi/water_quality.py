@@ -106,6 +106,143 @@ class VectorProcess(GeoConfig):
     def get_basin(self):
         return self.basin
 
+class RasterProcess(VectorProcess):
+
+    def __init__(self):
+        super().__init__()
+        self.output_dir=Path(self.output_path) / "SLD" 
+        os.makedirs(self.output_dir, exist_ok=True)
+    def _save_raster(self,profile,raster_path:str,result:np.ndarray,raster_name:str):
+        folder_path = os.path.dirname(raster_path)
+        name = Unique_name.unique_name_with_ext(name=raster_name,extension="tif")
+        new_raster_path = f"{folder_path}/{name}"
+        with rasterio.open(new_raster_path, "w", **profile) as dst:
+            dst.write(result.astype(np.float32), 1)
+        return new_raster_path
+    
+    def _generate_colors(self,num_classes, color_ramp='blue_to_red'):
+        colors = []
+        for i in range(num_classes):
+            t = i / max(1, num_classes - 1)
+            
+            if t < 0.5:
+                # Blue to Green transition (first half)
+                r = int(0 + t * 2 * 255)  # 0 to 255
+                g = int(0 + t * 2 * 255)  # 0 to 255
+                b = 255                   # Stay at 255
+            else:
+                # Green to Red transition (second half)
+                r = 255                               # Stay at 255
+                g = int(255 - (t - 0.5) * 2 * 255)    # 255 to 0
+                b = int(255 - (t - 0.5) * 2 * 255)    # 255 to 0
+                
+            hex_color = f"#{r:02x}{g:02x}{b:02x}"
+            colors.append(hex_color.upper())
+        return colors
+
+    def _generate_sld_xml(self, intervals, colors):
+       
+        # Create the XML document with proper namespaces
+        root = ET.Element("sld:StyledLayerDescriptor")
+        root.set("xmlns:sld", "http://www.opengis.net/sld")
+        root.set("xmlns", "http://www.opengis.net/sld")
+        root.set("xmlns:gml", "http://www.opengis.net/gml")
+        root.set("xmlns:ogc", "http://www.opengis.net/ogc")
+        root.set("version", "1.0.0")
+        
+        # Create the named layer
+        named_layer = ET.SubElement(root, "sld:NamedLayer")
+        layer_name = ET.SubElement(named_layer, "sld:Name")
+        layer_name.text = "raster"
+        
+        # Create the user style
+        user_style = ET.SubElement(named_layer, "sld:UserStyle")
+        style_name = ET.SubElement(user_style, "sld:Name")
+        style_name.text = "raster"
+        
+        title = ET.SubElement(user_style, "sld:Title")
+        title.text = f"{len(colors)}-Class Raster Style with Ranges"
+        
+        abstract = ET.SubElement(user_style, "sld:Abstract")
+        abstract.text = "SLD with explicit value ranges for raster styling"
+        
+        # Create feature type style
+        feature_type_style = ET.SubElement(user_style, "sld:FeatureTypeStyle")
+        rule = ET.SubElement(feature_type_style, "sld:Rule")
+        
+        # Create raster symbolizer
+        raster_symbolizer = ET.SubElement(rule, "sld:RasterSymbolizer")
+        
+        # Create color map - using type="ramp" as in the example
+        color_map = ET.SubElement(raster_symbolizer, "sld:ColorMap",
+                              type="ramp")
+        color_map.set("type", "ramp")
+        
+        # Define class labels
+        level_class = ["  Very low", "  Low", "  Moderate", "  High", "  Very high"]
+        
+        # Add color map entries
+        for i in range(len(intervals)-1):
+            entry = ET.SubElement(color_map, "sld:ColorMapEntry")
+            entry.set("color", colors[i])
+            entry.set("quantity", str(intervals[i]))
+            
+            # Use level class labels if available, otherwise use a default
+            if i < len(level_class):
+                entry.set("label", str(int(intervals[i])))
+            else:
+                entry.set("label", f"class_{i+1}")
+        
+        # Convert to string with pretty printing
+        rough_string = ET.tostring(root, 'utf-8')
+        reparsed = minidom.parseString(rough_string)
+        pretty_xml = reparsed.toprettyxml(indent="  ")
+        
+        # Clean up the XML to match the sample exactly
+        # Remove XML declaration and add a custom one
+        xml_lines = pretty_xml.split('\n')
+        xml_lines[0] = '<?xml version="1.0" encoding="UTF-8"?>'
+        pretty_xml = '\n'.join(xml_lines)
+        
+        return pretty_xml
+
+    def _generate_dynamic_sld(self,raster_path:str,num_classes:int,color_ramp:str='blue_to_red',reverse:bool=False):
+        with rasterio.open(raster_path) as src:
+            data = src.read(1, masked=True)
+            valid_data = data[~data.mask]
+            if len(valid_data) == 0:
+                raise ValueError("Raster contains no valid data")
+            min_val = float(np.min(valid_data))
+            max_val = float(np.max(valid_data))
+
+        if min_val == max_val:
+            intervals = [min_val] * num_classes
+        else:
+            intervals = np.linspace(min_val-1, max_val+1, num_classes+1)
+
+        
+        colors = self._generate_colors(num_classes, color_ramp)
+
+        if reverse:
+            colors = colors[::-1]
+       
+        sld_content = self._generate_sld_xml(intervals, colors)
+        unique_name = f"style_{uuid.uuid4().hex}.sld"
+        output_sld_path = os.path.join(self.output_dir, unique_name)        
+        with open(output_sld_path, 'w', encoding='utf-8') as f:
+            f.write(sld_content)
+        return output_sld_path
+    
+    def sld_path(self,file_path:str,reverse:bool=False):
+        try:
+            sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='blue_to_red')
+            sld_name = os.path.basename(sld_path).split('.')[0]
+            return sld_path,sld_name
+        except Exception as e:
+            print("exceprion",e)
+            return False
+
+
 class WQ_Index:
     def __init__(self):
        
@@ -115,13 +252,7 @@ class WQ_Index:
     def get_well(self,db: session,payload:Well_input):
         return WQI(db).get_wqi(payload.subdis_cod,payload.year)
     
-    def _save_raster(self,profile,raster_path:str,result:np.ndarray,raster_name:str):
-        folder_path = os.path.dirname(raster_path)
-        name = Unique_name.unique_name_with_ext(name=raster_name,extension="tif")
-        new_raster_path = f"{folder_path}/{name}"
-        with rasterio.open(new_raster_path, "w", **profile) as dst:
-            dst.write(result.astype(np.float32), 1)
-        return new_raster_path
+    
         
     def _correct_pandas(self,payload_path:str):
         with open(payload_path, "r") as f:
@@ -181,7 +312,7 @@ class WQ_Index:
         coords_xy_utm = np.array([(geom.x, geom.y) for geom in points_utm.geometry], dtype=np.float64)
         
         
-        selected_area=self.vector_work.get_sub_village(clip=[990,991])
+        selected_area=self.vector_work.get_basin()
         bounds_original = selected_area.total_bounds
         selected_area_utm = selected_area.to_crs("EPSG:32644")
         bounds_utm = selected_area_utm.total_bounds
@@ -220,7 +351,7 @@ class WQ_Index:
         return task_id.id
 
 wqi_obj=WQ_Index() 
-
+raster_obj=RasterProcess()
 
 @app.task(bind=True,name='celery_start_Interpolation')
 def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float,sub_dis:list):
@@ -252,10 +383,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     reproject(Z_utm, Z_4326, src_transform=transform, src_crs='EPSG:32644',
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
-    
-
-    selected_area=wqi_obj.vector_work.get_basin().to_crs("EPSG:4326")
-
+    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs('EPSG:4326')
     with MemoryFile() as memfile:
         with memfile.open(
             driver='GTiff',
@@ -288,7 +416,9 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     v =  clipped_array[0][~np.isnan(clipped_array[0])]
     unique_store_name =Unique_name.unique_name("wqi_store")
 
+    sld_path,sld_name=raster_obj.sld_path(file_path=str(path))
     status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
+    status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
     redis_client.hset(self.request.root_id+"_Result", mapping={param: layer_name})
 
     return {
@@ -341,19 +471,21 @@ def celery_concentration_Index(self,raster_detail:dict):
             valid_mask = ~p_array.mask
             p_array = p_array.data
         else:
-            valid_mask = np.isfinite(p_array) & (p_array > 0)
+            valid_mask = np.isfinite(p_array)
+
         numerator = p_array - raster_detail["threshold"]
         denominator = p_array + raster_detail["threshold"]
+        
         ci = np.full_like(p_array, np.nan, dtype=np.float32)
         calc_mask = valid_mask & (denominator != 0)
         ci[calc_mask] = numerator[calc_mask] / denominator[calc_mask]
-        ci = np.clip(ci, -1, 1)
         profile.update(
             dtype=rasterio.float32,
             count=1,
-            compress="lzw"
+            compress="lzw",
+            nodata=np.nan
         )
-        ci_raster_path =wqi_obj._save_raster(profile=profile,raster_path=raster_detail["P_raster"],result=ci,raster_name=raster_detail["parameter"]+"_CI")
+        ci_raster_path =raster_obj._save_raster(profile=profile,raster_path=raster_detail["P_raster"],result=ci,raster_name=raster_detail["parameter"]+"_CI")
         return{
             "parameter":raster_detail["parameter"],
             "CI_raster":ci_raster_path,
@@ -400,7 +532,7 @@ def celery_rank_raster(self,raster_detail:dict):
                 count=1,
                 compress="lzw"
             )
-        rank_raster_path = wqi_obj._save_raster(profile=profile,raster_path=raster_detail["CI_raster"],result=rank,raster_name=raster_detail["parameter"]+"_Rank")
+        rank_raster_path = raster_obj._save_raster(profile=profile,raster_path=raster_detail["CI_raster"],result=rank,raster_name=raster_detail["parameter"]+"_Rank")
         return {
                 "parameter":raster_detail["parameter"],
                 "Rank_raster":rank_raster_path,
@@ -475,14 +607,20 @@ def start_weight_raster(self,result:list):
     min_val = np.nanmin(final_overlay)
     max_val = np.nanmax(final_overlay)
 
-    if max_val != min_val:  # avoid division by zero
+    if max_val != min_val: 
         final_overlay = (final_overlay - min_val) / (max_val - min_val)
     else:
         final_overlay[:] = 0
 
     meta.update(dtype=rasterio.float32, count=1)
-    ans=wqi_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
+    ans=raster_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
     unique_store_name =Unique_name.unique_name("wqi_store")
+    
+    sld_path,sld_name=raster_obj.sld_path(file_path=str(ans))
     status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
+    status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+    
     redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
     redis_client.setex(self.request.root_id, 3600, "Done")
+   
+    

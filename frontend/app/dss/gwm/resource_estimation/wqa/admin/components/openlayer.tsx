@@ -31,6 +31,7 @@ import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
 import AddPointModal from "./coordinate";
 import { WQIInterface } from "@/interface/table";
+import { CRS } from "leaflet";
 
 
 
