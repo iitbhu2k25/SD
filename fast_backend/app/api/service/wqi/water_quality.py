@@ -120,7 +120,7 @@ class RasterProcess(VectorProcess):
             dst.write(result.astype(np.float32), 1)
         return new_raster_path
     
-    def _generate_colors(self,num_classes, color_ramp='blue_to_red'):
+    def _generate_colors(self,num_classes):
         colors = []
         for i in range(num_classes):
             t = i / max(1, num_classes - 1)
@@ -140,7 +140,7 @@ class RasterProcess(VectorProcess):
             colors.append(hex_color.upper())
         return colors
 
-    def _generate_sld_xml(self, intervals, colors):
+    def _generate_sld_xml(self, intervals, colors,overlay:bool=False):
        
         # Create the XML document with proper namespaces
         root = ET.Element("sld:StyledLayerDescriptor")
@@ -186,27 +186,23 @@ class RasterProcess(VectorProcess):
             entry = ET.SubElement(color_map, "sld:ColorMapEntry")
             entry.set("color", colors[i])
             entry.set("quantity", str(intervals[i]))
-            
-            # Use level class labels if available, otherwise use a default
-            if i < len(level_class):
-                entry.set("label", str(int(intervals[i])))
+            if overlay:
+                entry.set("label", str(level_class[i]))
             else:
-                entry.set("label", f"class_{i+1}")
+                entry.set("label", "   " + str(round(intervals[i], 2)))
         
-        # Convert to string with pretty printing
         rough_string = ET.tostring(root, 'utf-8')
         reparsed = minidom.parseString(rough_string)
         pretty_xml = reparsed.toprettyxml(indent="  ")
         
-        # Clean up the XML to match the sample exactly
-        # Remove XML declaration and add a custom one
+        
         xml_lines = pretty_xml.split('\n')
         xml_lines[0] = '<?xml version="1.0" encoding="UTF-8"?>'
         pretty_xml = '\n'.join(xml_lines)
         
         return pretty_xml
 
-    def _generate_dynamic_sld(self,raster_path:str,num_classes:int,color_ramp:str='blue_to_red',reverse:bool=False):
+    def _generate_dynamic_sld(self,raster_path:str,num_classes:int,reverse:bool=False,overlay:bool=False):
         with rasterio.open(raster_path) as src:
             data = src.read(1, masked=True)
             valid_data = data[~data.mask]
@@ -221,21 +217,21 @@ class RasterProcess(VectorProcess):
             intervals = np.linspace(min_val-1, max_val+1, num_classes+1)
 
         
-        colors = self._generate_colors(num_classes, color_ramp)
+        colors = self._generate_colors(num_classes)
 
         if reverse:
             colors = colors[::-1]
        
-        sld_content = self._generate_sld_xml(intervals, colors)
+        sld_content = self._generate_sld_xml(intervals, colors,overlay=overlay)
         unique_name = f"style_{uuid.uuid4().hex}.sld"
         output_sld_path = os.path.join(self.output_dir, unique_name)        
         with open(output_sld_path, 'w', encoding='utf-8') as f:
             f.write(sld_content)
         return output_sld_path
     
-    def sld_path(self,file_path:str,reverse:bool=False):
+    def sld_path(self,file_path:str,reverse:bool=False,overlay:bool=False):
         try:
-            sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,color_ramp='blue_to_red')
+            sld_path=self._generate_dynamic_sld(raster_path=file_path,num_classes=5,overlay=overlay)
             sld_name = os.path.basename(sld_path).split('.')[0]
             return sld_path,sld_name
         except Exception as e:
@@ -345,7 +341,6 @@ class WQ_Index:
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
         
-
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.sub_dis)
         redis_client.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
         return task_id.id
@@ -616,7 +611,7 @@ def start_weight_raster(self,result:list):
     ans=raster_obj._save_raster(profile=meta,raster_path=output_path,result=final_overlay,raster_name="gwi_overlay")
     unique_store_name =Unique_name.unique_name("wqi_store")
     
-    sld_path,sld_name=raster_obj.sld_path(file_path=str(ans))
+    sld_path,sld_name=raster_obj.sld_path(file_path=str(ans),overlay=True)
     status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
     status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
     
