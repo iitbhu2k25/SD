@@ -80,8 +80,8 @@ class WQI(CrudBase):
         print(subdis_code)
         query = (
         self.db.query(self.Model)
-        .filter(
-            self.Model.Year == year,
+        .filter(and_(
+            self.Model.Year == year,self.Model.subdis_code.in_(subdis_code))
         )
         .all()
         )
