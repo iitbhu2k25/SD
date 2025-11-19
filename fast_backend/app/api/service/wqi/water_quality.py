@@ -213,6 +213,7 @@ class WQ_Index:
         temp_path=output_folder / file_id
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
+        
 
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.sub_dis)
         redis_client.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
@@ -253,7 +254,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
     
 
-    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs("EPSG:4326")
+    selected_area=wqi_obj.vector_work.get_basin().to_crs("EPSG:4326")
 
     with MemoryFile() as memfile:
         with memfile.open(
