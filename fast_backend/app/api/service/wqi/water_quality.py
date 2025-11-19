@@ -252,8 +252,8 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
     
-    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs("EPSG:4326")
 
+    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs("EPSG:4326")
 
     with MemoryFile() as memfile:
         with memfile.open(
@@ -274,10 +274,11 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
                 nodata=np.nan,
                 filled=True
             )
+    clipped_height, clipped_width = clipped_array.shape[1], clipped_array.shape[2]
 
     path = Path(output_folder) / Unique_name.unique_name_with_ext(param, "tif")
     
-    with rasterio.open(path, 'w', driver='GTiff', height=h, width=w, count=1,
+    with rasterio.open(path, 'w', driver='GTiff', height=clipped_height, width=clipped_width, count=1,
                     dtype='float32', crs='EPSG:4326', transform=clipped_transform,
                     nodata=np.nan, compress='lzw') as dst:
         dst.write(clipped_array[0], 1)
