@@ -14,7 +14,7 @@ interface LocationSelectorProps {
 
 const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
   // Use the location context instead of local state
-  const { 
+  const {
     states,
     districts,
     subDistricts,
@@ -28,46 +28,46 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
     setSelectedSubDistricts,
     confirmSelections,
   } = useLocation();
-  
+
   // Handle state selection from select input
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     if (!selectionsLocked) {
       handleStateChange(parseInt(e.target.value));
     }
   };
-  
+
   // Handle multi-select changes
   const handleDistrictsChange = (selectedIds: number[]): void => {
     if (!selectionsLocked) {
       setSelectedDistricts(selectedIds);
     }
   };
-  
+
   const handleSubDistrictsChange = (selectedIds: number[]): void => {
     if (!selectionsLocked) {
       setSelectedSubDistricts(selectedIds);
     }
   };
-  
+
   // Handle confirm button click
   const handleConfirm = (): void => {
     if (selectedSubDistricts.length > 0 && !selectionsLocked) {
       const selectedData = confirmSelections();
-      
+
       // Call the onConfirm prop to notify parent component
       if (onConfirm && selectedData) {
         onConfirm(selectedData);
       }
     }
   };
-  
- 
-  
+
+
+
   // Format sub-district display to include population
   const formatSubDistrictDisplay = (subDistrict: SubDistrict): string => {
     return `${subDistrict.name}`;
   };
-  
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-md">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -119,14 +119,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
         <h3 className="text-md font-medium text-gray-800 mb-2">Selected Locations</h3>
         <div className="space-y-2 text-sm text-gray-700">
           <p><span className="font-medium">State:</span> {states.find(s => s.id === selectedState)?.name || 'None'}</p>
-          <p><span className="font-medium">Districts:</span> {selectedDistricts.length > 0 
-            ? (selectedDistricts.length === districts.length 
-              ? 'All Districts' 
+          <p><span className="font-medium">Districts:</span> {selectedDistricts.length > 0
+            ? (selectedDistricts.length === districts.length
+              ? 'All Districts'
               : districts.filter(d => selectedDistricts.includes(Number(d.id))).map(d => d.name).join(', '))
             : 'None'}</p>
-          <p><span className="font-medium">Sub-Districts:</span> {selectedSubDistricts.length > 0 
-            ? (selectedSubDistricts.length === subDistricts.length 
-              ? 'All Sub-Districts' 
+          <p><span className="font-medium">Sub-Districts:</span> {selectedSubDistricts.length > 0
+            ? (selectedSubDistricts.length === subDistricts.length
+              ? 'All Sub-Districts'
               : subDistricts.filter(sd => selectedSubDistricts.includes(Number(sd.id))).map(sd => sd.name).join(', '))
             : 'None'}</p>
           {selectionsLocked && (
@@ -137,20 +137,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
 
       {/* Action buttons */}
       <div className="flex space-x-4 mt-4">
-        <button 
-          className={`${
-            selectedSubDistricts.length > 0 && !selectionsLocked 
-              ? 'bg-blue-500 hover:bg-blue-700' 
+        <button
+          className={`${selectedSubDistricts.length > 0 && !selectionsLocked
+              ? 'bg-blue-500 hover:bg-blue-700'
               : 'bg-gray-400 cursor-not-allowed'
-          } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+            } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
           onClick={handleConfirm}
           disabled={selectedSubDistricts.length === 0 || selectionsLocked || isLoading}
         >
           Confirm
         </button>
-       
+
       </div>
-      
+
       {/* Loading indicator */}
       {isLoading && (
         <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />

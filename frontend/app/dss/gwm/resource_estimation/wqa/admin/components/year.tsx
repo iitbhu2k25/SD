@@ -16,7 +16,6 @@ const YearSelector = () => {
 
   return (
     <div className="flex flex-wrap items-center gap-6 p-6 bg-gradient-to-r from-blue-50 via-blue-100 to-blue-200 rounded-lg shadow-lg">
-      <span className="text-sm font-bold text-gray-800 mr-4">Select Year:</span>
 
       {years.map((year) => (
         <button

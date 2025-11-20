@@ -134,10 +134,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   useEffect(() => {
     if (!activeTaskId) return;
-    setstpOperation(true);
+    console.log(" websocket stpOperation",stpOperation)
     let dict_message = JSON.parse(lastMessage || "{}");
-    if (dict_message["state"] == "completed") {
-      console.log(dict_message["result"])
+    if (dict_message["state"] === "completed") {
       const resp:ClipRasters[] = convertToClipRasters(dict_message["result"]);
       setdisplay_raster(resp);
       setstpOperation(false);
@@ -147,7 +146,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     else {
       console.log("lastMessage", lastMessage);
     }
-  }, [lastMessage, isConnected, activeTaskId,setActiveTaskId]);
+  }, [lastMessage, isConnected]);
 
 
 
@@ -242,7 +241,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     };
 
     performSTP();
-  }, [stpOperation, selectedSubDistricts]);
+  }, [stpOperation]);
   // Context value
   const contextValue: MapContextType = {
     primaryLayer,
