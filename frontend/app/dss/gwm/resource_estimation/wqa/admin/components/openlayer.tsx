@@ -31,7 +31,7 @@ import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
 import AddPointModal from "./coordinate";
 import { WQIInterface } from "@/interface/table";
-import { CRS } from "leaflet";
+import { toast } from "react-toastify";
 
 
 
@@ -438,6 +438,7 @@ const Maping: React.FC = () => {
   }, [selectionsLocked]);
 
   // Separate useEffect to handle click events based on isAddingPoint state
+  // Replace the existing click handler useEffect with this:
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
@@ -447,9 +448,40 @@ const Maping: React.FC = () => {
       if (!isAddingPoint) return;
 
       const coordinate = event.coordinate;
-      const lonLat = toLonLat(coordinate);
+      const pixel = event.pixel;
 
+      // Check if click is on a polygon feature
+      let clickedOnPolygon = false;
+      let clickedFeature: any = null;
+
+      map.forEachFeatureAtPixel(pixel, (feature, layer) => {
+        const geometry = feature.getGeometry();
+        if (geometry && geometry.getType().includes('Polygon')) {
+          clickedOnPolygon = true;
+          clickedFeature = feature;
+          return true; // Stop iteration
+        }
+      }, {
+        layerFilter: (layer) => {
+          // Only check primary and secondary vector layers, not points layer
+          return layer === primaryLayerRef.current || layer === secondaryLayerRef.current;
+        }
+      });
+
+      if (!clickedOnPolygon) {
+        toast.error("Please click on a polygon feature to add a point", { position: "top-right" });
+
+        return;
+      }
+
+      const lonLat = toLonLat(coordinate);
       const pointId = addedPoints.length + 1;
+
+      // Optionally, you can get the polygon's name/properties
+      const polygonName = clickedFeature?.get("name") ||
+        clickedFeature?.get("Name") ||
+        clickedFeature?.get("NAME") ||
+        "Unknown Location";
 
       // Store pending point data and show modal
       setPendingPoint({
@@ -458,6 +490,14 @@ const Maping: React.FC = () => {
         longitude: lonLat[0],
         latitude: lonLat[1],
       });
+
+      // Optionally pre-fill location with polygon name
+      setFormData(prev => ({
+        ...prev,
+        Location: polygonName,
+        Latitude: lonLat[1],
+        Longitude: lonLat[0],
+      }));
 
       setShowPointModal(true);
     };
@@ -1089,8 +1129,6 @@ const Maping: React.FC = () => {
                 </button>
 
               )}
-
-
               <button
                 onClick={() => {
                   setHoveredFeature(null);
