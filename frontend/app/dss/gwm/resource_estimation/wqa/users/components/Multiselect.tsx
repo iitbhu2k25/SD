@@ -12,7 +12,7 @@ interface MultiSelectProps<T> {
   displayPattern?: (item: T) => string;
 }
 
-export const MultiSelect = <T extends District|SubDistrict = District|SubDistrict>({
+export const RiverMultiSelect = <T extends District|SubDistrict = District|SubDistrict>({
   items,
   selectedItems,
   onSelectionChange,

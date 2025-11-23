@@ -13,7 +13,7 @@ interface ModernSwitchProps {
 }
 
 import PriorityAdmin from "./admin/page";
-import PriorityDrain from "./drain/page";
+import PriorityDrain from "./users/page";
 
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
