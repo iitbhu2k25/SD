@@ -341,7 +341,7 @@ class WQ_Index:
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
         
-        task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.sub_dis)
+        task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.location)
         redis_client.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
         return task_id.id
 

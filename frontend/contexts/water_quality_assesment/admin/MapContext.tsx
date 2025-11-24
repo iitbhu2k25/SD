@@ -222,7 +222,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           body: {
             data: wqi_data,
             params: selectedParam,
-            sub_dis: selectedSubDistricts 
+            location: selectedSubDistricts,
+            place:"admin"
           }
         }
         );

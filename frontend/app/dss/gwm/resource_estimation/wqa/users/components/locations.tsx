@@ -1,307 +1,276 @@
-'use client'
-import React, { useState, useRef, useEffect } from 'react';
-import { River, Stretch, Drain, Catchment} from '@/interface/raster_context';
-
-
-// Base interface for items that can be selected
-interface SelectableItem {
-  id: number;
-  name?: string;
+"use client";
+import React from "react";
+import { RiverMultiSelect } from "./Multiselect";
+import {
+  useRiverSystem,
+} from "@/contexts/water_quality_assesment/users/DrainContext";
+import   {Stretch,
+  Drain,
+  Catchment,} from "@/interface/raster_context";
+import WholeLoading from "@/components/app_layout/newLoading";
+interface RiverSelectorProps {
+  onConfirm?: (selectedData: {
+    stretches: Stretch[];
+    drains: Drain[];
+    catchments: Catchment[];
+    totalArea: number;
+    totalCatchments: number;
+  }) => void;
+  onReset?: () => void;
 }
 
-interface RiverMultiSelectProps<T extends SelectableItem> {
-  items: T[];
-  selectedItems: number[];
-  onSelectionChange: (selectedIds: number[]) => void;
-  label: string;  
-  placeholder: string;
-  disabled?: boolean;
-  displayPattern?: (item: T) => string;
-}
+const RiverSelector: React.FC<RiverSelectorProps> = ({
+  onConfirm,
+  onReset,
+}) => {
+  // Use the river system context instead of local state
+  const {
+    rivers,
+    stretches,
+    drains,
+    catchments,
+    selectedRiver,
+    selectedStretches,
+    selectedDrains,
+    selectedCatchments,
+    totalArea,
+    totalCatchments,
+    selectionsLocked,
+    isLoading,
+    handleRiverChange,
+    setSelectedStretches,
+    setSelectedDrains,
+    setSelectedCatchments,
+    confirmSelections,
+    resetSelections,
+  } = useRiverSystem();
 
-export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
-  items,
-  selectedItems,
-  onSelectionChange,
-  label,
-  placeholder,
-  disabled = false,
-  displayPattern = (item) => {
-    // Default display pattern based on item type
-    if ('Stretch_ID' in item) {
-      return (item as Stretch).name ? `${(item as Stretch).name} (ID: ${(item as Stretch).Stretch_ID})` : `Stretch ${(item as Stretch).Stretch_ID}`;
-    }
-    if ('Drain_No' in item) {
-      return (item as Drain).name ? `${(item as Drain).name} (No: ${(item as Drain).Drain_No})` : `Drain ${(item as Drain).Drain_No}`;
-    }
-    if ('village_name' in item) {
-      return (item as Catchment).name ? `${(item as Catchment).name} (Grid: ${(item as Catchment).village_name})` : `Catchment ${(item as Catchment).village_name}`;
-    }
-    return '';
-  },
-}: RiverMultiSelectProps<T>): React.ReactElement => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const allItemIds = items.map(item => Number(item.id));
-  const allSelected = items.length > 0 && selectedItems.length === items.length;
-
-  // Filter items based on search query
-  const filteredItems = items.filter(item => {
-
-    const displayText = displayPattern(item).toLowerCase();
-    const searchTerm = searchQuery.toLowerCase();
-    
-    // Search in display text
-    if (displayText.includes(searchTerm)) return true;
-    
-    // Search in name if available
-    if (item.name && item.name.toLowerCase().includes(searchTerm)) return true;
-    
-    // Search in specific fields based on item type
-    if ('Stretch_ID' in item && item.Stretch_ID.toString().includes(searchTerm)) return true;
-    if ('Drain_No' in item && item.Drain_No.toString().includes(searchTerm)) return true;
-    if ('village_name' in item && item.village_name.toString().includes(searchTerm)) return true;
-    
-    return false;
-  });
-
-  // Calculate dropdown position based on available space
-  const calculateDropdownPosition = () => {
-    if (!triggerRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240; // max-h-60 = 15rem = 240px
-    
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-    
-    // If there's not enough space below but there's space above, position on top
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
+  // Handle river selection from select input
+  const handleRiverSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
+    if (!selectionsLocked) {
+      handleRiverChange(parseInt(e.target.value));
     }
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Focus search input when dropdown opens and calculate position
-  useEffect(() => {
-    if (isOpen) {
-      calculateDropdownPosition();
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }
-  }, [isOpen]);
-
-
-  // Reset search and position when dropdown closes
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery('');
-      setDropdownPosition('bottom');
-    }
-  }, [isOpen]);
-
-  // Recalculate position on window resize (only if dropdown is open)
-  useEffect(() => {
-    if (isOpen) {
-      const handleResize = () => calculateDropdownPosition();
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [isOpen]);
-
-  // Toggle dropdown
-  const toggleDropdown = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
+  // Handle multi-select changes
+  const handleStretchesChange = (selectedIds: number[]): void => {
+    if (!selectionsLocked) {
+      setSelectedStretches(selectedIds);
     }
   };
 
-  // Handle select all
-  const handleSelectAll = () => {
-    if (allSelected) {
-      // If all are selected, deselect all
-      onSelectionChange([]);
-    } else {
-      // Otherwise select all
-      onSelectionChange([...allItemIds]);
+  const handleDrainsChange = (selectedIds: number[]): void => {
+    if (!selectionsLocked) {
+      setSelectedDrains(selectedIds);
     }
   };
 
-  // Handle item selection
-  const handleItemSelect = (itemId: number) => {
-    if (selectedItems.includes(itemId)) {
-      // Item is already selected, remove it
-      onSelectionChange(selectedItems.filter(id => id !== itemId));
+  const handleCatchmentsChange = (selectedIds: number[]): void => {
+    if (!selectionsLocked) {
+      setSelectedCatchments(selectedIds);
+    }
+  };
+
+  // Handle confirm button click
+  const handleConfirm = (): void => {
+    if (selectedCatchments.length > 0 && !selectionsLocked) {
+      const selectedData = confirmSelections();
       
-    } else {
-      // Item is not selected, add it
-      onSelectionChange([...selectedItems, itemId]);
+      if (onConfirm && selectedData) {
+        onConfirm({
+          stretches: selectedData.stretches,
+          drains: selectedData.drains,
+          catchments: selectedData.catchments,
+          totalArea: selectedData.totalArea,
+          totalCatchments,
+        });
+      }
     }
   };
 
-  // Format the display text
-  const getDisplayText = () => {
-    if (selectedItems.length === 0) {
-      return placeholder;
+  // Handle reset button click
+  const handleReset = (): void => {
+    resetSelections();
+
+    // Call the onReset prop to notify parent component
+    if (onReset) {
+      onReset();
     }
-    
-    if (allSelected) {
-      return `All ${label}s`;
-    }
-    
-    if (selectedItems.length === 1) {
-      const selected = items.find(item => item.id === selectedItems[0]);
-      return selected ? displayPattern(selected) : placeholder;
-    }
-    
-    return `${selectedItems.length} ${label}s selected`;
   };
 
-  // Get dropdown positioning classes
-  const getDropdownClasses = () => {
-    const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
-    
-    if (dropdownPosition === 'top') {
-      return `${baseClasses} bottom-full mb-1`;
-    } else {
-      return `${baseClasses} top-full mt-1`;
-    }
+  // Format stretch display
+  const formatStretchDisplay = (stretch: Stretch): string => {
+    return stretch.name
+      ? `${stretch.name} (ID: ${stretch.Stretch_ID})`
+      : `Stretch ${stretch.Stretch_ID}`;
+  };
+
+  // Format drain display
+  const formatDrainDisplay = (drain: Drain): string => {
+    return drain.name
+      ? `${drain.name} (No: ${drain.Drain_No})`
+      : `Drain ${drain.Drain_No}`;
+  };
+
+  // Format catchment display
+  const formatCatchmentDisplay = (catchment: Catchment): string => {
+    return catchment.village_name;
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
-        {label}:
-      </label>
-      <div
-        ref={triggerRef}
-        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
-          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
-        }`}
-        onClick={toggleDropdown}
-      >
-        <span className={selectedItems.length === 0 ? 'text-gray-400' : ''}>
-          {getDisplayText()}
-        </span>
-        <svg
-          className="w-4 h-4 ml-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d={isOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
-          />
-        </svg>
-      </div>
-      
-      {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
-          {/* Search box */}
-          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
-            <div className="relative">
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder={`Search ${label}s...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
-              />
-              {searchQuery && (
-                <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSearchQuery('');
-                  }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                </button>
-              )}
-            </div>
+    <div className="p-4 bg-white rounded-lg shadow-md">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* River Dropdown */}
+          <div>
+            <label
+              htmlFor="river-dropdown"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              River:
+            </label>
+            <select
+              id="river-dropdown"
+              className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={selectedRiver || ""}
+              onChange={handleRiverSelect}
+              disabled={selectionsLocked || isLoading}
+            >
+              <option value="">--Choose a River--</option>
+              {rivers.map((river) => (
+                <option key={river.River_Code} value={river.River_Code}>
+                  {river.River_Name}
+                </option>
+              ))}
+            </select>
           </div>
-          
-          {/* Select All option */}
-          {items.length > 0 && (
-            <div
-              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
-                allSelected ? 'bg-blue-50' : ''
-              }`}
-              onClick={handleSelectAll}
-            >
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={handleSelectAll}
-                className="mr-2"
-              />
-              All {label}s
-            </div>
-          )}
-          
-          {/* No results message */}
-          {filteredItems.length === 0 && searchQuery && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s found matching "{searchQuery}"
-            </div>
-          )}
 
-          {/* No items available message */}
-          {items.length === 0 && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s available
-            </div>
-          )}
-          
-          {/* Individual items */}
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className={`p-2 hover:bg-blue-100 cursor-pointer ${
-                selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleItemSelect(Number(item.id))}
-            >
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(Number(item.id))}
-                onChange={() => handleItemSelect(Number(item.id))}
-                className="mr-2"
-              />
-              <span className="text-sm">{displayPattern(item)}</span>
-            </div>
-          ))}
+          {/* Stretch Multiselect */}
+          <RiverMultiSelect
+            items={stretches}
+            selectedItems={selectedStretches}
+            onSelectionChange={handleStretchesChange}
+            label="Stretch"
+            placeholder="--Choose Stretches--"
+            disabled={!selectedRiver || selectionsLocked || isLoading}
+            displayPattern={formatStretchDisplay}
+          />
+
+          {/* Drain Multiselect */}
+          <RiverMultiSelect
+            items={drains}
+            selectedItems={selectedDrains}
+            onSelectionChange={handleDrainsChange}
+            label="Drain"
+            placeholder="--Choose Drains--"
+            disabled={
+              selectedStretches.length === 0 || selectionsLocked || isLoading
+            }
+            displayPattern={formatDrainDisplay}
+          />
+
+          {/* Catchment Multiselect */}
+          <RiverMultiSelect
+            items={catchments}
+            selectedItems={selectedCatchments}
+            onSelectionChange={handleCatchmentsChange}
+            label="Catchment Villages"
+            placeholder="--Choose Catchments--"
+            disabled={
+              selectedDrains.length === 0 || selectionsLocked || isLoading
+            }
+            displayPattern={formatCatchmentDisplay}
+          />
         </div>
+
+        {/* Display selected values for demonstration */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-md font-medium text-gray-800 mb-2">
+            Selected River System
+          </h3>
+          <div className="space-y-2 text-sm text-gray-700">
+            <p>
+              <span className="font-medium">River:</span>{" "}
+              {rivers.find((r) => r.River_Code === selectedRiver)?.River_Name ||
+                "None"}
+            </p>
+            <p>
+              <span className="font-medium">Stretches:</span>{" "}
+              {selectedStretches.length > 0
+                ? selectedStretches.length === stretches.length
+                  ? "All Stretches"
+                  : stretches
+                      .filter((s) => selectedStretches.includes(Number(s.id)))
+                      .map((s) => formatStretchDisplay(s))
+                      .join(", ")
+                : "None"}
+            </p>
+            <p>
+              <span className="font-medium">Drains:</span>{" "}
+              {selectedDrains.length > 0
+                ? selectedDrains.length === drains.length
+                  ? "All Drains"
+                  : drains
+                      .filter((d) => selectedDrains.includes(Number(d.id)))
+                      .map((d) => formatDrainDisplay(d))
+                      .join(", ")
+                : "None"}
+            </p>
+            <p>
+              <span className="font-medium">Catchments:</span>{" "}
+              {selectedCatchments.length > 0
+                ? selectedCatchments.length === catchments.length
+                  ? "All Catchments"
+                  : catchments
+                      .filter((c) => selectedCatchments.includes(Number(c.id)))
+                      .map((c) => formatCatchmentDisplay(c))
+                      .join(", ")
+                : "None"}
+            </p>
+
+            {selectedCatchments.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-300">
+                <p>
+                  <span className="font-medium">Total Area:</span>{" "}
+                  {totalArea.toFixed(2)} sq Km
+                </p>
+                <p>
+                  <span className="font-medium">Total Catchments:</span>{" "}
+                  {totalCatchments}
+                </p>
+              </div>
+            )}
+
+            {selectionsLocked && (
+              <p className="mt-2 text-green-600 font-medium">
+                Selections confirmed and locked
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex space-x-4 mt-4">
+          <button
+            className={`${
+              selectedCatchments.length > 0 && !selectionsLocked
+                ? "bg-blue-500 hover:bg-blue-700"
+                : "bg-gray-400 cursor-not-allowed"
+            } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+            onClick={handleConfirm}
+            disabled={
+              selectedCatchments.length === 0 || selectionsLocked || isLoading
+            }
+          >
+            Confirm Selection
+          </button>
+         
+        </div>
+
+      {isLoading && (
+        <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
       )}
     </div>
   );
 };
+
+export default RiverSelector;

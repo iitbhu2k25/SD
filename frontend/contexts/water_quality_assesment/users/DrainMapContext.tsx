@@ -7,12 +7,17 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import { useCategory } from "../admin/CategoryContext";
+
 import { useRiverSystem } from "@/contexts/water_quality_assesment/users/DrainContext";
-import { DRAIN_LAYER_NAMES,ClipRasters } from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES, ClipRasters } from "@/interface/raster_context";
+import { useWebSocket } from "@/services/websocket";
+import { api } from '@/services/api';
+import { useYear } from '../admin/yearContext';
+
+
 interface LayerFilter {
   filterField: string | null;
-  filterValue: number[] |string[] | null;
+  filterValue: number[] | string[] | null;
 }
 
 
@@ -23,15 +28,15 @@ interface MapContextType {
   drainLayer: string | null;
   catchmentLayer: string | null;
   boundarylayer: string | null;
-  
+
   riverFilter: LayerFilter;
   stretchFilter: LayerFilter;
   drainFilter: LayerFilter;
   catchmentFilter: LayerFilter;
-  
+
   shouldLoadAllLayers: boolean;
   hasSelections: boolean;
-  
+
   stpOperation: boolean;
   setstpOperation: (operation: boolean) => void;
   setPrimaryLayer: (layer: string) => void;
@@ -88,34 +93,34 @@ const MapContext = createContext<MapContextType>({
   hasSelections: false,
   showLayer: true,
   stpOperation: false,
-  setstpOperation: () => {},
-  setPrimaryLayer: () => {},
-  setRiverLayer: () => {},
-  setStretchLayer: () => {},
-  setDrainLayer: () => {},
-  setCatchmentLayer: () => {},
-  syncLayersWithRiverSystem: () => {},
+  setstpOperation: () => { },
+  setPrimaryLayer: () => { },
+  setRiverLayer: () => { },
+  setStretchLayer: () => { },
+  setDrainLayer: () => { },
+  setCatchmentLayer: () => { },
+  syncLayersWithRiverSystem: () => { },
   isMapLoading: false,
-  zoomToFeature: () => {},
-  resetMapView: () => {},
+  zoomToFeature: () => { },
+  resetMapView: () => { },
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
   DRAIN_LAYER_NAMES,
   loading: false,
-  setLoading: () => {},
-  setShowLayer: () => {},
+  setLoading: () => { },
+  setShowLayer: () => { },
   rasterLayerInfo: null,
-  setRasterLayerInfo: () => {},
-  setShowLegend: () => {},
-  showLegend:false,
-  handleLayerSelection: () => {},
-  setSelectedradioLayer: () => {},
+  setRasterLayerInfo: () => { },
+  setShowLegend: () => { },
+  showLegend: false,
+  handleLayerSelection: () => { },
+  setSelectedradioLayer: () => { },
   selectedradioLayer: null,
   error: null,
-  setError: () => {},
+  setError: () => { },
   wmsDebugInfo: null,
-  setWmsDebugInfo: () => {},
-  setRasterLoading: () => {},
+  setWmsDebugInfo: () => { },
+  setRasterLoading: () => { },
   rasterLoading: false,
 });
 
@@ -128,50 +133,80 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
   const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
-  const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER); 
-  const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH); 
-  const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); 
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT); 
+  const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER);
+  const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH);
+  const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN);
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT);
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(true);
-    const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
-  const [riverFilter, setRiverFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
+  const [riverFilter, setRiverFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [stretchFilter, setStretchFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [stretchFilter, setStretchFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [drainFilter, setDrainFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [drainFilter, setDrainFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  const [catchmentFilter, setCatchmentFilter] = useState<LayerFilter>({ 
-    filterField: null, 
-    filterValue: null 
+  const [catchmentFilter, setCatchmentFilter] = useState<LayerFilter>({
+    filterField: null,
+    filterValue: null
   });
-  
+
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const { wqi_data, selectedParam, qualityParam } = useYear();
   // Get river system context data
   const {
     selectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
-    setDisplayRaster,
-    setShowTable,
-    setTableData,
-    displayRaster,
-    
+    setDisplayRaster
+
   } = useRiverSystem();
 
+  function convertToClipRasters(data: Record<string, string>): ClipRasters[] {
+    return Object.entries(data).map(([key, value]) => ({
+      file_name: key,
+      layer_name: value,
+    }));
+  }
+  
+  
+    const [activeTaskId, setActiveTaskId] = useState("");
+  
+    const wsUrl = activeTaskId
+      ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/wqi/ws/${activeTaskId}`
+      : "";
+  
+    const {lastMessage, isConnected, disconnect } = useWebSocket(wsUrl, { reconnect: false });
+  
+    useEffect(() => {
+      if (!activeTaskId) return;
+      console.log(" websocket stpOperation",stpOperation)
+      let dict_message = JSON.parse(lastMessage || "{}");
+      if (dict_message["state"] === "completed") {
+        const resp:ClipRasters[] = convertToClipRasters(dict_message["result"]);
+        setDisplayRaster(resp);
+        setstpOperation(false);
+        setSelectedradioLayer("GWI_overlay");
+        disconnect();
+      }
+      else {
+        console.log("lastMessage", lastMessage);
+      }
+    }, [lastMessage, isConnected]);
+  
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
 
@@ -179,12 +214,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Function to zoom to a specific feature
   const zoomToFeature = (featureId: string, layerName: string): void => {
-  
+
   };
-  const { selectedCategories, setStpProcess } = useCategory();
+
   // Synchronize layers based on river system selections with hierarchical filtering
   const syncLayersWithRiverSystem = useCallback((): void => {
-    
+
 
     setIsMapLoading(true);
 
@@ -212,7 +247,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       });
     } else {
       setRiverFilter({ filterField: null, filterValue: null });
-     
+
     }
 
     // 2. Stretch Filter - Hierarchical logic
@@ -222,14 +257,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "Drain_No",
         filterValue: selectedDrains
       });
-     
+
     } else if (selectedRiver) {
       // If only river is selected, filter stretches by river
       setStretchFilter({
         filterField: "River_Code", // Assuming stretches have a River_Code field
         filterValue: [selectedRiver]
       });
-    
+
     } else {
       setStretchFilter({ filterField: null, filterValue: null });
     }
@@ -241,7 +276,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "Drain_No",
         filterValue: selectedDrains
       });
-    
+
     } else if (selectedStretches && selectedStretches.length > 0) {
       // If stretches are selected, filter drains by stretch IDs
       setDrainFilter({
@@ -254,10 +289,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "River_Code", // Assuming drains have a River_Code field
         filterValue: [selectedRiver]
       });
-     
+
     } else {
       setDrainFilter({ filterField: null, filterValue: null });
-     
+
     }
 
     // 4. Catchment Filter - Keep original logic (independent)
@@ -266,10 +301,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterField: "village_id",
         filterValue: selectedCatchments
       });
-   
+
     } else {
       setCatchmentFilter({ filterField: null, filterValue: null });
-     
+
     }
 
     setIsMapLoading(false);
@@ -289,77 +324,32 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     const performSTP = async () => {
       setRasterLoading(true);
       setError(null);
-      setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedCatchments,
-        place: "Drain",
-      });
       try {
-        const resp = await fetch(
-          "/api/stp_operation/water_quality_assesment",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
+        const resp = await api.post("/wqi/well_interpolation", {
+          body: {
+            data: wqi_data,
+            params: selectedParam,
+            location: selectedCatchments,
+            place:"drain"
           }
+        }
         );
 
-        if (!resp.ok) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
+        if (resp.status != 201) {
+          console.log("get error is ", resp);
+          throw new Error(`WQI operation failed with status: ${resp.status}`);
         }
-
-        const result = await resp.json();
-        if (result) {
-          const append_data = {
-            file_name: "STP_Priority",
-            workspace: result.workspace,
-            layer_name: result.layer_name,
-          };
-          setTableData(result.csv_details);
-
-          const index = displayRaster.findIndex(
-            (item) => item.file_name === "STP_Priority"
-          );
-
-          let newData;
-          if (index !== -1) {
-            newData = [...displayRaster];
-            newData[index] = append_data;
-          } else {
-            newData = displayRaster.concat(append_data);
-          }
-
-          setDisplayRaster(newData);
-          setRasterLayerInfo(result);
-          setShowTable(true);
-          handleLayerSelection(append_data.file_name)
-          setShowLegend(true);
-        } else {
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
-          setRasterLoading(false);
-        }
+        const result = await resp.message as string;
+        setActiveTaskId(result);
       } catch (error: any) {
         setError(`Error communicating with STP service: ${error.message}`);
         setRasterLoading(false);
-        setShowTable(false);
-      } finally {
-        setstpOperation(false);
-        setStpProcess(false);
+
       }
     };
 
     performSTP();
-  }, [
-    stpOperation,
-    selectedCategories,
-    selectedCatchments,
-    selectedDrains,
-    selectedStretches,
-    selectedRiver,
-  ]);
-
+  }, [stpOperation]);
 
 
   // Context value
@@ -395,16 +385,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     handleLayerSelection,
     setRasterLayerInfo,
     rasterLayerInfo,
-    setShowLayer:()=>{},
+    setShowLayer: () => { },
     showLayer: false,
-    setShowLegend: () => {},
+    setShowLegend: () => { },
     showLegend,
     selectedradioLayer,
-    setSelectedradioLayer: () => {},
+    setSelectedradioLayer: () => { },
     error,
     setError,
     wmsDebugInfo: null,
-    setWmsDebugInfo: () => {},
+    setWmsDebugInfo: () => { },
     setRasterLoading,
     rasterLoading,
   };
