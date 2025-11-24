@@ -77,7 +77,6 @@ class WQI(CrudBase):
         self.obj = None
     
     def get_wqi(self,subdis_code:list,year:int):
-        print(subdis_code)
         query = (
         self.db.query(self.Model)
         .filter(and_(
@@ -85,8 +84,17 @@ class WQI(CrudBase):
         )
         .all()
         )
-        print(query)
         return query
+    def get_wqi_vill(self,village_code:list,year:int):
+        query = (
+        self.db.query(self.Model)
+        .filter(and_(
+            self.Model.Year == year,self.Model.village_code.in_(village_code))
+        )
+        .all()
+        )
+        return query
+    
 
 class WQI_threshold(CrudBase):
     def __init__(self,db:Session,Model=GWQI_Threshold):

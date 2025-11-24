@@ -8,8 +8,11 @@ import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
 import Select from "ol/interaction/Select";
-import { doubleClick, pointerMove } from "ol/events/condition";
+import { doubleClick, pointerMove, singleClick } from "ol/events/condition";
 import Image from "next/image";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import { toLonLat } from "ol/proj";
 import { createWFSVectorSource } from "@/components/utils/geoserver_url";
 import { fromLonLat } from "ol/proj";
 import {
@@ -25,8 +28,10 @@ import { useMap } from "@/contexts/water_quality_assesment/users/DrainMapContext
 import { useRiverSystem } from "@/contexts/water_quality_assesment/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
-import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer'
-
+import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer';
+import { WQIInterface } from "@/interface/table";
+import AddPointModal from "./coordinate";
+import { useYear } from "@/contexts/water_quality_assesment/users/yearContext";
 
 const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
   const geometry = feature.getGeometry();
@@ -82,16 +87,15 @@ const Maping: React.FC = () => {
   const mapInstanceRef = useRef<Map | null>(null);
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const boundaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-
   const riverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
-
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
+  const pointsLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({
@@ -111,14 +115,53 @@ const Maping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [buttonClicked, setButtonClicked] = useState(false);
-
-
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
   const [showStretchLayer, setShowStretchLayer] = useState<boolean>(true);
   const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
   const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
-
-  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked } = useRiverSystem();
+  const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [addedPoints, setAddedPoints] = useState<any[]>([]);
+  const [showPointModal, setShowPointModal] = useState(false);
+  const [pendingPoint, setPendingPoint] = useState<{
+    id: number;
+    coordinate: [number, number];
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [showPointsList, setShowPointsList] = useState(false);
+  const [formData, setFormData] = useState<WQIInterface>({
+    Hardness: 0,
+    Latitude: 0,
+    Longitude: 0,
+    Location: "",
+    Arsenic: 0,
+    Bicarbonate: 0,
+    Calcium: 0,
+    Carbonate: 0,
+    Chloride: 0,
+    Electrical_Conductivity: 0,
+    Fluoride: 0,
+    Iron: 0,
+    Magnesium: 0,
+    Nitrate: 0,
+    pH_Level: 7,
+    Potassium: 0,
+    Sodium: 0,
+    Sulfate: 0,
+    Uranium: 0,
+    Year: new Date().getFullYear(),
+  });
+  const { setWqiData, wqi_data } = useYear();
+  const { 
+    selectedDrains, 
+    displayRaster, 
+    setShowCatchment, 
+    setSelectedRiver, 
+    setSelectedCatchments, 
+    setSelectedStretches, 
+    setSelectedDrains, 
+    selectionsLocked 
+  } = useRiverSystem();
 
   const {
     primaryLayer,
@@ -194,7 +237,6 @@ const Maping: React.FC = () => {
     });
   };
 
-
   const toggleRiverLayer = () => {
     if (riverLayerRef.current) {
       const newVisibility = !showRiverLayer;
@@ -227,12 +269,224 @@ const Maping: React.FC = () => {
     }
   };
 
+  const toggleAddPointMode = () => {
+    setIsAddingPoint(!isAddingPoint);
+    if (!isAddingPoint) {
+      // Entering add point mode
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(false);
+      }
+    } else {
+      // Exiting add point mode
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(!selectionsLocked);
+      }
+    }
+  };
+
+  const clearAllPoints = () => {
+    if (pointsLayerRef.current) {
+      const source = pointsLayerRef.current.getSource();
+      if (source) {
+        source.clear();
+      }
+    }
+    setAddedPoints([]);
+  };
+
+  const savePoint = () => {
+    if (!pendingPoint || wqi_data == null) return;
+
+    // Validate required fields
+    if (!formData.Location.trim()) {
+      alert("Please enter a location name");
+      return;
+    }
+
+    const finalData: WQIInterface = {
+      ...formData,
+      Latitude: pendingPoint.latitude,
+      Longitude: pendingPoint.longitude,
+    };
+
+    const pointFeature = new Feature({
+      geometry: new Point(pendingPoint.coordinate),
+      pointData: {
+        id: wqi_data.length + 1, // Use wqi_data length for consistent ID
+        name: formData.Location,
+        ...finalData
+      },
+      wqiData: finalData,
+    });
+
+    if (pointsLayerRef.current) {
+      pointsLayerRef.current.getSource()?.addFeature(pointFeature);
+    }
+
+    setAddedPoints(prev => [...prev, {
+      id: pendingPoint.id,
+      name: formData.Location,
+      coordinate: pendingPoint.coordinate,
+      latitude: pendingPoint.latitude,
+      longitude: pendingPoint.longitude,
+      ...finalData
+    }]);
+    setWqiData(prev => {
+      if (prev === null) {
+        return [finalData];
+      } else {
+        return [...prev, finalData];
+      }
+    });
+    setFormData({
+      Hardness: 0,
+      Latitude: 0,
+      Longitude: 0,
+      Location: "",
+      Arsenic: 0,
+      Bicarbonate: 0,
+      Calcium: 0,
+      Carbonate: 0,
+      Chloride: 0,
+      Electrical_Conductivity: 0,
+      Fluoride: 0,
+      Iron: 0,
+      Magnesium: 0,
+      Nitrate: 0,
+      pH_Level: 7,
+      Potassium: 0,
+      Sodium: 0,
+      Sulfate: 0,
+      Uranium: 0,
+      Year: new Date().getFullYear(),
+    });
+    setPendingPoint(null);
+    setShowPointModal(false);
+    setIsAddingPoint(false);
+  };
+
+  const cancelPoint = () => {
+    setShowPointModal(false);
+    setPendingPoint(null);
+  };
+
+    useEffect(() => {
+    if (!mapInstanceRef.current || !pointsLayerRef.current) return;
+
+    const source = pointsLayerRef.current.getSource();
+    if (!source) return;
+
+    // Clear existing features first
+    source.clear();
+
+
+    wqi_data?.forEach((data, index) => {
+      const coordinate = fromLonLat([data.Longitude, data.Latitude]);
+      const pointFeature = new Feature({
+        geometry: new Point(coordinate),
+        pointData: {
+          id: index + 1,
+          name: data.Location,
+          ...data
+        },
+        wqiData: data,
+      });
+
+      source.addFeature(pointFeature);
+    });
+
+    // Update addedPoints state to match
+    const mappedPoints = wqi_data?.map((data, index) => ({
+      id: index + 1,
+      name: data.Location,
+      coordinate: fromLonLat([data.Longitude, data.Latitude]),
+      latitude: data.Latitude,
+      longitude: data.Longitude,
+      ...data
+    }));
+
+    setAddedPoints(mappedPoints || []);
+  }, [wqi_data]);
+  // Style for adde
+  const createPointStyle = (pointData: any) => {
+    return new Style({
+      image: new Circle({
+        radius: 8,
+        fill: new Fill({ color: '#10b981' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 })
+      }),
+      text: new Text({
+        text: pointData.name || `Point ${pointData.id}`,
+        font: "bold 12px Arial, sans-serif",
+        fill: new Fill({ color: '#10b981' }),
+        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+        offsetY: -15,
+        textAlign: "center",
+        textBaseline: "middle",
+      })
+    });
+  };
+
+  const zoomToLayers = () => {
+    if (!mapInstanceRef.current) return;
+
+    const layers = [];
+    if (primaryLayerRef.current) layers.push(primaryLayerRef.current);
+    if (riverLayerRef.current && showRiverLayer) layers.push(riverLayerRef.current);
+    if (stretchLayerRef.current && showStretchLayer) layers.push(stretchLayerRef.current);
+    if (drainLayerRef.current && showDrainLayer) layers.push(drainLayerRef.current);
+    if (catchmentLayerRef.current && showCatchmentLayer) layers.push(catchmentLayerRef.current);
+
+    if (layers.length === 0) return;
+
+    let combinedExtent: any = null;
+
+    layers.forEach(layer => {
+      const source = layer.getSource();
+      if (source) {
+        const extent = source.getExtent();
+        if (extent && extent.every((val: number) => isFinite(val))) {
+          if (!combinedExtent) {
+            combinedExtent = [...extent];
+          } else {
+            combinedExtent[0] = Math.min(combinedExtent[0], extent[0]);
+            combinedExtent[1] = Math.min(combinedExtent[1], extent[1]);
+            combinedExtent[2] = Math.max(combinedExtent[2], extent[2]);
+            combinedExtent[3] = Math.max(combinedExtent[3], extent[3]);
+          }
+        }
+      }
+    });
+
+    if (combinedExtent) {
+      mapInstanceRef.current.getView().fit(combinedExtent, {
+        padding: [50, 50, 50, 50],
+        duration: 1000,
+      });
+    }
+  };
+
+
+  useEffect(() => {
+    if (pendingPoint) {
+      setFormData(prev => ({
+        ...prev,
+        Latitude: pendingPoint.latitude,
+        Longitude: pendingPoint.longitude,
+      }));
+    }
+  }, [pendingPoint]);
+
   useEffect(() => {
     if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
     if (selectionsLocked) {
       selectInteractionRef.current.setActive(false);
+    } else {
+      selectInteractionRef.current.setActive(true);
     }
   }, [selectionsLocked]);
+
+  // Initialize map only once
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -279,6 +533,17 @@ const Maping: React.FC = () => {
       }),
     });
 
+    // Create a vector layer for added points
+    const pointsSource = new VectorSource();
+    const pointsLayer = new VectorLayer({
+      source: pointsSource,
+      zIndex: 15,
+      style: (feature) => createPointStyle(feature.get('pointData'))
+    });
+
+    map.addLayer(pointsLayer);
+    pointsLayerRef.current = pointsLayer;
+
     // Add Select interaction for double-clicks (excluding boundary layer)
     const selectInteraction = new Select({
       condition: doubleClick,
@@ -287,7 +552,6 @@ const Maping: React.FC = () => {
         fill: new Fill({ color: 'rgba(255, 0, 0, 0.3)' })
       }),
       filter: (feature, layer) => {
-        // Exclude boundary layer from selection interactions
         return layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current;
       }
     });
@@ -299,15 +563,15 @@ const Maping: React.FC = () => {
         const geometry = feature.getGeometry();
 
         if (geometry) {
-          const River_code = feature.get('River_Code')
-          const Stretch_id = feature.get('Stretch_ID')
-          const Drain_no = feature.get('Drain_No')
-          const village_id = feature.get('village_id')
+          const River_code = feature.get('River_Code');
+          const Stretch_id = feature.get('Stretch_ID');
+          const Drain_no = feature.get('Drain_No');
+          const village_id = feature.get('village_id');
 
-          console.log("selected stretch", River_code, Stretch_id, Drain_no, village_id);
+          console.log("selected features", River_code, Stretch_id, Drain_no, village_id);
 
           if (village_id as number) {
-            setSelectedCatchments([village_id])
+            setSelectedCatchments([village_id]);
           }
           else if (Drain_no as number) {
             setSelectedDrains([Drain_no]);
@@ -320,7 +584,6 @@ const Maping: React.FC = () => {
           }
         }
 
-        // Clear selection after processing
         setTimeout(() => {
           selectInteraction.getFeatures().clear();
         }, 500);
@@ -348,7 +611,6 @@ const Maping: React.FC = () => {
       }
     });
 
-    // Track mouse position for tooltip
     const handleMouseMove = (event: any) => {
       setMousePosition({
         x: event.pixel[0],
@@ -374,7 +636,81 @@ const Maping: React.FC = () => {
         map.setTarget("");
       }
     };
-  }, []);
+  }, []); // Empty dependency array - initialize once
+
+ 
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+
+    const handleMapClick = (event: any) => {
+      if (!isAddingPoint) return;
+
+      const coordinate = event.coordinate;
+      const pixel = event.pixel;
+
+      // Check if click is on a polygon feature
+      let clickedOnPolygon = false;
+      let clickedFeature: any = null;
+
+      map.forEachFeatureAtPixel(pixel, (feature, layer) => {
+        const geometry = feature.getGeometry();
+        if (geometry && geometry.getType().includes('Polygon')) {
+          clickedOnPolygon = true;
+          clickedFeature = feature;
+          return true;
+        }
+      }, {
+        layerFilter: (layer) => {
+          // Check primary, river system layers, but not points layer
+          return layer === primaryLayerRef.current || 
+                 layer === riverLayerRef.current || 
+                 layer === stretchLayerRef.current || 
+                 layer === drainLayerRef.current || 
+                 layer === catchmentLayerRef.current;
+        }
+      });
+
+      if (!clickedOnPolygon) {
+        alert("Please click on a polygon feature to add a point");
+        return;
+      }
+
+      const lonLat = toLonLat(coordinate);
+      const pointId = addedPoints.length + 1;
+
+      // Get polygon name
+      const polygonName = clickedFeature?.get("name") ||
+        clickedFeature?.get("Name") ||
+        clickedFeature?.get("NAME") ||
+        "Unknown Location";
+
+      // Store pending point data and show modal
+      setPendingPoint({
+        id: pointId,
+        coordinate: coordinate,
+        longitude: lonLat[0],
+        latitude: lonLat[1],
+      });
+
+      // Pre-fill location with polygon name
+      setFormData(prev => ({
+        ...prev,
+        Location: polygonName,
+        Latitude: lonLat[1],
+        Longitude: lonLat[0],
+      }));
+
+      setShowPointModal(true);
+    };
+
+    map.on('singleclick', handleMapClick);
+
+    return () => {
+      map.un('singleclick', handleMapClick);
+    };
+  }, [isAddingPoint, addedPoints.length]);
 
   // Handle primary layer
   useEffect(() => {
@@ -411,7 +747,7 @@ const Maping: React.FC = () => {
           width: 2
         }),
         fill: new Fill({
-          color: "rgba(48, 25, 52, 0.1)" // Very transparent fill for boundary
+          color: "rgba(48, 25, 52, 0.1)"
         })
       }),
       zIndex: 2,
@@ -478,11 +814,13 @@ const Maping: React.FC = () => {
       }
       return;
     }
+
     const vectorSource = createWFSVectorSource({
       workspace: defaultWorkspace,
       layerName: layerName,
       layerFilter,
     });
+
     const vectorLayer = new VectorLayer({
       source: vectorSource,
       style: createVectorStyle(layerType, showTitles),
@@ -576,7 +914,6 @@ const Maping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-    // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
       delete layersRef.current[id];
@@ -631,7 +968,6 @@ const Maping: React.FC = () => {
     }
   }, [rasterLayerInfo, layerOpacity]);
 
-  // Update raster layer info when selection changes
   useEffect(() => {
     displayRaster.forEach((item: any) => {
       if (item.file_name === selectedradioLayer) {
@@ -640,7 +976,6 @@ const Maping: React.FC = () => {
     });
   }, [selectedradioLayer, displayRaster]);
 
-  // Fullscreen event listener
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -655,15 +990,15 @@ const Maping: React.FC = () => {
   return (
     <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
-        {/* The Map */}
-        <div ref={mapRef} className="w-full h-full bg-blue-50" />
+        <div 
+          ref={mapRef} 
+          className={`w-full h-full bg-blue-50 ${isAddingPoint ? 'cursor-crosshair' : ''}`}
+        />
 
-        {/* Components */}
         <div className="hidden md:block">
           <GISCompass />
         </div>
 
-        {/* Hover Tooltip */}
         <HoverTooltip
           hoveredFeature={hoveredFeature}
           mousePosition={mousePosition}
@@ -734,7 +1069,7 @@ const Maping: React.FC = () => {
           </button>
         )}
 
-        {/* Panels */}
+        {/* Basemap Panel */}
         {activePanel === "basemap" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
@@ -797,20 +1132,22 @@ const Maping: React.FC = () => {
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="space-y-3">
-              {(
+              {featureCounts.primary > 0 && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
                       <span className="font-semibold text-blue-800">India Layer</span>
                     </div>
+                    <span className="text-xs px-3 py-1 rounded-full bg-blue-200/80 text-blue-800">
+                      {featureCounts.primary} features
+                    </span>
                   </div>
                 </div>
               )}
 
-
               {Object.entries(featureCounts).map(([layerType, count]) => {
-                if (layerType === 'primary') return null;
+                if (layerType === 'primary' || count === 0) return null;
 
                 const colorConfig = LAYER_COLORS[layerType];
                 const isVisible = layerType === 'river' ? showRiverLayer :
@@ -830,8 +1167,7 @@ const Maping: React.FC = () => {
                     }`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded-full mr-3 ${isVisible ? colorConfig.color.replace('#', 'bg-[') + ']' : 'bg-gray-400'
-                          }`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
+                        <div className={`w-4 h-4 rounded-full mr-3`} style={{ backgroundColor: isVisible ? colorConfig.color : '#9CA3AF' }}></div>
                         <span className={`font-semibold ${isVisible ? colorConfig.color.includes('DC2626') ? 'text-red-800' :
                           colorConfig.color.includes('059669') ? 'text-green-800' :
                             colorConfig.color.includes('7C2D12') ? 'text-yellow-800' : 'text-blue-800'
@@ -841,7 +1177,14 @@ const Maping: React.FC = () => {
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">
-
+                        <span className={`text-xs px-3 py-1 rounded-full ${isVisible ?
+                          colorConfig.color.includes('DC2626') ? 'bg-red-200/80 text-red-800' :
+                            colorConfig.color.includes('059669') ? 'bg-green-200/80 text-green-800' :
+                              colorConfig.color.includes('7C2D12') ? 'bg-yellow-200/80 text-yellow-800' : 'bg-blue-200/80 text-blue-800'
+                          : 'bg-gray-200/80 text-gray-700'
+                          }`}>
+                          {count} features
+                        </span>
                         <button
                           onClick={toggleFunction}
                           className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isVisible ? colorConfig.color.includes('DC2626') ? 'bg-red-500' :
@@ -859,7 +1202,30 @@ const Maping: React.FC = () => {
                 );
               })}
 
-              {/* Raster Layer */}
+              {/* Added Points Layer */}
+              {addedPoints.length > 0 && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                      <span className="font-semibold text-green-800">Added Points</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs px-3 py-1 rounded-full bg-green-200/80 text-green-800">
+                        {addedPoints.length} points
+                      </span>
+                      <button
+                        onClick={clearAllPoints}
+                        className="text-xs bg-red-500 text-white px-2 py-1 rounded-lg hover:bg-red-600"
+                        title="Clear all points"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {rasterLayerInfo && (
                 <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200">
                   <div className="flex items-center justify-between mb-3">
@@ -908,6 +1274,22 @@ const Maping: React.FC = () => {
                 <span className="text-sm font-medium">Display Labels</span>
               </button>
 
+              {selectionsLocked && (
+                <button
+                  onClick={toggleAddPointMode}
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${isAddingPoint
+                    ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                    }`}
+                >
+                  <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-sm font-medium">{isAddingPoint ? "Stop Adding" : "Add Point"}</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setHoveredFeature(null);
@@ -923,6 +1305,16 @@ const Maping: React.FC = () => {
               </button>
 
               <button
+                onClick={zoomToLayers}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <span className="text-sm font-medium">Zoom to Layers</span>
+              </button>
+
+              <button
                 onClick={() => {
                   if (mapInstanceRef.current) {
                     const view = mapInstanceRef.current.getView();
@@ -933,7 +1325,7 @@ const Maping: React.FC = () => {
                 className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
               >
                 <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 <span className="text-sm font-medium">Home View</span>
               </button>
@@ -954,7 +1346,7 @@ const Maping: React.FC = () => {
               width={100}
               height={100}
               onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
+              unoptimized
             />
           </div>
         )}
@@ -964,7 +1356,7 @@ const Maping: React.FC = () => {
           <div className="flex items-center space-x-2">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>
-            <div className="text-xs font-mono text-slate-100 " id="mouse-position"></div>
+            <div className="text-xs font-mono text-slate-100" id="mouse-position"></div>
           </div>
         </div>
 
@@ -978,6 +1370,15 @@ const Maping: React.FC = () => {
             <button onClick={() => setError(null)} className="absolute right-2 top-2 text-red-400 hover:text-red-600">×</button>
           </div>
         )}
+        <AddPointModal
+          isOpen={showPointModal}
+          pendingPoint={pendingPoint}
+          formData={formData}
+          onFormChange={(updated) => setFormData(prev => ({ ...prev, ...updated }))}
+          onSave={savePoint}
+          onCancel={cancelPoint}
+        />
+       
       </div>
     </div>
   );

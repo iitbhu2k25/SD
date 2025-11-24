@@ -2,8 +2,9 @@
 from typing import List
 from pydantic import BaseModel, field_validator, model_validator
 class Well_input(BaseModel):
-    subdis_cod:list
+    location:list
     year:int
+    place:str
 
 class Well_response(BaseModel):
     Carbonate:float

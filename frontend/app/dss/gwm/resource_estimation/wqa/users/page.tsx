@@ -7,52 +7,37 @@ import WholeLoading from "@/components/app_layout/newLoading";
 import { useRiverSystem } from "@/contexts/water_quality_assesment/users/DrainContext";
 import MapView from "@/app/dss/gwm/resource_estimation/wqa/users/components/openlayer";
 import { useMap } from "@/contexts/water_quality_assesment/users/DrainMapContext";
-import YearSelector from "@/app/dss/gwm/resource_estimation/wqa/users/components/year";
+
 import "react-toastify/dist/ReactToastify.css";
 import RiverSelector from "@/app/dss/gwm/resource_estimation/wqa/users/components/locations";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { DRAIN_LAYER_NAMES } from "@/interface/raster_context";
-import { YearProvider, useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
-import MultiSelectButtons from "@/app/dss/gwm/resource_estimation/wqa/admin/components/Params";
+import { YearProvider, useYear } from "@/contexts/water_quality_assesment/users/yearContext";
+import YearSelector from "@/app/dss/gwm/resource_estimation/wqa/users/components/year";
+import MultiSelectButtons from "@/app/dss/gwm/resource_estimation/wqa/users/components/Params";
 import WQIDataTable from "@/components/utils/dataTable"
 
 const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
-  const [showYears, setshowYears] = useState(false);
   const { wqi_data, selectedParam, qualityParam } = useYear();
   const {
-    selectedCatchments,
     totalArea,
     totalCatchments,
     selectionsLocked,
-    displayRaster,
-    selectedCatchmentsNames,
-    selectedStreachNames,
-    selectedDrainsNames,
-    selectedRiverName,
     confirmSelections,
     resetSelections,
-    tableData,
   } = useRiverSystem();
 
   const { setstpOperation, loading, isMapLoading, stpOperation, setCatchmentLayer } =
     useMap();
-  const [showCategories, setShowCategories] = useState(false);
+  const [showYears, setshowYears] = useState(false);
 
   useEffect(() => {
-    setShowCategories(selectionsLocked);
+    setshowYears(selectionsLocked);
   }, [selectionsLocked]);
 
-  const handleConfirm = () => confirmSelections();
-
-  const handleReset = () => {
-    resetSelections();
-    setCatchmentLayer(null);
-    DRAIN_LAYER_NAMES.CATCHMENT = null;
-    setShowCategories(false);
-  };
 
 
   return (

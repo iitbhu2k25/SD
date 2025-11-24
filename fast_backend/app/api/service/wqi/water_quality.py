@@ -246,8 +246,12 @@ class WQ_Index:
         self.idw_cell_size = 30.0
 
     def get_well(self,db: session,payload:Well_input):
-        return WQI(db).get_wqi(payload.subdis_cod,payload.year)
-    
+        if payload.place == "Drain":
+            print(payload.location)
+            return WQI(db).get_wqi_vill(payload.location,payload.year)
+        else:
+            return WQI(db).get_wqi(payload.location,payload.year)
+
     
         
     def _correct_pandas(self,payload_path:str):

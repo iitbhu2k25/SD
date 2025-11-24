@@ -2,7 +2,7 @@
 
 import { api } from "@/services/api";
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useLocation } from "./LocationContext";
+import { useRiverSystem } from "@/contexts/water_quality_assesment/users/DrainContext";
 import { WQIInterface, WQI_columns } from "@/interface/table";
 type YearContextType = {
   years: number[];
@@ -31,8 +31,8 @@ export const YearProvider = ({ children }: { children: React.ReactNode }) => {
     .map(col => col.name as string);
 
   const {
-    selectedSubDistricts,
-  } = useLocation();
+    selectedCatchments,
+  } = useRiverSystem();
   const fetchYears = async () => {
     try {
       const res = await api.get("/wqi/year");
@@ -44,16 +44,16 @@ export const YearProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   useEffect(() => {
-    if (!selectedYear || !selectedSubDistricts?.length) return;
+    if (!selectedYear || !selectedCatchments?.length) return;
 
     const fetchData = async () => {
       try {
         console.log("Selected year:", selectedYear);
         const resp = await api.post("/wqi/wells", {
           body: {
-            location: selectedSubDistricts,
+            location: selectedCatchments,
             year: selectedYear,
-            place: "admin"
+            place: "Drain"
           }
         });
         setWqiData(resp.message as WQIInterface[])

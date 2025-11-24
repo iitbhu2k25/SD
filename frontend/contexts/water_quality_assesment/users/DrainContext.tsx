@@ -294,31 +294,6 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   
   }, [showCatchment]);
 
-  // Handle display raster when selections are locked
-  useEffect(() => {
-    const fetchDisplayRaster = async () => {
-      if (selectionsLocked === true && selectedCatchments.length > 0) {
-        setIsLoading(true);
-        try {
-          const response = await api.post("/stp_operation/stp_priority_visual_display",{
-            body: { 
-                clip: selectedCatchments,
-                place:"Drain",
-               },
-          })
-          const data = await response.message as ClipRasters[];
-          setDisplayRaster(data);
-          setIsLoading(false);
-        } catch (error) {
-          console.log("Error fetching display raster:", error);
-        }
-      }
-    };
-
-    fetchDisplayRaster();
-  }, [selectionsLocked, selectedCatchments]);
-
-  // Calculate total area and count based on selected catchments
   useEffect(() => {
     if (selectedCatchments.length > 0) {
       // Filter to get only selected catchments
