@@ -837,7 +837,7 @@ class MARSuitabilityMapper:
         constrained_path, _ = self.processor.apply_constraints_new(
                 weighted_sum, constraint_paths=constraintion_raster, output_name=constraint_name
             )
-        final_name = Unique_name.unique_name_with_ext("stp_suitability","tif")
+        final_name = Unique_name.unique_name_with_ext("final_overlay","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
 
 
@@ -876,10 +876,10 @@ class MARSuitabilityMapper:
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext("MAR_suitability","tif")
         final_path1,clip=self._cliping_raster(final_path,final_name,payload)
-        sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
-        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="suitability")
+        sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place="Admin",logic="suitability")
         unique_store_name = Unique_name.unique_name(self.config.raster_store)
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
         status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
         if status:
             return {

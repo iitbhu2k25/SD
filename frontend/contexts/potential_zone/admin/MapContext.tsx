@@ -166,6 +166,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   };
 
   // Listen for changes in location selection and update layers accordingly
+  
   useEffect(() => {
     syncLayersWithLocation();
   }, [
