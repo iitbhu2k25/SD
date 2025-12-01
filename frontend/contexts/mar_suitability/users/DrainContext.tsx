@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { DRAIN_LAYER_NAMES,River,Stretch,Drain,Catchment,ClipRasters ,Layer_name} from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES, River, Stretch, Drain, Catchment, ClipRasters, Layer_name } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
 import { api } from "@/services/api";
 export interface RiverSelectionsData {
@@ -42,8 +42,8 @@ interface RiverSystemContextType {
   resetSelections: () => void;
   showTable: boolean;
   setShowTable: (value: boolean) => void;
-  tableData:  DataRow[];
-  setTableData: (value:  DataRow[]) => void;
+  tableData: DataRow[];
+  setTableData: (value: DataRow[]) => void;
 }
 
 // Props for the RiverSystemProvider component
@@ -63,22 +63,22 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   selectedCatchments: [],
   totalArea: 0,
   totalCatchments: 0,
-  setShowCatchment: () => {},
+  setShowCatchment: () => { },
   selectionsLocked: false,
   displayRaster: [],
-  setDisplayRaster: () => {},
+  setDisplayRaster: () => { },
   isLoading: false,
   showCatchment: false,
-  handleRiverChange: () => {},
-  setSelectedStretches: () => {},
-  setSelectedDrains: () => {},
-  setSelectedCatchments: () => {},
+  handleRiverChange: () => { },
+  setSelectedStretches: () => { },
+  setSelectedDrains: () => { },
+  setSelectedCatchments: () => { },
   confirmSelections: () => null,
-  resetSelections: () => {},
+  resetSelections: () => { },
   showTable: false,
-  setShowTable: () => {},
+  setShowTable: () => { },
   tableData: [],
-  setTableData: () => {},
+  setTableData: () => { },
 });
 
 // Create the provider component
@@ -104,20 +104,20 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
-  const [tableData, setTableData] = useState< DataRow[]>([]);
+  const [tableData, setTableData] = useState<DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
   // Load rivers on component mount
   useEffect(() => {
     const fetchRivers = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/location/get_river");
-       
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        const response = await api.get("/location/get_river")
+
+        if (response.status > 201) {
+          console.log(`HTTP error! Status: ${response.status}`)
         }
 
-        const data = await response.json();
+        const data = await response.message as River[];
         const riverData: River[] = data.map((river: any) => ({
           River_Name: river.River_Name,
           River_Code: river.River_Code,
@@ -144,25 +144,19 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchStretches = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(
-          "/api/location/get_stretch",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              river_code: selectedRiver,
-              all_data: true,
-            }),
-          }
+        const response = await api.post("/location/get_stretch", {
+          body: {
+            river_code: selectedRiver,
+            all_data: true,
+          },
+        }
         );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        if (response.status > 201) {
+          console.log(`HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.message as Stretch[];
         const stretchData: Stretch[] = data.map((stretch: any) => ({
           id: stretch.Stretch_ID,
           Stretch_ID: stretch.Stretch_ID,
@@ -200,25 +194,17 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchDrains = async () => {
       try {
-        const response = await fetch(
-          "/api/location/get_suitability_drain",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              stretch_ids: selectedStretches,
-              all_data: true,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        const response = await api.post("/location/get_suitability_drain",{
+          body: {
+            stretch_ids: selectedStretches,
+            all_data: true,
+          },
+        })
+        if (response.status>201) {
+          console.log(`HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data = await response.message as Drain[];
         const drainData: Drain[] = data.map((drain: any) => ({
           id: drain.Drain_No,
           Drain_No: drain.Drain_No,
@@ -254,23 +240,23 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchCatchments = async () => {
       try {
-        const response = await api.post("/stp_operation/get_suitability_cachement",{
-        
-            body: {
-              drain_nos: selectedDrains,
-              all_data: true,
-            },
-          }
+        const response = await api.post("/stp_operation/get_suitability_cachement", {
+
+          body: {
+            drain_nos: selectedDrains,
+            all_data: true,
+          },
+        }
         );
 
-        if (response.status>201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        if (response.status > 201) {
+          console.log(`HTTP error! Status: ${response.status}`);
         }
 
         const data = await response.message as Layer_name;
-        const layer_name=data.layer_name
-        DRAIN_LAYER_NAMES.CATCHMENT=layer_name
-        const new_data=data.catchments
+        const layer_name = data.layer_name
+        DRAIN_LAYER_NAMES.CATCHMENT = layer_name
+        const new_data = data.catchments
         const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
           id: catchment.id,
           village_name: catchment.village_name,
@@ -284,7 +270,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
         setIsLoading(false);
       }
     };
-    
+
     if (showCatchment === true) {
       fetchCatchments();
     }
@@ -293,7 +279,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     setSelectedCatchments([]);
     setTotalArea(0);
     setTotalCatchments(0);
-  
+
   }, [showCatchment]);
 
   // Handle display raster when selections are locked
@@ -302,25 +288,18 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       if (selectionsLocked === true && selectedCatchments.length > 0) {
         setIsLoading(true);
         try {
-          const response = await fetch(
-            "/api/stp_operation/stp_suitability_visual_display",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ 
-                clip: selectedCatchments,
-                place:"Drain",
-               }),
-            }
-          );
+          const response = await api.post("/stp_operation/stp_suitability_visual_display",{
+            body: {
+              clip: selectedCatchments,
+              place: "Drain",
+            },
+          });
 
-          const data = await response.json();
+          const data = await response.message as ClipRasters[];
           setDisplayRaster(data);
         } catch (error) {
           console.log("Error fetching display raster:", error);
-        }setIsLoading(false);
+        } setIsLoading(false);
       }
     };
 
@@ -341,7 +320,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
         0
       );
 
-      setTotalArea(totalAreaSum/1000000);
+      setTotalArea(totalAreaSum / 1000000);
       setTotalCatchments(selectedCatchmentObjects.length);
     } else {
       setTotalArea(0);
@@ -444,7 +423,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 export const useRiverSystem = (): RiverSystemContextType => {
   const context = useContext(RiverSystemContext);
   if (context === undefined) {
-    throw new Error("useRiverSystem must be used within a RiverSystemProvider");
+    console.log("useRiverSystem must be used within a RiverSystemProvider");
   }
   return context;
 };

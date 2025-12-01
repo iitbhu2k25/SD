@@ -563,7 +563,7 @@ const Mapping: React.FC = () => {
     } catch (error: any) {
       setError(`Error setting up raster layer: ${error.message}`);
     }
-  }, [rasterLayerInfo, layerOpacity, stpOperation, selectedCategory]);
+  }, [rasterLayerInfo, layerOpacity]);
 
   // Fullscreen event listener
   useEffect(() => {

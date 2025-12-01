@@ -645,7 +645,7 @@ const Maping: React.FC = () => {
     } catch (error: any) {
       setError(`Error setting up raster layer: ${error.message}`);
     }
-  }, [rasterLayerInfo, layerOpacity, stpOperation, selectedCategory, selectedCatchments]);
+  }, [rasterLayerInfo, layerOpacity, selectedCatchments]);
 
   useEffect(() => {
     const handleFullScreenChange = () => setIsFullScreen(!!document.fullscreenElement);

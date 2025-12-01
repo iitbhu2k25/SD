@@ -3,7 +3,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/potential_zone/admin/LocationContext';
 import { useCategory } from '@/contexts/potential_zone/admin/CategoryContext';
 import { api } from '@/services/api';
-import { DataRow } from '@/interface/table';
 import { ADMIN_LAYER_NAMES,ClipRasters,stp_priority_Output } from '@/interface/raster_context';
 // Type definitions for the context
 interface MapContextType {

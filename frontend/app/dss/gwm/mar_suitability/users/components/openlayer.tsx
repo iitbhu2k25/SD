@@ -237,7 +237,7 @@ const Maping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -514,66 +514,15 @@ const Maping: React.FC = () => {
     mapInstanceRef.current.addLayer(vectorLayer);
     primaryLayerRef.current = vectorLayer;
   }, [primaryLayer, defaultWorkspace]);
+
+
+
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
 
-    if (stpOperation) {
-      const performSTP = async () => {
-        const bodyPayload = JSON.stringify({
-          data: selectedCategory,
-          clip: selectedCatchments,
-          place: "Drain",
-        });
-        try {
-          const resp = await fetch(
-            "/api/gwz_operation/mar_suitability",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: bodyPayload,
-            }
-          );
 
-          if (!resp.ok) throw new Error(`Mar suitability operation failed: ${resp.status}`);
-
-          const result = await resp.json();
-          if (result && result.status === "success") {
-            const append_data = {
-              file_name: "mar_suitability",
-              workspace: result.workspace,
-              layer_name: result.layer_name,
-            };
-            setTableData(result.csv_details);
-
-            const index = displayRaster.findIndex(
-              (item) => item.file_name === "mar_suitability"
-            );
-
-            let newData;
-            if (index !== -1) {
-              newData = [...displayRaster];
-              newData[index] = append_data;
-            } else {
-              newData = displayRaster.concat(append_data);
-            }
-
-            setDisplayRaster(newData);
-            setRasterLayerInfo(result);
-            handleLayerSelection(append_data.file_name);
-            setShowTable(true);
-          }
-        } catch (error: any) {
-          setError(`Mar suitability  failed: ${error.message}`);
-        } finally {
-          setstpOperation(false);
-        }
-      };
-
-      performSTP();
-      return;
-    }
 
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
@@ -623,8 +572,15 @@ const Maping: React.FC = () => {
     } catch (error: any) {
       setError(`Error setting up raster layer: ${error.message}`);
     }
-  }, [rasterLayerInfo, layerOpacity, stpOperation]);
-
+  }, [rasterLayerInfo, layerOpacity]);
+  
+  useEffect(() => {
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
   // Fullscreen event listener
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -944,7 +900,7 @@ const Maping: React.FC = () => {
         )}
 
         {/* Coordinates */}
-         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
+        <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>

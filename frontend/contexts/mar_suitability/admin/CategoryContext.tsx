@@ -2,7 +2,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
 import { api } from '@/services/api';
-import { Category,SelectRasterLayer,Stp_area,RasterLayer } from '@/interface/raster_context';
+import { Category, SelectRasterLayer, Stp_area, RasterLayer } from '@/interface/raster_context';
 
 
 interface CategoryContextType {
@@ -10,20 +10,20 @@ interface CategoryContextType {
   constraint_categories: Category[];
   selectedCondition: SelectRasterLayer[];
   selectedConstraint: SelectRasterLayer[];
-  toggleConditionCategory: (id:number, file_name:string) => void;
-  toggleConstraintCategory: (id:number, file_name:string) => void;
-  updateConditionCategoryInfluence: (id:number,file_name:string, Influence: number) => void;
-  updateConstraintCategoryInfluence: (id:number,file_name:string, Influence: number) => void;
+  toggleConditionCategory: (id: number, file_name: string) => void;
+  toggleConstraintCategory: (id: number, file_name: string) => void;
+  updateConditionCategoryInfluence: (id: number, file_name: string, Influence: number) => void;
+  updateConstraintCategoryInfluence: (id: number, file_name: string, Influence: number) => void;
   selectAllConditionCategories: () => void;
   clearAllConditionCategories: () => void;
   selectAllConstraintCategories: () => void;
   clearAllConstraintCategories: () => void;
-  isConditionSelected: (id:number) => boolean;
-  isConstraintSelected: (id:number) => boolean;
-  getConditionCategoryInfluence: (id:number) => number;
-  getConstraintCategoryInfluence: (id:number) => number;
-  getConditionCategoryWeight: (id:number) => number;
-  getConstraintCategoryWeight: (id:number) => number;
+  isConditionSelected: (id: number) => boolean;
+  isConstraintSelected: (id: number) => boolean;
+  getConditionCategoryInfluence: (id: number) => number;
+  getConstraintCategoryInfluence: (id: number) => number;
+  getConditionCategoryWeight: (id: number) => number;
+  getConstraintCategoryWeight: (id: number) => number;
   selectedCategory: SelectRasterLayer[];
   setSelectedCategory: (category: SelectRasterLayer[]) => void;
   isLoading: boolean;
@@ -31,10 +31,11 @@ interface CategoryContextType {
   showTable: boolean;
   setShowTable: (value: boolean) => void;
   tableData: DataRow[];
+  setStpProcess: (value: boolean) => void;
   setTableData: (value: DataRow[]) => void;
-  StpArea:Stp_area[];
-  OptSetStpArea:(Stp_area:Stp_area)=>void
-  setFindArea:(value:boolean)=>void
+  StpArea: Stp_area[];
+  OptSetStpArea: (Stp_area: Stp_area) => void
+  setFindArea: (value: boolean) => void
   rasterLayerInfo: RasterLayer | null;
   setRasterLayerInfo: (info: RasterLayer) => void;
 }
@@ -57,9 +58,10 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
-  const [StpArea,SetStpArea]= useState<Stp_area[]>([])
-  const [OptStpArea,OptSetStpArea]=useState<Stp_area>()
-  const [findArea,setFindArea]=useState<boolean>(false)
+  const [StpArea, SetStpArea] = useState<Stp_area[]>([])
+  const [OptStpArea, OptSetStpArea] = useState<Stp_area>()
+  const [findArea, setFindArea] = useState<boolean>(false)
+  const [stpProcess, setStpProcess] = useState<boolean>(false);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<RasterLayer>();
 
   // Fetch condition categories from API
@@ -75,7 +77,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
-        
+
         setConditionCategories(enhancedCategories);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -88,7 +90,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     // Fetch constraint categories from API
     const fetchConstraintCategories = async () => {
       try {
-        const response = await api.get("/gwz_operation/get_mar_suitability_category?category=constraint&all_data=true") 
+        const response = await api.get("/gwz_operation/get_mar_suitability_category?category=constraint&all_data=true")
         if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
@@ -96,7 +98,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         const enhancedCategories = data.map((category: Category) => ({
           ...category,
         }));
-        
+
         setConstraintCategories(enhancedCategories);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -114,16 +116,16 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
 
 
 
-  
+
   // Calculate weights for all selected categories
   const calculateWeights = (categories: SelectRasterLayer[]): SelectRasterLayer[] => {
     if (categories.length === 0) return [];
-    
+
     // Calculate sum of all influences
     const totalInfluence = categories.reduce((sum, category) => {
       return sum + parseFloat(category.Influence);
     }, 0);
-    
+
     // If sum is 0, assign equal weights
     if (totalInfluence === 0) {
       const equalWeight = (1 / categories.length).toFixed(4);
@@ -132,7 +134,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         weight: equalWeight
       }));
     }
-    
+
     // Calculate weight for each category
     return categories.map(category => {
       const weight = (parseFloat(category.Influence) / totalInfluence).toFixed(4);
@@ -151,11 +153,11 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const selectedConstraintWithWeights = useMemo(() => {
     return calculateWeights(selectedConstraint);
   }, [selectedConstraint]);
-  
+
   // Toggle a condition category selection
-  const toggleConditionCategory = (id:number,file_name:string): void => {
+  const toggleConditionCategory = (id: number, file_name: string): void => {
     setSelectedCondition(prev => {
-      
+
       const isSelected = prev.some(item => item.id === id);
       if (isSelected) {
         // Remove it if already selected
@@ -164,7 +166,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         // Add it with default weight from the categories
         const category = conditionCategories.find(cat => cat.id === id);
         if (category) {
-          return [...prev, { id,file_name, Influence: category.weight.toString() }];
+          return [...prev, { id, file_name, Influence: category.weight.toString() }];
         } else {
           return prev;
         }
@@ -173,34 +175,34 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   };
 
   // Toggle a constraint category selection
-  const toggleConstraintCategory = (id:number,file_name:string): void => {
+  const toggleConstraintCategory = (id: number, file_name: string): void => {
     setSelectedConstraint(prev => {
       // Find if the file_name already exists in the selection
       const isSelected = prev.some(item => item.id === id);
-      
-       if (isSelected) {
+
+      if (isSelected) {
         // Remove it if already selected
         return prev.filter(item => item.id !== id);
       } else {
         // Add it with default weight from the categories
         const category = constraintCategories.find(cat => cat.id === id);
         if (category) {
-          return [...prev, { id,file_name, Influence: category.weight.toString() }];
+          return [...prev, { id, file_name, Influence: category.weight.toString() }];
         } else {
           return prev;
         }
       }
     });
   };
-  
+
   // Update the Influence of a condition category (for slider)
-  const updateConditionCategoryInfluence = (id:number, file_name:string, Influence: number): void => {
+  const updateConditionCategoryInfluence = (id: number, file_name: string, Influence: number): void => {
     // Ensure Influence is between 0 and 100
     const clampedInfluence = Math.min(Math.max(Influence, 0), 100);
-    
+
     setSelectedCondition(prev => {
       const categoryIndex = prev.findIndex(item => item.id === id);
-      
+
       if (categoryIndex !== -1) {
         // Update existing category Influence
         const updatedCategories = [...prev];
@@ -213,7 +215,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         // Add category with custom Influence if not already selected
         const category = conditionCategories.find(cat => cat.id === id);
         if (category) {
-          return [...prev, {id,file_name, Influence: clampedInfluence.toString() }];
+          return [...prev, { id, file_name, Influence: clampedInfluence.toString() }];
         } else {
           return prev;
         }
@@ -222,13 +224,13 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   };
 
   // Update the Influence of a constraint category (for slider)
-  const updateConstraintCategoryInfluence = (id:number, file_name:string, Influence: number): void => {
+  const updateConstraintCategoryInfluence = (id: number, file_name: string, Influence: number): void => {
     // Ensure Influence is between 0 and 100
     const clampedInfluence = Math.min(Math.max(Influence, 0), 100);
-    
+
     setSelectedConstraint(prev => {
       const categoryIndex = prev.findIndex(item => item.id === id);
-      
+
       if (categoryIndex !== -1) {
         // Update existing category Influence
         const updatedCategories = [...prev];
@@ -241,40 +243,40 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         // Add category with custom Influence if not already selected
         const category = constraintCategories.find(cat => cat.id === id);
         if (category) {
-          return [...prev, {id, file_name, Influence: clampedInfluence.toString() }];
+          return [...prev, { id, file_name, Influence: clampedInfluence.toString() }];
         } else {
           return prev;
         }
       }
     });
   };
-  
+
   // Get the current Influence of a condition category (for slider value)
-  const getConditionCategoryInfluence = (id:number): number => {
+  const getConditionCategoryInfluence = (id: number): number => {
     const selectedCategory = selectedCondition.find(item => item.id === id);
     if (selectedCategory) {
       return parseFloat(selectedCategory.Influence);
     }
-    
+
     // Return default weight if category not selected
     const defaultCategory = conditionCategories.find(cat => cat.id === id);
     return defaultCategory ? defaultCategory.weight : 0;
   };
 
   // Get the current Influence of a constraint category (for slider value)
-  const getConstraintCategoryInfluence = (id:number): number => {
+  const getConstraintCategoryInfluence = (id: number): number => {
     const selectedCategory = selectedConstraint.find(item => item.id === id);
     if (selectedCategory) {
       return parseFloat(selectedCategory.Influence);
     }
-    
+
     // Return default weight if category not selected
     const defaultCategory = constraintCategories.find(cat => cat.id === id);
     return defaultCategory ? defaultCategory.weight : 0;
   };
-  
+
   // Get the current weight of a condition category
-  const getConditionCategoryWeight = (id:number): number => {
+  const getConditionCategoryWeight = (id: number): number => {
     const selectedCategory = selectedConditionWithWeights.find(item => item.id === id);
     if (selectedCategory && selectedCategory.weight) {
       return parseFloat(selectedCategory.weight);
@@ -283,22 +285,22 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   };
 
   // Get the current weight of a constraint category
-  const getConstraintCategoryWeight = (id:number): number => {
+  const getConstraintCategoryWeight = (id: number): number => {
     const selectedCategory = selectedConstraintWithWeights.find(item => item.id === id);
     if (selectedCategory && selectedCategory.weight) {
       return parseFloat(selectedCategory.weight);
     }
     return 0;
   };
-  
+
   // Select all condition categories
   const selectAllConditionCategories = (): void => {
     const allCategories = conditionCategories.map(category => ({
-      id :category.id,
+      id: category.id,
       file_name: category.file_name,
       Influence: category.weight.toString()
     }));
-    
+
     setSelectedCondition(allCategories);
   };
 
@@ -309,10 +311,10 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
       file_name: category.file_name,
       Influence: category.weight.toString()
     }));
-    
+
     setSelectedConstraint(allCategories);
   };
-  
+
   // Clear all selected condition categories
   const clearAllConditionCategories = (): void => {
     setSelectedCondition([]);
@@ -322,7 +324,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const clearAllConstraintCategories = (): void => {
     setSelectedConstraint([]);
   };
-  
+
   // Check if a condition category is selected
   const isConditionSelected = (id: number): boolean => {
     return selectedCondition.some(item => item.id === id);
@@ -332,7 +334,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const isConstraintSelected = (id: number): boolean => {
     return selectedConstraint.some(item => item.id === id);
   };
-  
+
   // Context value - FIXED: Use memoized selected categories with weights
   const contextValue: CategoryContextType = {
     condition_categories: conditionCategories,
@@ -365,10 +367,11 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     OptSetStpArea,
     setFindArea,
     setRasterLayerInfo,
-    rasterLayerInfo: rasterLayerInfo||null
+    setStpProcess,
+    rasterLayerInfo: rasterLayerInfo || null
 
   };
-  
+
   return (
     <CategoryContext.Provider value={contextValue}>
       {children}

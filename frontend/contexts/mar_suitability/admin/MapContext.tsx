@@ -1,7 +1,9 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/mar_suitability/admin/LocationContext';
-import { ADMIN_LAYER_NAMES } from '@/interface/raster_context';
+import { useCategory } from '@/contexts/mar_suitability/admin/CategoryContext';
+import { ADMIN_LAYER_NAMES, stp_priority_Output, ClipRasters } from '@/interface/raster_context';
+import { api } from '@/services/api';
 
 interface MapContextType {
   primaryLayer: string;
@@ -25,6 +27,8 @@ interface MapContextType {
   ADMIN_LAYER_NAMES: typeof ADMIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  selectedradioLayer: string | null;
+  setSelectedradioLayer: (layer: string | null) => void; 
 
 }
 
@@ -39,25 +43,27 @@ interface MapProviderProps {
 const MapContext = createContext<MapContextType>({
   primaryLayer: ADMIN_LAYER_NAMES.STATE,
   secondaryLayer: null,
-  LayerFilter:null,
-  setLayerFilter: () => {},
-  LayerFilterValue :null,
+  LayerFilter: null,
+  setLayerFilter: () => { },
+  LayerFilterValue: null,
   stpOperation: false,
-  setstpOperation: () => {},
-  setSecondaryLayer: () => {},
-  setPrimaryLayer: () => {},
-  syncLayersWithLocation: () => {},
+  setstpOperation: () => { },
+  setSecondaryLayer: () => { },
+  setPrimaryLayer: () => { },
+  syncLayersWithLocation: () => { },
   isMapLoading: false,
-  setIsMapLoading: () => {},
-  zoomToFeature: () => {},
-  resetMapView: () => {},
+  setIsMapLoading: () => { },
+  zoomToFeature: () => { },
+  resetMapView: () => { },
   geoServerUrl: "/geoserver/api",
   defaultWorkspace: "vector_work",
   ADMIN_LAYER_NAMES,
   loading: false,
-  setLoading: () => {},
+  setLoading: () => { },
   resultLayer: null,
-  setResultLayer: () => {},
+  setResultLayer: () => { },
+  selectedradioLayer: "",
+  setSelectedradioLayer: () => {},
 });
 
 // Create the provider component
@@ -70,59 +76,71 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
   const [resultLayer, setResultLayer] = useState<string | null>(null);
-  const [LayerFilter, setLayerFilter] = useState<string|null>(null);
+  const [LayerFilter, setLayerFilter] = useState<string | null>(null);
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
+  const [rasterLoading, setRasterLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
+  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [showLegend, setShowLegend] = useState<boolean>(true);
+
   // Get location context data
   const {
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
     selectedvillages,
-
+    displayRaster,
+    setdisplay_raster
   } = useLocation();
-
+  const { selectedCategory, setStpProcess, setShowTable, setTableData } =
+    useCategory();
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
-  
+
   };
 
-  // Function to zoom to a specific feature
+  const handleLayerSelection = (layerName: string) => {
+    setSelectedradioLayer(layerName);
+    console.log("Selected layer:", layerName);
+  };
   const zoomToFeature = (featureId: string, layerName: string): void => {
   };
 
   // Synchronize layers based on location selections
- const syncLayersWithLocation = (): void => {
+  const syncLayersWithLocation = (): void => {
     setIsMapLoading(true);
-    
+
     // Default to showing states
-    let primary: string = ADMIN_LAYER_NAMES.INDIA ;
+    let primary: string = ADMIN_LAYER_NAMES.INDIA;
     let secondary: string | null = null;
-    let filters_type:string | null = null;
+    let filters_type: string | null = null;
     let filters_value: number[] = [];
-    if ( selectedvillages.length) {
+    if (selectedvillages.length) {
       secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = '"ID"';
-      filters_value =  selectedvillages;
+      filters_value = selectedvillages;
     }
     // Logic for determining which layers to show based on selection state
     else if (selectedSubDistricts) {
       secondary = ADMIN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
       filters_value = [selectedSubDistricts];
-      }
+    }
     else if (selectedDistricts) {
       secondary = ADMIN_LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
       filters_value = [selectedDistricts];
-     }
-    else if(selectedState) {
+    }
+    else if (selectedState) {
       secondary = ADMIN_LAYER_NAMES.STATE;
       filters_type = 'State_Code';
       filters_value = [selectedState];
     }
-    
+
 
     // Update state with new layer configuration
     setPrimaryLayer(primary);
@@ -132,7 +150,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setIsMapLoading(false);
   };
 
- 
+
   // Listen for changes in location selection and update layers accordingly
   useEffect(() => {
     syncLayersWithLocation();
@@ -140,9 +158,72 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
-     selectedvillages.length
+    selectedvillages.length
   ]);
-  
+
+  useEffect(() => {
+    if (!stpOperation) return;
+
+    const performSTP = async () => {
+      setRasterLoading(true);
+      setError(null);
+      setWmsDebugInfo(null);
+      setStpProcess(true);
+      try {
+        const resp = await api.post("/gwz_operation/mar_suitability", {
+          body: {
+            data: selectedCategory,
+            clip: selectedvillages
+          },
+        });
+
+        if (resp.status > 201) {
+          throw new Error(`STP operation failed with status: ${resp.status}`);
+        }
+        const result = await resp.message as stp_priority_Output;
+        if (result) {
+          const append_data = {
+            file_name: "mar_suitability",
+            workspace: result.workspace,
+            layer_name: result.layer_name,
+          };
+          setTableData(result.csv_details);
+          const index = displayRaster.findIndex(
+            (item) => item.file_name === "mar_suitability"
+          );
+
+          let newData;
+          if (index !== -1) {
+            // Update existing entry
+            newData = [...displayRaster];
+            newData[index] = append_data;
+          } else {
+            // Append new entry
+            newData = displayRaster.concat(append_data);
+          }
+          setdisplay_raster(newData);
+          setRasterLayerInfo(append_data);
+          setShowTable(true);
+          handleLayerSelection(append_data.file_name);
+          setShowLegend(true);
+        } else {
+          console.log("STP operation did not return success:", result);
+          setRasterLoading(false);
+        }
+      } catch (error: any) {
+        console.log("Error performing STP operation:", error);
+        setError(`Error communicating with STP service: ${error.message}`);
+        setRasterLoading(false);
+        setShowTable(false);
+      } finally {
+        setstpOperation(false);
+        setStpProcess(false);
+      }
+    };
+
+    performSTP();
+  }, [stpOperation, selectedCategory, selectedSubDistricts]);
+
   // Context value
   const contextValue: MapContextType = {
     primaryLayer,
@@ -163,9 +244,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     defaultWorkspace,
     ADMIN_LAYER_NAMES,
     loading: false,
-    setLoading: () => {},
+    setLoading: () => { },
     resultLayer,
-    setResultLayer
+    setResultLayer,
+    selectedradioLayer,
+    setSelectedradioLayer: () => {},
   };
 
   return (
