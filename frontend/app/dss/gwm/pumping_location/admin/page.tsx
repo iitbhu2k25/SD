@@ -61,9 +61,9 @@ const MainContent = () => {
         }
       />
 
-      <main className="flex flex-col lg:flex-row gap-4 px-4 py-6 h-[calc(100vh-100px)]">
+      <main className="flex flex-col lg:flex-row gap-4 py-2 h-[calc(80vh-20px)] overflow-hidden">
         {/* LEFT PANEL */}
-        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-6 space-y-6">
+        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-6 space-y-6 h-full">
           {/* Administrative Selection */}
           <section className="border-b pb-4">
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
@@ -182,7 +182,7 @@ const MainContent = () => {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-4 space-y-6">
+        <div className="lg:w-1/2 bg-white rounded-xl shadow-md overflow-y-auto p-4 space-y-6 h-full">
           {/* Map */}
           <section className="rounded-xl overflow-hidden">
             <div className="w-full md:min-h-[400px]">

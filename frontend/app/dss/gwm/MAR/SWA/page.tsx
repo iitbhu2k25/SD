@@ -105,7 +105,7 @@ const SurfacewaterAssessmentPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col ">
       <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
           <h1 className="text-5xl font-bold">Surface Water Assessment</h1>
