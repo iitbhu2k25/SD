@@ -104,8 +104,8 @@ const Navbar = (): JSX.Element => {
     <nav
       ref={navRef}
       className={`${isSticky
-          ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-200"
-          : "bg-opacity-10 bg-[#081F5C]"
+        ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-200"
+        : "bg-opacity-10 bg-[#081F5C]"
         } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-200`}
     >
       <div className="container mx-auto px-4">
@@ -406,14 +406,55 @@ const Navbar = (): JSX.Element => {
                         Water Flow and Storage Estimation
                       </Link>
                     </li>
-                    <li>
-                      <Link
-                        href="/dss/default"
-                        className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                    <li className="relative group/submenu">
+                      <div
+                        className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
+                        onClick={(e) => toggleSubmenu(e, 'wqa')}
                       >
                         Water Quality Assessment
-                      </Link>
+                        <ChevronRight className={`w-4 h-4 ${openDropdowns.wqa ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-90 transition-transform duration-200`} />
+                      </div>
+
+                      <ul className={`${openDropdowns.wqa ? 'block' : 'hidden'} lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}>
+
+                        {/* Ground Based Assessment */}
+                        <li className="relative group/submenu">
+                          <Link href="\dss\river"
+                            className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
+                          // onClick={(e) => toggleSubmenu(e, 'groundBased')}
+                          >
+                            Ground Based Assessment
+                            {/* <ChevronRight className={`w-4 h-4 ${openDropdowns.groundBased ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-90 transition-transform duration-200`} /> */}
+                          </Link>
+
+                          {/* <ul className={`${openDropdowns.groundBased ? 'block' : 'hidden'} lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}>
+                            <li>
+                              <Link href="\dss\RWM\WQA\Ground_based\overall" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
+                                Overall
+                              </Link>
+                            </li>
+                            <li>
+                              <Link href="\dss\RWM\WQA\Ground_based\upstream" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
+                                Upstream
+                              </Link>
+                            </li>
+                            <li>
+                              <Link href="\dss\RWM\WQA\Ground_based\downstream" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
+                                Downstream
+                              </Link>
+                            </li>
+                          </ul> */}
+                        </li>
+
+                        {/* Satellite Based Assessment */}
+                        <li>
+                          <Link href="/default" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
+                            Satellite Based Assessment
+                          </Link>
+                        </li>
+                      </ul>
                     </li>
+
                     <li>
                       <Link
                         href="/dss/default"

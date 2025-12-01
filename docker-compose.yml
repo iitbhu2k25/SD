@@ -28,7 +28,7 @@ services:
       - ./backend:/home/app:z
     command: >
       sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:9000"
+             daphne -b 0.0.0.0 -p 9000 main.asgi:application"
     restart: always
     depends_on:
       - db
@@ -109,6 +109,38 @@ services:
     env_file:
       - .fastdb.env
   
+  redis_viewer:
+    image: redis/redisinsight:latest
+    ports:
+      - "5540:5540"
+    expose :
+     - "5540"
+    restart: always
+    depends_on:
+      - redis
+      - geoserver
+      
+  celery_django:
+    build:
+      context: ./backend/
+      dockerfile: docker/dockerfile.backend
+    image: celery_django:latest
+    volumes:
+      - ./backend:/home/app:z
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - backend
+    command:
+      - /bin/sh
+      - -c
+      - |
+        celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CACHE_URL=redis://redis:6379/1
 
   geoserver:
     image: kartoza/geoserver:latest
