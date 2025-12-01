@@ -52,7 +52,7 @@ const Mapping: React.FC = () => {
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
   const [showResultLayer, setShowResultLayer] = useState(true);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);

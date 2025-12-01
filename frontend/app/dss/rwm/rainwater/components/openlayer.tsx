@@ -278,7 +278,7 @@ const Maping: React.FC<MapingProps> = ({
   // Add state for vector layer visibility - only secondary can be toggled
   const [showSecondaryLayer, setShowSecondaryLayer] = useState<boolean>(true);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false); //default raster layer
+  const [isPanelOpen, setIsPanelOpen] = useState(true); //default raster layer
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const { selectedSubDistricts, display_raster, setdisplay_raster } =
     useLocation();

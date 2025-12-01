@@ -58,7 +58,7 @@ const Maping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isAddingPoint, setIsAddingPoint] = useState(false);
