@@ -486,7 +486,7 @@ class GroundwaterRechargeView(APIView):
                     not pd.isna(sy_value) and 
                     not pd.isna(shape_area) and
                     pixel_count > 0):
-                    recharge = shape_area * sy_value * mean_water_fluctuation
+                    recharge = (shape_area * sy_value * mean_water_fluctuation)/1000
                 else:
                     recharge = np.nan
                 
@@ -620,7 +620,7 @@ class GroundwaterRechargeView(APIView):
                         "nodata_value": -9999,
                         "optimization": "chunked_processing + parallel_zonal_stats"
                     },
-                    "recharge_calculation": "recharge = Shape_Area × SY × mean_water_fluctuation",
+                    "recharge_calculation": "recharge = (Shape_Area × SY × mean_water_fluctuation)/1000",
                     "recharge_units": "cubic meters (m³)",
                     "data_quality_note": "All villages included in results; check pixel_count > 0 for villages with interpolated data"
                 },

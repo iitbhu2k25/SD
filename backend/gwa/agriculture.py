@@ -450,7 +450,7 @@ class AgriculturalDemandAPIView(APIView):
                 "seasons": details,
                 "index_sum_across_seasons_crops": total_index,
                 "groundwater_factor": groundwater_factor,
-                "village_demand": abs(village_demand)
+                "village_demand": abs(village_demand)/1000
             }
             results.append(result)
         

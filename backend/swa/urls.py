@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import Subbasin
+from .views import Subbasin, SubbasinStudyAreaMap
 from .views import FlowDurationCurveAPI
 from .surfacewater import SurplusRunoffAPI
 from .eflow import EflowAPI
@@ -8,6 +8,7 @@ from .admin import VillageFlowDurationCurveAPI, VillageSurplusAPI, AdmineflowAPI
 from .admin import AdmineflowImageAPI, VillageSurplusImageAPI, VillageFlowDurationCurveImageAPI, ClimateAdminImageView
 urlpatterns = [
     path("subbasin", Subbasin.as_view(), name="subbasin-detail"),
+     path('generate-subbasin-map', SubbasinStudyAreaMap.as_view(), name='generate-subbasin-map'),
      path("fdc", FlowDurationCurveAPI.as_view(), name="fdc-api"),
      path("surfacewater", SurplusRunoffAPI.as_view(), name="surfacewater-api"),
      path("eflow", EflowAPI.as_view(), name="eflow-api"),

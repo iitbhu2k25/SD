@@ -174,7 +174,7 @@ class StressIdentificationAPIView(APIView):
                     villages_with_injection += 1
 
                 # Calculate stress value using the formula
-                stress_value = max(recharge - total_demand,0) + (injection / years_count)
+                stress_value = (max(recharge - total_demand,0) + (injection / years_count))/1000
 
                 # Create result record (only stress_value, no classification)
                 result_row = {
@@ -182,9 +182,9 @@ class StressIdentificationAPIView(APIView):
                     'village_name': village_name,
                     'recharge': round(recharge, 4),
                     'total_demand': round(total_demand, 4),
-                    'injection': round(injection, 4),
+                    'injection': round(injection, 4)/1000,
                     'years_count': years_count,
-                    'stress_value': round(stress_value, 4)  # Only stress value, no classification
+                    'stress_value': round(stress_value, 2)  # Only stress value, no classification
                 }
                 stress_results.append(result_row)
                 villages_processed += 1

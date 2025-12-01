@@ -541,6 +541,78 @@ class GroundwaterTrendAnalysisView(View):
             print(f"[WARNING] Chart generation error: {str(e)}")
             charts['error'] = str(e)
         return charts
+    # ---------------------------
+# Extract village timeseries data for frontend plotting
+# ---------------------------
+
+
+    def extract_village_timeseries_data(self, villages_with_yearly_depth, trend_results_df, all_available_years):
+        """
+        Extract yearly timeseries data for all villages for frontend plotting.
+        Returns both the actual curve (depths) and a straight line (linear fit).
+        """
+        print(" Extracting village timeseries data for frontend (curve + straight line)...")
+        
+        # Merge village depth data with trend results (for consistency)
+        villages_merged = villages_with_yearly_depth.merge(
+            trend_results_df[['Village_ID', 'Trend_Status', 'Color', 'Mann_Kendall_Tau', 'Sen_Slope']],
+            left_on=self.VILLAGE_CODE_COL,
+            right_on='Village_ID',
+            how='left'
+        )
+        
+        village_timeseries_list = []
+
+        for _, row in villages_merged.iterrows():
+            years_list = []
+            depths_list = []
+
+            # Extract years and depths
+            for year in all_available_years:
+                if year in row.index:
+                    depth_value = row[year]
+                    years_list.append(str(year))
+                    if pd.notna(depth_value):
+                        try:
+                            depths_list.append(float(depth_value))
+                        except (ValueError, TypeError):
+                            depths_list.append(None)
+                    else:
+                        depths_list.append(None)
+
+            # --- Smooth the curve using a simple moving average (for nicer curve)
+            valid_depths = pd.Series(depths_list)
+            smooth_curve = valid_depths.rolling(window=3, min_periods=1, center=True).mean().round(2).tolist()
+
+            # --- Compute straight line (simple linear regression) ---
+            valid_indices = [i for i, d in enumerate(depths_list) if d is not None]
+            if len(valid_indices) >= 2:
+                x = np.array([int(years_list[i]) for i in valid_indices])
+                y = np.array([depths_list[i] for i in valid_indices])
+                slope, intercept = np.polyfit(x, y, 1)  # Linear fit
+                trend_line = [round(intercept + slope * int(y_str), 2) for y_str in years_list]
+            else:
+                trend_line = [None] * len(years_list)
+
+            village_timeseries = {
+                'village_id': str(row.get('Village_ID', row.get(self.VILLAGE_CODE_COL, 'Unknown'))),
+                'village_name': str(row.get('village', row.get('VILLAGE', 'Unknown'))),
+                'block': str(row.get('block', row.get('BLOCK', 'Unknown'))),
+                'district': str(row.get('district', row.get('DISTRICT', 'Unknown'))),
+                'subdis_cod': str(row.get('SUBDIS_COD', 'Unknown')),
+                'trend_status': str(row.get('Trend_Status', 'No Data')),
+                'color': str(row.get('Color', '#95A5A6')),
+                'mann_kendall_tau': float(row['Mann_Kendall_Tau']) if pd.notna(row.get('Mann_Kendall_Tau')) else None,
+                'sen_slope': float(row['Sen_Slope']) if pd.notna(row.get('Sen_Slope')) else None,
+                'years': years_list,
+                'depths': smooth_curve,   # ✅ curved/smoothed data line
+                'trend_line': trend_line   # ✅ straight linear fit line
+            }
+
+            village_timeseries_list.append(village_timeseries)
+
+        print(f" Extracted timeseries data for {len(village_timeseries_list)} villages (curve + straight line)")
+        return village_timeseries_list
 
     # ---------------------------
     # GeoJSON
@@ -660,7 +732,8 @@ class GroundwaterTrendAnalysisView(View):
         charts = self.generate_trend_charts(trend_results_df, years_range, villages_with_depth, all_available_years, subdis_codes=subdis_codes, village_codes=village_codes)
         village_geojson = self.create_village_json_for_map(villages_with_depth, trend_results_df, all_available_years)
         summary_tables = self.create_summary_tables(trend_results_df, villages_with_depth, all_available_years)
-
+        # Extract village timeseries data for frontend plotting
+        village_timeseries_data = self.extract_village_timeseries_data(villages_with_depth, trend_results_df, all_available_years)
         # UPDATED: Generate trend map from GeoJSON and get both filename and base64
         trend_map_filename, trend_map_base64 = self.generate_trend_map_from_geojson(
             village_geojson, years_for_trend, subdis_codes=subdis_codes, village_codes=village_codes
@@ -711,7 +784,6 @@ class GroundwaterTrendAnalysisView(View):
             'No-Trend': {'color': '#95A5A6', 'description': 'No significant trend detected'},
             'Insufficient Data': {'color': '#F39C12', 'description': 'Insufficient data for analysis'}
         }
-
         return {
             'success': True,
             'summary_stats': summary_stats,
@@ -725,7 +797,9 @@ class GroundwaterTrendAnalysisView(View):
             'filtered_by_subdis_cod': subdis_codes if subdis_codes else [],
             'filtered_by_village_codes': village_codes if village_codes else [],
             'trend_map_filename': trend_map_filename,
-            'trend_map_base64': trend_map_base64
+            'trend_map_base64': trend_map_base64,
+            'village_timeseries_data': village_timeseries_data,  
+            'all_years': all_available_years  
         }
 
     # ---------------------------

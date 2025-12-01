@@ -1,3 +1,5 @@
+selenium==4.25.0
+bs4
 matplotlib_scalebar
 contextily
 rasterstats

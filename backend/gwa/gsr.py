@@ -467,9 +467,9 @@ def match_village_data(
             'total_demand': round(total_demand, 4),
             'gsr': round(gsr, 4) if gsr is not None else None,
             'gsr_status': gsr_status,
-            'trend_status': trend_status,                    # Trend from CSV
-            'gsr_classification': gsr_classification,        # ✅ NEW: Classification field
-            'classification_color': classification_color,    # ✅ NEW: Color field
+            'trend_status': trend_status,                  
+            'gsr_classification': gsr_classification,       
+            'classification_color': classification_color,    
             'has_recharge_data': village_code in recharge_map,
             'has_domestic_data': village_code in domestic_map,
             'has_agricultural_data': village_code in agricultural_map,
@@ -533,7 +533,7 @@ def calculate_gsr_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
         'sustainability_percentage': round((sustainable_count / total_villages) * 100, 2) if total_villages > 0 else 0,
         'villages_with_trend_data': villages_with_trend_data,
         'trend_distribution': trend_counts,
-        'classification_distribution': classification_counts  # ✅ NEW: Classification breakdown
+        'classification_distribution': classification_counts  
     }
 
 
@@ -546,6 +546,17 @@ class GSRComputeAPIView(APIView):
     def post(self, request, format=None):
         try:
             data = request.data
+            data = request.data.copy()   #  Make a mutable copy
+            print("aaaaaaaaa")
+
+            for key in ["rechargeData", "domesticData", "agriculturalData", "selectedSubDistricts"]:
+                if isinstance(data.get(key), str):
+                    try:
+                        data[key] = json.loads(data[key])
+                    except json.JSONDecodeError:
+                        data[key] = []
+
+
             
             # Extract data arrays from request
             recharge_data = data.get('rechargeData', [])
@@ -587,7 +598,7 @@ class GSRComputeAPIView(APIView):
                     "error": "No villages could be matched across the provided datasets"
                 }, status=404)
             
-            # ✅ NEW: Sort by classification priority
+            
             classification_priority = {
                 "Over Exploited": 1,      # Most critical
                 "Critical": 2,
@@ -773,7 +784,7 @@ class GSRComputeAPIView(APIView):
                 },
                 "No Data": {
                     "description": "Missing GSR data",
-                    "color": "transparent"
+                    "color": "gold"
                 }
             }
         }, status=200)

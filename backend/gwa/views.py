@@ -160,8 +160,8 @@ class PopulationForecastAPI(APIView):
                 )
 
                 # 🔹 Demand calculation (MLD)
-                demand = round(((forecast * lpcd) / 1000)*365, 3)
-
+                demand = round(((forecast * lpcd) / 1000)*365, 3)/1000
+                demand = round(demand, 2)
                 results.append({
                     "village_code": village.village_code,
                     "village_name": village.village_name,
