@@ -171,6 +171,11 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
   const [riverError, setRiverError] = useState<string | null>(null);
   const [stretchError, setStretchError] = useState<string | null>(null);
   const [drainError, setDrainError] = useState<string | null>(null);
+  const [stretchSearch, setStretchSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [stretchDropdownOpen, setStretchDropdownOpen] = useState(false);
+  const stretchDropdownRef = useRef<HTMLDivElement>(null);
+
 
   // Sync dropdown updating flag with ref
   useEffect(() => {
@@ -521,6 +526,16 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
       }
     }
   }, [selectedVillages]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (stretchDropdownRef.current && !stretchDropdownRef.current.contains(event.target as Node)) {
+        setStretchDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const updateSelectionsLocked = (locked: boolean) => {
     setSelectionsLocked(locked);
@@ -914,7 +929,10 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     name: village.shapeName,
     drainNo: village.drainNo
   }));
-
+  // This filtered array is just for display; your selectedStretch logic remains untouched
+  const filteredStretches = stretches.filter(stretch =>
+    stretch.id.toString().includes(stretchSearch)
+  );
   return (
     <div className={`h-full p-4 border-2 bg-gray-100 rounded-lg shadow-md relative ${isDrainMapLoading ? '' : ''}`}>
       {isDrainMapLoading && (
@@ -951,194 +969,193 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
         </div>
       )}
       <div className="h-full flex flex-col">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        {/* River Dropdown */}
-        <div>
-          <label htmlFor="river-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
-            River:
-          </label>
-          <div className="relative">
-            <select
-              id="river-dropdown"
-              className={`w-full p-2 text-sm border ${riverError ? 'border-red-500' : 'border-blue-500'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loadingRivers ? 'bg-gray-100' : ''}`}
-              value={selectedRiver}
-              onChange={handleRiverChange}
-              disabled={selectionsLocked || loadingRivers}
-            >
-              <option value="">--Choose a River--</option>
-              {rivers.map(river => (
-                <option key={river.id} value={river.id}>
-                  {river.name}
-                </option>
-              ))}
-            </select>
-            {loadingRivers && (
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <div className="w-4 h-4 border-2 border-t-blue-500 border-r-blue-500 border-b-blue-500 border-l-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-          </div>
-          {riverError && <p className="mt-1 text-xs text-red-500">{riverError}</p>}
-        </div>
-
-        {/* Stretch Dropdown */}
-        <div>
-          <label htmlFor="stretch-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
-            Stretch:
-          </label>
-          <div className="relative">
-            <select
-              id="stretch-dropdown"
-              className={`w-full p-2 text-sm border ${stretchError ? 'border-red-500' : 'border-blue-500'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loadingStretches ? 'bg-gray-100' : ''}`}
-              value={selectedStretch}
-              onChange={handleStretchChange}
-              disabled={!selectedRiver || selectionsLocked || loadingStretches}
-            >
-              <option value="">--Choose a Stretch--</option>
-              {stretches.map(stretch => (
-                <option key={stretch.id} value={stretch.id}>
-                  {stretch.id}
-                </option>
-              ))}
-            </select>
-            {loadingStretches && (
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                <div className="w-4 h-4 border-2 border-t-blue-500 border-r-blue-500 border-b-blue-500 border-l-transparent rounded-full animate-spin"></div>
-              </div>
-            )}
-          </div>
-          {stretchError && <p className="mt-1 text-xs text-red-500">{stretchError}</p>}
-        </div>
-
-        {/* Drain MultiSelect */}
-        <div>
-          <MultiSelect
-            items={drains}
-            selectedItems={selectedDrains}
-            onSelectionChange={selectionsLocked ? () => { } : handleDrainsChange}
-            label="Drain"
-            placeholder="--Choose Drains--"
-            disabled={!selectedStretch || selectionsLocked || loadingDrains}
-            displayPattern={formatDrainDisplay}
-            groupBy={groupDrainsByStretch}
-            showGroupHeaders={true}
-            groupHeaderFormat="Stretch: {groupName}"
-          />
-          {drainError && <p className="mt-1 text-xs text-red-500">{drainError}</p>}
-        </div>
-
-        {/* Villages MultiSelect - FIXED with key prop */}
-        <div>
-          <MultiSelect
-            key={`villages-${selectedVillages.length}-${intersectedVillages.length}`}
-            items={villageItems}
-            selectedItems={selectedVillages}
-            onSelectionChange={selectionsLocked ? () => { } : handleVillagesChange}
-            label="Catchment Villages"
-            placeholder="--Select Villages--"
-            disabled={!selectedDrains.length || loadingVillages || selectionsLocked}
-            displayPattern={formatVillageDisplay}
-            groupBy={groupVillagesByDrain}
-            showGroupHeaders={true}
-            groupHeaderFormat="Villages in {groupName}"
-            itemKey="shapeID"
-          />
-          {villageError && <p className="mt-1 text-xs text-red-500">{villageError}</p>}
-        </div>
-
-
-        {/* {process.env.NODE_ENV === 'development' && (
-          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-            <div className="font-semibold">Debug Info:</div>
-            <div>isDropdownUpdating: {isDropdownUpdating.toString()}</div>
-            <div>villageChangeSource (prop): {villageChangeSource || 'null'}</div>
-            <div>window.villageChangeSource: {window.villageChangeSource || 'null'}</div>
-            <div>pendingVillages: {pendingVillages ? pendingVillages.length : 'null'}</div>
-            <div>selectedVillages: {selectedVillages.length}</div>
-            <div>intersectedVillages: {intersectedVillages.length}</div>
-            <div>intersectedVillages selected: {intersectedVillages.filter(v => v.selected !== false).length}</div>
-            <button
-              className="mt-1 px-2 py-1 bg-blue-500 text-white text-xs rounded"
-              onClick={() => {
-                console.log('=== MANUAL DEBUG ===');
-                console.log('intersectedVillages:', intersectedVillages);
-                console.log('selectedVillages:', selectedVillages);
-                console.log('villageChangeSource:', villageChangeSource);
-                console.log('window.villageChangeSource:', window.villageChangeSource);
-                console.log('isDropdownUpdating:', isDropdownUpdating);
-                console.log('pendingVillages:', pendingVillages);
-              }}
-            >
-              Log Debug Info
-            </button>
-          </div>
-        )} */}
-      </div>
-      
-
-      {/* Selected Data Summary */}
-      <div className="flex-1 p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto min-h-0">
-        <h3 className="text-md font-medium text-gray-800 mb-2">Selected River Data</h3>
-        <div className="space-y-2 text-sm text-gray-700">
-          <p>
-            <span className="font-medium">River:</span>{' '}
-            {rivers.find(r => r.id.toString() === selectedRiver)?.name || 'None'}
-          </p>
-          <p>
-            <span className="font-medium">Stretch:</span>{' '}
-            {stretches.find(s => s.id.toString() === selectedStretch)?.id || 'None'}
-          </p>
-          <p>
-            <span className="font-medium">Drains:</span>{' '}
-            <TruncatedList content={formatSelectedDrains(drains, selectedDrains)} maxLength={80} />
-          </p>
-          <p>
-            <span className="font-medium">Catchment Villages:</span>{' '}
-            {loadingVillages ? (
-              <span className="italic text-gray-500">Loading villages...</span>
-            ) : (
-              <TruncatedList content={formatIntersectedVillages()} maxLength={80} />
-            )}
-          </p>
-
-          {villageError && <p className="text-xs text-red-500 mt-1">{villageError}</p>}
-
-          {intersectedVillages.length > 0 && !loadingVillages && (
-            <div className="mt-2 text-xs text-blue-600">
-              <p>Click on village polygons in the map to toggle selection</p>
-              <p className="mt-1">Selected: {selectedVillages.length} of {intersectedVillages.length} villages</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+          {/* River Dropdown */}
+          <div>
+            <label htmlFor="river-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
+              River:
+            </label>
+            <div className="relative">
+              <select
+                id="river-dropdown"
+                className={`w-full p-2 text-sm border ${riverError ? 'border-red-500' : 'border-blue-500'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${loadingRivers ? 'bg-gray-100' : ''}`}
+                value={selectedRiver}
+                onChange={handleRiverChange}
+                disabled={selectionsLocked || loadingRivers}
+              >
+                <option value="">--Choose a River--</option>
+                {rivers.map(river => (
+                  <option key={river.id} value={river.id}>
+                    {river.name}
+                  </option>
+                ))}
+              </select>
+              {loadingRivers && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <div className="w-4 h-4 border-2 border-t-blue-500 border-r-blue-500 border-b-blue-500 border-l-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </div>
-          )}
+            {riverError && <p className="mt-1 text-xs text-red-500">{riverError}</p>}
+          </div>
 
-          {selectionsLocked && (
-            <p className="mt-2 text-green-600 font-medium">Selections confirmed and locked</p>
-          )}
+          {/* Stretch Dropdown */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Stretch:
+            </label>
+            <div className="relative" ref={stretchDropdownRef}>
+              <button
+                type="button"
+                className={`w-full p-2 text-sm text-left border ${stretchError ? 'border-red-500' : 'border-blue-500'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${loadingStretches ? 'bg-gray-100' : ''}`}
+                onClick={() => !selectionsLocked && !loadingStretches && selectedRiver && setStretchDropdownOpen(!stretchDropdownOpen)}
+                disabled={!selectedRiver || selectionsLocked || loadingStretches}
+              >
+                {selectedStretch ? stretches.find(s => s.id.toString() === selectedStretch)?.id : '--Choose a Stretch--'}
+              </button>
+
+              {stretchDropdownOpen && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+                  <input
+                    type="number"
+                    placeholder="Search stretch..."
+                    className="w-full p-2 text-sm border-b border-gray-200 focus:outline-none"
+                    value={stretchSearch}
+                    onChange={e => setStretchSearch(e.target.value)}
+                    autoFocus
+                    min="0"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {filteredStretches.map(stretch => (
+                      <div
+                        key={stretch.id}
+                        className="p-2 text-sm hover:bg-blue-50 cursor-pointer"
+                        onClick={() => {
+                          handleStretchChange({ target: { value: stretch.id.toString() } } as any);
+                          setStretchDropdownOpen(false);
+                          setStretchSearch('');
+                        }}
+                      >
+                        {stretch.id}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {loadingStretches && (
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <div className="w-4 h-4 border-2 border-t-blue-500 border-r-blue-500 border-b-blue-500 border-l-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            {stretchError && <p className="mt-1 text-xs text-red-500">{stretchError}</p>}
+          </div>
+
+          {/* Drain MultiSelect */}
+          <div>
+            <MultiSelect
+              items={drains}
+              selectedItems={selectedDrains}
+              onSelectionChange={selectionsLocked ? () => { } : handleDrainsChange}
+              label="Drain"
+              placeholder="--Choose Drains--"
+              disabled={!selectedStretch || selectionsLocked || loadingDrains}
+              displayPattern={formatDrainDisplay}
+              groupBy={groupDrainsByStretch}
+              showGroupHeaders={true}
+              groupHeaderFormat="Stretch: {groupName}"
+            />
+            {drainError && <p className="mt-1 text-xs text-red-500">{drainError}</p>}
+          </div>
+
+          {/* Villages MultiSelect - FIXED with key prop */}
+          <div>
+            <MultiSelect
+              key={`villages-${selectedVillages.length}-${intersectedVillages.length}`}
+              items={villageItems}
+              selectedItems={selectedVillages}
+              onSelectionChange={selectionsLocked ? () => { } : handleVillagesChange}
+              label="Catchment Villages"
+              placeholder="--Select Villages--"
+              disabled={!selectedDrains.length || loadingVillages || selectionsLocked}
+              displayPattern={formatVillageDisplay}
+              groupBy={groupVillagesByDrain}
+              showGroupHeaders={true}
+              groupHeaderFormat="Villages in {groupName}"
+              itemKey="shapeID"
+            />
+            {villageError && <p className="mt-1 text-xs text-red-500">{villageError}</p>}
+          </div>
+
+
+
+        </div>
+
+
+        {/* Selected Data Summary */}
+        <div className="flex-1 p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-y-auto min-h-0">
+          <h3 className="text-md font-medium text-gray-800 mb-2">Selected River Data</h3>
+          <div className="space-y-2 text-sm text-gray-700">
+            <p>
+              <span className="font-medium">River:</span>{' '}
+              {rivers.find(r => r.id.toString() === selectedRiver)?.name || 'None'}
+            </p>
+            <p>
+              <span className="font-medium">Stretch:</span>{' '}
+              {stretches.find(s => s.id.toString() === selectedStretch)?.id || 'None'}
+            </p>
+            <p>
+              <span className="font-medium">Drains:</span>{' '}
+              <TruncatedList content={formatSelectedDrains(drains, selectedDrains)} maxLength={80} />
+            </p>
+            <p>
+              <span className="font-medium">Catchment Villages:</span>{' '}
+              {loadingVillages ? (
+                <span className="italic text-gray-500">Loading villages...</span>
+              ) : (
+                <TruncatedList content={formatIntersectedVillages()} maxLength={80} />
+              )}
+            </p>
+
+            {villageError && <p className="text-xs text-red-500 mt-1">{villageError}</p>}
+
+            {intersectedVillages.length > 0 && !loadingVillages && (
+              <div className="mt-2 text-xs text-blue-600">
+                <p>Click on village polygons in the map to toggle selection</p>
+                <p className="mt-1">Selected: {selectedVillages.length} of {intersectedVillages.length} villages</p>
+              </div>
+            )}
+
+            {selectionsLocked && (
+              <p className="mt-2 text-green-600 font-medium">Selections confirmed and locked</p>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex space-x-4 mt-4 flex-shrink-0">
+          <button
+            className={`${selectedDrains.length > 0 &&
+              intersectedVillages.length > 0 &&
+              !loadingVillages &&
+              !selectionsLocked
+              ? 'bg-blue-500 hover:bg-blue-700'
+              : 'bg-gray-400 cursor-not-allowed'
+              } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200`}
+            onClick={handleConfirm}
+            disabled={selectedDrains.length === 0 || intersectedVillages.length === 0 || loadingVillages || selectionsLocked}
+          >
+            Confirm
+          </button>
+          <button
+            className="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-200"
+            onClick={handleReset}
+          >
+            Reset
+          </button>
         </div>
       </div>
-
-      {/* Action Buttons */}
-      <div className="flex space-x-4 mt-4 flex-shrink-0">
-        <button
-          className={`${selectedDrains.length > 0 &&
-            intersectedVillages.length > 0 &&
-            !loadingVillages &&
-            !selectionsLocked
-            ? 'bg-blue-500 hover:bg-blue-700'
-            : 'bg-gray-400 cursor-not-allowed'
-            } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200`}
-          onClick={handleConfirm}
-          disabled={selectedDrains.length === 0 || intersectedVillages.length === 0 || loadingVillages || selectionsLocked}
-        >
-          Confirm
-        </button>
-        <button
-          className="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition duration-200"
-          onClick={handleReset}
-        >
-          Reset
-        </button>
-      </div>
-    </div>
     </div>
   );
 };

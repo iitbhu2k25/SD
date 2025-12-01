@@ -1,15 +1,26 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect, // Added for synchronization
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocationContext } from '@/contexts/surfacewater_assessment/drain/LocationContext';
 
 export type FDCPoint = { p: number; q: number };
 export type FDCSeries = {
+  data: never[];
+  name: any;
+  id: any;
   sub: number;
   n: number;
   curve: FDCPoint[];
   quantiles: Record<string, number>;
-  imageBase64?: string; // New: server-rendered PNG (base64)
+  imageBase64?: string; // Server-rendered PNG (base64)
 };
 
 type StreamFlowContextValue = {
@@ -34,6 +45,19 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const controllerRef = useRef<AbortController | null>(null);
 
   const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '/django/swa';
+
+  const selectedSubs = useMemo(
+    () =>
+      selectedSubbasins
+        .map((s) => Number(s.sub))
+        .filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i),
+    [selectedSubbasins]
+  );
+
+  const canFetch = useMemo(
+    () => selectedSubs.length > 0 && selectionConfirmed,
+    [selectedSubs.length, selectionConfirmed]
+  );
 
   const fetchFDC = useCallback(async (subs: number[]) => {
     if (controllerRef.current) controllerRef.current.abort();
@@ -65,7 +89,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
             exceed_prob: number[];
             sorted_flows: number[];
             quantiles: Record<string, number>;
-            image_base64?: string; // New
+            image_base64?: string;
           }
         >;
         errors: Record<string, string> | null;
@@ -83,7 +107,10 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
             n: r.n ?? 0,
             curve,
             quantiles: r.quantiles ?? {},
-            imageBase64: r.image_base64 ?? undefined, // New
+            imageBase64: r.image_base64 ?? undefined,
+            data: [],
+            name: undefined,
+            id: undefined
           });
         }
       }
@@ -91,7 +118,12 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
       if (data?.errors) {
         for (const k of Object.keys(data.errors)) {
           if (!out.find(s => s.sub === Number(k))) {
-            out.push({ sub: Number(k), n: 0, curve: [], quantiles: {} });
+            out.push({
+              sub: Number(k), n: 0, curve: [], quantiles: {},
+              data: [],
+              name: undefined,
+              id: undefined
+            });
           }
         }
       }
@@ -108,22 +140,25 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
     }
   }, [apiBase]);
 
-  const fetchData = useCallback((subs?: number[]) => {
-    if (!selectionConfirmed) {
-      setError('Confirm subbasin selection first.');
-      setSeries([]);
-      setLastFetchedSubbasins([]);
-      return;
-    }
-    const subsToFetch = subs || selectedSubbasins.map(s => s.sub);
-    if (subsToFetch.length === 0) {
-      setSeries([]);
-      setError(null);
-      setLastFetchedSubbasins([]);
-      return;
-    }
-    fetchFDC(subsToFetch);
-  }, [selectionConfirmed, selectedSubbasins, fetchFDC]);
+  const fetchData = useCallback(
+    (subs?: number[]) => {
+      if (!selectionConfirmed) {
+        setError('Confirm subbasin selection first.');
+        setSeries([]);
+        setLastFetchedSubbasins([]);
+        return;
+      }
+      const subsToFetch = subs || selectedSubbasins.map(s => s.sub);
+      if (subsToFetch.length === 0) {
+        setSeries([]);
+        setError(null);
+        setLastFetchedSubbasins([]);
+        return;
+      }
+      fetchFDC(subsToFetch);
+    },
+    [selectionConfirmed, selectedSubbasins, fetchFDC]
+  );
 
   const refresh = useCallback(() => {
     const subs = selectedSubbasins.map(s => s.sub);
@@ -144,18 +179,31 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
     setLoading(false);
   }, []);
 
+  // NEW: Synchronize with LocationContext changes
+  useEffect(() => {
+    // Reset state when selectedSubbasins or selectionConfirmed changes
+    clearData();
+    // Automatically fetch FDC data if selection is confirmed and valid
+    if (canFetch) {
+      fetchData();
+    }
+  }, [selectedSubbasins, selectionConfirmed, canFetch, clearData, fetchData]);
+
   const hasData = series.length > 0;
 
-  const value = useMemo(() => ({
-    loading,
-    error,
-    series,
-    hasData,
-    lastFetchedSubbasins,
-    refresh,
-    fetchData,
-    clearData
-  }), [loading, error, series, hasData, lastFetchedSubbasins, refresh, fetchData, clearData]);
+  const value = useMemo(
+    () => ({
+      loading,
+      error,
+      series,
+      hasData,
+      lastFetchedSubbasins,
+      refresh,
+      fetchData,
+      clearData,
+    }),
+    [loading, error, series, hasData, lastFetchedSubbasins, refresh, fetchData, clearData]
+  );
 
   return <StreamFlowContext.Provider value={value}>{children}</StreamFlowContext.Provider>;
 };

@@ -7,6 +7,7 @@ import React, {
   useEffect,
   ReactNode,
   useMemo,
+  useCallback,
 } from 'react';
 
 export interface State {
@@ -53,7 +54,7 @@ type LocationContextType = {
   error: string | null;
 
   selectionConfirmed: boolean;
-  initialDataLoaded: boolean; // NEW PROPERTY
+  initialDataLoaded: boolean;
 
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number[]) => void;
@@ -63,6 +64,9 @@ type LocationContextType = {
 
   lockSelections: () => void;
   resetSelections: () => void;
+  
+  // NEW: Method to register reset callbacks from other contexts
+  registerResetCallback: (callback: () => void) => () => void;
 
   getConfirmedSubdistrictIds: () => number[];
 };
@@ -86,9 +90,30 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [error, setError] = useState<string | null>(null);
 
   const [selectionConfirmed, setSelectionConfirmed] = useState(false);
-  const [initialDataLoaded, setInitialDataLoaded] = useState(false); // NEW STATE
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
-  // NEW EFFECT: Read URL parameters on mount
+  // NEW: Store reset callbacks from other providers
+  const [resetCallbacks, setResetCallbacks] = useState<Set<() => void>>(new Set());
+
+  // NEW: Method to register reset callbacks
+  const registerResetCallback = useCallback((callback: () => void) => {
+    setResetCallbacks(prev => {
+      const newSet = new Set(prev);
+      newSet.add(callback);
+      return newSet;
+    });
+
+    // Return cleanup function to unregister
+    return () => {
+      setResetCallbacks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(callback);
+        return newSet;
+      });
+    };
+  }, []);
+
+  // Read URL parameters on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -132,7 +157,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
     console.log('=============================================');
   }, []);
 
-  // NEW EFFECT: Auto-confirm selection if data came from URL
+  // Auto-confirm selection if data came from URL
   useEffect(() => {
     if (initialDataLoaded && selectedSubDistricts.length > 0 && !selectionConfirmed) {
       console.log('Auto-confirming selection from URL parameters');
@@ -302,7 +327,21 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const lockSelections = () => setSelectionsLocked(true);
 
-  const resetSelections = (): void => {
+  // MODIFIED: Reset function now calls all registered callbacks
+  const resetSelections = useCallback((): void => {
+    // console.log('=== RESETTING ALL PROVIDERS ===');
+    // console.log('Number of registered callbacks:', resetCallbacks.size);
+    
+    // Call all registered reset callbacks from other providers
+    resetCallbacks.forEach((callback, index) => {
+      try {
+        callback();
+      } catch (error) {
+        console.error(`Error calling callback ${index}:`, error);
+      }
+    });
+
+    // Reset location context state
     setSelectedState(null);
     setSelectedDistricts([]);
     setSelectedSubDistricts([]);
@@ -311,8 +350,10 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
     setSelectionsLocked(false);
     setError(null);
     setSelectionConfirmed(false);
-    setInitialDataLoaded(false); // RESET NEW STATE
-  };
+    setInitialDataLoaded(false);
+    
+    console.log('=== RESET COMPLETE ===');
+  }, [resetCallbacks]);
 
   const updateSelectedDistricts = (districtIds: number[]): void => {
     setSelectedDistricts(districtIds);
@@ -348,7 +389,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
     error,
 
     selectionConfirmed,
-    initialDataLoaded, // ADDED TO CONTEXT
+    initialDataLoaded,
 
     handleStateChange,
     setSelectedDistricts: updateSelectedDistricts,
@@ -358,6 +399,8 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     lockSelections,
     resetSelections,
+    
+    registerResetCallback, // NEW: Expose registration method
 
     getConfirmedSubdistrictIds,
   };

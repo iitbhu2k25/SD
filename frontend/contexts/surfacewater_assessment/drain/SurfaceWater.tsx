@@ -1,10 +1,10 @@
-// contexts/surfacewater_assessment/drain/SurfaceWater.tsx
 'use client';
 
 import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect, // Added for effect handling
   useMemo,
   useRef,
   useState,
@@ -29,7 +29,7 @@ export type SubbasinResult = {
   surplus_runoff_Mm3: number;
   statistics: SubbasinStatistics;
   timeseries: TimeseriesPoint[];
-  image_base64?: string; // NEW
+  image_base64?: string;
 };
 
 export type SubbasinError = { error: string };
@@ -71,7 +71,10 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
   const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '/django/swa';
 
   const selectedSubs = useMemo(
-    () => selectedSubbasins.map(s => Number(s.sub)).filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i),
+    () =>
+      selectedSubbasins
+        .map((s) => Number(s.sub))
+        .filter((v, i, a) => Number.isFinite(v) && a.indexOf(v) === i),
     [selectedSubbasins]
   );
 
@@ -130,6 +133,16 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
     setResults(null);
   }, [cancelInFlight]);
 
+  // NEW: Synchronize with LocationContext changes
+  useEffect(() => {
+    // Reset state when selectedSubbasins or selectionConfirmed changes
+    reset();
+    // Optionally re-run analysis if selection is confirmed and valid
+    if (canRun) {
+      run();
+    }
+  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
+
   const value: SurfaceWaterContextValue = useMemo(
     () => ({
       posting,
@@ -141,7 +154,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
       run,
       reset,
     }),
-    [posting, error, results, selectedSubs.length, selectionConfirmed, selectedSubs, run, reset]
+    [posting, error, results, selectedSubs, selectionConfirmed, run, reset]
   );
 
   return <SurfaceWaterContext.Provider value={value}>{children}</SurfaceWaterContext.Provider>;

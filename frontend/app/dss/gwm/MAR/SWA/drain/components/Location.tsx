@@ -200,12 +200,6 @@ export default function LocationPage() {
             </button>
           </div>
 
-          {selectionConfirmed && (
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
-              Selection confirmed. Go to “Flow Duration Curves” and click “Fetch FDC.”
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+// frontend/app/dss/gwm/MAR/SWA/admin/components/Location.tsx
 'use client';
 
 import React, { useEffect } from 'react';

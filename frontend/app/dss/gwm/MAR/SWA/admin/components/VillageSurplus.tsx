@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useVillageSurplusContext } from '@/contexts/surfacewater_assessment/admin/VillageSurplusContext'; // fixed import path to village context
+import { useVillageSurplusContext } from '@/contexts/surfacewater_assessment/admin/VillageSurplusContext';
 import { useLocationContext } from '@/contexts/surfacewater_assessment/admin/LocationContext';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
@@ -69,6 +69,8 @@ export default function VillageSurplus() {
     useVillageSurplusContext();
 
   const [selectedVillage, setSelectedVillage] = useState<string | null>(null);
+  const [villageSearchTerm, setVillageSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [chartKey, setChartKey] = useState(0);
 
   useEffect(() => {
@@ -93,6 +95,14 @@ export default function VillageSurplus() {
         label: s.subdistrictCode ? `${s.village} ` : s.village,
       })),
     [items]
+  );
+
+  const filteredVillageOptions = useMemo(
+    () =>
+      villageOptions.filter((opt) =>
+        opt.label.toLowerCase().includes(villageSearchTerm.toLowerCase())
+      ),
+    [villageOptions, villageSearchTerm]
   );
 
   const currentVillageData = useMemo(() => {
@@ -130,7 +140,21 @@ export default function VillageSurplus() {
 
   // Fullscreen
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+        setVillageSearchTerm('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   useEffect(() => {
     const handler = () => setIsFullscreen(!!getFullscreenElement());
     document.addEventListener('fullscreenchange', handler);
@@ -150,7 +174,7 @@ export default function VillageSurplus() {
       if (isFullscreen) await exitDocFullscreen();
       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
-      console.log('Fullscreen error:', e);
+      console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 
@@ -245,19 +269,59 @@ export default function VillageSurplus() {
           </div>
 
           <div className="flex items-center gap-2">
-            <select
-              className="border rounded-md px-2 py-1 text-sm"
-              value={selectedVillage ?? ''}
-              onChange={(e) => handleVillageChange(e.target.value)}
-              disabled={items.length === 0}
-              title="Select village"
-            >
-              {villageOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50 min-w-[200px] text-left flex items-center justify-between"
+                disabled={items.length === 0}
+                title="Select village"
+              >
+                <span className="truncate">
+                  {selectedVillage
+                    ? villageOptions.find((opt) => opt.value === selectedVillage)?.label
+                    : 'Select village'}
+                </span>
+                <svg className="w-4 h-4 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                  <div className="p-2 border-b border-gray-200">
+                    <input
+                      type="text"
+                      placeholder="Search villages..."
+                      value={villageSearchTerm}
+                      onChange={(e) => setVillageSearchTerm(e.target.value)}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="overflow-y-auto max-h-60">
+                    {filteredVillageOptions.length > 0 ? (
+                      filteredVillageOptions.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => {
+                            handleVillageChange(opt.value);
+                            setIsDropdownOpen(false);
+                            setVillageSearchTerm('');
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                            selectedVillage === opt.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500 text-center">No villages found</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               onClick={toggleFullscreen}
@@ -315,7 +379,7 @@ export default function VillageSurplus() {
                 />
                 <YAxis
                   tickFormatter={(v) => `${Number(v).toFixed(1)}`}
-                  label={{ value: 'Flow (m³)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle' } }}
+                  label={{ value: 'Flow (m³)', angle: -90, position: 'insideLeft', offset: -30, style: { textAnchor: 'middle' } }}
                 />
                 <Tooltip
                   content={<CustomTooltip />}

@@ -749,131 +749,153 @@ function MapLayers({
     };
   }, [selectedSubDistricts, map]);
 
-  // Fetch village data from GeoServer
-  useEffect(() => {
-    if (!selectedVillages || selectedVillages.length === 0) {
-      cleanupVillageLayers();
-      setIsLoadingVillages(false);
-      return;
-    }
+// Fetch village data from GeoServer
+useEffect(() => {
+  if (!selectedVillages || selectedVillages.length === 0) {
+    cleanupVillageLayers();
+    setIsLoadingVillages(false);
+    return;
+  }
 
-    setIsLoadingVillages(true);
-    const fetchVillageData = async () => {
-      try {
-        const villageCodes = selectedVillages.map((code) => `'${code}'`).join(",");
-        const cqlFilter = `vlcode IN (${villageCodes})`;
-        const url = createWFSUrl('Village', cqlFilter);
+  setIsLoadingVillages(true);
 
-        //console.log('Fetching village data with filter:', cqlFilter);
-        const response = await fetch(url);
+  const fetchVillageData = async () => {
+    try {
+      const villageCodes = selectedVillages.map((code) => `'${code}'`).join(",");
+      const cqlFilter = `vlcode IN (${villageCodes})`;
 
-        if (!response.ok) {
-          //console.log('Failed to fetch village data:', response.status);
-          setIsLoadingVillages(false);
-          return;
-        }
+      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs`; // <-- your base GeoServer URL
 
-        const data = await response.json();
-        //console.log('Village data received from GeoServer');
+      // Build POST body
+      const body = new URLSearchParams({
+        service: "WFS",
+        version: "1.0.0",
+        request: "GetFeature",
+        typeName: "myworkspace:Village", // <-- change this to your actual workspace/layer namemyworkspace
+        outputFormat: "application/json",
+        cql_filter: cqlFilter,
+      });
 
-        if (!data || !data.features || data.features.length === 0) {
-          //console.warn('No valid village data received');
-          setIsLoadingVillages(false);
-          return;
-        }
+      // Send POST request instead of GET
+      const response = await fetch(wfsUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      });
 
-        const hasGetBounds = (layer: L.Layer): layer is L.Layer & { getBounds(): L.LatLngBounds } => {
-          return 'getBounds' in layer && typeof (layer as any).getBounds === 'function';
-        };
-
-        // Village Layers with hover popup and click functionality
-        const newVillageLayers = L.geoJSON(data, {
-          style: villageGeoJsonStyle,
-          onEachFeature: (feature, layer) => {
-            if (feature.properties) {
-              const {
-                shapeName,
-                name,
-                DISTRICT,
-                SUB_DISTRI,
-                population,
-                Area,
-                STATE,
-              } = feature.properties;
-              const villageName = shapeName || name || 'Unknown Village';
-              const popupContent = `
-                <div>
-                  <strong>State:</strong> ${STATE || 'N/A'}<br/>
-                  <strong>District:</strong> ${DISTRICT || 'N/A'}<br/>
-                  <strong>Sub-District:</strong> ${SUB_DISTRI || 'N/A'}<br/>
-                  <strong>Village:</strong> ${villageName}<br/>
-                  <strong>Population:</strong> ${population || 'N/A'}<br/>
-                  <strong>Area:</strong> ${Area || 'N/A'} km²
-                </div>
-              `;
-              layer.bindPopup(popupContent);
-
-              // Replace click with hover events for popup
-              layer.on('mouseover', () => {
-                layer.openPopup();
-              });
-              layer.on('mouseout', () => {
-                layer.closePopup();
-              });
-
-              // Keep click event for zooming and data selection
-              layer.on('click', () => {
-                if (hasGetBounds(layer)) {
-                  const bounds = layer.getBounds();
-                  if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
-                    currentZoomLevelRef.current = map.getZoom();
-                  }
-                }
-                // Update location data with clicked village details
-                const updatedLocationData = {
-                  state: selectedState || '',
-                  districts: selectedDistricts || [],
-                  subDistricts: selectedSubDistricts || [],
-                  villages: [feature.properties.shape_id || ''],
-                  allVillages: subDistrictData || [],
-                  totalPopulation: population || 0,
-                };
-                onLocationSelect?.(updatedLocationData);
-                if (typeof window !== 'undefined') {
-                  (window as any).selectedLocations = updatedLocationData;
-                }
-              });
-            }
-          },
-        });
-
-        map.whenReady(() => {
-          cleanupVillageLayers();
-          newVillageLayers.addTo(map);
-          villageLayersRef.current = newVillageLayers;
-          try {
-            const bounds = newVillageLayers.getBounds();
-            if (bounds.isValid()) {
-              map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
-              currentZoomLevelRef.current = map.getZoom();
-            }
-          } catch (error) {
-            //console.log('Error fitting map to village layer bounds:', error);
-          }
-          setIsLoadingVillages(false);
-        });
-      } catch (error) {
-        //console.log('Error fetching or rendering village data:', error);
+      if (!response.ok) {
+        console.error("Failed to fetch village data:", response.status);
         setIsLoadingVillages(false);
+        return;
       }
-    };
 
-    fetchVillageData();
-    return () => {
-      cleanupVillageLayers();
-    };
-  }, [selectedVillages, selectedState, selectedDistricts, selectedSubDistricts, subDistrictData, map, onLocationSelect]);
+      const data = await response.json();
+
+      if (!data || !data.features || data.features.length === 0) {
+        console.warn("No valid village data received");
+        setIsLoadingVillages(false);
+        return;
+      }
+
+      const hasGetBounds = (layer: L.Layer): layer is L.Layer & { getBounds(): L.LatLngBounds } => {
+        return "getBounds" in layer && typeof (layer as any).getBounds === "function";
+      };
+
+      // Village Layers with hover popup and click functionality
+      const newVillageLayers = L.geoJSON(data, {
+        style: villageGeoJsonStyle,
+        onEachFeature: (feature, layer) => {
+          if (feature.properties) {
+            const {
+              shapeName,
+              name,
+              DISTRICT,
+              SUB_DISTRI,
+              population,
+              Area,
+              STATE,
+            } = feature.properties;
+            const villageName = shapeName || name || "Unknown Village";
+            const popupContent = `
+              <div>
+                <strong>State:</strong> ${STATE || "N/A"}<br/>
+                <strong>District:</strong> ${DISTRICT || "N/A"}<br/>
+                <strong>Sub-District:</strong> ${SUB_DISTRI || "N/A"}<br/>
+                <strong>Village:</strong> ${villageName}<br/>
+                <strong>Population:</strong> ${population || "N/A"}<br/>
+                <strong>Area:</strong> ${Area || "N/A"} km²
+              </div>
+            `;
+            layer.bindPopup(popupContent);
+
+            // Replace click with hover events for popup
+            layer.on("mouseover", () => layer.openPopup());
+            layer.on("mouseout", () => layer.closePopup());
+
+            // Keep click event for zooming and data selection
+            layer.on("click", () => {
+              if (hasGetBounds(layer)) {
+                const bounds = layer.getBounds();
+                if (bounds.isValid()) {
+                  map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
+                  currentZoomLevelRef.current = map.getZoom();
+                }
+              }
+              const updatedLocationData = {
+                state: selectedState || "",
+                districts: selectedDistricts || [],
+                subDistricts: selectedSubDistricts || [],
+                villages: [feature.properties.shape_id || ""],
+                allVillages: subDistrictData || [],
+                totalPopulation: population || 0,
+              };
+              onLocationSelect?.(updatedLocationData);
+              if (typeof window !== "undefined") {
+                (window as any).selectedLocations = updatedLocationData;
+              }
+            });
+          }
+        },
+      });
+
+      map.whenReady(() => {
+        cleanupVillageLayers();
+        newVillageLayers.addTo(map);
+        villageLayersRef.current = newVillageLayers;
+        try {
+          const bounds = newVillageLayers.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
+            currentZoomLevelRef.current = map.getZoom();
+          }
+        } catch (error) {
+          console.error("Error fitting map to village layer bounds:", error);
+        }
+        setIsLoadingVillages(false);
+      });
+    } catch (error) {
+      console.error("Error fetching or rendering village data:", error);
+      setIsLoadingVillages(false);
+    }
+  };
+
+  fetchVillageData();
+
+  return () => {
+    cleanupVillageLayers();
+  };
+}, [
+  selectedVillages,
+  selectedState,
+  selectedDistricts,
+  selectedSubDistricts,
+  subDistrictData,
+  map,
+  onLocationSelect,
+]);
+
 
   // Prevent auto-zoom out by maintaining the current zoom level
   useEffect(() => {

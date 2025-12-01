@@ -7,6 +7,10 @@ import { FeatureCollection } from 'geojson';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 
+import 'leaflet-fullscreen';
+import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
+
+
 
 
 // Fix Leaflet icon issue
@@ -74,7 +78,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 }) => {
     const mapRef = useRef<L.Map | null>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+
     const basinLayerRef = useRef<L.GeoJSON | null>(null);
     const riverLayerRef = useRef<L.GeoJSON | null>(null);
     const stretchLayerRef = useRef<L.GeoJSON | null>(null);
@@ -156,36 +160,20 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 }).addTo(mapRef.current);
 
                 // Fullscreen control (top-left)
-                const FullscreenLeafletControl = L.Control.extend({
-                    onAdd: () => {
-                        const container = L.DomUtil.create('div', 'leaflet-control-fullscreen');
-                        const button = L.DomUtil.create('button', 'fullscreen-button', container);
-                        button.innerHTML = isFullscreen ? '⤡' : '⤢';
-                        button.title = isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen';
-                        Object.assign(button.style, {
-                            background: 'white',
-                            border: '2px solid rgba(0,0,0,0.2)',
-                            borderRadius: '4px',
-                            width: '30px',
-                            height: '30px',
-                            cursor: 'pointer',
-                            fontSize: '16px',
-                            lineHeight: '1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 1px 5px rgba(0,0,0,0.4)',
-                        } as CSSStyleDeclaration);
-                        button.onmouseover = () => (button.style.backgroundColor = '#f4f4f4');
-                        button.onmouseout = () => (button.style.backgroundColor = 'white');
-                        L.DomEvent.on(button, 'click', L.DomEvent.stopPropagation);
-                        L.DomEvent.on(button, 'click', toggleFullscreen);
-                        return container;
+                // Add fullscreen control via control factory to avoid typing errors with MapOptions
+                if (mapRef.current) {
+                    try {
+                        // Use any casts because the plugin may not be in the TypeScript definitions
+                        if ((L as any).control && (L as any).control.fullscreen) {
+                            (L as any).control.fullscreen({ position: 'topleft' }).addTo(mapRef.current);
+                        } else if ((L as any).control && (L as any).control.Fullscreen) {
+                            // Some builds expose different names; attempt fallback
+                            (L as any).control.Fullscreen({ position: 'topleft' }).addTo(mapRef.current);
+                        }
+                    } catch (err) {
+                        // If fullscreen plugin is not available or fails, ignore and continue
                     }
-                });
-                const fsControl = new FullscreenLeafletControl({ position: 'topleft' } as any);
-                fsControl.addTo(mapRef.current!);
-
+                }
 
                 fetchAllData();
             } catch (err) {
@@ -204,13 +192,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         };
     }, []);
 
-    useEffect(() => {
-        const btn = mapContainerRef.current?.querySelector('.leaflet-control-fullscreen .fullscreen-button') as HTMLButtonElement | null;
-        if (btn) {
-            btn.innerHTML = isFullscreen ? '⤡' : '⤢';
-            btn.title = isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen';
-        }
-    }, [isFullscreen]);
+
 
 
 
@@ -434,40 +416,6 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
 
 
-    useEffect(() => {
-        const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
-        };
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange as any);
-        document.addEventListener('mozfullscreenchange', handleFullscreenChange as any);
-        document.addEventListener('MSFullscreenChange', handleFullscreenChange as any);
-        return () => {
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as any);
-            document.removeEventListener('mozfullscreenchange', handleFullscreenChange as any);
-            document.removeEventListener('MSFullscreenChange', handleFullscreenChange as any);
-        };
-    }, []);
-
-
-    const toggleFullscreen = useCallback(() => {
-        const el = mapContainerRef.current;
-        if (!document.fullscreenElement) {
-            if (el?.requestFullscreen) {
-                el.requestFullscreen()
-                    .then(() => setIsFullscreen(true))
-                    .catch((err) => console.log('Error entering fullscreen:', err));
-            }
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen()
-                    .then(() => setIsFullscreen(false))
-                    .catch((err) => console.log('Error exiting fullscreen:', err));
-            }
-        }
-    }, []);
-
 
     // Toggle catchment layer visibility
     const toggleCatchmentVisibility = () => {
@@ -490,7 +438,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         if (mapRef.current && labelLayersRef.current.length > 0) {
             labelLayersRef.current.forEach(layer => mapRef.current?.removeLayer(layer));
             labelLayersRef.current = [];
-           // console.log("Cleared label layers");
+            // console.log("Cleared label layers");
         }
     };
 
@@ -1008,11 +956,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
                 throw new Error(`Failed to fetch stretches: ${response.statusText}`);
             }
             const data = await response.json();
-           // console.log("All stretches data:", data);
+            // console.log("All stretches data:", data);
             if (data.features?.length > 0) {
                 //console.log(`Received ${data.features.length} stretch features`);
             } else {
-               // console.warn("No stretch features received");
+                // console.warn("No stretch features received");
             }
             setStretchesData(data);
             if (mapRef.current) {
@@ -1628,7 +1576,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                             const villageId = feature.properties.shapeID;
                             if (villageId) {
-                               // console.log(`Village clicked: ${villageId}`);
+                                // console.log(`Village clicked: ${villageId}`);
                                 toggleVillageSelection(villageId);
                             }
                         });
@@ -1700,7 +1648,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                     mapRef.current.getContainer().style.cursor = '';
                                 }
                             } catch (error) {
-                               // console.warn('Error resetting cursor on village mouseout:', error);
+                                // console.warn('Error resetting cursor on village mouseout:', error);
                             }
                         });
                     }
@@ -1783,7 +1731,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
     const highlightSelectedDrains = () => {
         if (!mapRef.current || !drainLayerRef.current || !drainsData) {
-           // console.log("Cannot highlight drains: map, layer or data missing");
+            // console.log("Cannot highlight drains: map, layer or data missing");
             return;
         }
         try {
@@ -1824,7 +1772,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     }
                 }
             });
-           // console.log("Highlighted drains:", selectedDrains);
+            // console.log("Highlighted drains:", selectedDrains);
         } catch (err) {
             //console.log("Error highlighting drains:", err);
         }
@@ -1856,11 +1804,11 @@ const DrainMap: React.FC<DrainMapProps> = ({
     };;
 
     return (
-        <div className={`map-container ${className || ''} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
+        <div className={`map-container ${className} h-full`} style={{ background: 'rgb(255, 255, 255)' }}>
             <div
                 ref={mapContainerRef}
-                className={`drain-map border-4 z-[100] border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full ${isFullscreen ? 'h-screen rounded-none border-0' : 'h-full'} relative`}
-                style={{ background: 'rgb(255, 255, 255)' }}
+                className="drain-map border-4 z-100 border-blue-500 rounded-xl shadow-lg hover:border-green-500 hover:shadow-2xl transition-all duration-300 w-full h-full relative"
+                style={{ background: 'rgb(255, 255, 255)', overflow: 'hidden' }}
             >
 
                 {/* Legend moved inside map as overlay */}
@@ -1880,7 +1828,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                                 style={{ opacity: 0.4 }}></span>
                             <span>Stretches</span>
                         </div>
-                        <div className="flex items-center">
+                        {/* <div className="flex items-center">
                             <span className="w-3 h-3 inline-block mr-1 border"
                                 style={{ backgroundColor: '#0066FF', borderColor: '#0033CC' }}></span>
                             <span>R.Stretches</span>
@@ -1889,7 +1837,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                             <span className="w-3 h-3 inline-block mr-1 border"
                                 style={{ backgroundColor: '#FF0066', borderColor: '#CC0033' }}></span>
                             <span>Sel.Stretch</span>
-                        </div>
+                        </div> */}
                         <div className="flex items-center">
                             <span className="w-3 h-3 bg-blue-900 inline-block mr-1 border border-blue-700"></span>
                             <span>Drains</span>
@@ -1905,7 +1853,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
 
                 {/* Controls moved to top-right inside map */}
                 {selectedDrains.length > 0 && (
-                    <div className="absolute top-2 right-2 flex flex-col gap-1 z-[1000]">
+                    <div className="absolute bottom-5 right-2 flex flex-col gap-1 z-[1000]">
                         <div className="flex items-center bg-white bg-opacity-90 p-2 rounded border border-gray-300 shadow-lg">
                             <input
                                 type="checkbox"
@@ -1954,7 +1902,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                     </div>
                 )}
 
-                
+
                 {loading && (
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000]">
                         <div className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-pulse">
@@ -2013,7 +1961,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
                             Loading .......
                             Please be patient
                         </div>
-                        
+
                     </div>
                 )}
             </div>

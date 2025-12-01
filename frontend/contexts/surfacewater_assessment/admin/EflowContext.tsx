@@ -1,9 +1,15 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from 'react';
 import { useLocationContext } from '@/contexts/surfacewater_assessment/admin/LocationContext';
-
-export type Method = 'Q95' | 'Q90' | 'Q80';
 
 export type MethodKey =
   | 'FDC-Q95'
@@ -16,12 +22,17 @@ export type MethodKey =
 
 export type AdminCurve = {
   days: number[];
-  flows: number[];
-  threshold: number;
-  // image_base64 removed from curves to keep payload light; images fetched via separate API on demand
+  flows_Lps: number[]; // note L/s
+  threshold_Lps: number;
 };
 
-export type AdminSummary = Record<MethodKey, number>;
+export type AdminSummaryValue = {
+  threshold_Lps: number;
+  surplus_L: number;   // liters
+  surplus_ML: number;  // million liters
+};
+
+export type AdminSummary = Record<MethodKey, AdminSummaryValue>;
 
 export type VillageEflowResult = {
   vlcode: number;
@@ -31,7 +42,6 @@ export type VillageEflowResult = {
   curves: Record<MethodKey, AdminCurve>;
 };
 
-// Stress data type
 export type VillageStressData = {
   vlcode: number;
   [key: string]: any;
@@ -39,6 +49,14 @@ export type VillageStressData = {
 
 export type MergedVillageData = VillageEflowResult & {
   stressData?: VillageStressData;
+};
+
+export type MethodPngResponse = {
+  image_base64: string;
+  threshold_Lps?: number;
+  surplus_L?: number;
+  surplus_ML?: number;
+  method_key?: MethodKey;
 };
 
 type EflowContextValue = {
@@ -49,42 +67,37 @@ type EflowContextValue = {
   hasData: boolean;
   hasStressData: boolean;
   lastFetchedSubdistricts: number[];
-  method: Method;
-  setMethod: (m: Method) => void;
   fetchData: (subdistrictIds?: number[]) => void;
   refresh: () => void;
   clearData: () => void;
   stressColumns: string[];
-  // New: fetch PNG for a specific village+method
-  fetchMethodPng: (vlcode: number, methodKey: MethodKey) => Promise<string | null>;
+  fetchMethodPng: (vlcode: number, methodKey: MethodKey) => Promise<MethodPngResponse | null>;
 };
 
 const EflowContext = createContext<EflowContextValue | undefined>(undefined);
 
 export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const { selectionConfirmed, getConfirmedSubdistrictIds } = useLocationContext();
+  const { selectionConfirmed, getConfirmedSubdistrictIds, registerResetCallback } = useLocationContext();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<VillageEflowResult[]>([]);
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
-  const [method, setMethod] = useState<Method>('Q95');
   const controllerRef = useRef<AbortController | null>(null);
 
-  // Stress data state
+  // Stress data (optional)
   const [stressDataMap, setStressDataMap] = useState<Map<number, VillageStressData>>(new Map());
   const [stressColumns, setStressColumns] = useState<string[]>([]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
 
-  // Load stress data from localStorage on mount
+  // Load stress data from localStorage if present (keeps earlier behavior)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stressDataJson = localStorage.getItem('gwa_stress_data');
       if (stressDataJson) {
         const stressData: any[] = JSON.parse(stressDataJson);
-
         if (stressData.length > 0) {
           const dataMap = new Map<number, VillageStressData>();
           stressData.forEach((record) => {
@@ -93,28 +106,25 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           });
           setStressDataMap(dataMap);
 
-          // Column configuration: original -> display
           const STRESS_COLUMN_CONFIG: Record<string, string> = {
             stress_value: 'Injection Need (m³/yr)',
           };
 
           const firstRecord = stressData[0];
-          const allColumns = Object.keys(firstRecord);
-
-          const filteredOriginalColumns = allColumns.filter((col) => STRESS_COLUMN_CONFIG.hasOwnProperty(col));
-          const displayColumnNames = filteredOriginalColumns.map((col) => STRESS_COLUMN_CONFIG[col]);
+          const allCols = Object.keys(firstRecord);
+          const filteredOriginalColumns = allCols.filter((c) => STRESS_COLUMN_CONFIG.hasOwnProperty(c));
+          const displayColumnNames = filteredOriginalColumns.map((c) => STRESS_COLUMN_CONFIG[c]);
           setStressColumns(displayColumnNames);
 
-          // Store mapping (display -> original) for table lookup and CSV
-          const reverseMapping: Record<string, string> = {};
-          filteredOriginalColumns.forEach((originalCol, index) => {
-            reverseMapping[displayColumnNames[index]] = originalCol;
+          const reverseMap: Record<string, string> = {};
+          filteredOriginalColumns.forEach((orig, i) => {
+            reverseMap[displayColumnNames[i]] = orig;
           });
-          sessionStorage.setItem('stress_column_mapping', JSON.stringify(reverseMapping));
+          sessionStorage.setItem('stress_column_mapping', JSON.stringify(reverseMap));
         }
       }
-    } catch (e) {
-      console.log('Failed to load stress data from localStorage:', e);
+    } catch (err) {
+      console.error('Failed to load stress data:', err);
     }
   }, []);
 
@@ -126,14 +136,14 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
         setLastFetchedSubdistricts([]);
         return;
       }
-      const ids =
-        subdistrictIds && subdistrictIds.length > 0 ? subdistrictIds : getConfirmedSubdistrictIds();
+      const ids = subdistrictIds && subdistrictIds.length > 0 ? subdistrictIds : getConfirmedSubdistrictIds();
       if (ids.length === 0) {
         setItems([]);
         setError(null);
         setLastFetchedSubdistricts([]);
         return;
       }
+
       if (controllerRef.current) controllerRef.current.abort();
       const controller = new AbortController();
       controllerRef.current = controller;
@@ -154,24 +164,17 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           throw new Error(`E-flow request failed (${res.status}) ${text}`);
         }
 
-        const data = (await res.json()) as Record<
-          string,
-          {
-            vlcode: number;
-            village: string;
-            subdistrict_code: number;
-            summary: AdminSummary;
-            curves: Record<MethodKey, AdminCurve>;
-          }
-        >;
+        const data = (await res.json()) as Record<string, VillageEflowResult>;
 
+        // Normalize parsed data (the backend already returns flows_Lps / threshold_Lps / surplus_ML)
         const parsed: VillageEflowResult[] = Object.values(data).map((r) => ({
           vlcode: r.vlcode,
           village: r.village,
           subdistrict_code: r.subdistrict_code,
           summary: r.summary,
-          curves: r.curves, // no image_base64 inside; images fetched separately
+          curves: r.curves,
         }));
+
         setItems(parsed);
         setLastFetchedSubdistricts(ids);
       } catch (e: any) {
@@ -209,20 +212,24 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
     sessionStorage.removeItem('stress_column_mapping');
   }, []);
 
+  useEffect(() => {
+    const unregister = registerResetCallback(clearData);
+    return () => unregister();
+  }, [registerResetCallback, clearData]);
+
   const hasData = items.length > 0;
   const hasStressData = stressDataMap.size > 0;
 
   const mergedItems = useMemo(() => {
     if (items.length === 0) return [];
-    return items.map((eflowItem) => {
-      const stressData = stressDataMap.get(eflowItem.vlcode);
-      return { ...eflowItem, stressData: stressData || undefined } as MergedVillageData;
+    return items.map((v) => {
+      const stress = stressDataMap.get(v.vlcode);
+      return { ...v, stressData: stress || undefined } as MergedVillageData;
     });
   }, [items, stressDataMap]);
 
-  // New: fetch PNG for given village + method from dedicated endpoint
   const fetchMethodPng = useCallback(
-    async (vlcode: number, methodKey: MethodKey): Promise<string | null> => {
+    async (vlcode: number, methodKey: MethodKey): Promise<MethodPngResponse | null> => {
       try {
         const res = await fetch(`${apiBase}/django/swa/eflowadminimage`, {
           method: 'POST',
@@ -234,10 +241,15 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           throw new Error(`PNG request failed (${res.status}) ${text}`);
         }
         const data = await res.json();
-        const b64: string | undefined = data?.image_base64;
-        return b64 ?? null;
+        return {
+          image_base64: data?.image_base64 ?? '',
+          threshold_Lps: data?.threshold_Lps ?? undefined,
+          surplus_L: typeof data?.surplus_L === 'number' ? data.surplus_L : undefined,
+          surplus_ML: typeof data?.surplus_ML === 'number' ? data.surplus_ML : undefined,
+          method_key: data?.method_key ?? methodKey,
+        };
       } catch (err) {
-        console.log('Failed to fetch PNG:', err);
+        console.error('Failed to fetch PNG:', err);
         return null;
       }
     },
@@ -253,8 +265,6 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       hasData,
       hasStressData,
       lastFetchedSubdistricts,
-      method,
-      setMethod,
       fetchData,
       refresh,
       clearData,
@@ -269,8 +279,6 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       hasData,
       hasStressData,
       lastFetchedSubdistricts,
-      method,
-      setMethod,
       fetchData,
       refresh,
       clearData,

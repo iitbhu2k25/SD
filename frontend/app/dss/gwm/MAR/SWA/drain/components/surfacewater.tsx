@@ -1,3 +1,4 @@
+// frontend/app/dss/gwm/MAR/SWA/drain/components/surfacewater.tsx
 'use client';
 
 import React from 'react';
@@ -39,7 +40,8 @@ async function exitDocFullscreen() {
 
 // Removed: client SVG-to-PNG exporter
 
-function buildMergedSeries(results: Record<number, any> | null) {
+export function buildMergedSeries(results: Record<number, any> | null) {
+
   if (!results) return { merged: [], q25: null, yearsUnion: [], issues: [] as string[] };
 
   const perDay: Record<number, number[]> = {};
@@ -228,7 +230,7 @@ export default function SurfaceWaterCard() {
         await requestElFullscreen(chartWrapRef.current);
       }
     } catch (e) {
-      console.log('Fullscreen error:', e);
+      console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 

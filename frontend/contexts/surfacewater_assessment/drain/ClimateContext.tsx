@@ -1,14 +1,22 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect, // Added for synchronization
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocationContext } from './LocationContext';
 
 export type ClimatePoint = {
   year: number;
-  mon: number;           // 1-12
+  mon: number; // 1-12
   flow_in: number;
   flow_out: number;
-  x_index: number;       // optional positional index from API
+  x_index: number; // Optional positional index from API
 };
 
 export type ClimateSeries = {
@@ -28,13 +36,16 @@ export type ClimateResult = {
     net_flow: number;
     avg_monthly_inflow: number;
     avg_monthly_outflow: number;
-    per_year?: Record<string, {
-      total_inflow: number;
-      total_outflow: number;
-      net_flow: number;
-      avg_monthly_inflow: number;
-      avg_monthly_outflow: number;
-    }>;
+    per_year?: Record<
+      string,
+      {
+        total_inflow: number;
+        total_outflow: number;
+        net_flow: number;
+        avg_monthly_inflow: number;
+        avg_monthly_outflow: number;
+      }
+    >;
   };
   image_base64?: string;
 };
@@ -162,6 +173,16 @@ export const ClimateProvider: React.FC<React.PropsWithChildren> = ({ children })
     setError(null);
     setResults(null);
   }, [cancelInFlight]);
+
+  // NEW: Synchronize with LocationContext changes
+  useEffect(() => {
+    // Reset state when selectedSubbasins or selectionConfirmed changes
+    reset();
+    // Optionally re-run analysis if selection is confirmed and valid
+    if (canRun) {
+      run(); // Run with default params (selectedScenario, selectedStartYear, selectedEndYear)
+    }
+  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
 
   const value: Ctx = useMemo(
     () => ({

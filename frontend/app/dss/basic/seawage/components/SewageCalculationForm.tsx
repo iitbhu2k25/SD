@@ -1492,10 +1492,9 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
                   value={item.name}
                   onChange={(e) => handleDrainItemChange(index, 'name', e.target.value)}
                   className={`w-full border rounded px-1 py-0.5 ${sourceMode === 'drain' ? 'bg-gray-100' : ''}`}
-                  readOnly={sourceMode === 'drain'}
-                  title={sourceMode === 'drain' ? 'Drain name is automatically set from drain selection' : ''}
                 />
               </td>
+
               <td className="border px-2 py-1">
                 <input
                   type="number"
@@ -1869,7 +1868,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             addParagraph("The geographic extent of the study area is displayed in Figure 1, showing administrative boundaries including villages, sub-districts, and districts. This administrative base is crucial for linking population data and infrastructural indicators to spatial units for localized planning.");
           }
 
-         
+
           // Map Capture from API
           const villageCodesForMap = villages_props?.map(v => v.id) || [];
           //console.log('Fetching map for village codes:', villageCodesForMap);
@@ -3524,16 +3523,16 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
               }, 100);
             }
           } catch (uploadError) {
-           // console.log('Upload error:', uploadError);
+            // console.log('Upload error:', uploadError);
             setTimeout(() => {
               //alert('PDF generated successfully, but upload to server failed. Check console for details.');
             }, 100);
           }
 
           // Keep the original download functionality
-         // console.log('Starting PDF download...');
+          // console.log('Starting PDF download...');
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");
-         // console.log('PDF download initiated');
+          // console.log('PDF download initiated');
 
 
           doc.save("Comprehensive_Sewage_Generation_Report.pdf");

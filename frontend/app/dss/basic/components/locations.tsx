@@ -10,6 +10,8 @@ declare global {
     selectedLocations?: any;
   }
 }
+const ALLOWED_STATE_CODE = '9';
+const ALLOWED_DISTRICT_CODES = ['152', '120', '174', '187', '179'];
 
 interface TruncatedListProps {
   content: string;
@@ -59,6 +61,7 @@ interface LocationItem {
 
 interface District extends LocationItem {
   stateId: number;
+  disabled?: boolean; // ADD THIS
 }
 
 interface SubDistrict extends LocationItem {
@@ -147,7 +150,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 
 
   // Fetch states on component mount
-  useEffect(() => {
+useEffect(() => {
     const fetchStates = async (): Promise<void> => {
       try {
         const response = await fetch('/django/state/');
@@ -156,55 +159,67 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
         }
 
         const data = await response.json();
-        //console.log('API response data:', data);
         const stateData: LocationItem[] = data.map((state: any) => ({
           id: state.state_code,
           name: state.state_name
         }));
 
-        setStates(stateData);
+        // Sort states: allowed state first, then others
+        const sortedStates = stateData.sort((a, b) => {
+          const aAllowed = a.id.toString() === ALLOWED_STATE_CODE;
+          const bAllowed = b.id.toString() === ALLOWED_STATE_CODE;
+          
+          if (aAllowed && !bAllowed) return -1;
+          if (!aAllowed && bAllowed) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        setStates(sortedStates);
       } catch (error) {
-        //console.log('Error fetching states:', error);
+        console.error('Error fetching states:', error);
       }
     };
     fetchStates();
   }, []);
 
   // Fetch districts when state changes
-  useEffect(() => {
+   useEffect(() => {
     if (selectedState) {
       const fetchDistricts = async (): Promise<void> => {
-        //console.log('Fetching districts for state:', selectedState);
         try {
-          const response = await fetch('/django/district/',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ state_code: selectedState }),
-            }
-          );
+          const response = await fetch('/django/district/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ state_code: selectedState }),
+          });
           const data = await response.json();
-          //console.log('API response data:', data);
+          
           const districtData: LocationItem[] = data.map((district: any) => ({
             id: district.district_code,
             name: district.district_name
           }));
+          
           const mappedDistricts: District[] = districtData.map(district => ({
             ...district,
             stateId: parseInt(selectedState)
           }));
 
-          // Sort districts alphabetically
-          const sortedDistricts = [...mappedDistricts].sort((a, b) =>
-            a.name.localeCompare(b.name)
-          );
+          // Sort districts: allowed districts first, then others alphabetically
+          const sortedDistricts = [...mappedDistricts].sort((a, b) => {
+            const aAllowed = ALLOWED_DISTRICT_CODES.includes(a.id.toString());
+            const bAllowed = ALLOWED_DISTRICT_CODES.includes(b.id.toString());
+            
+            if (aAllowed && !bAllowed) return -1;
+            if (!aAllowed && bAllowed) return 1;
+            return a.name.localeCompare(b.name);
+          });
 
           setDistricts(sortedDistricts);
           setSelectedDistricts([]);
         } catch (error) {
-          //console.log('Error fetching districts:', error);
+          console.error('Error fetching districts:', error);
         }
       };
       fetchDistricts();
@@ -212,12 +227,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
       setDistricts([]);
       setSelectedDistricts([]);
     }
-    // Reset dependent dropdowns
+    
     setSubDistricts([]);
     setSelectedSubDistricts([]);
     setVillages([]);
     setSelectedVillages([]);
-    // Reset total population when state changes
     setTotalPopulation(0);
   }, [selectedState]);
 
@@ -652,7 +666,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
     return result;
   };
 
-  return (
+return (
     <div className={`h-full p-4 border-2 bg-gray-100 rounded-lg shadow-md relative ${isMapLoading ? ' pointer-events-none' : ''}`}>
       {isMapLoading && (
         <div className="absolute inset-0 flex items-center justify-center rounded-lg z-50">
@@ -681,40 +695,56 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
         </div>
       )}
       <div className="h-full flex flex-col">
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        {/* State Dropdown */}
-        <div>
-          <label htmlFor="state-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
-            State:
-          </label>
-          <select
-            id="state-dropdown"
-            className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={selectedState}
-            onChange={handleStateChange}
-            disabled={selectionsLocked}
-          >
-            <option value="">--Choose a State--</option>
-            {states.map(state => (
-              <option key={state.id} value={state.id}>
-                {state.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
+          {/* State Dropdown with disabled options */}
+          <div>
+            <label htmlFor="state-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
+              State:
+            </label>
+            <select
+              id="state-dropdown"
+              className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={selectedState}
+              onChange={handleStateChange}
+              disabled={selectionsLocked}
+            >
+              <option value="">--Choose a State--</option>
+              {states.map(state => {
+                const isAllowed = state.id.toString() === ALLOWED_STATE_CODE;
+                return (
+                  <option 
+                    key={state.id} 
+                    value={state.id}
+                    disabled={!isAllowed}
+                    className={!isAllowed ? 'text-gray-400' : ''}
+                  >
+                    {state.name} {!isAllowed ? '(Not Available)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
 
         {/* District Multiselect */}
         <MultiSelect
-          items={districts}
-          selectedItems={selectedDistricts}
-          onSelectionChange={selectionsLocked ? () => { } : (newValue) => {
-            setSelectedDistricts(newValue);
-            handleDistrictsChange(newValue);
-          }}
-          label="District"
-          placeholder="--Choose Districts--"
-          disabled={!selectedState || selectionsLocked}
-        />
+            items={districts.map(district => ({
+              ...district,
+              disabled: !ALLOWED_DISTRICT_CODES.includes(district.id.toString())
+            }))}
+            selectedItems={selectedDistricts}
+            onSelectionChange={selectionsLocked ? () => { } : (newValue) => {
+              // Filter out any disabled districts
+              const validDistricts = newValue.filter(districtId => 
+                ALLOWED_DISTRICT_CODES.includes(districtId)
+              );
+              setSelectedDistricts(validDistricts);
+              handleDistrictsChange(validDistricts);
+            }}
+            label="District"
+            placeholder="--Choose Districts--"
+            disabled={!selectedState || selectionsLocked}
+          />
+
 
         {/* Sub-District Multiselect with district grouping */}
         <MultiSelect

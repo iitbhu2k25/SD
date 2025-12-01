@@ -43,28 +43,27 @@ async function exitDocFullscreen() {
 
 // Removed old downloadChartSvgAsPng — server PNG will be used
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, coordinate }: any) => {
   if (!active || !payload || payload.length === 0) return null;
 
-  const containerRect = document.querySelector('.recharts-wrapper')?.getBoundingClientRect();
-  if (!containerRect) return null;
-
   const tooltipStyle: React.CSSProperties = {
-    position: 'fixed',
-    top: containerRect.top + 50,
-    right: window.innerWidth - containerRect.right - 10,
+    position: 'absolute',
+    left: coordinate?.x ?? 0,
+    top: coordinate?.y ?? 0,
+    transform: 'translate(10px, -50%)', // offset so it doesn’t overlap cursor
     backgroundColor: 'white',
     border: '1px solid #e5e7eb',
     borderRadius: '0.5rem',
     padding: '8px 12px',
     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-    zIndex: 1000,
+    zIndex: 10,
     fontSize: 12,
-    minWidth: 160,
+    minWidth: 180,
     pointerEvents: 'none',
   };
 
-  const safeLabel = typeof label === 'number' || typeof label === 'string' ? label : '';
+  const safeLabel =
+    typeof label === 'number' || typeof label === 'string' ? label : '';
 
   return (
     <div style={tooltipStyle}>
@@ -80,6 +79,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     </div>
   );
 };
+
+
 
 interface ActivePayloadItem {
   value?: number;
@@ -201,7 +202,7 @@ export default function StreamFlow() {
         await requestElFullscreen(chartWrapRef.current);
       }
     } catch (e) {
-      console.log('Fullscreen error:', e);
+      console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 
@@ -284,18 +285,7 @@ export default function StreamFlow() {
     );
   }
 
-  if (!hasData) {
-    return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-        <button
-          onClick={handleFetch}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Flow Duration Curve
-        </button>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">
@@ -460,10 +450,10 @@ export default function StreamFlow() {
               />
 
               <Tooltip
-                content={<CustomTooltip />}
-                position={{ x: 0, y: 0 }}
-                cursor={{ stroke: '#cbd5e1', strokeDasharray: '3 3' }}
-              />
+  content={<CustomTooltip />}
+  cursor={{ stroke: '#cbd5e1', strokeDasharray: '3 3' }}
+/>
+
 
               <ReferenceLine
                 x={25}

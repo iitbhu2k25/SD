@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocationContext } from '@/contexts/surfacewater_assessment/admin/LocationContext';
 
 export type VillageTimeseriesPoint = { month: number; flow: number };
@@ -18,7 +18,6 @@ export type VillageSurplus = {
     total_data_points: number;
   };
   timeseries: VillageTimeseriesPoint[];
-  // image_base64 removed from steady state; use fetchVillagePng for on-demand image
   error?: string;
   subdistrictCode?: string | number;
 };
@@ -32,14 +31,13 @@ type VillageSurplusContextValue = {
   fetchData: (subdistrictIds?: number[]) => void;
   refresh: () => void;
   clearData: () => void;
-  // New: fetch server PNG for a village by vlcode
   fetchVillagePng: (vlcode: string | number) => Promise<string | null>;
 };
 
 const VillageSurplusContext = createContext<VillageSurplusContextValue | undefined>(undefined);
 
 export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const { selectionConfirmed, getConfirmedSubdistrictIds } = useLocationContext();
+  const { selectionConfirmed, getConfirmedSubdistrictIds, registerResetCallback } = useLocationContext();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +45,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
 
   const fetchSurplusBulk = useCallback(
     async (subdistrictIds: number[]) => {
@@ -72,11 +70,6 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
           throw new Error(`Village Surplus request failed (${res.status}) ${text}`);
         }
 
-        // {
-        //   subdistrict_codes: number[] | string[],
-        //   results: { [sdCode: string]: { [vlcode: string]: VillageSurplusLike } },
-        //   errors?: { [key: string]: string } | null
-        // }
         const data: {
           subdistrict_codes: Array<string | number>;
           results: Record<string, Record<string, any>>;
@@ -103,7 +96,6 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
                     total_data_points: 0,
                   },
                 timeseries: Array.isArray(v.timeseries) ? v.timeseries : [],
-                // image_base64 intentionally ignored; PNG is fetched via image endpoint on demand
                 error: v.error,
                 subdistrictCode: sdCode,
               });
@@ -192,6 +184,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   }, [selectionConfirmed, getConfirmedSubdistrictIds, fetchSurplusBulk]);
 
   const clearData = useCallback(() => {
+    console.log('VillageSurplusContext: Clearing all data');
     if (controllerRef.current) controllerRef.current.abort();
     setItems([]);
     setError(null);
@@ -199,7 +192,18 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
     setLoading(false);
   }, []);
 
-  // New: POST only vlcode and return image_base64
+  // NEW: Register reset callback with LocationContext
+  useEffect(() => {
+    console.log('VillageSurplusContext: Registering reset callback with LocationContext');
+    const unregister = registerResetCallback(clearData);
+    
+    // Cleanup: unregister when component unmounts
+    return () => {
+      console.log('VillageSurplusContext: Unregistering reset callback');
+      unregister();
+    };
+  }, [registerResetCallback, clearData]);
+
   const fetchVillagePng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
@@ -216,7 +220,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.log('Failed to fetch village PNG:', err);
+        console.error('Failed to fetch village PNG:', err);
         return null;
       }
     },

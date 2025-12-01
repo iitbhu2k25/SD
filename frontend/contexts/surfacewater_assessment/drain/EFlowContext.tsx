@@ -1,24 +1,32 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect, // Added for synchronization
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useLocationContext } from './LocationContext';
 
 export type CurveSeries = {
   days: number[];
   flows: number[];
   threshold: number;
-  image_base64?: string; // NEW: server-rendered PNG for this method
+  image_base64?: string; // Server-rendered PNG for this method
 };
 
 export type EflowResult = {
-  summary: Record<string, number>;      // Mm³/year surplus per method
-  curves: Record<string, CurveSeries>;  // method key -> series (now may contain image_base64)
+  summary: Record<string, number>; // Mm³/year surplus per method
+  curves: Record<string, CurveSeries>; // Method key -> series (may contain image_base64)
 };
 
 export type EflowError = { error: string };
 export type EflowResultsMap = Record<number, EflowResult | EflowError>;
 
-export type DailyPoint = { day: number; flow: number }; // retained (unused)
+export type DailyPoint = { day: number; flow: number }; // Retained (unused)
 
 type State = {
   posting: boolean;
@@ -131,6 +139,16 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const fetchDaily = useCallback(async (_sub: number): Promise<DailyPoint[] | null> => {
     return null;
   }, []);
+
+  // NEW: Synchronize with LocationContext changes
+  useEffect(() => {
+    // Reset state when selectedSubbasins or selectionConfirmed changes
+    reset();
+    // Optionally re-run analysis if selection is confirmed and valid
+    if (canRun) {
+      run(); // Run with default params; adjust if specific params are needed
+    }
+  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
 
   const value: Ctx = useMemo(
     () => ({

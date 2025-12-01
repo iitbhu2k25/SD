@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
+import Overlay from 'ol/Overlay';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
@@ -19,10 +20,74 @@ import { Fill, Stroke, Style } from 'ol/style';
 import Text from 'ol/style/Text';
 import OSM from 'ol/source/OSM';
 import { fromLonLat } from 'ol/proj';
+import { Feature } from 'ol';
+import { Geometry } from 'ol/geom';
 import { useLocationContext } from './LocationContext';
+import XYZ from 'ol/source/XYZ';
+import { BaseMapDefinition } from '@/components/MapComponents';
+
+const baseMaps: Record<string, BaseMapDefinition> = {
+  osm: {
+    name: "OpenStreetMap",
+    source: () => new OSM({ crossOrigin: "anonymous" }),
+    icon: "M9 20l-5.447-2.724a1 1 0 010-1.947L9 12.618l-5.447-2.724a1 1 0 010-1.947L9 5.236l-5.447-2.724a1 1 0 010-1.947L9 -1.146",
+  },
+  terrain: {
+    name: "Stamen Terrain",
+    source: () =>
+      new XYZ({
+        url: "https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg",
+        maxZoom: 19,
+        attributions:
+          'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+        crossOrigin: "anonymous",
+      }),
+    icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",
+  },
+  cartoLight: {
+    name: "Carto Light",
+    source: () =>
+      new XYZ({
+        url: "https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        maxZoom: 19,
+        attributions:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, © <a href="https://carto.com/attributions">CARTO</a>',
+        crossOrigin: "anonymous",
+      }),
+    icon:
+      "M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z",
+  },
+  satellite: {
+    name: "Satellite",
+    source: () =>
+      new XYZ({
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        maxZoom: 19,
+        attributions:
+          'Tiles © <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer">ArcGIS</a>',
+        crossOrigin: "anonymous",
+      }),
+    icon: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+  },
+  topo: {
+    name: "Topographic",
+    source: () =>
+      new XYZ({
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        maxZoom: 19,
+        attributions:
+          'Tiles © <a href="https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer">ArcGIS</a>',
+        crossOrigin: "anonymous",
+      }),
+    icon: "M7 14l5-5 5 5",
+  },
+};
+
 
 interface MapContextType {
   mapInstance: Map | null;
+  selectedBaseMap: string;
+  changeBaseMap: (baseMapKey: string) => void;
   setMapContainer: (container: HTMLDivElement | null) => void;
   isLoading: boolean;
   error: string | null;
@@ -36,6 +101,8 @@ interface MapProviderProps {
 
 const MapContext = createContext<MapContextType>({
   mapInstance: null,
+  selectedBaseMap: "osm",
+  changeBaseMap: () => {},
   setMapContainer: () => {},
   isLoading: true,
   error: null,
@@ -50,13 +117,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const stateLayerRef = useRef<VectorLayer<any> | null>(null);
   const districtLayerRef = useRef<VectorLayer<any> | null>(null);
   const villageLayerRef = useRef<VectorLayer<any> | null>(null);
+  const hoverOverlayRef = useRef<Overlay | null>(null);
+  const highlightLayerRef = useRef<VectorLayer<any> | null>(null);
 
   const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(false);
-
+  const [hoveredFeature, setHoveredFeature] = useState<any>(null);
+  const [selectedBaseMap, setSelectedBaseMap] = useState<string>("satellite");
   const { selectedState, selectedDistricts, selectedSubDistricts } = useLocationContext();
 
   const toggleLabels = () => setShowLabels((s) => !s);
@@ -97,6 +167,37 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       }),
     []
   );
+
+  const changeBaseMap = (baseMapKey: string) => {
+  if (!mapInstanceRef.current) return;
+  if (baseMapKey === selectedBaseMap) return;
+
+  const baseMapDef = baseMaps[baseMapKey];
+  if (!baseMapDef) return;
+
+  const map = mapInstanceRef.current;
+
+  // Remove existing base layer if present
+  if (baseLayerRef.current) {
+    map.removeLayer(baseLayerRef.current);
+    baseLayerRef.current = null;
+  }
+
+  // Create new base layer from selected base map
+  const newBaseLayer = new TileLayer({
+    source: baseMapDef.source(),
+    zIndex: 0,
+  });
+  newBaseLayer.set('name', 'basemap');
+  baseLayerRef.current = newBaseLayer;
+
+  // Add new base layer to map, at the bottom
+  map.getLayers().insertAt(0, newBaseLayer);
+
+  // Update selected base map state
+  setSelectedBaseMap(baseMapKey);
+};
+
 
   // Style functions with label toggle
   const makeDistrictStyleFn = useMemo(
@@ -265,6 +366,182 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     }
   }, [mapContainer, boundaryLayerStyle]);
 
+  // Add hover functionality
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Create hover overlay element
+    const hoverElement = document.createElement('div');
+    hoverElement.className = 'ol-hover-popup';
+    hoverElement.style.cssText = `
+      background: rgba(255, 255, 255, 1);
+      border: 2px solid #3B82F6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1F2937;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 300px;
+      z-index: 1000;
+    `;
+
+    // Create hover overlay
+    const hoverOverlay = new Overlay({
+      element: hoverElement,
+      positioning: 'bottom-center',
+      stopEvent: false,
+      offset: [0, -10],
+    });
+
+    mapInstanceRef.current.addOverlay(hoverOverlay);
+    hoverOverlayRef.current = hoverOverlay;
+
+    // Create a highlight layer for the hovered feature
+    const highlightStyle = new Style({
+      fill: new Fill({
+        color: 'rgba(59, 130, 246, 0.2)', // Light blue fill
+      }),
+      stroke: new Stroke({
+        color: '#fffb00ff', // Gold border
+        width: 3,
+      }),
+    });
+
+    const highlightLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: highlightStyle,
+      zIndex: 999, // High z-index to appear on top
+    });
+
+    highlightLayer.set('name', 'highlight-layer');
+    mapInstanceRef.current.addLayer(highlightLayer);
+    highlightLayerRef.current = highlightLayer;
+
+    // Handle pointer move for hover
+    const handlePointerMove = (event: any) => {
+      if (!mapInstanceRef.current || !highlightLayerRef.current) return;
+
+      const pixel = event.pixel;
+      let foundFeature = false;
+      const highlightSource = highlightLayerRef.current.getSource();
+
+      // Clear previous highlight
+      if (highlightSource) {
+        highlightSource.clear();
+      }
+
+      // Check for features at pixel - use hitTolerance for better detection
+      mapInstanceRef.current.forEachFeatureAtPixel(
+        pixel,
+        (feature, layer) => {
+          const layerName = layer?.get('name');
+
+          // Skip highlight layer itself
+          if (layerName === 'highlight-layer') {
+            return false;
+          }
+
+          const properties = feature.getProperties();
+          let label = '';
+
+          // Determine label based on layer name
+          switch (layerName) {
+            case 'india':
+              label = properties.STATE || properties.State || properties.state || 
+                      properties.state_name || properties.STATE_NAME;
+              break;
+
+            case 'state-districts':
+              label = properties.DISTRICT_N || properties.District_N || 
+                      properties.district_name || properties.district || 
+                      properties.DISTRICT;
+              break;
+
+            case 'district-subdistricts':
+              label = properties.SUBDIS_NAM || properties.Subdis_Nam || 
+                      properties.subdistrict_name || properties.subdistrict || 
+                      properties.SUB_DISTRI;
+              break;
+
+            case 'villages':
+              label = properties.VILL_NAME || properties.Vill_Name || 
+                      properties.village_name || properties.village || 
+                      properties.VILLAGE;
+              break;
+
+            default:
+              label = properties.name || properties.NAME || 
+                      properties.village_name || properties.VILL_NAME ||
+                      properties.district_name || properties.DISTRICT_N ||
+                      properties.subdistrict_name || properties.SUBDIS_NAM;
+          }
+
+          if (label && hoverOverlay) {
+            // Highlight the feature
+            if (highlightSource && feature instanceof Feature) {
+              const clonedFeature = feature.clone() as Feature<Geometry>;
+              clonedFeature.setId(feature.getId());
+              highlightSource.addFeature(clonedFeature);
+            }
+
+            // Show label
+            hoverElement.textContent = label;
+            hoverOverlay.setPosition(event.coordinate);
+            foundFeature = true;
+            setHoveredFeature(feature);
+
+            const target = mapInstanceRef.current?.getTargetElement();
+            if (target) {
+              target.style.cursor = 'pointer';
+            }
+
+            return true;
+          }
+          return false;
+        },
+        {
+          layerFilter: (layer) => {
+            const layerName = layer.get('name');
+            return layerName !== 'highlight-layer';
+          },
+          hitTolerance: 5
+        }
+      );
+
+      // Hide overlay and clear highlight if no feature found
+      if (!foundFeature) {
+        if (hoverOverlay) {
+          hoverOverlay.setPosition(undefined);
+        }
+        if (highlightSource) {
+          highlightSource.clear();
+        }
+        setHoveredFeature(null);
+
+        const target = mapInstanceRef.current?.getTargetElement();
+        if (target) {
+          target.style.cursor = '';
+        }
+      }
+    };
+
+    mapInstanceRef.current.on('pointermove', handlePointerMove);
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.un('pointermove', handlePointerMove);
+
+        if (highlightLayerRef.current) {
+          mapInstanceRef.current.removeLayer(highlightLayerRef.current);
+          highlightLayerRef.current = null;
+        }
+      }
+    };
+  }, [mapInstanceRef.current]);
+
   // Load districts when state is selected (state layer slot)
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -420,17 +697,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     }
   }, [showLabels, makeDistrictStyleFn, makeSubdistrictStyleFn, makeVillageStyleFn]);
 
-  const contextValue = useMemo(
-    () => ({
-      mapInstance,
-      setMapContainer,
-      isLoading,
-      error,
-      showLabels,
-      toggleLabels,
-    }),
-    [mapInstance, isLoading, error, showLabels]
-  );
+const contextValue = useMemo(
+  () => ({
+    mapInstance,
+    setMapContainer,
+    selectedBaseMap,
+    isLoading,
+    error,
+    showLabels,
+    toggleLabels,
+    changeBaseMap, // refer to the implemented changeBaseMap function
+  }),
+  [mapInstance, isLoading, error, showLabels, selectedBaseMap]
+);
+
 
   return <MapContext.Provider value={contextValue}>{children}</MapContext.Provider>;
 };
