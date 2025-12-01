@@ -390,7 +390,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
       console.log("📦 Response data:", responseData);
 
-      const wsUrl = `ws://localhost:9000/ws/task/${jobId}/`;
+      const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DJANGO_URL}/task/${jobId}/`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

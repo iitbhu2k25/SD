@@ -7,7 +7,7 @@ interface LoadingOverlayProps {
   totalParameters: number;
   completedParameters: number; // how many params done
   onComplete: () => void;
-  status: "loading" | "success" | "error";
+  status: "loading" | "success" | "error" | "cancelled";
   errorMessage?: string;
 }
 

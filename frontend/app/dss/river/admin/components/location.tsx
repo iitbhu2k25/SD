@@ -190,7 +190,7 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
     return `${sd.districtName} - ${sd.name}`;
   };
 
-  const allowedDistrictCodes = [197, 198, 173, 175, 194];
+  const allowedDistrictCodes = [179, 152, 120, 174, 187];
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-md">
