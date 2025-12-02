@@ -30,6 +30,7 @@ interface CategoryContextType {
   showTable: boolean;
   setShowTable: (value: boolean) => void;
   tableData: DataRow[];
+    setStpProcess: (value: boolean) => void;
   setTableData: (value: DataRow[]) => void;
   StpArea:Stp_area[];
   OptSetStpArea:(Stp_area:Stp_area)=>void
@@ -59,6 +60,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const [StpArea,SetStpArea]= useState<Stp_area[]>([])
   const [OptStpArea,OptSetStpArea]=useState<Stp_area>()
   const [findArea,setFindArea]=useState<boolean>(false)
+  const [stpProcess, setStpProcess] = useState<boolean>(false);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<RasterLayer>();
 
   // Fetch condition categories from API
@@ -66,7 +68,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchConditionCategories = async () => {
       try {
         setIsLoading(true);
-        const response = await api.get("/gwz_operation/get_gwli_category?category=condition&all_data=true")
+        const response = await api.get("/gwz_operation/get_gwpl_category?category=condition&all_data=true")
         if (response.status > 201) {
           throw new Error('Failed to fetch condition categories');
         }
@@ -87,7 +89,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     // Fetch constraint categories from API
     const fetchConstraintCategories = async () => {
       try {
-        const response = await api.get("/gwz_operation/get_gwli_category?category=constraint&all_data=true") 
+        const response = await api.get("/gwz_operation/get_gwpl_category?category=constraint&all_data=true") 
         if (response.status > 201) {
           throw new Error('Failed to fetch condition categories');
         }
@@ -361,6 +363,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     error,
     showTable,
     setShowTable,
+        setStpProcess,
     tableData,
     setTableData,
     StpArea,

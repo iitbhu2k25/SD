@@ -1,4 +1,5 @@
 import { DataRow } from '@/interface/table';
+import { Gwpl_Table } from '@/interface/table';
 export const ADMIN_LAYER_NAMES = {
   INDIA:"STP_State",
   STATE: "STP_district",
@@ -31,6 +32,12 @@ export interface stp_priority_Output{
   layer_name:string,
   csv_path:string,
   csv_details:DataRow[]
+}
+export interface gwpl_Output{
+  workspace:string,                  
+  layer_name:string,
+  csv_path:string,
+  csv_details:Gwpl_Table[]
 }
 
 export interface stp_sutability_Output{

@@ -38,24 +38,24 @@ async def gwz_drain_report(payload:StpPriorityDrainReport):
  
 
 # groud water pumping locations
-@router.get("/get_gwli_category",response_model=list[STPsuitabilityOutput],status_code=status.HTTP_201_CREATED)
+@router.get("/get_gwpl_category",response_model=list[STPsuitabilityOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_raster_gwli(db:db_dependency,category:str,all_data: bool = False):
+async def get_raster_gwpl(db:db_dependency,category:str,all_data: bool = False):
     return GWPL_service.get_raster_GWPL(db,category,all_data)
 
-@router.post("/gwli_visual_display", status_code=status.HTTP_201_CREATED)
+@router.post("/gwpl_visual_display", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwli_raster_dislay(db:db_dependency,payload:category_raster):
+async def gwpl_raster_dislay(db:db_dependency,payload:category_raster):
     return GWPumpingMapper().get_visual_raster(db,payload.clip)
 
-@router.post("/gwli_operation", status_code=status.HTTP_201_CREATED)
+@router.post("/gwpl_operation", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwli_raster_operation(db:db_dependency,payload: STPsuitabilityInput):
+async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput):
     return GWPumpingMapper().create_gwpz_map(db,payload)
 
-@router.post("/gwli_find_score", status_code=status.HTTP_201_CREATED)
+@router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwli_find_score(db:db_dependency,payload:GWPL_Table_input):
+async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input):
     return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location)
 
 

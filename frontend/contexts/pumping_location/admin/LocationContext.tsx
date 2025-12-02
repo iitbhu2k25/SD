@@ -219,7 +219,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       if (selectionsLocked === true) {
         setIsLoading(true);
         try {
-          const response = await api.post("/gwz_operation/gwli_visual_display", {
+          const response = await api.post("/gwz_operation/gwpl_visual_display", {
             body: {
               clip: selectedvillages,
               place: "District",
@@ -279,11 +279,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   }, [selectedSubDistricts]);
 
   useEffect(() => {
-    console.log("value")
     const findScore = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/gwz_operation/gwli_find_score", {
+        const response = await api.post("/gwz_operation/gwpl_find_score", {
           body: {
             location :well_points,
             raster_name: displayRaster.filter((raster) => raster.file_name === "Pumping_location")[0].layer_name,
@@ -293,7 +292,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         if (response.status > 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        console.log("xxx",response.message)
         setTableData(response.message as Gwpl_Table[]);
       } catch (error) {
         console.log('Error fetching villages:', error);

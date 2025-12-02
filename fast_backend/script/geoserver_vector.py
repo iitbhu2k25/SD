@@ -21,7 +21,7 @@ town_zip = os.path.join(BASE_DIRR,  'shape_stp','Drain_stp', 'Town', 'Town.zip')
 
 stp_priority = os.path.join(BASE_DIRR, "csv_file_stp", "stp_priority_visual_raster.csv")
 stp_suitability = os.path.join(BASE_DIRR,  "csv_file_stp", "stp_suitability_visual_raster.csv")
-groundwater_identification = os.path.join(BASE_DIRR,  "csv_file_stp", "gwli_visual.csv")
+groundwater_identification = os.path.join(BASE_DIRR,  "csv_file_stp", "gwpl_visual.csv")
 groundwater_zone = os.path.join(BASE_DIRR,  "csv_file_stp", "gwz_visual.csv")
 mar_suitability = os.path.join(BASE_DIRR,  "csv_file_stp", "mar_suitability_visual_raster.csv")
 

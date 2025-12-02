@@ -74,7 +74,7 @@ const Mapping: React.FC = () => {
     setstpOperation,
     stpOperation,
     resultLayer,
-    setResultLayer,
+    selectedradioLayer
   } = useMap();
   const { selectedCategory, setTableData, setRasterLayerInfo, rasterLayerInfo } = useCategory();
 
@@ -465,56 +465,7 @@ const Mapping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-    if (stpOperation) {
-      const performGWPL = async () => {
-        try {
-          const resp = await fetch("/api/gwz_operation/gwli_operation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: selectedCategory, clip: selectedvillages }),
-          });
-
-          if (!resp.ok) throw new Error(` operation failed: ${resp.status}`);
-
-          const result = await resp.json();
-          if (result && result.status === "success") {
-            const append_data = {
-              file_name: "Pumping_location",
-              workspace: result.workspace,
-              layer_name: result.layer_name,
-            };
-            setTableData(result.csv_details);
-
-            if (result.vector_name && result.vector_name !== "none") {
-              setResultLayer(result.vector_name);
-            }
-
-            const newData = [...displayRaster];
-            const index = newData.findIndex(item => item.file_name === "Pumping_location");
-            if (index !== -1) {
-              newData[index] = append_data;
-            } else {
-              newData.push(append_data);
-            }
-
-            setdisplay_raster(newData);
-            handleLayerSelection(append_data.file_name);
-            setTimeout(() => {
-              setRasterLayerInfo(result);
-              setShowLegend(true);
-            }, 500);
-          }
-        } catch (error: any) {
-          setError(`GWPL operation failed: ${error.message}`);
-        } finally {
-          setstpOperation(false);
-        }
-      };
-
-      performGWPL();
-      return;
-    }
-
+  
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]) => {
       map.removeLayer(layer);
@@ -565,7 +516,13 @@ const Mapping: React.FC = () => {
     }
   }, [rasterLayerInfo, layerOpacity]);
 
-  // Fullscreen event listener
+   useEffect(() => {
+        displayRaster.forEach((item: any) => {
+          if (item.file_name === selectedradioLayer) {
+            setRasterLayerInfo(item);
+          }
+        });
+      }, [selectedradioLayer, displayRaster]);
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);

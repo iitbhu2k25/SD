@@ -7,7 +7,7 @@ import React, {
   ReactNode,
 } from "react";
 import { DRAIN_LAYER_NAMES, River, Stretch, Drain, Catchment, Layer_name } from "@/interface/raster_context";
-import { CsvRow, Gwpl_Table } from "@/interface/table";
+import { CsvRow, DataRow, Gwpl_Table } from "@/interface/table";
 import { api } from "@/services/api";
 
 // Interface for selections return data
@@ -56,6 +56,7 @@ interface RiverSystemContextType {
   showTable: boolean;
   setShowTable: (value: boolean) => void;
   tableData: Gwpl_Table[];
+  setTableData: (value: Gwpl_Table[]) => void;
   well_points: CsvRow[];
   setwell_points: (points: CsvRow[]) => void;
   setValidateTable: (value: boolean) => void
@@ -101,6 +102,7 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   well_points: [],
   setwell_points: () => { },
   setValidateTable: () => { },
+  setTableData: () => { },
 });
 
 // Create the provider component
@@ -322,7 +324,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       if (selectionsLocked === true && selectedCatchments.length > 0) {
         setIsLoading(true);
         try {
-          const response = await api.post("/gwz_operation/gwli_visual_display", {
+          const response = await api.post("/gwz_operation/gwpl_visual_display", {
             body: {
               clip: selectedCatchments,
               place: "Drain",
@@ -367,7 +369,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const findScore = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/gwz_operation/gwli_find_score", {
+        const response = await api.post("/gwz_operation/gwpl_find_score", {
           body: {
             location: well_points,
             raster_name: displayRaster.filter((raster) => raster.file_name === "Pumping_location")[0].layer_name,
@@ -476,6 +478,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     setwell_points: setwell_points,
     setValidateTable: setValidateTable,
     tableData,
+    setTableData
   };
 
   return (

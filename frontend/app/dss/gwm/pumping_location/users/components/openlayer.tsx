@@ -561,48 +561,7 @@ const Maping: React.FC = () => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
 
-    if (stpOperation) {
-      const performGWPL = async () => {
-        const bodyPayload = JSON.stringify({
-          data: selectedCategory,
-          clip: selectedCatchments,
-          place: "Drain",
-        });
-        try {
-          const resp = await fetch("/api/gwz_operation/gwli_operation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
-          });
-
-          if (!resp.ok) throw new Error(`GWPL operation failed: ${resp.status}`);
-
-          const result = await resp.json();
-          if (result && result.status === "success") {
-            const append_data = {
-              file_name: "Pumping_location",
-              workspace: result.workspace,
-              layer_name: result.layer_name,
-            };
-            const index = displayRaster.findIndex((item) => item.file_name === "Pumping_location");
-            let newData = index !== -1 ? [...displayRaster] : displayRaster.concat(append_data);
-            if (index !== -1) newData[index] = append_data;
-
-            setDisplayRaster(newData);
-            setRasterLayerInfo(result);
-            handleLayerSelection(append_data.file_name);
-            setShowTable(true);
-          }
-        } catch (error: any) {
-          setError(`GWPL failed: ${error.message}`);
-        } finally {
-          setstpOperation(false);
-        }
-      };
-
-      performGWPL();
-      return;
-    }
+    
 
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
