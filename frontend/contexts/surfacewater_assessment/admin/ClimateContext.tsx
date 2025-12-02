@@ -79,7 +79,7 @@ export const ClimateAdminProvider: React.FC<React.PropsWithChildren> = ({ childr
   const [selectedEndYear, setSelectedEndYear] = useState<number>(2023);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:9000';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE
 
   const selectedSubdistrictIds = useMemo(() => getConfirmedSubdistrictIds(), [getConfirmedSubdistrictIds]);
 

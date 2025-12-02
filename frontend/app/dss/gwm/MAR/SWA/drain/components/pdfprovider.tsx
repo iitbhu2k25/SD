@@ -42,7 +42,7 @@ export const PdfProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Fetch subbasin map image from API
   const fetchSubbasinMapImage = async (subbasinIds: number[]): Promise<string | null> => {
     try {
-      const response = await fetch('http://localhost:9000/django/swa/generate-subbasin-map', {
+      const response = await fetch('/django/swa/generate-subbasin-map', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subbasin_ids: subbasinIds }),

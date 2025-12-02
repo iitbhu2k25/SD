@@ -1076,7 +1076,7 @@ const Maping: React.FC<MapingProps> = ({
     }
 
     try {
-      const layerUrl = "/geoserver/api//wms";
+      const layerUrl = "/geoserver/api/wms";
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
         rasterLayerInfo.layer_name ||

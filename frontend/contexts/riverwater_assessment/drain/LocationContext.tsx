@@ -230,7 +230,7 @@ const [isLoadingAllSeasons, setIsLoadingAllSeasons] = useState<boolean>(false);
 const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
   const BACKEND_URL =
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9000";
+    process.env.NEXT_PUBLIC_BACKEND_URL || "";
 
   // Register the reset function with parent context
   useEffect(() => {

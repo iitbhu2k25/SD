@@ -788,7 +788,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api//wms";
+      const layerUrl = "/geoserver/api/wms";
       const workspace = rasterLayerInfo.workspace;
       const layerName = rasterLayerInfo.layer_name;
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;

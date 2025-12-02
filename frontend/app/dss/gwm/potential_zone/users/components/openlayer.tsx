@@ -597,7 +597,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api//wms";
+      const layerUrl = "/geoserver/api/wms";
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName = rasterLayerInfo.layer_name || "Clipped_STP_Priority_Map";
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;

@@ -41,7 +41,7 @@ interface BaseMapDefinition {
     label: string;
 }
 
-const GEOSERVER_WFS_URL = 'http://localhost:9090/geoserver/wfs';
+const GEOSERVER_WFS_URL = '/geoserver/api/wfs';
 const WORKSPACE = 'myworkspace';
 const BASIN_BOUNDARY_LAYER = 'basin_boundary';
 

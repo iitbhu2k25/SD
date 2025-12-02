@@ -82,7 +82,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
   try {
     const currentDate = new Date().toISOString().split("T")[0];
     const startDate = "2016-01-01";
-    const apiUrl = "http://localhost:9000/django/extract/level";
+    const apiUrl = "/django/extract/level";
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -165,7 +165,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     const waterLevelLayer = new ImageLayer({
       source: new ImageWMS({
-        url: "http://localhost:9090/geoserver/myworkspace/wms",
+        url: "/geoserver/api/myworkspace/wms",
         params: {
           LAYERS: "myworkspace:waterlevel",
           TILED: true,

@@ -135,7 +135,7 @@ export default function Calculator({
   // useEffect(() => {
   //   const fetchStates = async (): Promise<void> => {
   //     try {
-  //       const response = await fetch("http://localhost:9000/api/basic/");
+  //       const response = await fetch("/api/basic/");
   //       if (!response.ok) {
   //         throw new Error(`HTTP error! Status: ${response.status}`);
   //       }
@@ -157,7 +157,7 @@ export default function Calculator({
   //     const fetchDistricts = async (): Promise<void> => {
   //       try {
   //         const response = await fetch(
-  //           "http://localhost:9000/api/basic/district/",
+  //           "/api/basic/district/",
   //           {
   //             method: "POST",
   //             headers: {
@@ -196,7 +196,7 @@ export default function Calculator({
   //     const fetchSubDistricts = async (): Promise<void> => {
   //       try {
   //         const response = await fetch(
-  //           "http://localhost:9000/api/basic/subdistrict/",
+  //           "/api/basic/subdistrict/",
   //           {
   //             method: "POST",
   //             headers: {

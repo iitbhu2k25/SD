@@ -87,9 +87,9 @@ export const DailyProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let endpoint = '';
     if (category === 'riverbasin') {
-      endpoint = `http://localhost:9000/django/extract/rainfall/riverbasin/${riverBasinDay}`;
+      endpoint = `/django/extract/rainfall/riverbasin/${riverBasinDay}`;
     } else {
-      endpoint = `http://localhost:9000/django/extract/${category}/rainfall/${period}`;
+      endpoint = `/django/extract/${category}/rainfall/${period}`;
     }
 
     // Don't call if same endpoint

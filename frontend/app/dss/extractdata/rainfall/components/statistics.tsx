@@ -16,30 +16,30 @@ const statisticsOptions: StatisticsOption[] = [
   {
     id: "state-distribution",
     label: "Statewise Distribution of Districts",
-    apiEndpoint: "http://localhost:9000/django/extract/rainfall_stats/statewise",
+    apiEndpoint: "/django/extract/rainfall_stats/statewise",
   },
   {
     id: "district-cumulative-departures",
     label: "District - Week by Week Departures (Cumulative)",
-    apiEndpoint: "http://localhost:9000/django/extract/rainfall_stats/district/weekcumm",
+    apiEndpoint: "/django/extract/rainfall_stats/district/weekcumm",
     isZip: true,
   },
   {
     id: "district-departures",
     label: "District - Week by Week Departures",
-    apiEndpoint: "http://localhost:9000/django/extract/rainfall_stats/district/weekly",
+    apiEndpoint: "/django/extract/rainfall_stats/district/weekly",
     isZip: true,
   },
   {
     id: "district-distribution",
     label: "District-wise Rainfall Distribution (Daily and Cumulative)",
-    apiEndpoint: "http://localhost:9000/django/extract/rainfall_stats/district/D&C",
+    apiEndpoint: "/django/extract/rainfall_stats/district/D&C",
     isZip: true,
   },
   {
     id: "state-distribution-rainfall",
     label: "State-wise Rainfall Distribution (Daily and Cumulative)",
-    apiEndpoint: "http://localhost:9000/django/extract/rainfall_stats/statewiseDC",
+    apiEndpoint: "/django/extract/rainfall_stats/statewiseDC",
   },
 ];
 
