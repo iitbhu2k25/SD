@@ -8,13 +8,13 @@ urlpatterns = [
     # ============================================
     # STORY MAP ENDPOINTS - ADD THESE FIRST!
     # ============================================
-    path('story-map/stations/', 
+    path('story-map/stations', 
          views.get_story_map_stations, 
          name='story_map_stations'),
-    path('story-map/stations/<str:station_id>/', 
+    path('story-map/stations/<str:station_id>', 
          views.get_story_map_station_detail, 
          name='story_map_station_detail'),
-    path('story-map/statistics/', 
+    path('story-map/statistics', 
          views.get_story_map_statistics, 
          name='story_map_statistics'),
     
