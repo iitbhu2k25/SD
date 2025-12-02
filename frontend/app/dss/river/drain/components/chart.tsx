@@ -481,11 +481,12 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         const logoHeight = 27; // Space reserved for logos (30mm height + 5mm padding)
 
         // Left logo (University seal)
-        const leftLogo = "/Images/header/iit_bhu_logo.png"; // or base64 string
+        const leftLogo = "/Images/export/logo_iitbhu.png";
+        
         doc.addImage(leftLogo, "PNG", 15, 10, 20, 20); // x, y, width, height
 
         // Right logo (Smart Lab on Clean Rivers)
-        const rightLogo = "/Images/header/right1_slcr.png"; // or base64 string
+        const rightLogo = "/Images/export/right1_slcr.png";
         doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);
 
         const contentWidth = pageWidth - 2 * margin;
@@ -600,9 +601,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
         // ==================== HELPER: ADD LOGOS TO PAGE ====================
         const addLogosToPage = () => {
-          const leftLogo = "/Images/header/iit_bhu_logo.png";
-          const rightLogo = "/Images/header/right1_slcr.png";
-
+      
           try {
             doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
             doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);

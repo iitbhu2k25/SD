@@ -382,7 +382,7 @@ const Chart: React.FC = () => {
       console.log("Response data:", responseData);
 
       // ==================== WEBSOCKET CONNECTION ====================
-      const wsUrl = `ws://localhost:9000/ws/task/${jobId}/`;
+      const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DJANGO_URL}/task/${jobId}/`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -457,8 +457,8 @@ const Chart: React.FC = () => {
         const logoHeight = 27;
 
         // ==================== ADD LOGOS ====================
-        const leftLogo = "/Images/header/iit_bhu_logo.png";
-        const rightLogo = "/Images/header/right1_slcr.png";
+        const leftLogo = "/Images/export/logo_iitbhu.png";
+        const rightLogo = "/Images/export/right1_slcr.png";
         doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
         doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);
 
@@ -577,8 +577,6 @@ const Chart: React.FC = () => {
         };
 
         const addLogosToPage = () => {
-          const leftLogo = "/Images/header/iit_bhu_logo.png";
-          const rightLogo = "/Images/header/right1_slcr.png";
 
           try {
             doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
