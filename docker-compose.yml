@@ -92,6 +92,18 @@ services:
     volumes:
       - redis_data:/data 
 
+  # redis_django:
+  #   image: redis:7.4
+  #   ports:
+  #     - "6370:6379"
+  #   expose:
+  #     - "6370"
+  #   env_file:
+  #     - .env
+  #   restart: always
+  #   volumes:
+  #     - redis_data:/data 
+
   celery:
     build:
       context: ./fast_backend
@@ -111,38 +123,28 @@ services:
     env_file:
       - .fastdb.env
   
-  redis_viewer:
-    image: redis/redisinsight:latest
-    ports:
-      - "5540:5540"
-    expose :
-     - "5540"
-    restart: always
-    depends_on:
-      - redis
-      - geoserver
       
-  celery_django:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: celery_django:latest
-    volumes:
-      - ./backend:/home/app:z
-    env_file:
-      - .env
-    depends_on:
-      - redis
-      - backend
-    command:
-      - /bin/sh
-      - -c
-      - |
-        celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/1
-      - CACHE_URL=redis://redis:6379/1
+  # celery_django:
+  #   build:
+  #     context: ./backend/
+  #     dockerfile: docker/dockerfile.backend
+  #   image: celery_django:latest
+  #   volumes:
+  #     - ./backend:/home/app:z
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - redis_django
+  #     - backend
+  #   command:
+  #     - /bin/sh
+  #     - -c
+  #     - |
+  #       celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+  #   environment:
+  #     - CELERY_BROKER_URL=redis_django://redis:6379/0
+  #     - CELERY_RESULT_BACKEND=redis_django://redis:6379/1
+  #     - CACHE_URL=redis_django://redis:6379/1
 
   geoserver:
     image: kartoza/geoserver:latest
