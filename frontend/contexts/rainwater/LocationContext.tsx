@@ -231,7 +231,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         console.log("Starting fetch...");
         try {
           const response = await api.post(
-            "/location/stp_operation/stp_visual_display",
+            "/stp_operation/stp_priority_visual_display",
             {
               body: { 
                 clip: selectedSubDistricts,
