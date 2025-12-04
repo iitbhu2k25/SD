@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, JSX } from "react";
+import React, { useState, useEffect, useRef, useCallback, JSX } from "react";
 import {
   FileText,
   Download,
@@ -38,41 +38,85 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasDownloadedRef = useRef(false);
+  const currentTaskIdRef = useRef<string | null>(null);
 
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(taskId);
-  const wsUrl = activeTaskId
-    ? `${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${activeTaskId}`
-    : "";
-  const { messages, isConnected, disconnect } = useWebSocket(wsUrl, { reconnect: false });
+  // Store taskId in ref to keep WebSocket URL stable
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
 
+  // Only update wsUrl when taskId actually changes and is valid
+  useEffect(() => {
+    if (taskId && taskId !== currentTaskIdRef.current) {
+      currentTaskIdRef.current = taskId;
+      hasDownloadedRef.current = false;
+      setStatus("idle");
+      setProgress(0);
+      setTotal(100);
+      setDescription("");
+      setTimeElapsed(0);
+      setChordId(null);
+      setWsUrl(`${process.env.NEXT_PUBLIC_WEBSOCKET_URL}/stp_operation/ws/${taskId}`);
+    } else if (!taskId) {
+      currentTaskIdRef.current = null;
+      setWsUrl(null);
+    }
+  }, [taskId]);
+
+  // Only connect when we have a valid URL and not in terminal state
+  const shouldConnect = Boolean(wsUrl && !["complete", "failure"].includes(status));
+  
+  // Use empty string when not connecting - your hook should handle this
+  const { messages, isConnected, disconnect } = useWebSocket(
+    shouldConnect && wsUrl ? wsUrl : "",
+    { reconnect: false }
+  );
+
+  // Timer effect
   useEffect(() => {
     if (["started", "progress", "downloading"].includes(status)) {
       timerRef.current = setInterval(() => setTimeElapsed((t) => t + 1), 1000);
     } else {
-      clearInterval(timerRef.current || undefined);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
       if (status === "idle") setTimeElapsed(0);
     }
-    return () => clearInterval(timerRef.current || undefined);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [status]);
 
+  // Connection status effect
   useEffect(() => {
-    if (!taskId || !activeTaskId) {
-      setStatus("idle");
+    if (!taskId || !wsUrl) {
       return;
     }
     if (isConnected && status === "idle") {
       setStatus("pending");
       setDescription("Connecting...");
     }
-  }, [isConnected, taskId, activeTaskId, status]);
+  }, [isConnected, taskId, wsUrl, status]);
 
+  // Message processing effect
   useEffect(() => {
-    if (!messages.length || hasDownloadedRef.current || status === "complete" || !activeTaskId) return;
+    if (!messages.length || hasDownloadedRef.current || status === "complete" || !wsUrl) {
+      return;
+    }
+
     const lastMessage = messages[messages.length - 1];
+    
     try {
       const parsed = JSON.parse(lastMessage);
+      console.log("WebSocket message received:", parsed);
+      
       if (!parsed.state) return;
+      
       const state = parsed.state.toUpperCase();
+      
+      // Skip if this is a duplicate SUCCESS message
       if (state === "SUCCESS" && chordId === parsed.result) return;
 
       switch (state) {
@@ -84,6 +128,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           break;
         case "STARTED":
           setStatus("started");
+          setDescription("Starting PDF generation...");
           toast.info("PDF generation started");
           break;
         case "PROGRESS":
@@ -93,6 +138,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           setDescription(parsed.description || "Generating...");
           break;
         case "SUCCESS":
+          console.log("SUCCESS state received, chord_id:", parsed.result);
           setStatus("success");
           setProgress(parsed.total || 100);
           setTotal(parsed.total || 100);
@@ -104,29 +150,58 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           setStatus("failure");
           setDescription(parsed.description || "Failed to generate PDF");
           toast.error(parsed.description || "Failed to generate PDF");
+          disconnect();
           break;
       }
     } catch {
       console.warn("Non-JSON message:", lastMessage);
     }
-  }, [messages, chordId, status, activeTaskId]);
+  }, [messages, chordId, status, wsUrl, disconnect]);
 
-  useEffect(() => {
-    if (status === "success" && chordId && enableAutoDownload && !hasDownloadedRef.current) {
-      downloadPDF(chordId);
-      hasDownloadedRef.current = true;
+  // Reset helper function
+  const reset = useCallback(() => {
+    currentTaskIdRef.current = null;
+    setWsUrl(null);
+    setStatus("idle");
+    setProgress(0);
+    setTotal(100);
+    setDescription("");
+    setTimeElapsed(0);
+    setChordId(null);
+    hasDownloadedRef.current = false;
+  }, []);
+
+  // handleClose - defined BEFORE downloadPDF
+  const handleClose = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
     }
-  }, [status, chordId, enableAutoDownload]);
+    disconnect();
+    reset();
+  }, [disconnect, reset]);
 
-  const downloadPDF = async (chord_id: string) => {
+  // Download PDF function - now handleClose is available
+  const downloadPDF = useCallback(async (chord_id: string) => {
+    console.log("downloadPDF called with chord_id:", chord_id);
+    
     try {
       setStatus("downloading");
       setDescription("Downloading...");
+      
       const response = await api.get<Blob>(`/stp_operation/get_report`, {
         params: { chord_id },
         responseType: "blob",
       });
-      const url = response.message ? window.URL.createObjectURL(response.message) : '';
+      
+      console.log("API response:", response);
+      
+      const blob = response.message;
+      if (!blob) {
+        throw new Error("No blob data received");
+      }
+      
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `report_${chord_id}_${Date.now()}.pdf`;
@@ -136,31 +211,37 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
       window.URL.revokeObjectURL(url);
 
       setStatus("complete");
-      toast.success("PDF downloaded");
+      setDescription("Download complete!");
+      toast.success("PDF downloaded successfully");
       disconnect();
-      if (autoClose) closeTimeoutRef.current = setTimeout(handleClose, closeDelay);
+      
+      if (autoClose) {
+        closeTimeoutRef.current = setTimeout(handleClose, closeDelay);
+      }
     } catch (e) {
+      console.error("Download failed:", e);
       setStatus("failure");
+      setDescription("Download failed. Please try again.");
       toast.error("Download failed");
       hasDownloadedRef.current = false;
     }
-  };
+  }, [autoClose, closeDelay, disconnect, handleClose]);
 
-  const handleClose = () => {
-    clearTimeout(closeTimeoutRef.current || undefined);
-    disconnect();
-    reset();
-  };
-
-  const reset = () => {
-    setStatus("idle");
-    setProgress(0);
-    setTotal(100);
-    setDescription("");
-    setTimeElapsed(0);
-    setChordId(null);
-    hasDownloadedRef.current = false;
-  };
+  // Auto-download effect - THIS IS THE KEY FIX
+  useEffect(() => {
+    console.log("Auto-download effect triggered:", {
+      status,
+      chordId,
+      enableAutoDownload,
+      hasDownloaded: hasDownloadedRef.current
+    });
+    
+    if (status === "success" && chordId && enableAutoDownload && !hasDownloadedRef.current) {
+      console.log("Starting auto-download...");
+      hasDownloadedRef.current = true;
+      downloadPDF(chordId);
+    }
+  }, [status, chordId, enableAutoDownload, downloadPDF]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
@@ -172,16 +253,18 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
     { icon: JSX.Element; title: string; gradient: string }
   > = {
     idle: { icon: <FileText />, title: "Idle", gradient: "from-gray-300 to-gray-500" },
-    pending: { icon: <Clock />, title: "Pending", gradient: "from-yellow-400 to-yellow-600" },
+    pending: { icon: <Clock className="animate-pulse" />, title: "Pending", gradient: "from-yellow-400 to-yellow-600" },
     started: { icon: <Loader2 className="animate-spin" />, title: "Started", gradient: "from-blue-400 to-blue-600" },
     progress: { icon: <Loader2 className="animate-spin" />, title: "In Progress", gradient: "from-blue-400 to-blue-600" },
     success: { icon: <CheckCircle />, title: "Ready", gradient: "from-green-400 to-green-600" },
-    downloading: { icon: <Download />, title: "Downloading", gradient: "from-purple-400 to-purple-600" },
+    downloading: { icon: <Download className="animate-bounce" />, title: "Downloading", gradient: "from-purple-400 to-purple-600" },
     complete: { icon: <CheckCircle />, title: "Done", gradient: "from-green-500 to-green-700" },
     failure: { icon: <AlertCircle />, title: "Failed", gradient: "from-red-400 to-red-600" },
   };
 
+  // Don't render if idle or no taskId
   if (status === "idle" || !taskId) return null;
+
   const cfg = statusConfig[status];
 
   return (
@@ -191,17 +274,25 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           <button
             onClick={handleClose}
             className="absolute top-3 right-3 text-white hover:text-gray-300 font-bold text-lg"
+            aria-label="Close"
           >
             ✕
           </button>
         )}
 
         <div className="flex flex-col items-center gap-3">
-          <div className={`p-4 rounded-full bg-gradient-to-tr from-purple-500 to-blue-400 shadow-lg flex items-center justify-center w-16 h-16`}>
+          <div className="p-4 rounded-full bg-gradient-to-tr from-purple-500 to-blue-400 shadow-lg flex items-center justify-center w-16 h-16">
             {cfg.icon}
           </div>
           <p className="text-xl font-bold">{cfg.title}</p>
           <p className="text-sm text-white/80 text-center">{description}</p>
+          
+          {/* Show elapsed time during processing */}
+          {["started", "progress", "downloading"].includes(status) && (
+            <p className="text-xs text-white/60">
+              Time elapsed: {formatTime(timeElapsed)}
+            </p>
+          )}
         </div>
 
         {/* Linear progress bar */}
@@ -209,7 +300,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           <div className="w-full mt-3">
             <div className="w-full h-3 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-green-400 to-blue-500 transition-all"
+                className="h-full rounded-full bg-gradient-to-r from-green-400 to-blue-500 transition-all duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -217,26 +308,27 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           </div>
         )}
 
+        {/* Manual download button when auto-download is disabled */}
         {status === "success" && !enableAutoDownload && chordId && (
           <button
             onClick={() => downloadPDF(chordId)}
-            className="w-full py-2 font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 mt-2 shadow-lg flex justify-center items-center gap-2"
+            className="w-full py-2 font-medium text-white bg-green-600 rounded-xl hover:bg-green-700 mt-2 shadow-lg flex justify-center items-center gap-2 transition-colors"
           >
             <Download className="w-5 h-5" /> Download PDF
           </button>
         )}
 
+        {/* Failure dismiss button */}
         {status === "failure" && (
           <button
             onClick={handleClose}
-            className="w-full py-2 font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 mt-2 shadow-lg"
+            className="w-full py-2 font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 mt-2 shadow-lg transition-colors"
           >
             Dismiss
           </button>
         )}
       </div>
     </div>
-
   );
 };
 
