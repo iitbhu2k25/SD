@@ -46,7 +46,22 @@ log_config = {
         "uvicorn.error": {
             "level": "INFO",
             "propagate": True
-        }
+        },
+        "celery": {
+        "level": "INFO",
+        "handlers": ["file", "console"],
+        "propagate": False,
+        },
+        "celery.worker": {
+            "level": "INFO",
+            "handlers": ["file", "console"],
+            "propagate": False,
+        },
+        "celery.task": {
+            "level": "DEBUG",  
+            "handlers": ["file", "console"],
+            "propagate": False,
+        },
     }
 }
 

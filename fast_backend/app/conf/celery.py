@@ -1,5 +1,14 @@
 from app.conf.settings import Settings
+from app.conf.logging import logger
 from celery import Celery
+
+
+import logging
+
+log = logging.getLogger("app_logger")
+log.info("Celery starting…")
+
+
 app = Celery('myapp', backend=Settings().CELERY_BROKER_URL,broker=Settings().CELERY_BROKER_URL)
 app.autodiscover_tasks(
     ['app.api.service.celery.celery_task'],
@@ -26,5 +35,4 @@ app.conf.update(
 )
 
 app.autodiscover_tasks()
-
-print("Registered tasks:", list(app.tasks.keys()))
+log.info("Celery app initialized successfully")

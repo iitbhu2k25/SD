@@ -120,7 +120,9 @@ services:
       - /bin/sh
       - -c
       - |
-        celery -A app.conf.celery  worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+        celery -A app.conf.celery worker -n w1 -c 4 --pool=prefork --max-tasks-per-child=5
+        celery -A app.conf.celery worker -n w2 -c 4 --pool=prefork --max-tasks-per-child=5
+
     env_file:
       - .fastdb.env
   
