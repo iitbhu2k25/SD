@@ -67,7 +67,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
     setError(null);
 
     try {
-      const res = await fetch(`${apiBase}/fdc`, {
+      const res = await fetch(`/fdc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',

@@ -133,24 +133,24 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const {lastMessage, isConnected, disconnect } = useWebSocket(wsUrl, { reconnect: false });
 
   useEffect(() => {
-    if (!activeTaskId) return;
-    console.log(" websocket stpOperation",stpOperation)
-    let dict_message = JSON.parse(lastMessage || "{}");
+  if (!lastMessage || !activeTaskId) return;
+  
+  try {
+    const dict_message = JSON.parse(lastMessage);
     if (dict_message["state"] === "completed") {
-      const resp:ClipRasters[] = convertToClipRasters(dict_message["result"]);
+      const resp: ClipRasters[] = convertToClipRasters(dict_message["result"]);
       setdisplay_raster(resp);
       setstpOperation(false);
       setSelectedradioLayer("GWI_overlay");
       disconnect();
-    }
-    else {
+      setActiveTaskId(""); 
+    } else {
       console.log("lastMessage", lastMessage);
     }
-  }, [lastMessage, isConnected]);
-
-
-
-
+  } catch (e) {
+    console.error("Failed to parse message:", e);
+  }
+}, [lastMessage, activeTaskId, disconnect]);
 
   const resetMapView = (): void => {
 

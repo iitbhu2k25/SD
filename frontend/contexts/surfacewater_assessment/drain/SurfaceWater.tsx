@@ -100,7 +100,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
     setError(null);
 
     try {
-      const res = await fetch(`${apiBase}/surfacewater`, {
+      const res = await fetch(`/surfacewater`, {
         method: 'POST',
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },

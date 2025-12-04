@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import app_router
 from app.api.routes.authentication.token import app as token_router
-
+from app.conf.logging import logger
 app = FastAPI(title="Decision support system", version="1.0.0")
 
 # Add CORS middleware

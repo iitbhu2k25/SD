@@ -99,7 +99,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       try {
         // Backend expects sub_ids; response is a map keyed by sub_id
         const body = { sub_ids: selectedSubs, ...(params ?? {}) };
-        const res = await fetch(`${apiBase}/eflow`, {
+        const res = await fetch(`/eflow`, {
           method: 'POST',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },

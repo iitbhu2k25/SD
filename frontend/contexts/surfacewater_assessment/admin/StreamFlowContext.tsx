@@ -47,7 +47,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
       setError(null);
 
       try {
-        const res = await fetch(`${apiBase}/django/swa/adminfdc`, {
+        const res = await fetch(`/django/swa/adminfdc`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -193,7 +193,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const fetchFdcPng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`${apiBase}/django/swa/adminfdcimage`, {
+        const res = await fetch(`/django/swa/adminfdcimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),

@@ -1,20 +1,50 @@
-from fastapi import  WebSocket, WebSocketDisconnect,WebSocketException
+import asyncio
+from fastapi import  WebSocket, WebSocketDisconnect
+from fastapi.websockets import WebSocketState
+from typing import Dict, Set
+from app.conf.logging import logger
+
+
+async def safe_send(ws: WebSocket, message: dict):
+    if ws.application_state != WebSocketState.CONNECTED:
+        return
+    try:
+        await ws.send_json(message)
+    except (RuntimeError, WebSocketDisconnect) as e:
+        logger.error("WebSocket closed during send: %s", e)
+
+    except Exception:
+        logger.exception("Unexpected error while sending websocket message")
+
+async def safe_send_raw(ws: WebSocket, payload: str):
+    if ws.application_state != WebSocketState.CONNECTED:
+        return
+    try:
+        await ws.send_text(payload)
+    except (RuntimeError, WebSocketDisconnect):
+        logger.debug("WebSocket closed during raw send.")
+    except Exception:
+        logger.exception("Unexpected error while sending raw websocket message")
 
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self._task_clients: Dict[str, Set[WebSocket]] = {}
+        self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+    async def connect(self, websocket: WebSocket, task_id: str):
+        async with self._lock:
+            self._task_clients.setdefault(task_id, set()).add(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    async def disconnect(self, websocket: WebSocket,task_id: str):
+        async with self._lock:
+            clients = self._task_clients.get(task_id)
+            if not clients:
+                return
+            clients.discard(websocket)
+            if not clients:
+                self._task_clients.pop(task_id, None)
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+    async def clients_for(self, task_id: str):
+        async with self._lock:
+            return set(self._task_clients.get(task_id, set()))

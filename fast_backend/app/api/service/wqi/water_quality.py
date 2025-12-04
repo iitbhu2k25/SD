@@ -621,5 +621,6 @@ def start_weight_raster(self,result:list):
     
     redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
     redis_client.setex(self.request.root_id, 3600, "Done")
+    print("XXXXX")
    
     
