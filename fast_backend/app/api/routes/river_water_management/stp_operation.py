@@ -7,7 +7,7 @@ from app.api.service.celery.stp_priority_admin_document import document_gen
 from app.api.service.celery.stp_priority_drain_document import document_gen1
 from app.api.service.celery.stp_suitability_admin_report import document_gen2
 from app.api.service.celery.stp_suitability_drain_report import document_gen3
-from app.conf.ws_config import ConnectionManager
+from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from celery.result import AsyncResult
@@ -117,7 +117,8 @@ async def get_report(chord_id:str):
 
 @router.websocket("/ws/{task_id}")
 async def report_download(websocket: WebSocket, task_id: str):
-    await connection_manager.connect(websocket)
+    await websocket.accept()
+    await connection_manager.connect(websocket, task_id)
     try:
         while True:
             result = AsyncResult(task_id)
@@ -137,7 +138,8 @@ async def report_download(websocket: WebSocket, task_id: str):
                     'total': 100,
                     'description': f'Failed: {error_msg}'
                 }
-                await websocket.send_json(progress_data)
+                await safe_send(websocket, progress_data)
+ 
                 break
             
             elif result.state == 'SUCCESS':
@@ -168,20 +170,13 @@ async def report_download(websocket: WebSocket, task_id: str):
                         'description': f'State: {result.state}'
                     }
             
-            await websocket.send_json(progress_data)
+            await safe_send(websocket,progress_data)
             await asyncio.sleep(0.5)
     
     except WebSocketDisconnect:
-        connection_manager.disconnect(websocket)
+        pass
     
     except Exception as e:
-        try:
-            await websocket.send_json({
-                'state': 'ERROR',
-                'progress': 0,
-                'total': 100,
-                'description': f'Error: {str(e)}'
-            })
-        except:
-            pass
-        connection_manager.disconnect(websocket)
+        await safe_send(websocket, {"state": "ERROR", "description": str(e)})
+    finally:
+        await connection_manager.disconnect(websocket, task_id)
