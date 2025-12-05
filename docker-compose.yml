@@ -26,8 +26,6 @@ services:
       - .env
     volumes:
       - ./backend:/home/app:z
-    environment:
-      - CACHE_URL=redis://redis:6379/1
     command: >
       sh -c "python manage.py migrate &&
              daphne -b 0.0.0.0 -p 9000 main.asgi:application"
@@ -35,6 +33,51 @@ services:
     depends_on:
       - db
       - geoserver
+
+  db:
+    image: postgres:16
+    ports:
+      - "5440:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    depends_on:
+      - redis_django
+      - geoserver
+    
+  redis_django:
+    image: redis:7.4
+    ports:
+      - "6370:6379"
+    expose:
+      - "6370"
+    env_file:
+      - .env
+    restart: always
+    volumes:
+      - redis_data:/data 
+
+  celery_django:
+    build:
+      context: ./backend/
+      dockerfile: docker/dockerfile.backend
+    image: celery_django:latest
+    volumes:
+      - ./backend:/home/app:z
+    env_file:
+      - .env
+    depends_on:
+      - redis_django
+      - backend
+    command:
+      - /bin/sh
+      - -c
+      - |
+        celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+    
+
 
   fast_backend:
     build:
@@ -55,18 +98,6 @@ services:
       - fast_db
       - geoserver
 
-  db:
-    image: postgres:16
-    ports:
-      - "5440:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis
-      - geoserver
 
   fast_db:
     image: postgres:16
@@ -93,17 +124,7 @@ services:
     volumes:
       - redis_data:/data 
 
-  redis_django:
-    image: redis:7.4
-    ports:
-      - "6370:6379"
-    expose:
-      - "6370"
-    env_file:
-      - .env
-    restart: always
-    volumes:
-      - redis_data:/data 
+  
 
   celery:
     build:
@@ -127,27 +148,7 @@ services:
       - .fastdb.env
   
       
-  celery_django:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: celery_django:latest
-    volumes:
-      - ./backend:/home/app:z
-    env_file:
-      - .env
-    depends_on:
-      - redis_django
-      - backend
-    command:
-      - /bin/sh
-      - -c
-      - |
-        celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
-    environment:
-      - CELERY_BROKER_URL=redis_django://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis_django://redis:6379/1
-      - CACHE_URL=redis_django://redis:6379/1
+  
 
   geoserver:
     image: kartoza/geoserver:latest

@@ -124,7 +124,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
         }
       }
     } catch (err) {
-      console.error('Failed to load stress data:', err);
+      console.log('Failed to load stress data:', err);
     }
   }, []);
 
@@ -249,7 +249,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           method_key: data?.method_key ?? methodKey,
         };
       } catch (err) {
-        console.error('Failed to fetch PNG:', err);
+        console.log('Failed to fetch PNG:', err);
         return null;
       }
     },

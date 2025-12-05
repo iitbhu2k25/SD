@@ -337,7 +337,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
       try {
         callback();
       } catch (error) {
-        console.error(`Error calling callback ${index}:`, error);
+        console.log(`Error calling callback ${index}:`, error);
       }
     });
 

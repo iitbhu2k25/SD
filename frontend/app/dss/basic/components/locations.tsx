@@ -176,7 +176,7 @@ useEffect(() => {
 
         setStates(sortedStates);
       } catch (error) {
-        console.error('Error fetching states:', error);
+        console.log('Error fetching states:', error);
       }
     };
     fetchStates();
@@ -219,7 +219,7 @@ useEffect(() => {
           setDistricts(sortedDistricts);
           setSelectedDistricts([]);
         } catch (error) {
-          console.error('Error fetching districts:', error);
+          console.log('Error fetching districts:', error);
         }
       };
       fetchDistricts();

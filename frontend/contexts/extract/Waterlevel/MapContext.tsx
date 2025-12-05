@@ -108,7 +108,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     return []; // fallback to empty array
   } catch (error) {
-    console.error("[ERROR] fetchHydrographStationData:", error);
+    console.log("[ERROR] fetchHydrographStationData:", error);
     return []; // return empty array instead of throwing to prevent .sort error
   }
 };
@@ -350,7 +350,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
           updatePopupPosition(evt.coordinate);
         } catch (err) {
-          console.error("Failed to load station data", err);
+          console.log("Failed to load station data", err);
           setPopupData(null);
           setIsPopupVisible(false);
           popupOverlay.setPosition(undefined);
@@ -363,7 +363,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
         setIsPopupVisible(false);
       }
     } catch (err) {
-      console.error("GetFeatureInfo failed", err);
+      console.log("GetFeatureInfo failed", err);
       popupOverlay.setPosition(undefined);
       setIsPopupVisible(false);
     }

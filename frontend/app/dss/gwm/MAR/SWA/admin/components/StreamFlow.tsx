@@ -152,7 +152,7 @@ export default function StreamFlowPlotly() {
       if (isFullscreen) await exitDocFullscreen();
       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
-      console.error('Fullscreen error:', e);
+      console.log('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 
@@ -291,7 +291,7 @@ export default function StreamFlowPlotly() {
       a.click();
       a.remove();
     } catch (err) {
-      console.error('Plotly export error', err);
+      console.log('Plotly export error', err);
     }
   }, [plotRef, selectedVillage, series]);
 

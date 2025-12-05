@@ -32,15 +32,15 @@ def send_task_update(job_id, data):
     if not channel_layer:
         # ❌ No channel layer configured
         error_msg = "WebSocket layer not configured - cannot send updates"
-        logger.error(error_msg)
+        # logger.error(error_msg)
         raise RuntimeError(error_msg)
     
     group_name = f"task_{job_id}"
 
-    logger.info("🔵 DEBUG: Preparing WebSocket message")
-    logger.info(f"     job_id: {job_id}")
-    logger.info(f"     group: {group_name}")
-    logger.info(f"     data: {data}")
+    # logger.info("🔵 DEBUG: Preparing WebSocket message")
+    # logger.info(f"     job_id: {job_id}")
+    # logger.info(f"     group: {group_name}")
+    # logger.info(f"     data: {data}")
     
     try:
         async_to_sync(channel_layer.group_send)(
@@ -50,11 +50,11 @@ def send_task_update(job_id, data):
                 'data': data
             }
         )
-        logger.info(f"✅ Sent WebSocket update for {job_id}: {data.get('status')}")
+        # logger.info(f"✅ Sent WebSocket update for {job_id}: {data.get('status')}")
     except Exception as e:
         # ❌ WebSocket send failed - stop the task
         error_msg = f"WebSocket send failed: {e}"
-        logger.error(error_msg)
+        # logger.error(error_msg)
         raise RuntimeError(error_msg)
 
 
@@ -90,7 +90,7 @@ def interpolate_single_parameter(self,
     """
     display_name = BACKEND_PARAMETER_DISPLAY_NAMES.get(attribute, attribute)
     task_id = self.request.id
-    logger.info(f"WS_DEBUG → sending update using JOB_ID = {job_id}")
+    # logger.info(f"WS_DEBUG → sending update using JOB_ID = {job_id}")
     
     try:
         # 🔹 1) Early abort if user has left (BEFORE heavy work)
@@ -99,7 +99,7 @@ def interpolate_single_parameter(self,
             return maybe_abort
             
             
-        logger.info(f"🔄 [{task_id}] Starting interpolation for: {display_name}")
+        # logger.info(f"🔄 [{task_id}] Starting interpolation for: {display_name}")
         
         # ==================== WEBSOCKET UPDATE: STARTED ====================
         send_task_update(job_id, {
@@ -133,7 +133,7 @@ def interpolate_single_parameter(self,
         )
         
         if result['status'] != 'success':
-            logger.error(f"❌ Interpolation failed for {display_name}: {result.get('message')}")
+            # logger.error(f"❌ Interpolation failed for {display_name}: {result.get('message')}")
             
             # ==================== WEBSOCKET UPDATE: ERROR ====================
             send_task_update(job_id, {
@@ -206,7 +206,7 @@ def interpolate_single_parameter(self,
             'task_id': str(task_id)
         })
         
-        logger.info(f"✅ [{job_id}] Completed: {display_name}")
+        # logger.info(f"✅ [{job_id}] Completed: {display_name}")
         
         return {
             'status': 'success',

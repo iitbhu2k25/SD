@@ -84,7 +84,7 @@ const Right = () => {
                     setUniqueColumnValues({});
                 }
             } catch (err) {
-                console.error('❌ Error fetching attributes:', err);
+                console.log('❌ Error fetching attributes:', err);
                 setFeatureAttributes([]);
                 setAllFeatureAttributes([]);
                 setUniqueColumnValues({});

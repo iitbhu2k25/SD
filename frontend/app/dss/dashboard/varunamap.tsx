@@ -373,7 +373,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
       }
       return [];
     } catch (error) {
-      console.error('Error scanning rivers:', error);
+      console.log('Error scanning rivers:', error);
       showNotification('Error', 'Could not scan for available rivers', 'error');
       return [];
     }
@@ -399,7 +399,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
           const geoJsonData = await response.json();
           return { river, geoJsonData };
         } catch (error) {
-          console.error(`Error loading ${river.display_name}:`, error);
+          console.log(`Error loading ${river.display_name}:`, error);
           return null;
         }
       });
@@ -475,7 +475,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
         }, 500);
       }
     } catch (error) {
-      console.error('Error loading rivers:', error);
+      console.log('Error loading rivers:', error);
       showNotification('Error', 'Failed to load rivers', 'error');
     } finally {
       setLoading(false);
@@ -494,7 +494,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
       riverLayersRef.current = {};
       await loadRiverShapefiles();
     } catch (error) {
-      console.error('Error refreshing:', error);
+      console.log('Error refreshing:', error);
       showNotification('Error', 'Could not refresh rivers', 'error');
     } finally {
       setLoading(false);
@@ -725,7 +725,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
         setDrainStations(data);
         if (mapInstanceRef.current) updateStationLayer(data, currentParameter);
       } catch (error) {
-        console.error('Error loading stations:', error);
+        console.log('Error loading stations:', error);
         showNotification('Error', 'Could not load station data', 'error');
       } finally {
         setLoading(false);
@@ -774,7 +774,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error('Fullscreen error:', error);
+      console.log('Fullscreen error:', error);
     }
   };
 

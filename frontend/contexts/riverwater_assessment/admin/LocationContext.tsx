@@ -377,7 +377,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         );
       }
     } catch (error: any) {
-      console.error("Water quality API error:", error);
+      console.log("Water quality API error:", error);
       setWaterQualityError(
         `Failed to fetch water quality data: ${error.message}`
       );
@@ -527,7 +527,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         );
       }
     } catch (error: any) {
-      console.error("Seasonal water quality API error:", error);
+      console.log("Seasonal water quality API error:", error);
       setAllSeasonsError(
         `Failed to fetch seasonal water quality data: ${error.message}`
       );
@@ -636,7 +636,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         setWaterQualityError("No WQI data found for selected sub-districts.");
       }
     } catch (error: any) {
-      console.error("WQI API error:", error);
+      console.log("WQI API error:", error);
       setWaterQualityError(`Failed to fetch WQI data: ${error.message}`);
       setWaterQualityData(null);
     } finally {

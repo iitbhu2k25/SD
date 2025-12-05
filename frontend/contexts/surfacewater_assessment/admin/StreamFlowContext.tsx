@@ -206,7 +206,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.error('Failed to fetch FDC PNG:', err);
+        console.log('Failed to fetch FDC PNG:', err);
         return null;
       }
     },

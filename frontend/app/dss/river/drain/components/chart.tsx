@@ -451,13 +451,13 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           generatePDF(finalResult);
         } else if (data.status === "error") {
           // Error occurred
-          console.error("❌ Error:", data.message);
+          console.log("❌ Error:", data.message);
           ws.close();
         }
       };
 
       ws.onerror = (error) => {
-        console.error("❌ WebSocket error:", error);
+        console.log("❌ WebSocket error:", error);
         console.log("⚠️ Falling back to HTTP polling...");
 
         ws.close();
@@ -606,7 +606,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
             doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);
           } catch (error) {
-            console.error("Error adding logos:", error);
+            console.log("Error adding logos:", error);
           }
         };
 
@@ -685,7 +685,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           );
           yPosition += imgHeight + 5;
         } catch (error) {
-          console.error("Error loading study area image:", error);
+          console.log("Error loading study area image:", error);
           yPosition += 10;
         }
 
@@ -929,7 +929,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           ); // Centered
           yPosition += rankHeight + 3;
         } catch (error) {
-          console.error("Error loading rank formula image:", error);
+          console.log("Error loading rank formula image:", error);
           yPosition += 10;
         }
 
@@ -985,7 +985,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           );
           yPosition += doHeight + 3;
         } catch (error) {
-          console.error("Error loading DO formula image:", error);
+          console.log("Error loading DO formula image:", error);
           yPosition += 10;
         }
 
@@ -1018,7 +1018,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           );
           yPosition += phHeight + 5;
         } catch (error) {
-          console.error("Error loading pH formula image:", error);
+          console.log("Error loading pH formula image:", error);
           yPosition += 10;
         }
 
@@ -1080,7 +1080,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 8;
         } catch (error) {
-          console.error("Error loading log formula image:", error);
+          console.log("Error loading log formula image:", error);
           yPosition += 10;
         }
 
@@ -1117,7 +1117,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 8;
         } catch (error) {
-          console.error("Error loading turbidity formula image:", error);
+          console.log("Error loading turbidity formula image:", error);
           yPosition += 10;
         }
 
@@ -1153,7 +1153,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 10;
         } catch (error) {
-          console.error("Error loading temperature formula image:", error);
+          console.log("Error loading temperature formula image:", error);
           yPosition += 10;
         }
 
@@ -1203,7 +1203,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           );
           yPosition += wqiHeight + 10;
         } catch (error) {
-          console.error("Error loading WQI formula image:", error);
+          console.log("Error loading WQI formula image:", error);
           yPosition += 10;
         }
 
@@ -1399,7 +1399,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
               );
               yPosition += mapHeight + 5;
             } catch (error) {
-              console.error(`Error loading ${paramLabel} map:`, error);
+              console.log(`Error loading ${paramLabel} map:`, error);
               yPosition += 10;
             }
 
@@ -1666,8 +1666,8 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
       };
     } catch (error: any) {
       setIsGeneratingPDF(false);
-      console.error("❌ Error:", error);
-      console.error("❌ Stack:", error.stack);
+      console.log("❌ Error:", error);
+      console.log("❌ Stack:", error.stack);
       setPdfStatus("error");
       setErrorMessage(error.message || "An unexpected error occurred");
     }

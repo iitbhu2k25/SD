@@ -165,7 +165,7 @@ export default function WQIDashboard({
       
       showNotification('WQI (Weighted Arithmetic) calculated successfully', 'success');
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.log('Error fetching data:', error);
       showNotification('Error loading water quality data', 'error');
     } finally {
       setLoading(false);

@@ -788,7 +788,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
         addInterpolationLayerFromResponse(data, parameterInfo.label);
       }
     } catch (error: any) {
-      console.error("Error generating interpolation:", error);
+      console.log("Error generating interpolation:", error);
       setInterpolationError(
         `Failed to generate interpolation: ${error.message}`
       );
@@ -829,10 +829,10 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     });
 
     wmsSource.on("tileloaderror", (event: any) => {
-      console.error("WMS tile load error:", event);
+      console.log("WMS tile load error:", event);
       if (event.tile) {
         const src = event.tile.getImage()?.src;
-        console.error("Failed tile URL:", src);
+        console.log("Failed tile URL:", src);
       }
     });
 

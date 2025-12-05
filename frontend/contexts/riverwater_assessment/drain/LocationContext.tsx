@@ -256,7 +256,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
         await Promise.all([fetchStretches(), fetchMapLayers()]);
         console.log("✅ Initial data loading completed successfully");
       } catch (error) {
-        console.error("❌ Error loading initial data:", error);
+        console.log("❌ Error loading initial data:", error);
         // Reset initialization state on error so it can be retried
         setHasInitialized(false);
         initializationRef.current = false;
@@ -310,7 +310,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
         setError("No stretches found.");
       }
     } catch (error: any) {
-      console.error("❌ Error fetching stretches:", error);
+      console.log("❌ Error fetching stretches:", error);
       setError(`Failed to fetch stretches: ${error.message}`);
     } finally {
       setIsLoading(false);
@@ -355,7 +355,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       setRiverBufferData(riverBufferGeoJSON);
       console.log("Fetched river buffer data:", riverBufferGeoJSON);
     } catch (error: any) {
-      console.error("Error fetching map layers:", error);
+      console.log("Error fetching map layers:", error);
       setMapLayersError(`Failed to fetch map layers: ${error.message}`);
     } finally {
       setIsLoadingMapLayers(false);
@@ -412,7 +412,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       setWaterQualityError("No water quality data found for selected stretches.");
     }
   } catch (error: any) {
-    console.error("Water quality API error:", error);
+    console.log("Water quality API error:", error);
     setWaterQualityError(`Failed to fetch water quality data: ${error.message}`);
     setWaterQualityData(null);
   } finally {
@@ -560,7 +560,7 @@ const fetchAllSeasonsWaterQualityData = async (
       );
     }
   } catch (error: any) {
-    console.error("Seasonal water quality API error:", error);
+    console.log("Seasonal water quality API error:", error);
     setAllSeasonsError(
       `Failed to fetch seasonal water quality data: ${error.message}`
     );
@@ -670,7 +670,7 @@ const clearAllSeasonalData = (): void => {
         setStretchLinesError("No stretch lines found for selected stretches.");
       }
     } catch (error: any) {
-      console.error("Stretch lines API error:", error);
+      console.log("Stretch lines API error:", error);
       setStretchLinesError(`Failed to fetch stretch lines: ${error.message}`);
       setStretchLinesData(null);
     } finally {
@@ -731,7 +731,7 @@ const clearAllSeasonalData = (): void => {
       setStretchBufferError("No stretch buffer found for selected stretches.");
     }
   } catch (error: any) {
-    console.error("Stretch buffer API error:", error);
+    console.log("Stretch buffer API error:", error);
     setStretchBufferError(`Failed to fetch stretch buffer: ${error.message}`);
     setStretchBufferData(null);
   } finally {

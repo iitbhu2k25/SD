@@ -219,7 +219,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
         closeTimeoutRef.current = setTimeout(handleClose, closeDelay);
       }
     } catch (e) {
-      console.error("Download failed:", e);
+      console.log("Download failed:", e);
       setStatus("failure");
       setDescription("Download failed. Please try again.");
       toast.error("Download failed");

@@ -33,7 +33,6 @@ INSTALLED_APPS = [
     "gwa",
     "swa",
     "dashboard",
-    "wqa",
     "extract",
     "datahub",  
     "rwm",
@@ -184,8 +183,18 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/DSS_Anas/media/'
 
 
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis_django://redis:6379/0')
-CELERY_RESULT_BACKEND = "redis_django://redis:6379/1"
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
+CACHE_URL = os.getenv('CACHE_URL')
+
+print("XXXX")
+print("CELERY_BROKER_URL",CELERY_BROKER_URL)
+print("CELERY_RESULT_BACKEND",CELERY_RESULT_BACKEND)
+print("CACHE_URL",CACHE_URL)
+
+
+
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -206,7 +215,7 @@ CHANNEL_LAYERS = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis_django://redis:6379/1",
+        "LOCATION": "redis://redis_django:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }

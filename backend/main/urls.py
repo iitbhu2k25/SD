@@ -7,7 +7,6 @@ urlpatterns = [
     path("django/", include("Basic.urls")),
     path("django/gwa/", include("gwa.urls")),
     path("django/drain-water-quality/", include("dashboard.urls")),
-    path("django/wqa/", include("wqa.urls")),
     path("django/swa/", include("swa.urls")),
     path("django/rwm/", include("rwm.urls")),
     path("django/datahub/", include("datahub.urls")),

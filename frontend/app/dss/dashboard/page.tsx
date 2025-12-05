@@ -223,7 +223,7 @@ export default function VarunaRiverDashboard() {
           setSewageStats(data.statistics);
         }
       })
-      .catch(err => console.error("Failed to fetch sewage stats", err));
+      .catch(err => console.log("Failed to fetch sewage stats", err));
   }, []);
 
   // 1. Generate Interventions based on Real Data

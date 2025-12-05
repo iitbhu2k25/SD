@@ -524,7 +524,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
           console.log(`Sample ${apiCall.name} data:`, data);
           return data;
         } catch (error) {
-          console.error(
+          console.log(
             `Error fetching ${apiCall.name} from ${apiCall.url}:`,
             error
           );
@@ -543,7 +543,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       console.log("River features:", riverData.features?.length || 0);
       console.log("Buffer features:", riverBufferData.features?.length || 0);
     } catch (error) {
-      console.error("Error fetching river data:", error);
+      console.log("Error fetching river data:", error);
       setDataError(
         `Failed to fetch river data: ${
           error instanceof Error ? error.message : "Unknown error"
@@ -651,7 +651,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         zoomToRiverExtent();
       }, 500);
     } catch (error) {
-      console.error("Error adding river layers:", error);
+      console.log("Error adding river layers:", error);
     }
   };
 
@@ -850,7 +850,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         );
       }
     } catch (error) {
-      console.error("Error adding water quality points:", error);
+      console.log("Error adding water quality points:", error);
     }
   };
 
@@ -947,7 +947,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     // Error handling for WFS layer
     indiaLayer.getSource()?.on("featuresloaderror", (event: any) => {
-      console.error("Error loading India WFS layer:", event);
+      console.log("Error loading India WFS layer:", event);
     });
     indiaLayer.getSource()?.on("featuresloadend", () => {
       console.log("India WFS layer loaded successfully");
@@ -1022,7 +1022,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     // Add error handling
     const source = layer.getSource();
     source?.on("featuresloaderror", (event: any) => {
-      console.error(`Error loading layer ${layerName}:`, event);
+      console.log(`Error loading layer ${layerName}:`, event);
     });
     source?.on("featuresloadstart", () => {
       console.log(`Started loading layer ${layerName}`);
@@ -1182,7 +1182,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         );
       }
     } catch (error) {
-      console.error(`Error zooming to ${layerName}:`, error);
+      console.log(`Error zooming to ${layerName}:`, error);
     }
   };
 
@@ -1335,7 +1335,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       console.log("Added district layer with filter:", cqlFilter);
     } catch (error) {
-      console.error("Error creating district layer:", error);
+      console.log("Error creating district layer:", error);
     }
   }, [selectedDistricts]);
 
@@ -1375,7 +1375,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const subdistrictLayer = createWFSLayer("B_subdistrict", cqlFilter, 4, false, subdistrictStyle);
 
       subdistrictLayer.getSource()?.on("featuresloaderror", (event: any) => {
-        console.error("Subdistrict layer loading error:", event);
+        console.log("Subdistrict layer loading error:", event);
       });
       subdistrictLayer.getSource()?.on("featuresloadend", () => {
         console.log("Subdistrict layer loaded successfully");
@@ -1391,7 +1391,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       console.log("Added subdistrict layer with filter:", cqlFilter);
     } catch (error) {
-      console.error("Error creating subdistrict layer:", error);
+      console.log("Error creating subdistrict layer:", error);
     }
   }, [selectedSubDistricts]);
 
@@ -1532,7 +1532,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       // Add event listeners
       imageWmsSource.on("imageloaderror", (event: any) => {
-        console.error(`ImageWMS error for layer ${layerName}:`, event);
+        console.log(`ImageWMS error for layer ${layerName}:`, event);
       });
 
       imageWmsSource.on("imageloadend", () => {
@@ -1563,7 +1563,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       console.log(`Raster layer successfully added: ${layerName}`);
     } catch (error) {
-      console.error("Error in addRasterLayer:", error);
+      console.log("Error in addRasterLayer:", error);
     }
   };
 
@@ -1603,7 +1603,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       console.log(`Changed basemap to: ${baseMapKey}`);
     } catch (error) {
-      console.error("Error changing basemap:", error);
+      console.log("Error changing basemap:", error);
     }
   };
 
@@ -1703,9 +1703,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         // Add e-
         // les
         wmsSource.on("tileloaderror", (event: any) => {
-          console.error("WMS tile load error:", event);
+          console.log("WMS tile load error:", event);
           if (event.tile && event.tile.src_) {
-            console.error("Failed tile URL:", event.tile.src_);
+            console.log("Failed tile URL:", event.tile.src_);
           }
         });
 
@@ -1778,7 +1778,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         throw new Error("Unexpected response format from interpolation API");
       }
     } catch (error) {
-      console.error("Error adding interpolation layer:", error);
+      console.log("Error adding interpolation layer:", error);
       setInterpolationError(
         `Failed to load interpolation: ${
           error instanceof Error ? error.message : "Unknown error"

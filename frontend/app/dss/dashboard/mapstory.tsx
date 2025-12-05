@@ -368,7 +368,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
         riverLayersRef.current[river.id] = layer;
         mapInstanceRef.current?.addLayer(layer);
       } catch (e) {
-        console.error(`Failed to load river: ${river.id}`, e);
+        console.log(`Failed to load river: ${river.id}`, e);
       }
     }
 

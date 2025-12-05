@@ -199,7 +199,7 @@ export default function ClimateAdmin() {
       if (isFullscreen) await exitDocFullscreen();
       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
-      console.error('Fullscreen error', e);
+      console.log('Fullscreen error', e);
     }
   }, [isFullscreen]);
 
@@ -273,7 +273,7 @@ export default function ClimateAdmin() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('Download PNG error', e);
+      console.log('Download PNG error', e);
       alert((e as Error)?.message || 'Failed to download PNG');
     }
   }, [fetchServerPng, selectedStartYear, selectedEndYear]);

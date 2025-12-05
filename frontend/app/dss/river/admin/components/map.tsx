@@ -237,7 +237,7 @@ const MapComponent: React.FC = () => {
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error("Error toggling fullscreen:", error);
+      console.log("Error toggling fullscreen:", error);
     }
   };
 
@@ -315,7 +315,7 @@ const MapComponent: React.FC = () => {
       );
       console.log(`Raster layer added for ${parameterKey}`);
     } catch (error) {
-      console.error("Error adding raster layer:", error);
+      console.log("Error adding raster layer:", error);
       setRasterError(`Failed to load ${parameterKey} raster layer`);
     } finally {
       setIsLoadingRaster(false);

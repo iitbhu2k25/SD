@@ -32,7 +32,7 @@ const WaterLevelDashboard: React.FC = () => {
           setData(New_data.data as WaterLevelData[]);
         }
       } catch (error) {
-        console.error(error);
+        console.log(error);
         toast.error("Error fetching data", {
           position: "top-center",
         });

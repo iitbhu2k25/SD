@@ -220,7 +220,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.error('Failed to fetch village PNG:', err);
+        console.log('Failed to fetch village PNG:', err);
         return null;
       }
     },

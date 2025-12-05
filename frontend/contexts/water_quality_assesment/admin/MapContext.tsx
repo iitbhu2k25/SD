@@ -148,7 +148,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       console.log("lastMessage", lastMessage);
     }
   } catch (e) {
-    console.error("Failed to parse message:", e);
+    console.log("Failed to parse message:", e);
   }
 }, [lastMessage, activeTaskId, disconnect]);
 

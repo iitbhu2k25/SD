@@ -38,7 +38,7 @@ export const YearProvider = ({ children }: { children: React.ReactNode }) => {
       const res = await api.get("/wqi/year");
       setYears(res.message as [number]);
     } catch (err) {
-      console.error("Error fetching years", err);
+      console.log("Error fetching years", err);
     }
   };
 
@@ -58,7 +58,7 @@ export const YearProvider = ({ children }: { children: React.ReactNode }) => {
         });
         setWqiData(resp.message as WQIInterface[])
       } catch (error) {
-        console.error("Error fetching WQI wells:", error);
+        console.log("Error fetching WQI wells:", error);
       }
     };
     fetchData();

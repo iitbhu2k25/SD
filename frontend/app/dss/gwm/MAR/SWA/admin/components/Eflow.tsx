@@ -25,7 +25,7 @@
 //       return mapping[displayName] || displayName;
 //     }
 //   } catch (e) {
-//     console.error('Failed to get column mapping:', e);
+//     console.log('Failed to get column mapping:', e);
 //   }
 //   return displayName;
 // };
@@ -226,7 +226,7 @@
 //       if (isFullscreen) await exitDocFullscreen();
 //       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
 //     } catch (e) {
-//       console.error('Fullscreen error:', e);
+//       console.log('Fullscreen error:', e);
 //     }
 //   }, [isFullscreen]);
 

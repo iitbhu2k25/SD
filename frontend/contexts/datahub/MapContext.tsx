@@ -502,7 +502,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             setIsLoading(false);
             console.log('✓ Map initialized');
         } catch (err) {
-            console.error('Map initialization error:', err);
+            console.log('Map initialization error:', err);
             setError('Failed to initialize map');
             setIsLoading(false);
         }
@@ -603,7 +603,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
             console.log('✓ Basin boundary layer added');
         } catch (err) {
-            console.error('Basin boundary layer error:', err);
+            console.log('Basin boundary layer error:', err);
         }
     }, [mapInstance]);
 
@@ -1176,7 +1176,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     console.log(`✓ Vector layer added for: ${shapefile.shapefile_name}`);
                     setError(null);
                 } catch (err) {
-                    console.error('Vector layer error:', err);
+                    console.log('Vector layer error:', err);
                     setError('Failed to load vector layer');
                 }
             }

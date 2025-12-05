@@ -423,7 +423,7 @@ const Chart: React.FC = () => {
           // Generate PDF
           generatePDF(result);
         } else if (data.status === "error") {
-          console.error("❌ Error:", data.message);
+          console.log("❌ Error:", data.message);
           ws.close();
 
           setPdfStatus("error");
@@ -434,7 +434,7 @@ const Chart: React.FC = () => {
       };
 
       ws.onerror = (error) => {
-        console.error("❌ WebSocket error:", error);
+        console.log("❌ WebSocket error:", error);
         ws.close();
 
         setPdfStatus("error");
@@ -582,7 +582,7 @@ const Chart: React.FC = () => {
             doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
             doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);
           } catch (error) {
-            console.error("Error adding logos:", error);
+            console.log("Error adding logos:", error);
           }
         };
 
@@ -654,7 +654,7 @@ const Chart: React.FC = () => {
           );
           yPosition += imgHeight + 5;
         } catch (error) {
-          console.error("Error loading study area image:", error);
+          console.log("Error loading study area image:", error);
           yPosition += 10;
         }
 
@@ -896,7 +896,7 @@ const Chart: React.FC = () => {
           ); // Centered
           yPosition += rankHeight + 3;
         } catch (error) {
-          console.error("Error loading rank formula image:", error);
+          console.log("Error loading rank formula image:", error);
           yPosition += 10;
         }
 
@@ -952,7 +952,7 @@ const Chart: React.FC = () => {
           );
           yPosition += doHeight + 3;
         } catch (error) {
-          console.error("Error loading DO formula image:", error);
+          console.log("Error loading DO formula image:", error);
           yPosition += 10;
         }
 
@@ -985,7 +985,7 @@ const Chart: React.FC = () => {
           );
           yPosition += phHeight + 5;
         } catch (error) {
-          console.error("Error loading pH formula image:", error);
+          console.log("Error loading pH formula image:", error);
           yPosition += 10;
         }
 
@@ -1047,7 +1047,7 @@ const Chart: React.FC = () => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 8;
         } catch (error) {
-          console.error("Error loading log formula image:", error);
+          console.log("Error loading log formula image:", error);
           yPosition += 10;
         }
 
@@ -1084,7 +1084,7 @@ const Chart: React.FC = () => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 8;
         } catch (error) {
-          console.error("Error loading turbidity formula image:", error);
+          console.log("Error loading turbidity formula image:", error);
           yPosition += 10;
         }
 
@@ -1120,7 +1120,7 @@ const Chart: React.FC = () => {
           doc.text("clamp [0,300]", margin, yPosition);
           yPosition += 10;
         } catch (error) {
-          console.error("Error loading temperature formula image:", error);
+          console.log("Error loading temperature formula image:", error);
           yPosition += 10;
         }
 
@@ -1170,7 +1170,7 @@ const Chart: React.FC = () => {
           );
           yPosition += wqiHeight + 8;
         } catch (error) {
-          console.error("Error loading WQI formula image:", error);
+          console.log("Error loading WQI formula image:", error);
           yPosition += 10;
         }
 
@@ -1367,7 +1367,7 @@ const Chart: React.FC = () => {
               );
               yPosition += mapHeight + 3;
             } catch (error) {
-              console.error(`Error loading ${paramLabel} map:`, error);
+              console.log(`Error loading ${paramLabel} map:`, error);
               yPosition += 10;
             }
 
@@ -1388,7 +1388,7 @@ const Chart: React.FC = () => {
               );
               yPosition += legendHeight + 6;
             } catch (error) {
-              console.error("Error loading legend:", error);
+              console.log("Error loading legend:", error);
             }
 
             // Add figure caption
@@ -1636,8 +1636,8 @@ const Chart: React.FC = () => {
       };
     } catch (error: any) {
       setIsGeneratingPDF(false);
-      console.error("❌ Error:", error);
-      console.error("Stack:", error.stack);
+      console.log("❌ Error:", error);
+      console.log("Stack:", error.stack);
 
       setPdfStatus("error");
       setErrorMessage(

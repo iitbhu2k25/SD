@@ -786,7 +786,7 @@ useEffect(() => {
       });
 
       if (!response.ok) {
-        console.error("Failed to fetch village data:", response.status);
+        console.log("Failed to fetch village data:", response.status);
         setIsLoadingVillages(false);
         return;
       }
@@ -871,12 +871,12 @@ useEffect(() => {
             currentZoomLevelRef.current = map.getZoom();
           }
         } catch (error) {
-          console.error("Error fitting map to village layer bounds:", error);
+          console.log("Error fitting map to village layer bounds:", error);
         }
         setIsLoadingVillages(false);
       });
     } catch (error) {
-      console.error("Error fetching or rendering village data:", error);
+      console.log("Error fetching or rendering village data:", error);
       setIsLoadingVillages(false);
     }
   };
