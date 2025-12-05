@@ -370,7 +370,7 @@ const Navbar = (): JSX.Element => {
                 className={`${openDropdowns.rwm ? "block" : "hidden"
                   } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-200`}
               >
-                {/* Resource Estimation */}
+
                 <li
                   className="relative group/submenu"
                   onMouseEnter={() => toggleDropdown("rwEstimation", true)}
@@ -406,49 +406,39 @@ const Navbar = (): JSX.Element => {
                         Water Flow and Storage Estimation
                       </Link>
                     </li>
-                    <li className="relative group/submenu">
-                      <div
-                        className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
-                        onClick={(e) => toggleSubmenu(e, 'wqa')}
-                      >
+                    <li
+                      className="relative group/wqa"
+                      onMouseEnter={(e) => toggleSubmenu(e, "wqa")}
+                      onMouseLeave={(e) => toggleSubmenu(e, "wqa")}
+                    >
+                      <div className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer">
                         Water Quality Assessment
-                        <ChevronRight className={`w-4 h-4 ${openDropdowns.wqa ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-90 transition-transform duration-200`} />
+                        <ChevronRight
+                          className={`w-4 h-4 ${openDropdowns.wqa ? "rotate-90" : ""
+                            } lg:group-hover/wqa:rotate-90 transition-transform duration-200`}
+                        />
                       </div>
 
-                      <ul className={`${openDropdowns.wqa ? 'block' : 'hidden'} lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}>
-
+                      <ul
+                        className={`${openDropdowns.wqa ? "block" : "hidden"
+                          } lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
+                      >
                         {/* Ground Based Assessment */}
-                        <li className="relative group/submenu">
-                          <Link href="\dss\river"
+                        <li className="relative group/wqa">
+                          <Link
+                            href="\dss\rwm\resource_estimation\river"
                             className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
-                          // onClick={(e) => toggleSubmenu(e, 'groundBased')}
                           >
                             Ground Based Assessment
-                            {/* <ChevronRight className={`w-4 h-4 ${openDropdowns.groundBased ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-90 transition-transform duration-200`} /> */}
                           </Link>
-
-                          {/* <ul className={`${openDropdowns.groundBased ? 'block' : 'hidden'} lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}>
-                            <li>
-                              <Link href="\dss\RWM\WQA\Ground_based\overall" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
-                                Overall
-                              </Link>
-                            </li>
-                            <li>
-                              <Link href="\dss\RWM\WQA\Ground_based\upstream" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
-                                Upstream
-                              </Link>
-                            </li>
-                            <li>
-                              <Link href="\dss\RWM\WQA\Ground_based\downstream" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
-                                Downstream
-                              </Link>
-                            </li>
-                          </ul> */}
                         </li>
 
                         {/* Satellite Based Assessment */}
                         <li>
-                          <Link href="/default" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">
+                          <Link
+                            href="/default"
+                            className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                          >
                             Satellite Based Assessment
                           </Link>
                         </li>
@@ -946,7 +936,7 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/dss/watershed"
+                    href="/dss/visualizations/watershed"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   >
                     Watershed
