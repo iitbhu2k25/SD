@@ -237,7 +237,7 @@ def interpolate_single_parameter(self,
         }
         
     except Exception as exc:
-        logger.error(f"❌ [{task_id}] Error interpolating {display_name}: {str(exc)}")
+        # logger.error(f"❌ [{task_id}] Error interpolating {display_name}: {str(exc)}")
         import traceback
         traceback.print_exc()
         
@@ -255,7 +255,7 @@ def interpolate_single_parameter(self,
         retry_count = self.request.retries
         if retry_count < self.max_retries:
             countdown = 2 ** retry_count  # 2, 4, 8 seconds
-            logger.info(f"🔄 Retrying {display_name} in {countdown}s (attempt {retry_count + 1}/{self.max_retries})")
+            # logger.info(f"🔄 Retrying {display_name} in {countdown}s (attempt {retry_count + 1}/{self.max_retries})")
             raise self.retry(exc=exc, countdown=countdown)
         
         return {
@@ -304,13 +304,13 @@ def submit_batch_interpolation_job(self,
     cache.set(f"user_active_{job_id}", True, timeout=3600)
     
     try:
-        logger.info(f"\n{'='*80}")
-        logger.info(f"🚀 BATCH JOB SUBMITTED: {len(attributes)} attributes")
-        logger.info(f"   Job ID: {self.request.id}")
-        logger.info(f"   Attributes: {attributes}")
-        logger.info(f"   Season: {season}")
-        logger.info(f"   Data Type: {data_type}")
-        logger.info(f"{'='*80}\n")
+        # logger.info(f"\n{'='*80}")
+        # logger.info(f"🚀 BATCH JOB SUBMITTED: {len(attributes)} attributes")
+        # logger.info(f"   Job ID: {self.request.id}")
+        # logger.info(f"   Attributes: {attributes}")
+        # logger.info(f"   Season: {season}")
+        # logger.info(f"   Data Type: {data_type}")
+        # logger.info(f"{'='*80}\n")
         
         # Create parallel tasks for ALL attributes
         # This runs 17 tasks simultaneously (one per worker)
@@ -343,9 +343,10 @@ def submit_batch_interpolation_job(self,
             group_id = job_chain.parent.id  # parent is GroupResult
             cache.set(f"group_for_{job_id}", group_id, timeout=3600)
         except Exception as e:
-            logger.warning(f"Could not store group_id for job {job_id}: {e}")
+            pass
+            # logger.warning(f"Could not store group_id for job {job_id}: {e}")
         
-        logger.info(f"✅ Batch job orchestrated with JOB_ID (WebSocket ID): {job_id}")
+        # logger.info(f"✅ Batch job orchestrated with JOB_ID (WebSocket ID): {job_id}")
         
         return {
             'status': 'processing',
@@ -355,7 +356,7 @@ def submit_batch_interpolation_job(self,
         }
         
     except Exception as exc:
-        logger.error(f"❌ Failed to submit batch job: {str(exc)}")
+        # logger.error(f"❌ Failed to submit batch job: {str(exc)}")
         import traceback
         traceback.print_exc()
         
@@ -382,18 +383,18 @@ def finalize_interpolation_job(self,
     Aggregates results and prepares response for frontend
     """
     task_id = self.request.id
-    logger.info(f"WS_DEBUG → finalize sending using JOB_ID = {job_id}")
-    logger.warning(f"[CELERY BEFORE DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
+    # logger.info(f"WS_DEBUG → finalize sending using JOB_ID = {job_id}")
+    # logger.warning(f"[CELERY BEFORE DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
 
     cache.delete("pdf_job_lock")
     cache.delete(f"user_active_{job_id}")
     cache.delete(f"group_for_{job_id}")
     
-    logger.warning(f"[CELERY AFTER DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
-    logger.info(f"🧹 Cleanup done for job {job_id}")
+    # logger.warning(f"[CELERY AFTER DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
+    # logger.info(f"🧹 Cleanup done for job {job_id}")
     # At start of finalize_interpolation_job
     if not cache.get(f"user_active_{job_id}", True):
-        logger.warning(f"🚫 Finalization cancelled for job {job_id}")
+        # logger.warning(f"🚫 Finalization cancelled for job {job_id}")
 
         send_task_update(job_id, {
             "status": "cancelled",
@@ -409,9 +410,9 @@ def finalize_interpolation_job(self,
         }
 
     try:
-        logger.info(f"\n{'='*80}")
-        logger.info(f"🎯 FINALIZATION: Aggregating {len(all_results)} results")
-        logger.info(f"{'='*80}\n")
+        # logger.info(f"\n{'='*80}")
+        # logger.info(f"🎯 FINALIZATION: Aggregating {len(all_results)} results")
+        # logger.info(f"{'='*80}\n")
         
         successful = 0
         failed = 0
@@ -422,15 +423,15 @@ def finalize_interpolation_job(self,
             if result['status'] == 'success':
                 successful += 1
                 results_list.append(result)
-                logger.info(f"✅ {result['attribute']}")
+                # logger.info(f"✅ {result['attribute']}")
             elif result['status'] == 'cancelled':
                 cancelled += 1
                 results_list.append(result)
-                logger.warning(f"🚫 CANCELLED {result['attribute']}: {result.get('message')}")
+                # logger.warning(f"🚫 CANCELLED {result['attribute']}: {result.get('message')}")
             else:
                 failed += 1
                 results_list.append(result)
-                logger.warning(f"❌ {result['attribute']}: {result.get('message')}")
+                # logger.warning(f"❌ {result['attribute']}: {result.get('message')}")
         
         total = len(attributes)
         
@@ -506,16 +507,16 @@ def finalize_interpolation_job(self,
             }
         }
         
-        logger.info(f"\n{'='*80}")
-        logger.info(f"✅ JOB COMPLETE")
-        logger.info(f"   Successful: {successful}/{len(attributes)}")
-        logger.info(f"   Failed: {failed}/{len(attributes)}")
-        logger.info(f"{'='*80}\n")
+        # logger.info(f"\n{'='*80}")
+        # logger.info(f"✅ JOB COMPLETE")
+        # logger.info(f"   Successful: {successful}/{len(attributes)}")
+        # logger.info(f"   Failed: {failed}/{len(attributes)}")
+        # logger.info(f"{'='*80}\n")
         
         return final_response
         
     except Exception as exc:
-        logger.error(f"❌ Finalization failed: {str(exc)}")
+        # logger.error(f"❌ Finalization failed: {str(exc)}")
         import traceback
         traceback.print_exc()
         
@@ -547,7 +548,7 @@ def cleanup_expired_jobs():
     Runs daily at 2 AM
     """
     try:
-        logger.info("🧹 Starting cleanup of temporary interpolation files...")
+        # logger.info("🧹 Starting cleanup of temporary interpolation files...")
         
         from datetime import datetime, timedelta
         import glob
@@ -564,15 +565,17 @@ def cleanup_expired_jobs():
                 try:
                     os.remove(file_path)
                     cleaned += 1
-                    logger.info(f"  🗑️  Removed: {os.path.basename(file_path)}")
+                    # logger.info(f"  🗑️  Removed: {os.path.basename(file_path)}")
                 except Exception as e:
-                    logger.warning(f"  ⚠️  Failed to remove {file_path}: {e}")
+                    pass
+                    # logger.warning(f"  ⚠️  Failed to remove {file_path}: {e}")
         
-        logger.info(f"✅ Cleanup complete: {cleaned} files removed")
+        # logger.info(f"✅ Cleanup complete: {cleaned} files removed")
         return f"Cleaned {cleaned} temporary files"
         
     except Exception as exc:
-        logger.error(f"❌ Cleanup failed: {str(exc)}")
+        
+        # logger.error(f"❌ Cleanup failed: {str(exc)}")
         return f"Cleanup error: {str(exc)}"
 
 
@@ -614,7 +617,7 @@ def get_job_progress(job_id):
         }
 
     except Exception as exc:
-        logger.error(f"Error getting job progress for {job_id}: {str(exc)}")
+        # logger.error(f"Error getting job progress for {job_id}: {str(exc)}")
         return {
             "status": "error",
             "job_id": job_id,
@@ -633,8 +636,9 @@ def group_error_handler(request, exc, traceback):
             "message": f"One or more interpolation tasks failed: {str(exc)}",
         })
     except Exception as e:
+        pass
         # Avoid raising from error handler
-        logger.error(f"Error in group_error_handler for job {job_id}: {e}")
+        # logger.error(f"Error in group_error_handler for job {job_id}: {e}")
         
         
         
@@ -647,7 +651,7 @@ def abort_if_user_left(job_id, display_name, task_id):
     is_active = cache.get(f"user_active_{job_id}", True)
 
     if not is_active:
-        logger.warning(f"🚫 User disconnected (job={job_id}) → aborting {display_name}")
+        # logger.warning(f"🚫 User disconnected (job={job_id}) → aborting {display_name}")
 
         send_task_update(job_id, {
             "status": "cancelled",

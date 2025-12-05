@@ -30,7 +30,7 @@ interface CategoryContextType {
   showTable: boolean;
   setShowTable: (value: boolean) => void;
   tableData: DataRow[];
-    setStpProcess: (value: boolean) => void;
+  setStpProcess: (value: boolean) => void;
   setTableData: (value: DataRow[]) => void;
   StpArea:Stp_area[];
   OptSetStpArea:(Stp_area:Stp_area)=>void

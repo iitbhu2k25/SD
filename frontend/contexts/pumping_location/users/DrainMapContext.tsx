@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/pumping_location/users/DrainContext";
-import { ClipRasters, DRAIN_LAYER_NAMES, gwpl_Output } from "@/interface/raster_context";
+import { ClipRasters, DRAIN_LAYER_NAMES, gwpl_Output, stp_priority_Output } from "@/interface/raster_context";
 import { api } from "@/services/api";
 // Updated interface with separate filters for each layer
 interface LayerFilter {
@@ -273,7 +273,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
     const performGWPL = async () => {
       try {
-        const resp = await api.post("/gwz_operation/mar_suitability", {
+        const resp = await api.post("/gwz_operation/gwpl_operation", {
           body: {
             data: selectedCategory,
             clip: selectedCatchments,
@@ -285,20 +285,19 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         if (resp.status > 201) {
           throw new Error(`STP operation failed with status: ${resp.status}`);
         }
-        const result = await resp.message as gwpl_Output;
+        const result = await resp.message as stp_priority_Output;
 
         if (result) {
           const append_data = {
-            ile_name: "Pumping_location",
+            file_name: "Pumping_location",
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
-          setTableData(result.csv_details);
+      
 
           const index = displayRaster.findIndex(
             (item) => item.file_name === "Pumping_location"
           );
-
           let newData;
           if (index !== -1) {
             newData = [...displayRaster];

@@ -379,7 +379,7 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
             )
 
     except Exception as e:
-        logger.error(f"Error fetching water quality data: {str(e)}")
+        # logger.error(f"Error fetching water quality data: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -406,7 +406,7 @@ def River(request):
         shapefile_full_path = os.path.join(shapefile_path, "Rivers.shp")
 
         if not os.path.exists(shapefile_full_path):
-            logger.error(f"River shapefile not found at: {shapefile_full_path}")
+            # logger.error(f"River shapefile not found at: {shapefile_full_path}")
             return Response(
                 {"error": f"River shapefile not found at: {shapefile_full_path}"},
                 status=404,
@@ -435,7 +435,7 @@ def River(request):
         return Response(geojson_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.error(f"Error processing river shapefile: {str(e)}")
+        # logger.error(f"Error processing river shapefile: {str(e)}")
         return Response(
             {"error": f"Error processing river shapefile: {str(e)}"}, status=500
         )
@@ -570,7 +570,7 @@ def River_100m_buffer(request, data_type="subdistbased"):
         shapefile_full_path = os.path.join(shapefile_path, "River_buffer_100m.shp")
 
         if not os.path.exists(shapefile_full_path):
-            logger.error(f"River buffer shapefile not found at: {shapefile_full_path}")
+            # logger.error(f"River buffer shapefile not found at: {shapefile_full_path}")
             return Response(
                 {
                     "error": f"River buffer shapefile not found at: {shapefile_full_path}"
@@ -686,7 +686,7 @@ def River_100m_buffer(request, data_type="subdistbased"):
         return Response(geojson_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        logger.error(f"Error processing river buffer shapefile: {str(e)}")
+        # logger.error(f"Error processing river buffer shapefile: {str(e)}")
         return Response(
             {"error": f"Error processing river buffer shapefile: {str(e)}"}, status=500
         )
@@ -715,7 +715,7 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
 
         # shp_path = os.path.join(settings.MEDIA_ROOT, 'rwm_data', 'DRAINS_Final_point', 'DRAINS_Final_point.shp')
         if not os.path.exists(shp_path):
-            logger.error(f"Shapefile not found at: {shp_path}")
+            # logger.error(f"Shapefile not found at: {shp_path}")
             return JsonResponse({"error": "Shapefile not found"}, status=404)
 
         gdf = gpd.read_file(shp_path)
@@ -875,7 +875,7 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
         return response
 
     except Exception as e:
-        logger.error(f"Error processing shapefile: {str(e)}")
+        # logger.error(f"Error processing shapefile: {str(e)}")
         response = JsonResponse(
             {"error": "Failed to process shapefile data"}, status=500
         )
@@ -929,7 +929,7 @@ def clipped_subdistrict(request):
         return response
 
     except Exception as e:
-        logger.error(f"Error processing filtered shapefile: {str(e)}")
+        # logger.error(f"Error processing filtered shapefile: {str(e)}")
         response = JsonResponse(
             {"error": "Failed to process shapefile data"}, status=500
         )
@@ -1167,7 +1167,7 @@ def shapefile_data_with_wqi(request, data_type="overall"):
             return JsonResponse({"error": "Invalid data type"}, status=400)
 
         if not os.path.exists(shp_path):
-            logger.error(f"Shapefile not found at: {shp_path}")
+            # logger.error(f"Shapefile not found at: {shp_path}")
             return JsonResponse({"error": "Shapefile not found"}, status=404)
 
         # Get WQI-enhanced data from database
@@ -1317,7 +1317,7 @@ def shapefile_data_with_wqi(request, data_type="overall"):
         return response
 
     except Exception as e:
-        logger.error(f"Error processing shapefile with WQI: {str(e)}")
+        # logger.error(f"Error processing shapefile with WQI: {str(e)}")
         response = JsonResponse(
             {"error": "Failed to process shapefile data with WQI"}, status=500
         )
@@ -4993,7 +4993,7 @@ def start_pdf_report_job(request):
     Response: 202 Accepted with job_id
     """
     
-    logger.warning(f"[DJANGO BEFORE] pdf_job_lock = {cache.get('pdf_job_lock')}")
+    # logger.warning(f"[DJANGO BEFORE] pdf_job_lock = {cache.get('pdf_job_lock')}")
 
     job_lock_key = f"pdf_job_lock"
 
@@ -5005,7 +5005,7 @@ def start_pdf_report_job(request):
 
     # Set lock for 10 minutes (remove earlier on success)
     cache.set(job_lock_key, True, timeout=600)
-    logger.warning(f"[DJANGO AFTER SET] pdf_job_lock = {cache.get('pdf_job_lock')}")
+    # logger.warning(f"[DJANGO AFTER SET] pdf_job_lock = {cache.get('pdf_job_lock')}")
 
 
     try:
@@ -5030,10 +5030,10 @@ def start_pdf_report_job(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        logger.info(f"\n🚀 NEW ASYNC JOB SUBMITTED")
-        logger.info(f"   Attributes: {len(attributes)}")
-        logger.info(f"   Season: {season}")
-        logger.info(f"   Data Type: {data_type}\n")
+        # logger.info(f"\n🚀 NEW ASYNC JOB SUBMITTED")
+        # logger.info(f"   Attributes: {len(attributes)}")
+        # logger.info(f"   Season: {season}")
+        # logger.info(f"   Data Type: {data_type}\n")
 
         # Load river data based on data_type
         if data_type == "subdistbased":
@@ -5124,7 +5124,7 @@ def start_pdf_report_job(request):
         )
 
     except Exception as e:
-        logger.error(f"❌ Job submission failed: {str(e)}")
+        # logger.error(f"❌ Job submission failed: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -5239,18 +5239,19 @@ def revoke_remaining_tasks(job_id):
     """
     group_id = cache.get(f"group_for_{job_id}")
     if not group_id:
-        logger.warning(f"No group_id found for job {job_id}; nothing to revoke")
+        # logger.warning(f"No group_id found for job {job_id}; nothing to revoke")
         return
 
     group_result = GroupResult.restore(group_id)
     if not group_result:
-        logger.warning(f"GroupResult not found for group_id {group_id}")
+        # logger.warning(f"GroupResult not found for group_id {group_id}")
         return
 
     for t in group_result.results:
         try:
-            logger.info(f"Revoking task {t.id} for job {job_id}")
+            # logger.info(f"Revoking task {t.id} for job {job_id}")
             current_app.control.revoke(t.id, terminate=True, signal="SIGKILL")
         except Exception as e:
-            logger.error(f"Failed to revoke task {t.id}: {e}")
+            # logger.error(f"Failed to revoke task {t.id}: {e}")
+            pass
 
