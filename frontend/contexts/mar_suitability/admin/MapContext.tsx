@@ -29,6 +29,7 @@ interface MapContextType {
   setLoading: (loading: boolean) => void;
   selectedradioLayer: string | null;
   setSelectedradioLayer: (layer: string | null) => void; 
+  handleLayerSelection: (layer: string) => void;
 
 }
 
@@ -64,6 +65,7 @@ const MapContext = createContext<MapContextType>({
   setResultLayer: () => { },
   selectedradioLayer: "",
   setSelectedradioLayer: () => {},
+  handleLayerSelection: () => {}
 });
 
 // Create the provider component
@@ -105,7 +107,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
+
   };
   const zoomToFeature = (featureId: string, layerName: string): void => {
   };
@@ -249,6 +251,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setResultLayer,
     selectedradioLayer,
     setSelectedradioLayer: () => {},
+    handleLayerSelection,
   };
 
   return (

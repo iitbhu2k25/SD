@@ -47,7 +47,7 @@ const MainContent = () => {
         }
         message={
           stpOperation
-            ? "Analyzing site priorities and generating results..."
+            ? "Analyzing Groundwater water quality and generating results..."
             : reportLoading
               ? "Generating report, please wait..."
               : "Fetching map data and initializing components..."

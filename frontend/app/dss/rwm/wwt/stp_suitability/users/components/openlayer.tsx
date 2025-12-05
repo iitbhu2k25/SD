@@ -94,7 +94,6 @@ const Maping: React.FC = () => {
     drainFilter,
     catchmentFilter,
     defaultWorkspace,
-    stpOperation,
     resultLayer,
     hasSelections,
     handleLayerSelection,
@@ -154,7 +153,7 @@ const Maping: React.FC = () => {
     }
   };
 
-  const createVectorStyle = (layerType: string, isResult = false) => (feature: any, resolution: number) => {
+  const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
     const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
@@ -166,7 +165,7 @@ const Maping: React.FC = () => {
     if (geometryType.includes("Polygon")) {
       styles.push(new Style({
         stroke: new Stroke({ color: colorConfig.color, width: 2 }),
-        fill: new Fill({ color: isResult ? colorConfig.fill : "transparent" })
+        fill: new Fill({ color: 'transparent' })
       }));
     }
 
@@ -186,17 +185,43 @@ const Maping: React.FC = () => {
       }));
     }
 
-    if (showTitles && zoom > 8 && featureName) {
-      styles.push(new Style({
-        text: new Text({
-          text: featureName.toString(),
-          font: "12px Arial, sans-serif",
-          fill: new Fill({ color: colorConfig.color }),
-          stroke: new Stroke({ color: "#ffffff", width: 3 }),
-          offsetY: geometryType.includes("Point") ? -20 : 0,
-          textAlign: "center",
-        })
-      }));
+    if (showLabels && featureName) {
+      let minZoomForLabel = 10; // Default
+
+      // Catchment villages: show at zoom >= 12 (appears when zoomed in)
+      if (layerType === 'catchment') {
+        minZoomForLabel = 12;
+      }
+      // Drain: show at zoom >= 13 (more zoomed)
+      else if (layerType === 'drain') {
+        minZoomForLabel = 13;
+      }
+      // Stretch: show at zoom >= 14 (very zoomed)
+      else if (layerType === 'stretch') {
+        minZoomForLabel = 14;
+      }
+      // River: show at zoom >= 11 (slightly zoomed)
+      else if (layerType === 'river') {
+        minZoomForLabel = 11;
+      }
+      // Primary/other: keep original zoom 8
+      else {
+        minZoomForLabel = 8;
+      }
+
+      if (zoom >= minZoomForLabel) {
+        styles.push(new Style({
+          text: new Text({
+            text: featureName.toString(),
+            font: '12px Arial, sans-serif',
+            fill: new Fill({ color: colorConfig.color }),
+            stroke: new Stroke({ color: "#ffffff", width: 3 }),
+            offsetY: geometryType.includes('Point') ? -20 : 0,
+            textAlign: 'center',
+            textBaseline: 'middle'
+          })
+        }));
+      }
     }
 
     return styles;
@@ -220,7 +245,7 @@ const Maping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -396,7 +421,7 @@ const Maping: React.FC = () => {
     })
     const vectorLayer = new VectorLayer({
       source: vectorSource,
-      style: createVectorStyle(layerType, layerType === 'result'),
+      style: createVectorStyle(layerType,showTitles),
       zIndex: zIndex,
       visible: isVisible,
     });
@@ -818,16 +843,35 @@ const Maping: React.FC = () => {
         {activePanel === "tools" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-800">Map Tools</h3>
+              <h3 className="font-bold text-gray-800 text-lg">Map Tools</h3>
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowTitles(!showTitles)}
-                className={`p-4 rounded-xl border ${showTitles ? "bg-green-100 border-green-200" : "bg-gray-100 border-gray-200"}`}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  }`}
               >
-                <span className="text-sm font-medium">Show Titles: {showTitles ? "ON" : "OFF"}</span>
+                <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
+                <span className="text-sm font-medium">Display Labels</span>
               </button>
+
+              <button
+                onClick={() => {
+                  setHoveredFeature(null);
+                  selectInteractionRef.current?.getFeatures().clear();
+                  hoverInteractionRef.current?.getFeatures().clear();
+                }}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span className="text-sm font-medium">Clear Selection</span>
+              </button>
+
               <button
                 onClick={() => {
                   if (mapInstanceRef.current) {
@@ -836,14 +880,16 @@ const Maping: React.FC = () => {
                     view.setZoom(INITIAL_ZOOM);
                   }
                 }}
-                className="p-4 rounded-xl bg-gray-100 border border-gray-200"
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
               >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
                 <span className="text-sm font-medium">Home View</span>
               </button>
             </div>
           </div>
         )}
-
         {legendUrl && rasterLayerInfo && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
             <div className="flex justify-between items-center ">

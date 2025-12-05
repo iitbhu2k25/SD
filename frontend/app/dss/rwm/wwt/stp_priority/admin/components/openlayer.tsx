@@ -809,7 +809,7 @@ const Maping: React.FC = () => {
                   }`}
               >
                 <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
-                <span className="text-sm font-medium">Display Titles</span>
+                <span className="text-sm font-medium">Display Labels</span>
               </button>
 
               <button
@@ -837,7 +837,7 @@ const Maping: React.FC = () => {
                 className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
               >
                 <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 <span className="text-sm font-medium">Home View</span>
               </button>

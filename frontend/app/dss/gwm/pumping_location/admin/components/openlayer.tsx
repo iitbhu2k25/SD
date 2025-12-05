@@ -71,10 +71,10 @@ const Mapping: React.FC = () => {
     LayerFilter,
     LayerFilterValue,
     defaultWorkspace,
-    setstpOperation,
-    stpOperation,
+    handleLayerSelection,
     resultLayer,
-    selectedradioLayer
+    selectedradioLayer,
+
   } = useMap();
   const { selectedCategory, setTableData, setRasterLayerInfo, rasterLayerInfo } = useCategory();
 
@@ -113,14 +113,7 @@ const Mapping: React.FC = () => {
     });
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedRadioLayer(layerName);
-    displayRaster.forEach((item: any) => {
-      if (item.file_name === layerName) {
-        setRasterLayerInfo(item);
-      }
-    });
-  };
+
 
   const createVectorStyle = (isSecondary = false, isResult = false) => (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
@@ -228,7 +221,7 @@ const Mapping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -465,7 +458,7 @@ const Mapping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-  
+
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]) => {
       map.removeLayer(layer);
@@ -516,13 +509,13 @@ const Mapping: React.FC = () => {
     }
   }, [rasterLayerInfo, layerOpacity]);
 
-   useEffect(() => {
-        displayRaster.forEach((item: any) => {
-          if (item.file_name === selectedradioLayer) {
-            setRasterLayerInfo(item);
-          }
-        });
-      }, [selectedradioLayer, displayRaster]);
+  useEffect(() => {
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -623,7 +616,7 @@ const Mapping: React.FC = () => {
                     id={`layer-${index}`}
                     name="layerSelection"
                     value={layer.file_name}
-                    checked={selectedRadioLayer === layer.file_name}
+                    checked={selectedradioLayer === layer.file_name}
                     onChange={() => handleLayerSelection(layer.file_name)}
                     className="mr-3 h-4 w-4 text-blue-600"
                   />
@@ -850,66 +843,52 @@ const Mapping: React.FC = () => {
           </div>
         )}
 
-        {/* Tools Panel */}
         {activePanel === "tools" && (
-          <div className="absolute top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-4 sm:p-6 max-w-sm sm:max-w-md w-full mx-2">
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-gray-800">Tools</h3>
+              <h3 className="font-bold text-gray-800 text-lg">Map Tools</h3>
               <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={toggleFullScreen}
-                className="flex flex-col items-center p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200"
+                onClick={() => setShowTitles(!showTitles)}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  }`}
               >
-                <svg className="w-8 h-8 mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
+                <span className="text-sm font-medium">Display Labels</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setHoveredFeature(null);
+                  selectInteractionRef.current?.getFeatures().clear();
+                  hoverInteractionRef.current?.getFeatures().clear();
+                }}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                <span className="text-sm font-medium">Full Screen</span>
+                <span className="text-sm font-medium">Clear Selection</span>
               </button>
 
               <button
                 onClick={() => {
                   if (mapInstanceRef.current) {
-                    mapInstanceRef.current.getView().setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]));
-                    mapInstanceRef.current.getView().setZoom(INITIAL_ZOOM);
+                    const view = mapInstanceRef.current.getView();
+                    view.setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]));
+                    view.setZoom(INITIAL_ZOOM);
                   }
                 }}
-                className="flex flex-col items-center p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200"
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
               >
-                <svg className="w-8 h-8 mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 <span className="text-sm font-medium">Home View</span>
-              </button>
-
-              <button
-                onClick={() => setShowTitles(!showTitles)}
-                className={`flex flex-col items-center p-4 rounded-xl border ${showTitles ? "bg-green-100 border-green-200" : "bg-gray-50 hover:bg-gray-100 border-gray-200"}`}
-              >
-                <div className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</div>
-                <span className="text-sm font-medium">Display Titles</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  if (wellPointsLayerRef.current && well_points && well_points.length > 0) {
-                    const extent = wellPointsLayerRef.current.getSource()?.getExtent();
-                    if (extent && extent.every(val => isFinite(val))) {
-                      mapInstanceRef.current?.getView().fit(extent, {
-                        padding: [100, 100, 100, 100],
-                        duration: 1000,
-                        maxZoom: 12,
-                      });
-                    }
-                  }
-                }}
-                className="flex flex-col items-center p-4 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200"
-              >
-                <svg className="w-8 h-8 mb-2 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                </svg>
-                <span className="text-sm font-medium">Zoom to Wells</span>
               </button>
             </div>
           </div>

@@ -59,20 +59,45 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
     }));
   }
 
-  // Add labels when titles are enabled
-  if (showLabels && zoom > 8 && featureName) {
-    styles.push(new Style({
-      text: new Text({
-        text: featureName.toString(),
-        font: "12px Arial, sans-serif",
-        fill: new Fill({ color: colorConfig.color }),
+    if (showLabels && featureName) {
+    let minZoomForLabel = 10; // Default
+    
+    // Catchment villages: show at zoom >= 12 (appears when zoomed in)
+    if (layerType === 'catchment') {
+      minZoomForLabel = 12;
+    }
+    // Drain: show at zoom >= 13 (more zoomed)
+    else if (layerType === 'drain') {
+      minZoomForLabel = 13;
+    }
+    // Stretch: show at zoom >= 14 (very zoomed)
+    else if (layerType === 'stretch') {
+      minZoomForLabel = 14;
+    }
+    // River: show at zoom >= 11 (slightly zoomed)
+    else if (layerType === 'river') {
+      minZoomForLabel = 11;
+    }
+    // Primary/other: keep original zoom 8
+    else {
+      minZoomForLabel = 8;
+    }
+
+    if (zoom >= minZoomForLabel) {
+      styles.push(new Style({
+        text: new Text({
+          text: featureName.toString(),
+          font: '12px Arial, sans-serif',
+          fill: new Fill({ color: colorConfig.color }),
         stroke: new Stroke({ color: "#ffffff", width: 3 }),
-        offsetY: geometryType.includes("Point") ? -20 : 0,
-        textAlign: "center",
-        textBaseline: "middle",
-      })
-    }));
+          offsetY: geometryType.includes('Point') ? -20 : 0,
+          textAlign: 'center',
+          textBaseline: 'middle'
+        })
+      }));
+    }
   }
+
 
   return styles;
 };
@@ -255,7 +280,7 @@ const Maping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -900,7 +925,6 @@ const Maping: React.FC = () => {
           </div>
         )}
 
-        {/* Tools Panel */}
         {activePanel === "tools" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
@@ -970,7 +994,7 @@ const Maping: React.FC = () => {
           </div>
         )}
         {/* Coordinates */}
-         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
+        <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
             <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             </svg>

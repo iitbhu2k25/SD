@@ -99,7 +99,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
   };
-    const handleLayerSelection = (layerName: string) => {
+  const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
   
   };

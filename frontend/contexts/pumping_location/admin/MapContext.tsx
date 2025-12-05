@@ -31,6 +31,7 @@ interface MapContextType {
   setLoading: (loading: boolean) => void;
   selectedradioLayer: string | null;
   setSelectedradioLayer: (layer: string | null) => void;
+  handleLayerSelection: (layer: string) => void;
 
 }
 
@@ -66,6 +67,7 @@ const MapContext = createContext<MapContextType>({
   setResultLayer: () => { },
   selectedradioLayer: "",
   setSelectedradioLayer: () => { },
+ handleLayerSelection: () => {},
 });
 
 // Create the provider component
@@ -108,7 +110,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   };
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-    console.log("Selected layer:", layerName);
   };
 
   // Function to zoom to a specific feature
@@ -214,7 +215,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
             handleLayerSelection(append_data.file_name);
             setShowLegend(true);
           } else {
-            console.log("STP operation did not return success:", result);
+            console.log("GWPL operation did not return success:", result);
             setRasterLoading(false);
           }
         } catch (error: any) {
@@ -228,10 +229,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       return;
     }
   }, [stpOperation, selectedCategory, selectedSubDistricts]);
-
-
-
-
 
 
   // Context value
@@ -259,6 +256,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setResultLayer,
     selectedradioLayer,
     setSelectedradioLayer: () => { },
+    handleLayerSelection,
   };
 
   return (
