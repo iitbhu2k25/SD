@@ -38,6 +38,7 @@ interface MapContextType {
   hasSelections: boolean;
   handleLayerSelection: (layer: string) => void;
   setSelectedradioLayer: (layer: string | null) => void;
+  selectedradioLayer: string | null;
   stpOperation: boolean;
   setstpOperation: (operation: boolean) => void;
   setPrimaryLayer: (layer: string) => void;
@@ -100,6 +101,7 @@ const MapContext = createContext<MapContextType>({
   setLoading: () => { },
   setRasterLoading: () => { },
   setError: () => { },
+  selectedradioLayer: null,
 });
 
 // Create the provider component
@@ -269,6 +271,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithRiverSystem();
   }, [syncLayersWithRiverSystem]);
   const handleLayerSelection = (layerName: string) => {
+
     setSelectedradioLayer(layerName);
 
   };
@@ -343,7 +346,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     drainLayer,
     catchmentLayer,
     boundarylayer,
-
+    selectedradioLayer,
     handleLayerSelection,
     setSelectedradioLayer: () => { },
     setRasterLoading,

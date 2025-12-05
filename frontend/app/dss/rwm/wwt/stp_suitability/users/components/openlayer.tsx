@@ -429,7 +429,6 @@ const Maping: React.FC = () => {
     const handleFeaturesLoaded = (event: any) => {
       const numFeatures = event.features ? event.features.length : 0;
       setFeatureCounts(prev => ({ ...prev, [layerType]: numFeatures }));
-      console.log(`${layerType} layer loaded with ${numFeatures} features`);
       if (layerType === 'primary') {
         const extent = vectorSource.getExtent();
         console.log("zooming")
@@ -442,7 +441,6 @@ const Maping: React.FC = () => {
       }
     };
     const handleFeaturesError = () => {
-      console.log(`Failed to load ${layerType} layer`);
       setError(`Failed to load ${layerType} layer`);
     };
 

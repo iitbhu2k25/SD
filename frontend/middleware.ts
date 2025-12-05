@@ -5,7 +5,7 @@ import { api } from "@/services/api";
 import { jwtVerify } from 'jose';
 
 const SECRET = process.env.NEXT_PUBLIC_SECRET;
-const protectedRoutes = [ "/dashboard"]; // Add more as needed
+const protectedRoutes = [ "/dss","/dashboard"]; // Add more as needed
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

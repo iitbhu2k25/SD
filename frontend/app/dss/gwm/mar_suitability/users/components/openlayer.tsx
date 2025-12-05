@@ -22,7 +22,6 @@ import {
   ZoomToExtent,
 } from "ol/control";
 import { useMap } from "@/contexts/mar_suitability/users/DrainMapContext";
-import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/mar_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
@@ -139,7 +138,7 @@ const Maping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +165,8 @@ const Maping: React.FC = () => {
     boundarylayer,
     defaultWorkspace,
     hasSelections,
+    handleLayerSelection,
+    selectedradioLayer,
   } = useMap();
 
 
@@ -204,14 +205,6 @@ const Maping: React.FC = () => {
     });
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    displayRaster.forEach((item: any) => {
-      if (item.file_name === layerName) {
-        setRasterLayerInfo(item);
-      }
-    });
-  };
 
   const toggleLayerVisibility = (layerType: 'river' | 'stretch' | 'drain' | 'catchment') => {
     const layerRefs = {
@@ -547,6 +540,7 @@ const Maping: React.FC = () => {
     }
 
     try {
+      
       const layerUrl = "/geoserver/api/wms";
       const workspace = rasterLayerInfo.workspace;
       const layerName = rasterLayerInfo.layer_name;
@@ -586,6 +580,7 @@ const Maping: React.FC = () => {
   }, [rasterLayerInfo, layerOpacity]);
   
   useEffect(() => {
+
     displayRaster.forEach((item: any) => {
       if (item.file_name === selectedradioLayer) {
         setRasterLayerInfo(item);
@@ -692,7 +687,7 @@ const Maping: React.FC = () => {
         )}
 
         {/* Layer Panel */}
-        {isPanelOpen && displayRaster.length > 0 && (
+         {isPanelOpen && displayRaster.length > 0 && (
           <div className="absolute right-4 top-20 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-2xl p-6 w-80 z-50">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800">Select Layer</h3>

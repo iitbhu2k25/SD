@@ -332,6 +332,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
           }
           );
           const data = await response.message as ClipRasters[];
+          console.log(data) 
           setDisplayRaster(data);
         } catch (error) {
           console.log("Error fetching display raster:", error);

@@ -52,6 +52,9 @@ interface MapContextType {
   DRAIN_LAYER_NAMES: typeof DRAIN_LAYER_NAMES;
   loading: boolean;
   setLoading: (loading: boolean) => void;
+  handleLayerSelection: (layer: string) => void;
+  setSelectedradioLayer: (layer: string | null) => void;
+  selectedradioLayer: string | null;
 }
 
 // Props for the MapProvider
@@ -93,6 +96,9 @@ const MapContext = createContext<MapContextType>({
   DRAIN_LAYER_NAMES,
   loading: false,
   setLoading: () => { },
+  handleLayerSelection: () => { },
+  setSelectedradioLayer: () => { },
+  selectedradioLayer: null,
 });
 
 // Create the provider component
@@ -109,10 +115,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT);
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const [showLegend, setShowLegend] = useState<boolean>(true);
   // Separate filter states for each layer
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
     filterField: null,
@@ -264,6 +267,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   }, [syncLayersWithRiverSystem]);
 
   const handleLayerSelection = (layerName: string) => {
+    console.log("Selected layer:", layerName);
     setSelectedradioLayer(layerName);
 
   };
@@ -293,7 +297,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
             workspace: result.workspace,
             layer_name: result.layer_name,
           };
-      
+
 
           const index = displayRaster.findIndex(
             (item) => item.file_name === "Pumping_location"
@@ -362,6 +366,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     DRAIN_LAYER_NAMES,
     loading,
     setLoading,
+    handleLayerSelection,
+    setSelectedradioLayer: () => { },
+    selectedradioLayer,
   };
 
   return (

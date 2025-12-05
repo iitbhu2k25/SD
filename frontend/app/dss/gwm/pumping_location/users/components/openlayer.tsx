@@ -64,9 +64,9 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
     }));
   }
 
-    if (showLabels && featureName) {
+  if (showLabels && featureName) {
     let minZoomForLabel = 10; // Default
-    
+
     // Catchment villages: show at zoom >= 12 (appears when zoomed in)
     if (layerType === 'catchment') {
       minZoomForLabel = 12;
@@ -94,7 +94,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
           text: featureName.toString(),
           font: '12px Arial, sans-serif',
           fill: new Fill({ color: colorConfig.color }),
-        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
           offsetY: geometryType.includes('Point') ? -20 : 0,
           textAlign: 'center',
           textBaseline: 'middle'
@@ -176,7 +176,6 @@ const Maping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(true);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -186,10 +185,8 @@ const Maping: React.FC = () => {
   // Context hooks
   const {
     selectedDrains,
-    selectedCatchments,
+
     displayRaster,
-    setDisplayRaster,
-    setShowTable,
     setShowCatchment,
     well_points,
   } = useRiverSystem();
@@ -206,8 +203,8 @@ const Maping: React.FC = () => {
     catchmentFilter,
     boundarylayer,
     defaultWorkspace,
-    setstpOperation,
-    stpOperation,
+    handleLayerSelection,
+    selectedradioLayer,
     hasSelections,
   } = useMap();
 
@@ -248,14 +245,6 @@ const Maping: React.FC = () => {
     });
   };
 
-  const handleLayerSelection = (layerName: string) => {
-    setSelectedradioLayer(layerName);
-    displayRaster.forEach((item: any) => {
-      if (item.file_name === layerName) {
-        setRasterLayerInfo(item);
-      }
-    });
-  };
 
   const toggleLayerVisibility = (layerType: 'river' | 'stretch' | 'drain' | 'catchment') => {
     const layerRefs = {
@@ -631,7 +620,17 @@ const Maping: React.FC = () => {
     } catch (error: any) {
       setError(`Error setting up raster layer: ${error.message}`);
     }
-  }, [rasterLayerInfo, layerOpacity, selectedCatchments]);
+  }, [rasterLayerInfo, layerOpacity]);
+
+
+  useEffect(() => {
+    console.log("selectedradioLayer changed:", selectedradioLayer);
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
 
   useEffect(() => {
     const handleFullScreenChange = () => setIsFullScreen(!!document.fullscreenElement);
@@ -706,8 +705,7 @@ const Maping: React.FC = () => {
             </div>
           </div>
         )}
-
-        {isPanelOpen && displayRaster.length > 0 && (
+         {isPanelOpen && displayRaster.length > 0 && (
           <div className="absolute right-4 top-20 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-2xl p-6 w-80 z-50">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800">Select Layer</h3>
@@ -715,15 +713,25 @@ const Maping: React.FC = () => {
             </div>
             <div className="max-h-64 overflow-y-auto">
               {displayRaster.map((layer, index) => (
+                console.log(layer), 
                 <div key={index} className="flex items-center mb-3 p-3 hover:bg-blue-50 rounded-lg cursor-pointer">
-                  <input type="radio" id={`layer-${index}`} name="layerSelection" value={layer.file_name} checked={selectedradioLayer === layer.file_name} onChange={() => handleLayerSelection(layer.file_name)} className="mr-3 h-4 w-4 text-blue-600" />
-                  <label htmlFor={`layer-${index}`} className="text-sm text-gray-700 cursor-pointer">{layer.file_name}</label>
+                  <input
+                    type="radio"
+                    id={`layer-${index}`}
+                    name="layerSelection"
+                    value={layer.file_name}
+                    checked={selectedradioLayer === layer.file_name}
+                    onChange={() => handleLayerSelection(layer.file_name)}
+                    className="mr-3 h-4 w-4 text-blue-600"
+                  />
+                  <label htmlFor={`layer-${index}`} className="text-sm text-gray-700 cursor-pointer">
+                    {layer.file_name}
+                  </label>
                 </div>
               ))}
             </div>
           </div>
         )}
-
         {activePanel === "layers" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
