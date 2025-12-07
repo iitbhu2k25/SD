@@ -45,7 +45,10 @@ app.conf.update(
     task_soft_time_limit=120,
     task_time_limit=150,
 )
-
+# app.conf.task_queues = (
+#     Queue("default"),
+#     Queue("heavy_tasks"),
+# )
 
 app.autodiscover_tasks()
 log.info("Celery app initialized successfully")
