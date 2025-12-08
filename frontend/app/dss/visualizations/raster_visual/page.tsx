@@ -51,7 +51,8 @@ const OpenLayersRasterViewer: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedModule, setSelectedModule] = useState<string>("");
-  const [rasterLayerName, setRasterLayerName] = useState<string>("");
+  const [rasterFileName, setRasterFileName] = useState<string>("");
+  
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [Displaydata, setDisplayData] = useState<Module[]>([]);
 
@@ -203,7 +204,9 @@ const OpenLayersRasterViewer: React.FC = () => {
   }, []); // Empty dependency array
 
   // Load raster layer function
-  const loadRasterLayer = (layerName: string) => {
+  const loadRasterLayer = (layerName: string,file_name: string) => {
+    console.log(`Loading raster layer: ${layerName}`);
+    console.log(`Loading raster layer: ${file_name}`);
     if (!mapInstanceRef.current || !layerName.trim()) {
       setError("Please select a valid layer");
       return;
@@ -250,11 +253,9 @@ const OpenLayersRasterViewer: React.FC = () => {
       // Add layer to map
       map.addLayer(rasterLayer);
       rasterLayerRef.current = rasterLayer;
-      setRasterLayerName(layerName);
+      setRasterFileName(file_name);
       setShowLegend(true);
       setLoading(false);
-
-      console.log(`Raster layer loaded: ${fullLayerName}`);
     } catch (error) {
       console.log("Error loading raster layer:", error);
       setError(`Error loading raster layer: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -295,7 +296,7 @@ const OpenLayersRasterViewer: React.FC = () => {
       rasterLayerRef.current = null;
       setLegendUrl(null);
       setShowLegend(false);
-      setRasterLayerName("");
+      setRasterFileName("");
     }
   };
 
@@ -429,7 +430,7 @@ const OpenLayersRasterViewer: React.FC = () => {
 
                   <div className="space-y-4">
                     <div className="p-3 bg-slate-600/50 rounded border border-slate-500">
-                      <p className="text-sm text-slate-300 font-mono">{rasterLayerName}</p>
+                      <p className="text-sm text-slate-300 font-mono">{rasterFileName}</p>
                     </div>
 
                     <div>
@@ -510,7 +511,7 @@ const OpenLayersRasterViewer: React.FC = () => {
                         </div>
                       </div>
                       <button
-                        onClick={() => loadRasterLayer(raster.layer_name)}
+                        onClick={() => loadRasterLayer(raster.layer_name,raster.file_name)}
                         disabled={loading}
                         className="mt-3 w-full px-3 py-2 rounded-lg bg-blue-600/90 hover:bg-blue-700 transition-all text-white text-sm flex items-center justify-center space-x-2 disabled:opacity-50"
                       >
