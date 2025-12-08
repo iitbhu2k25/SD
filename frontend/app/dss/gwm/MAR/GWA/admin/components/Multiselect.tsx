@@ -1,6 +1,7 @@
-'use client'
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
-import { District, SubDistrict} from '@/contexts/groundwater_assessment/admin/LocationContext';
+import { District, SubDistrict } from '@/contexts/groundwater_assessment/admin/LocationContext';
 
 interface MultiSelectProps<T> {
   items: T[];
@@ -10,9 +11,15 @@ interface MultiSelectProps<T> {
   placeholder: string;
   disabled?: boolean;
   displayPattern?: (item: T) => string;
+
+  // per‑item styling / disabling
+  itemClassName?: (item: T) => string;
+  itemDisabled?: (item: T) => boolean;
 }
 
-export const MultiSelect = <T extends District | SubDistrict  = District | SubDistrict >({
+export const MultiSelect = <
+  T extends District | SubDistrict = District | SubDistrict,
+>({
   items,
   selectedItems,
   onSelectionChange,
@@ -20,146 +27,143 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
   placeholder,
   disabled = false,
   displayPattern = (item) => item.name,
+  itemClassName,
+  itemDisabled,
 }: MultiSelectProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // refs
   const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const allItemIds = items.map(item => Number(item.id));
+
+  const allItemIds = items.map((i) => Number(i.id));
   const allSelected = items.length > 0 && selectedItems.length === items.length;
 
-  // Ref and saved scroll position for preserving scrollTop
   const savedScrollTop = useRef(0);
 
-  // Filter items based on search query
-  const filteredItems = items.filter(item =>
-    displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // ---------- FILTER ----------
+  const filteredItems = items.filter(
+    (item) =>
+      displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item as any).name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate dropdown position based on available space
+  // Get IDs of selectable filtered items (not disabled)
+  const selectableFilteredIds = filteredItems
+    .filter(item => !(itemDisabled && itemDisabled(item)))
+    .map(item => Number(item.id));
+
+  // Check if all selectable filtered items are selected
+  const allFilteredSelected = selectableFilteredIds.length > 0 && 
+    selectableFilteredIds.every(id => selectedItems.includes(id));
+
+  // ---------- POSITION ----------
   const calculateDropdownPosition = () => {
     if (!triggerRef.current) return;
+    const trigger = triggerRef.current.getBoundingClientRect();
+    const viewport = window.innerHeight;
+    const height = 240; // max‑h‑60
 
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240; // max-h-60 = 15rem = 240px
+    const below = viewport - trigger.bottom;
+    const above = trigger.top;
 
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-
-    // If there's not enough space below but there's space above, position on top
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
-    }
+    setDropdownPosition(below < height && above > height ? 'top' : 'bottom');
   };
 
-  // Close dropdown when clicking outside
+  // ---------- CLICK OUTSIDE ----------
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Reset search and position when dropdown closes
+  // ---------- RESET ON CLOSE ----------
   useEffect(() => {
     if (!isOpen) {
       setSearchQuery('');
-      // Reset position to default when closing
       setDropdownPosition('bottom');
     }
   }, [isOpen]);
 
-  // Toggle dropdown
+  // ---------- TOGGLE ----------
   const toggleDropdown = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
-    }
+    if (disabled) return;
+    setIsOpen((v) => !v);
+    if (!isOpen) calculateDropdownPosition();
   };
 
-  // Handle select all
+  // ---------- SELECT ALL ----------
   const handleSelectAll = () => {
-    if (allSelected) {
-      // If all are selected, deselect all
-      onSelectionChange([]);
+    if (searchQuery) {
+      // When searching, toggle only the filtered selectable items
+      if (allFilteredSelected) {
+        // Deselect all filtered items
+        onSelectionChange(selectedItems.filter(id => !selectableFilteredIds.includes(id)));
+      } else {
+        // Select all filtered items (add them to existing selection)
+        const newSelection = [...new Set([...selectedItems, ...selectableFilteredIds])];
+        onSelectionChange(newSelection);
+      }
     } else {
-      // Otherwise select all
-      onSelectionChange([...allItemIds]);
+      // When not searching, toggle all items
+      onSelectionChange(allSelected ? [] : [...allItemIds]);
     }
   };
 
-  // Handle item selection without triggering position recalculation
-  const handleItemSelect = (itemId: number) => {
-    if (selectedItems.includes(itemId)) {
-      // Item is already selected, remove it
-      onSelectionChange(selectedItems.filter(id => id !== itemId));
+  // ---------- ITEM SELECT ----------
+  const handleItemSelect = (id: number) => {
+    if (selectedItems.includes(id)) {
+      onSelectionChange(selectedItems.filter((x) => x !== id));
     } else {
-      // Item is not selected, add it
-      onSelectionChange([...selectedItems, itemId]);
+      onSelectionChange([...selectedItems, id]);
     }
   };
 
-  // Format the display text
+  // ---------- DISPLAY TEXT ----------
   const getDisplayText = () => {
-    if (selectedItems.length === 0) {
-      return placeholder;
-    }
-
-    if (allSelected) {
-      return `All ${label}s`;
-    }
-
+    if (selectedItems.length === 0) return placeholder;
+    if (allSelected) return `All ${label}s`;
     if (selectedItems.length === 1) {
-      const selected = items.find(item => item.id === selectedItems[0]);
-      return selected ? displayPattern(selected) : placeholder;
+      const it = items.find((i) => i.id === selectedItems[0]);
+      return it ? displayPattern(it) : placeholder;
     }
-
     return `${selectedItems.length} ${label}s selected`;
   };
 
-  // Get dropdown positioning classes
-  const getDropdownClasses = () => {
-    const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
+  // ---------- CLASSES ----------
+  const dropdownBase = 'absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg';
+  const dropdownClasses =
+    dropdownPosition === 'top'
+      ? `${dropdownBase} bottom-full mb-1`
+      : `${dropdownBase} top-full mt-1`;
 
-    if (dropdownPosition === 'top') {
-      return `${baseClasses} bottom-full mb-1`;
-    } else {
-      return `${baseClasses} top-full mt-1`;
-    }
-  };
-
-  // Save scroll position on scroll event
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     savedScrollTop.current = e.currentTarget.scrollTop;
   };
 
-  // Restore scroll position on filteredItems or selectedItems changes
   useEffect(() => {
-    if (dropdownRef.current) {
-      dropdownRef.current.scrollTop = savedScrollTop.current;
-    }
+    if (dropdownRef.current) dropdownRef.current.scrollTop = savedScrollTop.current;
   }, [filteredItems, selectedItems]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
-        {label}:
-      </label>
+    <div className="relative" ref={containerRef}>
+      {/* LABEL */}
+      <label className="block text-sm font-semibold text-gray-700 mb-2">{label}:</label>
+
+      {/* TRIGGER */}
       <div
         ref={triggerRef}
-        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
-          }`}
+        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+        }`}
         onClick={toggleDropdown}
       >
         <span className={selectedItems.length === 0 ? 'text-gray-400' : ''}>
@@ -176,19 +180,16 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="2"
-            d={isOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+            d={isOpen ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}
           />
         </svg>
       </div>
 
+      {/* DROPDOWN */}
       {isOpen && !disabled && (
-        <div
-          ref={dropdownRef}
-          className={getDropdownClasses()}
-          onScroll={onScroll}
-        >
-          {/* Search box */}
-          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
+        <div className={dropdownClasses}>
+          {/* SEARCH – sticky, outside scrollable list */}
+          <div className="sticky top-0 p-2 bg-white border-b border-gray-200 z-10">
             <div className="relative">
               <input
                 ref={searchInputRef}
@@ -196,64 +197,81 @@ export const MultiSelect = <T extends District | SubDistrict  = District | SubDi
                 placeholder={`Search ${label}s...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
+                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onClick={(e) => e.stopPropagation()}
               />
               {searchQuery && (
                 <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   onClick={(e) => {
                     e.stopPropagation();
                     setSearchQuery('');
                   }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Select All option */}
-          <div
-            className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${allSelected ? 'bg-blue-50' : ''
-              }`}
-            onClick={handleSelectAll}
-          >
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={handleSelectAll}
-              className="mr-2"
-            />
-            All {label}s
-          </div>
-
-          {/* No results message */}
-          {filteredItems.length === 0 && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s found matching "{searchQuery}"
-            </div>
-          )}
-
-          {/* Individual items */}
-          {filteredItems.map(item => (
+          {/* LIST – scrollable */}
+          <div ref={dropdownRef} className="max-h-60 overflow-y-auto" onScroll={onScroll}>
+            {/* SELECT ALL */}
             <div
-              key={item.id}
-              className={`p-2 hover:bg-blue-100 cursor-pointer ${selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
-                }`}
-              onClick={() => handleItemSelect(Number(item.id))}
+              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
+                (searchQuery ? allFilteredSelected : allSelected) ? 'bg-blue-50' : ''
+              }`}
+              onClick={handleSelectAll}
             >
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(Number(item.id))}
-                onChange={() => handleItemSelect(Number(item.id))}
+              <input 
+                type="checkbox" 
+                checked={searchQuery ? allFilteredSelected : allSelected} 
+                onChange={handleSelectAll} 
                 className="mr-2"
+                onClick={(e) => e.stopPropagation()}
               />
-              {displayPattern(item)}
+              {searchQuery ? `All Filtered ${label}s` : `All ${label}s`}
             </div>
-          ))}
+
+            {/* NO RESULTS */}
+            {filteredItems.length === 0 && (
+              <div className="p-3 text-center text-gray-500">
+                No {label}s found matching "{searchQuery}"
+              </div>
+            )}
+
+            {/* ITEMS */}
+            {filteredItems.map((item) => {
+              const id = Number(item.id);
+              const isDisabled = itemDisabled ? itemDisabled(item) : false;
+              const extra = itemClassName ? itemClassName(item) : '';
+
+              return (
+                <div
+                  key={item.id}
+                  className={`
+                    p-2 cursor-pointer
+                    ${selectedItems.includes(id) ? 'bg-blue-50' : 'hover:bg-blue-100'}
+                    ${extra}
+                    ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  `.trim()}
+                  onClick={() => !isDisabled && handleItemSelect(id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.includes(id)}
+                    onChange={() => !isDisabled && handleItemSelect(id)}
+                    className="mr-2"
+                    disabled={isDisabled}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  {displayPattern(item)}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

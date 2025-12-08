@@ -547,6 +547,27 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const hoverOverlayRef = useRef<Overlay | null>(null);
   const highlightLayerRef = useRef<VectorLayer<any> | null>(null);
 
+  // Add these variables near where you define boundaryLayerStyle, villageOverlayStyle, etc.
+
+  const statePolygonStyle = new Style({
+    fill: new Fill({ color: 'rgba(0, 188, 212, 0.15)' }),
+    stroke: new Stroke({ color: '#00BCD4', width: 3 })     // Pink
+  });
+
+  const districtPolygonStyle = new Style({
+    fill: new Fill({ color: 'rgba(255, 192, 4, 0.3)' }),  // Amber fill
+    stroke: new Stroke({ color: '#FFC107', width: 3 })
+  });
+
+  const subdistrictPolygonStyle = new Style({
+    fill: new Fill({ color: 'rgba(233, 30, 99, 0.30)' }),  // pink fill
+    stroke: new Stroke({ color: '#E91E63', width: 2 })
+  });
+
+  const villagePolygonStyle = new Style({
+    fill: new Fill({ color: 'rgba(233, 30, 99, 0.30)' }),  // Pink fill
+    stroke: new Stroke({ color: '#e91ec4ff', width: 2 })
+  });
 
   // NEW: Function to set layer opacity
   const setLayerOpacity = (layerType: keyof LayerOpacityState, opacity: number) => {
@@ -1541,12 +1562,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   ): VectorLayer<any> => {
     console.log(`Creating WFS layer: ${layerName} with filter: ${cqlFilter}`);
 
-    let style = boundaryLayerStyle;
-    if (isBasinWell) {
-      style = basinWellStyle;
+    let style = boundaryLayerStyle; // default fallback
+
+    // Assign correct style for each administrative boundary
+    if (layerName === "B_district") {
+      style = statePolygonStyle;  // State level (shows districts within state)
+    } else if (layerName === "B_subdistrict") {
+      style = districtPolygonStyle;  // District level (shows subdistricts within district)
+    } else if (layerName === "Village" && !isVillageOverlay) {
+      style = subdistrictPolygonStyle;  // Subdistrict/Village level
     } else if (isVillageOverlay) {
-      style = villageOverlayStyle;
+      style = villageOverlayStyle;  // Village overlay on raster
     }
+
+    // else if (/* add subdistrict condition if your code needs it */) style = subdistrictPolygonStyle;
 
     const layer = new VectorLayer({
       source: new VectorSource({
@@ -1554,9 +1583,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         url: `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
       }),
       style: style,
-      zIndex,
+      zIndex: zIndex,
       visible: isVillageOverlay ? isVillageOverlayVisible : true,
     });
+
+
 
     // NEW: Apply opacity based on layer type
     if (isVillageOverlay) {
@@ -1897,7 +1928,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     }
   }, [isVillageOverlayVisible]);
 
-  // NEW: Effect to apply opacity changes to existing layers
+  // Effect to apply opacity changes to existing layers
   useEffect(() => {
     // Apply opacity changes to basemap
     if (baseLayerRef.current) {
@@ -2066,6 +2097,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     }
   };
 
+
   // Update state layer
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedState) {
@@ -2073,7 +2105,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         mapInstanceRef.current.removeLayer(stateLayerRef.current);
         stateLayerRef.current = null;
       }
+      // Add back India layer when no state is selected
+      if (indiaLayerRef.current && mapInstanceRef.current) {
+        if (!mapInstanceRef.current.getAllLayers().includes(indiaLayerRef.current)) {
+          mapInstanceRef.current.addLayer(indiaLayerRef.current);
+          console.log("India layer added back");
+        }
+      }
       return;
+    }
+
+    // Remove India layer when state is selected
+    if (indiaLayerRef.current && mapInstanceRef.current) {
+      mapInstanceRef.current.removeLayer(indiaLayerRef.current);
+      console.log("India layer removed - state selected");
     }
 
     if (stateLayerRef.current) {
@@ -2512,10 +2557,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       gsrLayerRef.current = null;
     };
   }, []);
-
-
-
-
 
   return (
     <MapContext.Provider value={contextValue}>

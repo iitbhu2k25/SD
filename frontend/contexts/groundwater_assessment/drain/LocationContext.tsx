@@ -53,30 +53,30 @@ interface LocationContextType {
   drains: Drain[];
   catchments: Catchment[];
   villages: Village[];
-  
+
   // Selected values
   selectedRiver: number | null;
   selectedStretch: number | null;
   selectedDrain: number | null;
   selectedCatchments: number[];
   selectedVillages: number[];
-  
+
   // UI states
   selectionsLocked: boolean;
   isLoading: boolean;
   error: string | null;
   areaConfirmed: boolean;
-  
+
   // Selection functions
   handleRiverChange: (riverCode: number) => void;
   handleStretchChange: (stretchId: number) => void;
   handleDrainChange: (drainNo: number) => void;
   setSelectedCatchments: (catchmentCodes: number[]) => void;
   setSelectedVillages: (villageCodes: number[]) => void;
-  
+
   // Area functions
   handleAreaConfirm: () => void;
-  
+
   // Final actions
   lockSelections: () => void;
   resetSelections: () => void;
@@ -103,20 +103,20 @@ const LocationContext = createContext<LocationContextType>({
   isLoading: false,
   error: null,
   areaConfirmed: false,
-  handleRiverChange: () => {},
-  handleStretchChange: () => {},
-  handleDrainChange: () => {},
-  setSelectedCatchments: () => {},
-  setSelectedVillages: () => {},
-  handleAreaConfirm: () => {},
-  lockSelections: () => {},
-  resetSelections: () => {},
+  handleRiverChange: () => { },
+  handleStretchChange: () => { },
+  handleDrainChange: () => { },
+  setSelectedCatchments: () => { },
+  setSelectedVillages: () => { },
+  handleAreaConfirm: () => { },
+  lockSelections: () => { },
+  resetSelections: () => { },
 });
 
 export const LocationProvider: React.FC<LocationProviderProps> = ({
   children,
-  geoServerBaseUrl = "/geoserver/api", // Updated default GeoServer base URL
-  villageApiBaseUrl = "/django", // Default Village API base URL
+  geoServerBaseUrl = "/geoserver/api",
+  villageApiBaseUrl = "/django",
 }) => {
   // Location state
   const [rivers, setRivers] = useState<River[]>([]);
@@ -124,14 +124,14 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [drains, setDrains] = useState<Drain[]>([]);
   const [catchments, setCatchments] = useState<Catchment[]>([]);
   const [villages, setVillages] = useState<Village[]>([]);
-  
+
   // Selected values
   const [selectedRiver, setSelectedRiver] = useState<number | null>(null);
   const [selectedStretch, setSelectedStretch] = useState<number | null>(null);
   const [selectedDrain, setSelectedDrain] = useState<number | null>(null);
   const [selectedCatchments, setSelectedCatchments] = useState<number[]>([]);
   const [selectedVillages, setSelectedVillages] = useState<number[]>([]);
-  
+
   // UI states
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -139,62 +139,62 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [areaConfirmed, setAreaConfirmed] = useState(false);
 
 
-  
-// Helper function to fetch villages from API
-const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
-  try {
-    const allVillages: Village[] = [];
-    
-    // Fetch villages for each selected drain number
-    for (const drainNo of drainNumbers) {
-      console.log(`Fetching villages for Drain_No: ${drainNo}`);
-      
-      const response = await fetch(`${villageApiBaseUrl}/gwa/villagescatchment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ Drain_No: drainNo }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} for Drain_No: ${drainNo}`);
+
+  // Helper function to fetch villages from API
+  const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
+    try {
+      const allVillages: Village[] = [];
+
+      // Fetch villages for each selected drain number
+      for (const drainNo of drainNumbers) {
+        console.log(`Fetching villages for Drain_No: ${drainNo}`);
+
+        const response = await fetch(`${villageApiBaseUrl}/gwa/villagescatchment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ Drain_No: drainNo }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status} for Drain_No: ${drainNo}`);
+        }
+
+        const responseData = await response.json();
+        console.log(`Villages response for Drain_No ${drainNo}:`, responseData);
+
+        // Extract the villages array from the response
+        const villages = responseData.villages || [];
+
+        // Transform API response to our Village interface
+        const villageData: Village[] = villages.map((village: any) => ({
+          id: village.village_code,
+          name: village.name || `Village ${village.village_code}`,
+          code: village.village_code,
+          village_code: village.village_code,
+          catchment_gridcode: drainNo,
+        }));
+
+        allVillages.push(...villageData);
       }
-      
-      const responseData = await response.json();
-      console.log(`Villages response for Drain_No ${drainNo}:`, responseData);
-      
-      // Extract the villages array from the response
-      const villages = responseData.villages || [];
-      
-      // Transform API response to our Village interface
-      const villageData: Village[] = villages.map((village: any) => ({
-        id: village.village_code,
-        name: village.name || `Village ${village.village_code}`,
-        code: village.village_code,
-        village_code: village.village_code,
-        catchment_gridcode: drainNo, // Now storing drain number instead of gridcode
-      }));
-      
-      allVillages.push(...villageData);
+
+      // Remove duplicates based on village_code and sort by name
+      const uniqueVillages = allVillages.filter((village, index, self) =>
+        index === self.findIndex(v => v.village_code === village.village_code)
+      ).sort((a, b) => a.name.localeCompare(b.name));
+
+      return uniqueVillages;
+    } catch (error) {
+      console.log('Error fetching villages from API:', error);
+      throw error;
     }
-    
-    // Remove duplicates based on village_code and sort by name
-    const uniqueVillages = allVillages.filter((village, index, self) => 
-      index === self.findIndex(v => v.village_code === village.village_code)
-    ).sort((a, b) => a.name.localeCompare(b.name));
-    
-    return uniqueVillages;
-  } catch (error) {
-    console.log('Error fetching villages from API:', error);
-    throw error;
-  }
-};
+  };
 
   const fetchGeoServerData = async (layerName: string, cqlFilter?: string) => {
     try {
       let url: string;
-      
+
       if (cqlFilter) {
         url = `${geoServerBaseUrl}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
       } else {
@@ -202,12 +202,12 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
       }
 
       console.log(`Fetching from GeoServer: ${url}`);
-      
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      
+
       const data = await response.json();
       return data.features || [];
     } catch (error) {
@@ -224,20 +224,20 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
       try {
         console.log("Fetching rivers from GeoServer");
         const features = await fetchGeoServerData('Rivers');
-        
+
         const riverData: River[] = features.map((feature: any) => ({
           id: feature.properties.River_Code,
           name: feature.properties.River_Name,
           code: feature.properties.River_Code,
         }));
-        
+
         // Remove duplicates and sort
-        const uniqueRivers = riverData.filter((river, index, self) => 
+        const uniqueRivers = riverData.filter((river, index, self) =>
           index === self.findIndex(r => r.code === river.code)
         ).sort((a, b) => a.name.localeCompare(b.name));
-        
+
         setRivers(uniqueRivers);
-        
+
         if (uniqueRivers.length === 0) {
           setError("No rivers found.");
         }
@@ -248,7 +248,7 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         setIsLoading(false);
       }
     };
-    
+
     fetchRivers();
   }, [geoServerBaseUrl]);
 
@@ -273,7 +273,7 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         console.log("Fetching stretches for river:", selectedRiver);
         const cqlFilter = `River_Code=${selectedRiver}`;
         const features = await fetchGeoServerData('Stretches', cqlFilter);
-        
+
         const stretchData: Stretch[] = features.map((feature: any) => ({
           id: feature.properties.Stretch_ID,
           name: `Stretch ${feature.properties.Stretch_ID}`,
@@ -281,10 +281,10 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
           riverCode: feature.properties.River_Code,
           riverName: feature.properties.River_Name,
         }));
-        
+
         const sortedStretches = stretchData.sort((a, b) => a.stretchId - b.stretchId);
         setStretches(sortedStretches);
-        
+
         if (sortedStretches.length === 0) {
           setError("No stretches found for the selected river.");
         }
@@ -295,7 +295,7 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         setIsLoading(false);
       }
     };
-    
+
     fetchStretches();
   }, [selectedRiver, geoServerBaseUrl]);
 
@@ -318,17 +318,17 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         console.log("Fetching drains for stretch:", selectedStretch, "and river:", selectedRiver);
         const cqlFilter = `Stretch_ID=${selectedStretch} AND River_Code=${selectedRiver}`;
         const features = await fetchGeoServerData('Drain', cqlFilter);
-        
+
         const drainData: Drain[] = features.map((feature: any) => ({
           id: feature.properties.Drain_No,
           drainNo: feature.properties.Drain_No,
           riverCode: feature.properties.River_Code,
           stretchId: feature.properties.Stretch_ID,
         }));
-        
+
         const sortedDrains = drainData.sort((a, b) => a.drainNo - b.drainNo);
         setDrains(sortedDrains);
-        
+
         if (sortedDrains.length === 0) {
           setError("No drains found for the selected stretch.");
         }
@@ -339,7 +339,7 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         setIsLoading(false);
       }
     };
-    
+
     fetchDrains();
   }, [selectedStretch, selectedRiver, geoServerBaseUrl]);
 
@@ -360,7 +360,7 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         console.log("Fetching catchments for drain:", selectedDrain);
         const cqlFilter = `Drain_No=${selectedDrain}`;
         const features = await fetchGeoServerData('Catchment', cqlFilter);
-        
+
         const catchmentData: Catchment[] = features.map((feature: any) => ({
           id: feature.properties.OBJECTID,
           name: `Catchment ${feature.properties.GRIDCODE} (Drain ${feature.properties.Drain_No})`,
@@ -368,10 +368,10 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
           gridCode: feature.properties.GRIDCODE,
           drainNo: feature.properties.Drain_No,
         }));
-        
+
         const sortedCatchments = catchmentData.sort((a, b) => a.gridCode - b.gridCode);
         setCatchments(sortedCatchments);
-        
+
         if (sortedCatchments.length === 0) {
           setError("No catchments found for the selected drain.");
         }
@@ -382,55 +382,55 @@ const fetchVillagesFromAPI = async (drainNumbers: number[]) => {
         setIsLoading(false);
       }
     };
-    
+
     fetchCatchments();
   }, [selectedDrain, geoServerBaseUrl]);
 
-  
-  // Fetch villages when catchments are selected
-useEffect(() => {
-  if (selectedCatchments.length === 0) {
-    setVillages([]);
-    setSelectedVillages([]);
-    return;
-  }
 
-  const fetchVillages = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log("Fetching villages for selected catchments:", selectedCatchments);
-      
-      // Get Drain_No values for selected catchments
-      const selectedCatchmentObjects = catchments.filter(c => 
-        selectedCatchments.includes(Number(c.objectId))
-      );
-      const drainNumbers = selectedCatchmentObjects.map(c => c.drainNo);
-      
-      console.log("Drain_No values to send to API:", drainNumbers);
-      
-      if (drainNumbers.length === 0) {
-        setError("No valid Drain_No found for selected catchments.");
-        return;
-      }
-      
-      // Fetch villages from API using Drain_No values
-      const villageData = await fetchVillagesFromAPI(drainNumbers);
-      setVillages(villageData);
-      
-      if (villageData.length === 0) {
-        setError("No villages found for the selected catchments.");
-      }
-    } catch (error: any) {
-      console.log("Error fetching villages:", error);
-      setError(`Failed to fetch villages: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+  // Fetch villages when catchments are selected
+  useEffect(() => {
+    if (selectedCatchments.length === 0) {
+      setVillages([]);
+      setSelectedVillages([]);
+      return;
     }
-  };
-  
-  fetchVillages();
-}, [selectedCatchments, catchments, villageApiBaseUrl]);
+
+    const fetchVillages = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log("Fetching villages for selected catchments:", selectedCatchments);
+
+        // Get Drain_No values for selected catchments
+        const selectedCatchmentObjects = catchments.filter(c =>
+          selectedCatchments.includes(Number(c.objectId))
+        );
+        const drainNumbers = selectedCatchmentObjects.map(c => c.drainNo);
+
+        console.log("Drain_No values to send to API:", drainNumbers);
+
+        if (drainNumbers.length === 0) {
+          setError("No valid Drain_No found for selected catchments.");
+          return;
+        }
+
+        // Fetch villages from API using Drain_No values
+        const villageData = await fetchVillagesFromAPI(drainNumbers);
+        setVillages(villageData);
+
+        if (villageData.length === 0) {
+          setError("No villages found for the selected catchments.");
+        }
+      } catch (error: any) {
+        console.log("Error fetching villages:", error);
+        setError(`Failed to fetch villages: ${error.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVillages();
+  }, [selectedCatchments, catchments, villageApiBaseUrl]);
 
   // Handle river selection
   const handleRiverChange = (riverCode: number): void => {
@@ -489,13 +489,13 @@ useEffect(() => {
     setAreaConfirmed(false);
   };
 
-  // Update catchments with area confirmation reset
+  //  catchments with area confirmation reset
   const updateSelectedCatchments = (catchmentCodes: number[]): void => {
     setSelectedCatchments(catchmentCodes);
     setAreaConfirmed(false);
   };
 
-  // Update villages with area confirmation reset
+  //  villages with area confirmation reset
   const updateSelectedVillages = (villageCodes: number[]): void => {
     setSelectedVillages(villageCodes);
     setAreaConfirmed(false);
@@ -508,30 +508,30 @@ useEffect(() => {
     drains,
     catchments,
     villages,
-    
+
     // Selected values
     selectedRiver,
     selectedStretch,
     selectedDrain,
     selectedCatchments,
     selectedVillages,
-    
+
     // UI states
     selectionsLocked,
     isLoading,
     error,
     areaConfirmed,
-    
+
     // Selection functions
     handleRiverChange,
     handleStretchChange,
     handleDrainChange,
     setSelectedCatchments: updateSelectedCatchments,
     setSelectedVillages: updateSelectedVillages,
-    
+
     // Area functions
     handleAreaConfirm,
-    
+
     // Final actions
     lockSelections,
     resetSelections,

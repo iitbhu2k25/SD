@@ -29,7 +29,7 @@ interface Step {
   name: string;
 }
 
-// UPDATED COMPONENT: Compute Available Water Button with Query Parameters + sessionStorage for Stress Data
+//  Compute Available Water Button 
 function ComputeAvailableWaterButton() {
   const { selectedState, selectedDistricts, selectedSubDistricts } = useLocation();
   const { stressTableData } = useGSR(); // Get stress data from GSR context
@@ -52,15 +52,15 @@ function ComputeAvailableWaterButton() {
     if (stressTableData && stressTableData.length > 0) {
       try {
        localStorage.setItem('gwa_stress_data', JSON.stringify(stressTableData));
-        console.log('✅ Stress data stored in sessionStorage:', stressTableData.length, 'villages');
+        console.log(' Stress data stored in sessionStorage:', stressTableData.length, 'villages');
       } catch (error) {
-        console.log('❌ Failed to store stress data:', error);
+        console.log(' Failed to store stress data:', error);
         alert('Warning: Could not transfer stress data. The dataset might be too large.');
       }
     } else {
       // Clear any old stress data
       localStorage.removeItem('gwa_stress_data');
-      console.log('⚠️ No stress data available to transfer');
+      console.log(' No stress data available to transfer');
     }
 
     const url = `/dss/gwm/MAR/SWA?${params.toString()}`;
@@ -142,7 +142,7 @@ function GroundwaterAssessmentContent() {
 
   React.useEffect(() => {
   if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
-    console.log("🔄 Auto-triggering groundwater recharge computation...");
+    console.log(" Auto-triggering groundwater recharge computation...");
     computeRecharge();
   }
 }, [activeStep]);
@@ -295,60 +295,72 @@ function GroundwaterAssessmentContent() {
       {/* Navigation Buttons */}
       <div className="flex-shrink-0 bg-gray-100 p-2 sm:p-4 border-t border-gray-300 mx-2 sm:mx-3 mb-2 rounded-lg shadow-md">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4">
-          <div className="flex gap-2 sm:gap-4">
-            <button
-              onClick={handlePrevious}
-              disabled={isFirstStep}
-              className={[
-                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-6",
-                isFirstStep
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
-              ].join(" ")}
-            >
-              <svg
-                className="w-4 h-4 mr-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              <span className="whitespace-nowrap hidden sm:inline">Previous Step</span>
-              <span className="whitespace-nowrap sm:hidden">Previous</span>
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={isLastStep}
-              className={[
-                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-6",
-                isLastStep
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-md focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50",
-              ].join(" ")}
-            >
-              <span className="whitespace-nowrap hidden sm:inline">Next Step</span>
-              <span className="whitespace-nowrap sm:hidden">Next</span>
-              <svg
-                className="w-4 h-4 ml-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
+        <div className="flex gap-2 sm:gap-4 items-center">
+  <button
+    onClick={handlePrevious}
+    disabled={isFirstStep}
+    className={[
+      "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-6",
+      isFirstStep
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
+    ].join(" ")}
+  >
+    <svg
+      className="w-4 h-4 mr-1"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 19l-7-7 7-7"
+      />
+    </svg>
+    <span className="whitespace-nowrap hidden sm:inline">Previous Step</span>
+    <span className="whitespace-nowrap sm:hidden">Previous</span>
+  </button>
+
+  {/* NEXT STEP BUTTON WITH RED DOT INDICATOR */}
+  <div className="relative flex items-center">
+    <button
+      onClick={handleNext}
+      disabled={isLastStep || (activeStep === 1 && !selectionsLocked)}
+      className={[
+        "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-6",
+        isLastStep || (activeStep === 1 && !selectionsLocked)
+          ? "bg-gray-400 cursor-not-allowed"
+          : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-md focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50",
+      ].join(" ")}
+    >
+      <span className="whitespace-nowrap hidden sm:inline">Next Step</span>
+      <span className="whitespace-nowrap sm:hidden">Next</span>
+      <svg
+        className="w-4 h-4 ml-1"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 5l7 7-7 7"
+        />
+      </svg>
+    </button>
+    {/* Show red dot if next button is disabled on step 1 (before confirm) */}
+    {/* {(activeStep === 1 && !selectionsLocked) && (
+      <span
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"
+        title="Please confirm wells before proceeding"
+        aria-label="Confirmation required"
+      />
+    )} */}
+  </div>
+</div>
 
           {/* PDF Download and Compute Available Water Buttons */}
           {activeStep >= 3 && (

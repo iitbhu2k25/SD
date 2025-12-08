@@ -12,9 +12,9 @@ interface ModernSwitchProps {
   onChange: (value: ViewType) => void;
 }
 
-import  GroundwaterAssessmentAdmin  from "./admin/page";
+import GroundwaterAssessmentAdmin from "./admin/page";
 import GroundwaterAssessmentDrain from "./drain/page";
-// import { GroundwaterAssessmentDrain } from "./drain/page";
+
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -29,9 +29,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   return (
     <div className="flex items-center space-x-4">
       <span
-        className={`text-xl font-medium transition-colors ${
-          value === "admin" ? "text-blue-600" : "text-gray-500"
-        }`}
+        className={`text-xl font-medium transition-colors ${value === "admin" ? "text-blue-600" : "text-gray-500"
+          }`}
       >
         {leftLabel}
       </span>
@@ -50,9 +49,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
         }}
       >
         <div
-          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
-            value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
-          }`}
+          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
+            }`}
         >
           <div className="flex items-center justify-center w-full h-full">
             {value === "admin" ? (
@@ -87,9 +85,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
       </div>
 
       <span
-        className={`text-xl font-medium transition-colors ${
-          value === "user" ? "text-green-600" : "text-gray-500"
-        }`}
+        className={`text-xl font-medium transition-colors ${value === "user" ? "text-green-600" : "text-gray-500"
+          }`}
       >
         {rightLabel}
       </span>
@@ -105,7 +102,7 @@ const GroundwaterAssessmentPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col ">
+    <div className="flex flex-col min-h-screen">
       <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
         <div className="container mx-auto px-4">
           <h1 className="text-5xl font-bold">Ground Water Assessment</h1>

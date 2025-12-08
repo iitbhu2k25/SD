@@ -32,6 +32,7 @@ const PDF: React.FC = () => {
     domesticTableData,
     agriculturalTableData,
     industrialTableData,
+    combinedDemandData, 
     chartData,
     perCapitaConsumption,
     selectedCrops,
@@ -460,7 +461,7 @@ const PDF: React.FC = () => {
       SY: "Specific Yield",
       mean_water_fluctuation: "Water Fluctuation (m)",
       Shape_Area: "Shape Area (m²)",
-      recharge: "Recharge (m³)",
+      recharge: "Recharge (Million Litres)",
     }[key] || key.replace(/\_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()))
     );
     const colWidths = calculateColumnWidths(doc, headers, tableWidth);
@@ -583,27 +584,42 @@ const PDF: React.FC = () => {
     return cursorY + SECTION_SPACING;
   };
 
-  // Add Domestic Demand Table
-  const addDomesticDemandTable = (doc: jsPDF, startY: number, perCapita: number): number => {
-    let cursorY = addSectionHeading(doc, "Domestic Demand Analysis", startY, "5");
+  //Add Combined Demand Table
+  const addCombinedDemandTable = (doc: jsPDF, startY: number): number => {
+    let cursorY = addSectionHeading(doc, "Combined Water Demand Analysis", startY, "5");
 
-    cursorY = addSubsectionHeading(doc, "User Selected Per Capita Consumption:", cursorY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    cursorY = addTextWithPagination(doc, [`${perCapita} LPCD`], MARGIN_LEFT, cursorY, USABLE_WIDTH);
-    cursorY += SUBSECTION_SPACING;
+    if (combinedDemandData.length === 0) {
+        cursorY = addSubsectionHeading(doc, "Demand Input Parameters:", cursorY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const params = [
+            `Domestic Per Capita Consumption: ${perCapitaConsumption} LPCD`,
+        ];
+        if (Object.keys(selectedCrops).some(s => selectedCrops[s]?.length > 0)) {
+            const selectedCropList = Object.keys(selectedCrops)
+                .filter(s => selectedCrops[s].length > 0)
+                .map(s => `${s}: ${selectedCrops[s].join(', ')}`)
+                .join('; ');
+            params.push(`Agricultural Selected Crops: ${selectedCropList}`);
+        } else {
+            params.push('Agricultural Selected Crops: None');
+        }
+        params.push(`Industrial Data: ${industrialTableData.length > 0 ? 'Provided' : 'Not Provided'}`);
 
-    if (!domesticTableData || domesticTableData.length === 0) {
-      return cursorY;
+        cursorY = addTextWithPagination(doc, params, MARGIN_LEFT, cursorY, USABLE_WIDTH, "left", 6);
+        cursorY += SUBSECTION_SPACING;
+
+        return cursorY;
     }
 
     const tableStartX = MARGIN_LEFT;
     const tableWidth = USABLE_WIDTH;
-    const headers = ["Village Name", "Demand (m³)", "Population", "Target Year", "LPCD"];
+    const headers = ["Village Name", "Domestic (Million Litres)", "Agricultural (Million Litres)", "Industrial ( Million Litres)", "Total Demand (Million Litres)"];
     const colWidths = calculateColumnWidths(doc, headers, tableWidth);
     const rowHeight = 8;
     const headerHeight = 10;
 
+    // Table Header
     if (cursorY + headerHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
       doc.addPage();
       cursorY = MARGIN_TOP;
@@ -630,13 +646,20 @@ const PDF: React.FC = () => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
 
-    for (let i = 0; i < domesticTableData.length; i++) {
-      const row = domesticTableData[i];
+    // Table Rows
+    let totalDomestic = 0;
+    let totalAgricultural = 0;
+    let totalIndustrial = 0;
+    let grandTotal = 0;
+
+    for (let i = 0; i < combinedDemandData.length; i++) {
+      const row = combinedDemandData[i];
 
       if (cursorY + rowHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
         doc.addPage();
         cursorY = MARGIN_TOP;
 
+        // Redraw header on new page
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.setFillColor(230, 230, 230);
@@ -657,13 +680,23 @@ const PDF: React.FC = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
       }
+
+      const domestic = Number(row.domestic_demand) || 0;
+      const agricultural = Number(row.agricultural_demand) || 0;
+      const industrial = Number(row.industrial_demand) || 0;
+      const total = domestic + agricultural + industrial;
+
+      totalDomestic += domestic;
+      totalAgricultural += agricultural;
+      totalIndustrial += industrial;
+      grandTotal += total;
 
       const rowData = [
         row.village_name || "N/A",
-        row.demand_mld ? Number(row.demand_mld).toFixed(2) : "N/A",
-        row.forecast_population || "N/A",
-        row.target_year || "N/A",
-        row.lpcd || "N/A",
+        domestic.toFixed(2),
+        agricultural.toFixed(2),
+        industrial.toFixed(2),
+        total.toFixed(2),
       ];
 
       if (i % 2 === 0) {
@@ -695,291 +728,79 @@ const PDF: React.FC = () => {
 
       cursorY += rowHeight;
     }
+    
+    // Add Total Row
+    const totalRowHeight = 8;
+    doc.setFont("helvetica", "bold");
+    if (cursorY + totalRowHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
+      doc.addPage();
+      cursorY = MARGIN_TOP;
+    }
+    doc.setFillColor(210, 210, 210);
+    doc.rect(tableStartX, cursorY, tableWidth, totalRowHeight, "F");
+    doc.setDrawColor(150, 150, 150);
+    doc.rect(tableStartX, cursorY, tableWidth, totalRowHeight);
+    
+    const totalRowData = [
+      "TOTAL DEMAND",
+      totalDomestic.toFixed(2),
+      totalAgricultural.toFixed(2),
+      totalIndustrial.toFixed(2),
+      grandTotal.toFixed(2),
+    ];
+    
+    colX = tableStartX;
+    for (let j = 0; j < totalRowData.length; j++) {
+        doc.text(totalRowData[j], colX + 2, cursorY + 5, { maxWidth: colWidths[j] - 4 });
+        if (j < totalRowData.length - 1) {
+            doc.line(colX + colWidths[j], cursorY, colX + colWidths[j], cursorY + totalRowHeight);
+        }
+        colX += colWidths[j];
+    }
+    cursorY += totalRowHeight;
+    doc.setFont("helvetica", "normal");
+
 
     cursorY += SECTION_SPACING;
 
-    cursorY = addSubsectionHeading(doc, "Domestic Demand Summary:", cursorY);
+    cursorY = addSubsectionHeading(doc, "Total Demand Summary:", cursorY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    const totalDemand = domesticTableData.reduce((sum, row) => sum + (Number(row.demand_mld) || 0), 0);
     const summaryData = [
-      `Total Villages: ${domesticTableData.length}`,
-      `Total Demand: ${totalDemand.toFixed(2)} m³`,
+      `Total Villages: ${combinedDemandData.length}`,
+      `Total Domestic Demand: ${totalDomestic.toFixed(2)} m³`,
+      `Total Agricultural Demand: ${totalAgricultural.toFixed(2)} m³`,
+      `Total Industrial Demand: ${totalIndustrial.toFixed(2)} m³`,
+      `Grand Total Demand: ${grandTotal.toFixed(2)} m³`,
     ];
     cursorY = addTextWithPagination(doc, summaryData, MARGIN_LEFT, cursorY, USABLE_WIDTH, "left", 6);
-
-    return cursorY + SECTION_SPACING;
-  };
-
-  // Add Agricultural Demand Table
-  const addAgriculturalDemandTable = (doc: jsPDF, startY: number, selectedCrops: any): number => {
-    let cursorY = addSectionHeading(doc, "Agricultural Demand Analysis", startY, "6");
-
-    const seasons = ['Kharif', 'Rabi', 'Zaid'];
-    seasons.forEach(season => {
-      if (selectedCrops[season] && selectedCrops[season].length > 0) {
-        cursorY = addSubsectionHeading(doc, `${season} Selected Crops:`, cursorY);
+    
+    // Add Agricultural Demand Chart Summary if available
+    if (chartData?.summary_stats) {
+        cursorY += SUBSECTION_SPACING;
+        cursorY = addSubsectionHeading(doc, "Agricultural Demand Chart Summary (Breakdown):", cursorY);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        const cropLines = wrapTextLines(doc, selectedCrops[season], MARGIN_LEFT, MARGIN_RIGHT);
-        cursorY = addTextWithPagination(doc, cropLines, MARGIN_LEFT, cursorY, USABLE_WIDTH, "left", 6);
-        cursorY += SUBSECTION_SPACING;
-      }
-    });
-
-    if (!agriculturalTableData || agriculturalTableData.length === 0) {
-      return cursorY;
+        const stats = chartData.summary_stats;
+        const agSummaryData = [
+            `Total Demand (from chart): ${stats.total_demand_cubic_meters.toLocaleString()} m³`,
+            `Average Demand per Village: ${stats.average_demand_per_village.toFixed(2)} m³`,
+        ];
+        cursorY = addTextWithPagination(doc, agSummaryData, MARGIN_LEFT, cursorY, USABLE_WIDTH, "left", 6);
     }
 
-    const tableStartX = MARGIN_LEFT;
-    const tableWidth = USABLE_WIDTH;
-    const headers = ["Village Name", "Cropland (m²)", "Demand (m³)"];
-    const colWidths = calculateColumnWidths(doc, headers, tableWidth);
-    const rowHeight = 8;
-    const headerHeight = 10;
-
-    if (cursorY + headerHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
-      doc.addPage();
-      cursorY = MARGIN_TOP;
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setFillColor(230, 230, 230);
-    doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight, "F");
-    doc.setDrawColor(100, 100, 100);
-    doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight);
-
-    let colX = tableStartX;
-    for (let i = 0; i < headers.length; i++) {
-      doc.text(headers[i], colX + 2, cursorY + 5, { maxWidth: colWidths[i] - 4 });
-      if (i < headers.length - 1) {
-        doc.line(colX + colWidths[i], cursorY - 2, colX + colWidths[i], cursorY + headerHeight - 2);
-      }
-      colX += colWidths[i];
-    }
-
-    cursorY += headerHeight;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-
-    for (let i = 0; i < agriculturalTableData.length; i++) {
-      const row = agriculturalTableData[i];
-
-      if (cursorY + rowHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
-        doc.addPage();
-        cursorY = MARGIN_TOP;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setFillColor(230, 230, 230);
-        doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight, "F");
-        doc.setDrawColor(100, 100, 100);
-        doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight);
-
-        colX = tableStartX;
-        for (let j = 0; j < headers.length; j++) {
-          doc.text(headers[j], colX + 2, cursorY + 5, { maxWidth: colWidths[j] - 4 });
-          if (j < headers.length - 1) {
-            doc.line(colX + colWidths[j], cursorY - 2, colX + colWidths[j], cursorY + headerHeight - 2);
-          }
-          colX += colWidths[j];
-        }
-        cursorY += headerHeight;
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-      }
-
-      const rowData = [
-        row.village || "N/A",
-        row.cropland ? Number(row.cropland).toLocaleString() : "N/A",
-        row.village_demand ? Number(row.village_demand).toFixed(3) : "N/A",
-      ];
-
-      if (i % 2 === 0) {
-        doc.setFillColor(245, 245, 245);
-        doc.rect(tableStartX, cursorY, tableWidth, rowHeight, "F");
-      }
-
-      doc.setDrawColor(150, 150, 150);
-      doc.rect(tableStartX, cursorY, tableWidth, rowHeight);
-
-      colX = tableStartX;
-      for (let j = 0; j < rowData.length; j++) {
-        let displayText = String(rowData[j]);
-        const maxCellWidth = colWidths[j] - 4;
-
-        if (doc.getTextWidth(displayText) > maxCellWidth) {
-          while (doc.getTextWidth(displayText + "...") > maxCellWidth && displayText.length > 0) {
-            displayText = displayText.slice(0, -1);
-          }
-          displayText += "...";
-        }
-
-        doc.text(displayText, colX + 2, cursorY + 5, { maxWidth: maxCellWidth });
-        if (j < rowData.length - 1) {
-          doc.line(colX + colWidths[j], cursorY, colX + colWidths[j], cursorY + rowHeight);
-        }
-        colX += colWidths[j];
-      }
-
-      cursorY += rowHeight;
-    }
-
-    cursorY += SECTION_SPACING;
-
-    cursorY = addSubsectionHeading(doc, "Agricultural Demand Summary:", cursorY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    let summaryData: string[];
-    if (chartData?.summary_stats) {
-      const stats = chartData.summary_stats;
-      summaryData = [
-        `Total Villages: ${stats.total_villages}`,
-        `Total Demand: ${stats.total_demand_cubic_meters.toLocaleString()} m³`,
-        `Average per Village: ${stats.average_demand_per_village.toFixed(2)} m³`,
-      ];
-    } else {
-      const totalDemand = agriculturalTableData.reduce((sum, row) => sum + (Number(row.village_demand) || 0), 0);
-      summaryData = [
-        `Total Villages: ${agriculturalTableData.length}`,
-        `Total Demand: ${totalDemand.toFixed(2)} m³`,
-      ];
-    }
-    cursorY = addTextWithPagination(doc, summaryData, MARGIN_LEFT, cursorY, USABLE_WIDTH, "left", 6);
-
-    return cursorY + SECTION_SPACING;
-  };
-
-  // Add Industrial Demand Table
-  const addIndustrialDemandTable = (doc: jsPDF, startY: number): number => {
-    if (!industrialTableData || industrialTableData.length === 0) {
-      return startY;
-    }
-
-    let cursorY = addSectionHeading(doc, "Industrial Demand Analysis", startY, "7");
-
-    const tableStartX = MARGIN_LEFT;
-    const tableWidth = USABLE_WIDTH;
-    const firstRow = industrialTableData[0];
-    const allFields = firstRow ? Object.keys(firstRow) : [];
-    const headers = allFields.map(field => field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
-    const colWidths = calculateColumnWidths(doc, headers, tableWidth);
-    const rowHeight = 8;
-    const headerHeight = 10;
-
-    if (cursorY + headerHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
-      doc.addPage();
-      cursorY = MARGIN_TOP;
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setFillColor(230, 230, 230);
-    doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight, "F");
-    doc.setDrawColor(100, 100, 100);
-    doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight);
-
-    let colX = tableStartX;
-    for (let i = 0; i < headers.length; i++) {
-      doc.text(headers[i], colX + 2, cursorY + 5, { maxWidth: colWidths[i] - 4 });
-      if (i < headers.length - 1) {
-        doc.line(colX + colWidths[i], cursorY - 2, colX + colWidths[i], cursorY + headerHeight - 2);
-      }
-      colX += colWidths[i];
-    }
-
-    cursorY += headerHeight;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-
-    for (let i = 0; i < industrialTableData.length; i++) {
-      const row = industrialTableData[i];
-
-      if (cursorY + rowHeight > PAGE_HEIGHT - MARGIN_BOTTOM) {
-        doc.addPage();
-        cursorY = MARGIN_TOP;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setFillColor(230, 230, 230);
-        doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight, "F");
-        doc.setDrawColor(100, 100, 100);
-        doc.rect(tableStartX, cursorY - 2, tableWidth, headerHeight);
-
-        colX = tableStartX;
-        for (let j = 0; j < headers.length; j++) {
-          doc.text(headers[j], colX + 2, cursorY + 5, { maxWidth: colWidths[j] - 4 });
-          if (j < headers.length - 1) {
-            doc.line(colX + colWidths[j], cursorY - 2, colX + colWidths[j], cursorY + headerHeight - 2);
-          }
-          colX += colWidths[j];
-        }
-        cursorY += headerHeight;
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-      }
-
-      if (i % 2 === 0) {
-        doc.setFillColor(245, 245, 245);
-        doc.rect(tableStartX, cursorY, tableWidth, rowHeight, "F");
-      }
-
-      doc.setDrawColor(150, 150, 150);
-      doc.rect(tableStartX, cursorY, tableWidth, rowHeight);
-
-      colX = tableStartX;
-      for (let j = 0; j < allFields.length; j++) {
-        const field = allFields[j];
-        let displayText = String(row[field] || "N/A");
-        const maxCellWidth = colWidths[j] - 4;
-
-        if (doc.getTextWidth(displayText) > maxCellWidth) {
-          while (doc.getTextWidth(displayText + "...") > maxCellWidth && displayText.length > 0) {
-            displayText = displayText.slice(0, -1);
-          }
-          displayText += "...";
-        }
-
-        doc.text(displayText, colX + 2, cursorY + 5, { maxWidth: maxCellWidth });
-        if (j < allFields.length - 1) {
-          doc.line(colX + colWidths[j], cursorY, colX + colWidths[j], cursorY + rowHeight);
-        }
-        colX += colWidths[j];
-      }
-
-      cursorY += rowHeight;
-    }
-
-    cursorY += SECTION_SPACING;
-
-    cursorY = addSubsectionHeading(doc, "Industrial Demand Summary:", cursorY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    cursorY = addTextWithPagination(
-      doc,
-      [`Total Records: ${industrialTableData.length}`],
-      MARGIN_LEFT,
-      cursorY,
-      USABLE_WIDTH,
-      "left",
-      6
-    );
 
     return cursorY + SECTION_SPACING;
   };
 
   // Add GSR Analysis Table
   const addGSRAnalysisTable = (doc: jsPDF, startY: number): number => {
+    // GSR Analysis is now section 6
     if (!gsrTableData || gsrTableData.length === 0) {
       return startY;
     }
 
-    let cursorY = addSectionHeading(doc, "GSR Analysis", startY, "8");
+    let cursorY = addSectionHeading(doc, "GSR Analysis", startY, "6");
 
     const tableStartX = MARGIN_LEFT;
     const tableWidth = USABLE_WIDTH;
@@ -993,8 +814,8 @@ const PDF: React.FC = () => {
     ];
     const headers = [
       'Village Name',
-      'Recharge (m³)',
-      'Total Demand (m³)',
+      'Recharge (Million Litres)',
+      'Total Demand (Million Litres)',
       'GSR Ratio',
       'Trend Status',
       'GSR Classification',
@@ -1116,7 +937,6 @@ const PDF: React.FC = () => {
 
     return cursorY + SECTION_SPACING;
   };
-
   // Add GSR Map Image
   const addGSRMapImage = (doc: jsPDF, startY: number): number => {
     if (!mapImageBase64) {
@@ -1145,14 +965,14 @@ const PDF: React.FC = () => {
       return cursorY + SECTION_SPACING;
     }
   };
-
   // Add Stress Identification Analysis Table
   const addStressAnalysisTable = (doc: jsPDF, startY: number): number => {
+    // MAR Need Assessment is now section 7
     if (!stressTableData || stressTableData.length === 0) {
       return startY;
     }
 
-    let cursorY = addSectionHeading(doc, "MAR Need Assessment", startY, "9");
+    let cursorY = addSectionHeading(doc, "MAR Need Assessment", startY, "7");
 
     const tableStartX = MARGIN_LEFT;
     const tableWidth = USABLE_WIDTH;
@@ -1165,10 +985,10 @@ const PDF: React.FC = () => {
     ];
     const headers = [
       'Village Name',
-      'Recharge (m³)',
-      'Total Demand (m³)',
+      'Recharge (Million Litres)',
+      'Total Demand (Million Litres)',
       'Injection',
-      'Injection Need (m³/year)',
+      'Injection Need (Million Litres/year)',
     ];
     const colWidths = calculateColumnWidths(doc, headers, tableWidth);
     const rowHeight = 8;
@@ -1282,9 +1102,7 @@ const PDF: React.FC = () => {
 
     return cursorY + SECTION_SPACING;
   };
-
-
-  // Around line 1309 in your pdf.tsx
+  // Add Contour Visualization
   const addContourVisualization = (doc: jsPDF, startY: number): number => {
     console.log('addContourVisualization called');
     console.log('visualizationData:', visualizationData);
@@ -1513,12 +1331,14 @@ const PDF: React.FC = () => {
       const summaryStats = computeSummaryStats(tableData);
 
       cursorY = addRechargeAnalysisTable(doc, cursorY, tableData, summaryStats);
-      cursorY = addDomesticDemandTable(doc, cursorY, perCapitaConsumption);
-      cursorY = addAgriculturalDemandTable(doc, cursorY, selectedCrops);
-      cursorY = addIndustrialDemandTable(doc, cursorY);
-      cursorY = addGSRAnalysisTable(doc, cursorY);
-      cursorY = addGSRMapImage(doc, cursorY);
-      cursorY = addStressAnalysisTable(doc, cursorY);
+      
+      // ✅ UPDATED: Calling the new combined demand table
+      cursorY = addCombinedDemandTable(doc, cursorY); 
+      
+      // ✅ UPDATED: Section numbers are adjusted
+      cursorY = addGSRAnalysisTable(doc, cursorY); // Now section 6
+      cursorY = addGSRMapImage(doc, cursorY); 
+      cursorY = addStressAnalysisTable(doc, cursorY); // Now section 7
 
 
       doc.save("Groundwater_Assessment_Report.pdf");

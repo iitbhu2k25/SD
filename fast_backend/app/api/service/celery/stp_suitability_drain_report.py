@@ -1170,7 +1170,6 @@ class ReportGenerator:
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
-                            print("read image")
                             image_bytes = io.BytesIO(f.read())
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
@@ -1334,7 +1333,6 @@ class ReportGenerator:
 
 @app.task(bind=True,pydantic=True,name="stp_suitability_drain_document_gen")
 def document_gen3(self,payload: StpPriorityDrainReport):
-    print("xxx")
     progress_recorder = ProgressRecorder(self)
     total = 100
    

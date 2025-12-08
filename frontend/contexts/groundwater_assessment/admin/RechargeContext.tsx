@@ -24,7 +24,7 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
   const [error, setError] = useState<string | null>(null);
 
   const { selectedSubDistricts } = useLocation();
-  const { csvFilename } = useWell(); // get wells CSV filename saved by WellContext
+  const { csvFilename } = useWell();
 
   const canComputeRecharge = (): boolean => {
     return !!(csvFilename && selectedSubDistricts.length > 0);
@@ -43,11 +43,11 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
       }
 
       const requestPayload = {
-        csvFilename, // use wells CSV from WellContext
+        csvFilename,
         selectedSubDistricts,
       };
 
-      const response = await fetch('/django/gwa/recharge2', {
+      const response = await fetch('/fastm/gwa/recharge2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),
@@ -60,7 +60,7 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
 
       const result = await response.json();
 
-      // Updated to use village_wise_results from the API response
+      //  use village_wise_results from the API response
       if (result.village_wise_results && Array.isArray(result.village_wise_results)) {
         setTableData(result.village_wise_results);
       } else {

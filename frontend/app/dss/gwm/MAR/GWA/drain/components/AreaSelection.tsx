@@ -29,14 +29,14 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
   };
   const handleCatchmentsChange = (ids: (number | string)[]) => {
     if (!selectionsLocked) {
-      const numericIds = ids.map(id => Number(id)); // convert all to numbers
+      const numericIds = ids.map(id => Number(id));
       setSelectedCatchments(numericIds);
     }
   };
 
   const handleVillagesChange = (ids: (number | string)[]) => {
     if (!selectionsLocked) {
-      const numericIds = ids.map(id => Number(id)); // convert all to numbers
+      const numericIds = ids.map(id => Number(id)); 
       setSelectedVillages(numericIds);
     }
   };

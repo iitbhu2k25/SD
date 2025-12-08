@@ -47,11 +47,11 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
 
 
   React.useEffect(() => {
-  if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
-    console.log("🔄 Auto-triggering groundwater recharge computation (drain)...");
-    computeRecharge();
-  }
-}, [activeStep]);
+    if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
+      console.log(" Auto-triggering groundwater recharge computation (drain)...");
+      computeRecharge();
+    }
+  }, [activeStep]);
 
   const steps: Step[] = [
     { id: 1, name: "Data Collection" },
@@ -262,10 +262,10 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
 
             <button
               onClick={handleNext}
-              disabled={isLastStep}
+              disabled={isLastStep || (activeStep === 1 && !selectionsLocked)}
               className={[
                 "inline-flex items-center justify-center gap-2 text-white font-semibold transition-colors duration-300 ease-in-out rounded-full py-3 px-6",
-                isLastStep
+                (isLastStep || (activeStep === 1 && !selectionsLocked))
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-md focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50",
               ].join(" ")}
@@ -281,17 +281,18 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+
           </div>
 
           {/* PDF Download and Compute Available Water Buttons */}
           {activeStep >= 3 && (
             <div className="w-full sm:w-auto flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-3 mb-1">
               <PDF contourData={contourData} trendData={trendData} forecastData={forecastData} />
-              
+
               {/* Compute Available Water Button - Only shown when stress data is available */}
               {stressTableData.length > 0 && (
-                <Link 
-                  href="/dss/GWM/MAR/SWA" 
+                <Link
+                  href="/dss/GWM/MAR/SWA"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 rounded-full py-3 px-6 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-cyan-400 focus:ring-opacity-50 transform hover:scale-105"

@@ -120,7 +120,7 @@ export const GroundwaterContourProvider = ({
 
       console.log('Sending interpolation API request:', payload);
 
-      const response = await fetch('/django/gwa/interpolation', {
+      const response = await fetch('/fastm/gwa/interpolation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

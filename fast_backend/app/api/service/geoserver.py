@@ -50,7 +50,6 @@ class Geoserver:
 
         sld_url = f"{self.geoserver_url}/rest/workspaces/raster_work/styles/{layer_name}"
         sld_response = requests.get(sld_url, auth=HTTPBasicAuth(self.username, self.password),headers={"Accept": "application/vnd.ogc.sld+xml"})
-        print("sld resp",sld_response)
         if sld_response.status_code == 200:
             name_part = "_".join(layer_name.split("_")[:-1])
             sld_file_path = os.path.join(temp_path, name_part + ".sld")
@@ -86,8 +85,6 @@ class Geoserver:
         )
         
         if check_response.status_code != 200:
-            # Style doesn't exist, create it
-            print(f"Creating new style metadata: {sld_name}")
             create_response = requests.post(
                 styles_url,
                 json=style_data,
@@ -99,8 +96,7 @@ class Geoserver:
                 print(f"Failed to create style metadata: {create_response.status_code}, {create_response.text}")
                 return False
         
-        # Now upload the SLD content 
-        print(f"Uploading SLD content for style: {sld_name}")
+       
         upload_response = requests.put(
             style_url,
             data=new_sld_content,
@@ -112,7 +108,7 @@ class Geoserver:
             print(f"Failed to upload SLD content: {upload_response.status_code}, {upload_response.text}")
             return False
         
-        print(f"Successfully uploaded SLD content")
+    
         
         # Now apply the style to the layer
         layer_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/layers/{layer_name}"
@@ -134,7 +130,6 @@ class Geoserver:
         if apply_response.status_code not in [200, 201]:
             print(f"Failed to apply style to layer: {apply_response.status_code}, {apply_response.text}")
             return False
-        print(f"Successfully applied style to layer")
         return True
   
     
@@ -156,7 +151,6 @@ class Geoserver:
             )
             
             if check_workspace_response.status_code != 200:
-                print(f"Workspace '{workspace_name}' does not exist. Creating it...")
                 create_workspace_url = f"{self.geoserver_url}/rest/workspaces"
                 create_workspace_data = {
                     "workspace": {
@@ -172,11 +166,7 @@ class Geoserver:
                 )
                 
                 if create_workspace_response.status_code not in (200, 201):
-                    print(f"Failed to create workspace. Status code: {create_workspace_response.status_code}")
-                    print(f"Response: {create_workspace_response.text}")
                     return False
-                
-                print(f"Workspace '{workspace_name}' created successfully")
 
                 # Ensure WMS service is enabled for the workspace
                 wms_settings_url = f"{self.geoserver_url}/rest/services/wms/workspaces/{workspace_name}/settings"
@@ -207,7 +197,6 @@ class Geoserver:
             
             # If store exists, delete it completely to avoid duplicates
             if check_store_response.status_code == 200:
-                print(f"Coverage store '{store_name}' exists. Deleting it to avoid duplicates...")
                 delete_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}?recurse=true"
                 delete_store_response = requests.delete(
                     delete_store_url,
@@ -219,8 +208,7 @@ class Geoserver:
                 else:
                     print(f"Warning: Failed to delete existing store. Status code: {delete_store_response.status_code}")
 
-            # Create new coverage store
-            print(f"Creating new coverage store '{store_name}' in workspace '{workspace_name}'...")
+    
             create_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores"
             create_store_data = {
                 "coverageStore": {
@@ -245,7 +233,7 @@ class Geoserver:
                 print(f"Response: {create_response.text}")
                 return False
                 
-            print(f"Coverage store '{store_name}' created successfully")
+          
 
             # Upload raster file with configure=first to avoid auto-creation of duplicate coverages
             upload_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/{api_extension}?configure=first"
@@ -253,9 +241,6 @@ class Geoserver:
             headers = {"Content-type": content_type}
             with open(raster_path, 'rb') as f:
                 data = f.read()
-            
-            print("Data size:", len(data))
-            print(f"Uploading raster to store '{store_name}'...")
             
             response = requests.put(
                 upload_url,
@@ -319,11 +304,8 @@ class Geoserver:
                 )
                 
                 if verify_response.status_code == 200:
-                    print(f"Layer '{layer_name}' has been published and is available via WMS")
-                    
-                    # Output WMS endpoint info
                     wms_url = f"{self.geoserver_url}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace_name}:{layer_name}"
-                    print(f"WMS endpoint: {wms_url}")
+        
                     
                     return True, layer_name
                 else:

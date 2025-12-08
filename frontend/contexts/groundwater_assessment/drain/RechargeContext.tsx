@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { useLocation } from './LocationContext';
-import { useWell } from './WellContext'; // consume wells CSV
+import { useWell } from './WellContext';
 
 interface TableData { [key: string]: string | number; }
 
@@ -24,7 +24,7 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
   const [error, setError] = useState<string | null>(null);
 
   const { selectedVillages } = useLocation();
-  const { csvFilename } = useWell(); // wells CSV stored by WellContext
+  const { csvFilename } = useWell();
 
   const canComputeRecharge = (): boolean => {
     return !!(csvFilename && selectedVillages.length > 0);
@@ -43,11 +43,11 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
       }
 
       const requestPayload = {
-        csvFilename,              // use wells CSV
-        selectedVillages,         // villages context
+        csvFilename,
+        selectedVillages,
       };
 
-      const response = await fetch('/django/gwa/recharge2', {
+      const response = await fetch('/fastm/gwa/recharge2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),
@@ -60,7 +60,7 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
 
       const result = await response.json();
 
-      // Updated to use village_wise_results from your backend response
+      //  use village_wise_results 
       if (result.village_wise_results && Array.isArray(result.village_wise_results)) {
         setTableData(result.village_wise_results);
       } else if (result.data && Array.isArray(result.data)) {

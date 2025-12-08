@@ -1,4 +1,3 @@
-// frontend/app/dss/GWM/MAR/GWA/admin/components/contour.tsx
 "use client";
 
 import React, { useContext, useEffect } from 'react';
@@ -210,9 +209,9 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             step="0.1"
             disabled={isLoading}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          {/* <p className="text-xs text-gray-500 mt-1">
             💡 Recommended: 1-5m for groundwater levels, 5-20m for elevation
-          </p>
+          </p> */}
         </div>
 
         <div>
@@ -339,7 +338,21 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
                 </button>
               </div>
 
-    
+              {/* <div className="relative">
+                <img
+                  src={
+                    visualizationData.png_base64
+                      ? `data:image/png;base64,${visualizationData.png_base64}`
+                      : visualizationData.png_path || ''
+                  }
+                  alt="Contour Visualization"
+                  className="max-w-full h-auto rounded-md shadow-sm border"
+                  onError={(e) => {
+                    console.log('Image failed to load');
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div> */}
             </div>
           )}
           {/* Detailed Statistics */}

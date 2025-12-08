@@ -134,7 +134,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
       return;
     }
 
-    // Use the wellData as received from popup (already contains all columns)
+    // Use the wellData as received from popup 
     const completeWellData: WellData = { ...wellData };
 
     // Ensure coordinates are properly set
@@ -213,7 +213,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
     };
   }, []);
 
-  // UPDATED: Combined handleFinalConfirm function that saves and confirms
+  // Combined handleFinalConfirm function that saves and confirms
   const handleFinalConfirm = async (): Promise<void> => {
     if (!areaConfirmed || wellsData.length === 0) {
       console.log("Cannot confirm: Area not confirmed or no wells data");
@@ -270,19 +270,19 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
     }
   };
 
-  // Handle radio button change with better logging
-  const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
-    console.log("=== Radio button clicked ===");
-    console.log("Selected mode:", mode);
+// Handle radio button change with better logging
+const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
+  console.log("=== Radio button clicked ===");
+  console.log("Selected mode:", mode);
 
-    try {
-      // Pass the force removal function to handle mode changes
-      handleWellsModeChange(mode, forceRemoveWellPointsLayer);
-      console.log("Mode change successful");
-    } catch (error) {
-      console.log("Error changing mode:", error);
-    }
-  };
+  try {
+    // Pass the force removal function - it will only be called if switching modes
+    handleWellsModeChange(mode, forceRemoveWellPointsLayer);
+    console.log("Mode change successful");
+  } catch (error) {
+    console.log("Error changing mode:", error);
+  }
+};
 
   if (!areaConfirmed) {
     return (
@@ -325,7 +325,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
                     value="existing_and_new"
                     checked={wellSelectionMode === 'existing_and_new'}
                     onChange={() => handleWellsModeChange('existing_and_new')}
-                    disabled={isWellTableSaved} // disable instead of blocking change
+                    disabled={isWellTableSaved} 
                   />
                   <label
                     htmlFor="existing-wells"
@@ -345,7 +345,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
                     value="upload_csv"
                     checked={wellSelectionMode === 'upload_csv'}
                     onChange={() => handleWellsModeChange('upload_csv')}
-                    disabled={isWellTableSaved} // disable instead of blocking change
+                    disabled={isWellTableSaved}
                   />
                   <label
                     htmlFor="upload-csv"
@@ -626,7 +626,7 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
             </div>
           </div>
 
-          {/* UPDATED FINAL ACTIONS - Single combined button */}
+   
           <div className="flex justify-center space-x-4 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
             <button
               className={`${areaConfirmed && wellsData.length > 0

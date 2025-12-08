@@ -12,7 +12,7 @@ import { useWell } from "@/contexts/groundwater_assessment/drain/WellContext";
 
 // Simplified types for PDF generation
 export interface PDFGenerationRequest {
-  village_codes: number[]; // Changed to match API parameter name
+  village_codes: number[];
   csv_filename: string | null;
 }
 
@@ -40,15 +40,15 @@ interface PDFContextType {
   pdfGenerationSuccess: boolean;
   pdfGenerationError: string | null;
   generatedPDFData: PDFGenerationResponse['data'] | null;
-  
+
   // PDF functions
   generatePDFReport: () => Promise<PDFGenerationResponse | null>;
   resetPDFState: () => void;
-  
+
   // Data validation
   validatePDFData: () => { valid: boolean; message: string };
-  
-  // Get prepared data (for debugging/preview)
+
+  // Get prepared data 
   getPreparedData: () => PDFGenerationRequest | null;
 }
 
@@ -62,7 +62,7 @@ const PDFContext = createContext<PDFContextType>({
   pdfGenerationError: null,
   generatedPDFData: null,
   generatePDFReport: async () => null,
-  resetPDFState: () => {},
+  resetPDFState: () => { },
   validatePDFData: () => ({ valid: false, message: 'Context not initialized' }),
   getPreparedData: () => null,
 });
@@ -70,7 +70,7 @@ const PDFContext = createContext<PDFContextType>({
 export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
   const { selectedVillages } = useLocation();
   const { csvFilename } = useWell();
-  
+
   // PDF generation state
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [pdfGenerationSuccess, setPdfGenerationSuccess] = useState(false);
@@ -97,7 +97,7 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
       }
 
       return {
-        village_codes: selectedVillages, // Match API parameter name
+        village_codes: selectedVillages,
         csv_filename: csvFilename,
       };
     } catch (error) {
@@ -108,8 +108,8 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
 
   // Main PDF generation function
   const generatePDFReport = async (): Promise<PDFGenerationResponse | null> => {
-    console.log('🚀 Starting PDF generation process...');
-    
+    console.log(' Starting PDF generation process...');
+
     // Reset previous state
     setIsGeneratingPDF(true);
     setPdfGenerationSuccess(false);
@@ -118,27 +118,27 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
 
     try {
       // Step 1: Validate data
-      console.log('📋 Validating PDF data...');
+      console.log(' Validating PDF data...');
       const validation = validatePDFData();
       if (!validation.valid) {
         throw new Error(validation.message);
       }
 
       // Step 2: Prepare simplified data
-      console.log('📦 Preparing simplified PDF data...');
+      console.log(' Preparing simplified PDF data...');
       const pdfRequest: PDFGenerationRequest = {
         village_codes: selectedVillages, // Match API parameter name
         csv_filename: csvFilename,
       };
 
-      console.log('📊 PDF request prepared:', {
+      console.log(' PDF request prepared:', {
         village_codes: pdfRequest.village_codes,
         csv_filename: pdfRequest.csv_filename,
       });
 
       // Step 3: Send to PDF generation API (single call only)
-      console.log('📡 Sending PDF generation request to /pdf API...');
-      const response = await fetch('/django/gwa/pdf', {
+      console.log(' Sending PDF generation request to /pdf API...');
+      const response = await fetch('/fastm/gwa/pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
         body: JSON.stringify(pdfRequest),
       });
 
-      console.log('📡 API Response status:', response.status);
+      console.log(' API Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -156,12 +156,12 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
       }
 
       const result: PDFGenerationResponse = await response.json();
-      console.log('✅ PDF generation result:', result);
+      console.log(' PDF generation result:', result);
 
       if (result.success) {
         setPdfGenerationSuccess(true);
         setGeneratedPDFData(result.data || null);
-        console.log('🎉 PDF generated successfully:', result.data);
+        console.log(' PDF generated successfully:', result.data);
         return result;
       } else {
         throw new Error(result.error || result.message || 'Unknown error occurred');
@@ -178,7 +178,7 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
 
   // Reset PDF generation state
   const resetPDFState = (): void => {
-    console.log('🔄 Resetting PDF state...');
+    console.log(' Resetting PDF state...');
     setIsGeneratingPDF(false);
     setPdfGenerationSuccess(false);
     setPdfGenerationError(null);
@@ -209,14 +209,14 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
     pdfGenerationSuccess,
     pdfGenerationError,
     generatedPDFData,
-    
+
     // PDF functions
     generatePDFReport,
     resetPDFState,
-    
+
     // Data validation
     validatePDFData,
-    
+
     // Get prepared data
     getPreparedData,
   };

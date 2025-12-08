@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from './LocationContext';
 import { useWell } from './WellContext';
 
@@ -9,10 +9,29 @@ interface TableData {
 }
 
 interface CropData {
-  [season: string]: string[]; // season -> array of crop names
+  [season: string]: string[];
 }
 
-// Updated interface for chart data - structured JSON data instead of images
+export interface IndustrialSubtype {
+  industry: string;
+  subtype: string;
+  unit: 'MW' | 'm³/tonne of product';
+  consumptionValue: number;
+  production: number;
+}
+
+const initialIndustrialData: IndustrialSubtype[] = [
+  { industry: 'Thermal Power Plants', subtype: 'Small (<1000 MW)', unit: 'm³/tonne of product', consumptionValue: 3.1, production: 0 },
+  { industry: 'Thermal Power Plants', subtype: 'Medium (1000–2500 MW)', unit: 'm³/tonne of product', consumptionValue: 4.2, production: 0 },
+  { industry: 'Thermal Power Plants', subtype: 'Large (>2500 MW)', unit: 'm³/tonne of product', consumptionValue: 3.1, production: 0 },
+  { industry: 'Pulp & Paper', subtype: 'Integrated Mills', unit: 'm³/tonne of product', consumptionValue: 31.8, production: 0 },
+  { industry: 'Pulp & Paper', subtype: 'RCF-based Mills', unit: 'm³/tonne of product', consumptionValue: 11.5, production: 0 },
+  { industry: 'Textiles', subtype: 'Integrated (Cotton)', unit: 'm³/tonne of product', consumptionValue: 224, production: 0 },
+  { industry: 'Textiles', subtype: 'Fabric Processing', unit: 'm³/tonne of product', consumptionValue: 75, production: 0 },
+  { industry: 'Iron & Steel', subtype: 'Integrated (Woollen)', unit: 'm³/tonne of product', consumptionValue: 237, production: 0 },
+  { industry: 'Iron & Steel', subtype: 'General', unit: 'm³/tonne of product', consumptionValue: 6.5, production: 0 },
+];
+
 interface ChartData {
   individual_crops: {
     type: "scatter";
@@ -38,13 +57,10 @@ interface ChartData {
 }
 
 interface DemandContextType {
-  // Form State
   domesticChecked: boolean;
   agriculturalChecked: boolean;
   industrialChecked: boolean;
   perCapitaConsumption: number;
-
-  // Agricultural Season & Crop State
   kharifChecked: boolean;
   rabiChecked: boolean;
   zaidChecked: boolean;
@@ -52,51 +68,40 @@ interface DemandContextType {
   selectedCrops: { [season: string]: string[] };
   cropsLoading: { [season: string]: boolean };
   cropsError: { [season: string]: string | null };
-  
-  // Groundwater Factor
   groundwaterFactor: number;
-  
-  // Charts State - now includes structured chart data
+  industrialData: IndustrialSubtype[];
+  industrialGWShare: number;
   chartData: ChartData | null;
   chartsError: string | null;
-
-  // Data State - separate for each demand type
   domesticTableData: TableData[];
   agriculturalTableData: TableData[];
   industrialTableData: TableData[];
-
-  // Loading and Error State - separate for each demand type
+  combinedDemandData: TableData[];
   domesticLoading: boolean;
   agriculturalLoading: boolean;
   industrialLoading: boolean;
   domesticError: string | null;
   agriculturalError: string | null;
   industrialError: string | null;
-
-  // Actions
   setDomesticChecked: (checked: boolean) => void;
   setAgriculturalChecked: (checked: boolean) => void;
   setIndustrialChecked: (checked: boolean) => void;
   setPerCapitaConsumption: (value: number) => void;
   setGroundwaterFactor: (value: number) => void;
-  
-  // Season Actions
+  setIndustrialData: (data: IndustrialSubtype[]) => void;
+  setIndustrialGWShare: (value: number) => void;
+  updateIndustrialProduction: (industry: string, subtype: string, production: number) => void;
+  updateIndustrialConsumption: (industry: string, subtype: string, consumption: number) => void;
+
   setKharifChecked: (checked: boolean) => void;
   setRabiChecked: (checked: boolean) => void;
   setZaidChecked: (checked: boolean) => void;
-  
-  // Crop Actions
   fetchCropsForSeason: (season: string) => Promise<void>;
   toggleCropSelection: (season: string, crop: string) => void;
-  
-  // Charts Actions
   clearChartData: () => void;
-  
   computeDomesticDemand: () => Promise<void>;
   computeAgriculturalDemand: () => Promise<void>;
   computeIndustrialDemand: () => Promise<void>;
-
-  // Helper functions
   canComputeDomesticDemand: () => boolean;
   canComputeAgriculturalDemand: () => boolean;
   canComputeIndustrialDemand: () => boolean;
@@ -109,13 +114,10 @@ interface DemandProviderProps {
 }
 
 export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
-  // Form State
-  const [domesticChecked, setDomesticChecked] = useState<boolean>(false);
-  const [agriculturalChecked, setAgriculturalChecked] = useState<boolean>(false);
-  const [industrialChecked, setIndustrialChecked] = useState<boolean>(false);
+  const [domesticChecked, setDomesticCheckedState] = useState<boolean>(false);
+  const [agriculturalChecked, setAgriculturalCheckedState] = useState<boolean>(false);
+  const [industrialChecked, setIndustrialCheckedState] = useState<boolean>(false);
   const [perCapitaConsumption, setPerCapitaConsumption] = useState<number>(60);
-
-  // Agricultural Season & Crop State
   const [kharifChecked, setKharifChecked] = useState<boolean>(false);
   const [rabiChecked, setRabiChecked] = useState<boolean>(false);
   const [zaidChecked, setZaidChecked] = useState<boolean>(false);
@@ -123,20 +125,15 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
   const [selectedCrops, setSelectedCrops] = useState<{ [season: string]: string[] }>({});
   const [cropsLoading, setCropsLoading] = useState<{ [season: string]: boolean }>({});
   const [cropsError, setCropsError] = useState<{ [season: string]: string | null }>({});
-  
-  // Groundwater Factor
   const [groundwaterFactor, setGroundwaterFactor] = useState<number>(0.8);
-  
-  // Charts State - supports structured chart data
+  const [industrialData, setIndustrialData] = useState<IndustrialSubtype[]>(initialIndustrialData);
+  const [industrialGWShare, setIndustrialGWShare] = useState<number>(0.5);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [chartsError, setChartsError] = useState<string | null>(null);
-
-  // Data State - separate for each demand type
   const [domesticTableData, setDomesticTableData] = useState<TableData[]>([]);
   const [agriculturalTableData, setAgriculturalTableData] = useState<TableData[]>([]);
   const [industrialTableData, setIndustrialTableData] = useState<TableData[]>([]);
-
-  // Loading and Error State - separate for each demand type
+  const [combinedDemandData, setCombinedDemandData] = useState<TableData[]>([]);
   const [domesticLoading, setDomesticLoading] = useState<boolean>(false);
   const [agriculturalLoading, setAgriculturalLoading] = useState<boolean>(false);
   const [industrialLoading, setIndustrialLoading] = useState<boolean>(false);
@@ -144,45 +141,186 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
   const [agriculturalError, setAgriculturalError] = useState<string | null>(null);
   const [industrialError, setIndustrialError] = useState<string | null>(null);
 
-  // Context dependencies
   const { selectedSubDistricts } = useLocation();
   const { csvFilename } = useWell();
 
-  // Clear chart data helper
+
+  const setDomesticChecked = (checked: boolean) => {
+    setDomesticCheckedState(checked);
+    if (!checked) {
+      setDomesticTableData([]);
+      setDomesticError(null);
+      console.log('🗑️ Domestic demand data cleared (unchecked)');
+    }
+  };
+
+  const setAgriculturalChecked = (checked: boolean) => {
+    setAgriculturalCheckedState(checked);
+    if (!checked) {
+      setAgriculturalTableData([]);
+      setAgriculturalError(null);
+      clearChartData();
+      console.log('🗑️ Agricultural demand data cleared (unchecked)');
+    }
+  };
+
+  const setIndustrialChecked = (checked: boolean) => {
+    setIndustrialCheckedState(checked);
+    if (!checked) {
+      setIndustrialTableData([]);
+      setIndustrialError(null);
+      console.log('🗑️ Industrial demand data cleared (unchecked)');
+    }
+  };
+  // Update production for a specific sub-type
+  const updateIndustrialProduction = (industry: string, subtype: string, production: number) => {
+    setIndustrialData(prevData =>
+      prevData.map(item =>
+        item.industry === industry && item.subtype === subtype
+          ? { ...item, production: isNaN(production) || production < 0 ? 0 : production }
+          : item
+      )
+    );
+  };
+// Add this function inside DemandProvider (next to updateIndustrialProduction)
+const updateIndustrialConsumption = (industry: string, subtype: string, newConsumption: number) => {
+  setIndustrialData(prev =>
+    prev.map(item =>
+      item.industry === industry && item.subtype === subtype
+        ? { ...item, consumptionValue: isNaN(newConsumption) || newConsumption < 0 ? 0 : newConsumption }
+        : item
+    )
+  );
+};
   const clearChartData = () => {
     setChartData(null);
     setChartsError(null);
   };
 
-  // Season checkbox handlers
-  const handleKharifChecked = async (checked: boolean) => {
-    setKharifChecked(checked);
-    if (checked) {
-      await fetchCropsForSeason('Kharif');
-    }
+  // Generate combined demand data based on village_code
+  const generateCombinedDemandData = () => {
+    const villageMap = new Map<string | number, any>();
+
+    // Add domestic data
+    domesticTableData.forEach(row => {
+      const villageCode = row.village_code || row.Village_code;
+      if (!villageCode) return; // Skip if no village code
+
+      const villageName = row.village_name || 'Unknown';
+      if (!villageMap.has(villageCode)) {
+        villageMap.set(villageCode, {
+          village_code: villageCode,
+          village_name: villageName,
+          domestic_demand: 0,
+          agricultural_demand: 0,
+          industrial_demand: 0,
+        });
+      }
+      const village = villageMap.get(villageCode);
+      if (village) {
+        village.domestic_demand = row.demand_mld || 0;
+        // Update village name if it was 'Unknown' before
+        if (village.village_name === 'Unknown' && villageName !== 'Unknown') {
+          village.village_name = villageName;
+        }
+      }
+    });
+
+    // Add agricultural data
+    agriculturalTableData.forEach(row => {
+      const villageCode = row.village_code || row.Village_code;
+      if (!villageCode) return; // Skip if no village code
+
+      const villageName = row.village || row.village_name || 'Unknown';
+      if (!villageMap.has(villageCode)) {
+        villageMap.set(villageCode, {
+          village_code: villageCode,
+          village_name: villageName,
+          domestic_demand: 0,
+          agricultural_demand: 0,
+          industrial_demand: 0,
+        });
+      }
+      const village = villageMap.get(villageCode);
+      if (village) {
+        village.agricultural_demand = row.village_demand || 0;
+        // Update village name if it was 'Unknown' before
+        if (village.village_name === 'Unknown' && villageName !== 'Unknown') {
+          village.village_name = villageName;
+        }
+      }
+    });
+
+    // Add industrial data
+    industrialTableData.forEach(row => {
+      const villageCode = row.village_code || row.Village_code;
+      if (!villageCode) return; // Skip if no village code
+
+      const villageName = row.Village_name || row.village_name || 'Unknown';
+      if (!villageMap.has(villageCode)) {
+        villageMap.set(villageCode, {
+          village_code: villageCode,
+          village_name: villageName,
+          domestic_demand: 0,
+          agricultural_demand: 0,
+          industrial_demand: 0,
+        });
+      }
+      const village = villageMap.get(villageCode);
+      if (village) {
+        village.industrial_demand = row['Industrial_demand_(Million litres/Year)'] || 0;
+        // Update village name if it was 'Unknown' before
+        if (village.village_name === 'Unknown' && villageName !== 'Unknown') {
+          village.village_name = villageName;
+        }
+      }
+    });
+
+    // Calculate totals
+    const combined = Array.from(villageMap.values()).map(village => ({
+      ...village,
+      total_demand: Number(village.domestic_demand) + Number(village.agricultural_demand) + Number(village.industrial_demand),
+    }));
+
+    setCombinedDemandData(combined);
+    console.log('✅ Combined demand data generated:', combined.length, 'villages');
+    console.log('📋 Sample combined data:', combined.slice(0, 3));
   };
 
-  const handleRabiChecked = async (checked: boolean) => {
-    setRabiChecked(checked);
-    if (checked) {
-      await fetchCropsForSeason('Rabi');
+  // Regenerate combined data when any demand changes
+  useEffect(() => {
+    if (domesticTableData.length > 0 || agriculturalTableData.length > 0 || industrialTableData.length > 0) {
+      generateCombinedDemandData();
+    } else {
+      setCombinedDemandData([]);
     }
-  };
+  }, [domesticTableData, agriculturalTableData, industrialTableData]);
 
-  const handleZaidChecked = async (checked: boolean) => {
-    setZaidChecked(checked);
-    if (checked) {
-      await fetchCropsForSeason('Zaid');
+  // Fetch crops when seasons are checked
+  useEffect(() => {
+    if (kharifChecked && !availableCrops.Kharif) {
+      fetchCropsForSeason('Kharif');
     }
-  };
+  }, [kharifChecked]);
 
-  // Fetch crops for a specific season
+  useEffect(() => {
+    if (rabiChecked && !availableCrops.Rabi) {
+      fetchCropsForSeason('Rabi');
+    }
+  }, [rabiChecked]);
+
+  useEffect(() => {
+    if (zaidChecked && !availableCrops.Zaid) {
+      fetchCropsForSeason('Zaid');
+    }
+  }, [zaidChecked]);
+
   const fetchCropsForSeason = async (season: string) => {
     try {
       setCropsLoading(prev => ({ ...prev, [season]: true }));
       setCropsError(prev => ({ ...prev, [season]: null }));
 
-      const response = await fetch('/django/gwa/crops', {
+      const response = await fetch('/fastm/gwa/crops', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +341,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
           ...prev,
           [season]: result.data.crops
         }));
-        
+
         if (!selectedCrops[season]) {
           setSelectedCrops(prev => ({
             ...prev,
@@ -222,22 +360,20 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
     }
   };
 
-  // Toggle crop selection
   const toggleCropSelection = (season: string, crop: string) => {
     setSelectedCrops(prev => {
       const currentSeasonCrops = prev[season] || [];
       const isSelected = currentSeasonCrops.includes(crop);
-      
+
       return {
         ...prev,
-        [season]: isSelected 
+        [season]: isSelected
           ? currentSeasonCrops.filter(c => c !== crop)
           : [...currentSeasonCrops, crop]
       };
     });
   };
 
-  // Check if compute demand can be performed for each type
   const canComputeDomesticDemand = (): boolean => {
     return !!(domesticChecked && selectedSubDistricts.length > 0 && perCapitaConsumption > 0 && csvFilename);
   };
@@ -255,7 +391,6 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       setDomesticLoading(true);
       setDomesticError(null);
 
-      // Validation
       if (!domesticChecked) {
         throw new Error('Please select domestic demand type.');
       }
@@ -269,7 +404,6 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
         throw new Error('Population forecast CSV is required. Please upload/confirm wells CSV first.');
       }
 
-      // Prepare request payload for forecast API
       const requestPayload = {
         subdistrict_code: selectedSubDistricts,
         csv_filename: csvFilename,
@@ -278,8 +412,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
 
       console.log('Computing domestic demand via forecast-population with payload:', requestPayload);
 
-      // API call to compute domestic demand via forecast-population
-      const response = await fetch('/django/gwa/forecast-population', {
+      const response = await fetch('/fastm/gwa/forecast-population', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +428,6 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       const result = await response.json();
       console.log('Domestic demand computation result:', result);
 
-      // Set the table data from API response
       if (result.forecasts && Array.isArray(result.forecasts)) {
         setDomesticTableData(result.forecasts);
       } else {
@@ -315,11 +447,8 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
     try {
       setAgriculturalLoading(true);
       setAgriculturalError(null);
-      
-      // Clear previous chart data
       clearChartData();
 
-      // Validation
       if (!agriculturalChecked) {
         throw new Error('Please select agricultural demand type.');
       }
@@ -328,7 +457,6 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
         throw new Error('Sub-district selection is required. Please select areas first.');
       }
 
-      // Prepare request payload - Always include charts
       const requestPayload = {
         subdistrict_code: selectedSubDistricts,
         selectedCrops: selectedCrops,
@@ -339,13 +467,12 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
           rabi: rabiChecked,
           zaid: zaidChecked
         },
-        include_charts: true  // Always include charts
+        include_charts: true
       };
 
       console.log('Computing agricultural demand with payload:', requestPayload);
 
-      // API call to compute agricultural demand
-      const response = await fetch('/django/gwa/agricultural', {
+      const response = await fetch('/fastm/gwa/agricultural', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -361,14 +488,12 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       const result = await response.json();
       console.log('Agricultural demand computation result:', result);
 
-     
       if (result.data && Array.isArray(result.data)) {
         setAgriculturalTableData(result.data);
       } else {
         throw new Error('Invalid response format from server');
       }
 
-      // Handle chart data - now supports structured JSON data
       if (result.charts) {
         if (result.charts_error) {
           setChartsError(result.charts_error);
@@ -388,7 +513,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       console.log('Error computing agricultural demand:', errorMessage);
       setAgriculturalError(errorMessage);
       setAgriculturalTableData([]);
-      clearChartData(); // Clear charts on error
+      clearChartData();
     } finally {
       setAgriculturalLoading(false);
     }
@@ -399,7 +524,6 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       setIndustrialLoading(true);
       setIndustrialError(null);
 
-      // Validation
       if (!industrialChecked) {
         throw new Error('Please select industrial demand type.');
       }
@@ -408,15 +532,29 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
         throw new Error('Sub-district selection is required. Please select areas first.');
       }
 
-      // Prepare request payload
+      if (!csvFilename) {
+        throw new Error('CSV filename is required. Please upload/confirm wells CSV first.');
+      }
+
+      const totalAnnualDemand = industrialData.reduce((sum, item) => {
+        return sum + (item.production * item.consumptionValue);
+      }, 0);
+
+      const groundwaterIndustrialDemand = totalAnnualDemand * industrialGWShare;
+
+      if (totalAnnualDemand === 0) {
+        throw new Error('Total Annual Industrial Production is zero. Please enter production values.');
+      }
+
       const requestPayload = {
-        selectedSubDistricts: selectedSubDistricts,
+        csv_filename: csvFilename,
+        groundwater_industrial_demand: groundwaterIndustrialDemand,
+        subdistrict_codes: selectedSubDistricts,
       };
 
       console.log('Computing industrial demand with payload:', requestPayload);
 
-      // API call to compute industrial demand
-      const response = await fetch('/django/gwa/compute-industrial-demand', {
+      const response = await fetch('/fastm/gwa/industrial', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -432,11 +570,18 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       const result = await response.json();
       console.log('Industrial demand computation result:', result);
 
-      // Set the table data from API response
       if (result.data && Array.isArray(result.data)) {
         setIndustrialTableData(result.data);
+      } else if (result.forecasts && Array.isArray(result.forecasts)) {
+        setIndustrialTableData(result.forecasts);
       } else {
-        throw new Error('Invalid response format from server');
+        setIndustrialTableData([{
+          Total_Input_Demand: totalAnnualDemand.toFixed(2),
+          GW_Share: `${(industrialGWShare * 100).toFixed(0)}%`,
+          GW_Demand_Sent: groundwaterIndustrialDemand.toFixed(2),
+          Status: result.status || 'success',
+          Message: result.message || 'Computation completed'
+        }]);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
@@ -449,13 +594,10 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
   };
 
   const value: DemandContextType = {
-    // Form State
     domesticChecked,
     agriculturalChecked,
     industrialChecked,
     perCapitaConsumption,
-
-    // Agricultural Season & Crop State
     kharifChecked,
     rabiChecked,
     zaidChecked,
@@ -463,54 +605,43 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
     selectedCrops,
     cropsLoading,
     cropsError,
-    
-    // Groundwater Factor
     groundwaterFactor,
-    
-    // Charts State
+    industrialData,
+    industrialGWShare,
     chartData,
     chartsError,
-
-    // Data State - separate for each demand type
     domesticTableData,
     agriculturalTableData,
     industrialTableData,
-
-    // Loading and Error State - separate for each demand type
+    combinedDemandData,
     domesticLoading,
     agriculturalLoading,
     industrialLoading,
     domesticError,
     agriculturalError,
     industrialError,
-
-    // Actions
     setDomesticChecked,
     setAgriculturalChecked,
     setIndustrialChecked,
     setPerCapitaConsumption,
     setGroundwaterFactor,
-    
-    // Season Actions
-    setKharifChecked: handleKharifChecked,
-    setRabiChecked: handleRabiChecked,
-    setZaidChecked: handleZaidChecked,
-    
-    // Crop Actions
+    setIndustrialData,
+    setIndustrialGWShare,
+    updateIndustrialProduction,
+    updateIndustrialConsumption,
+    setKharifChecked,
+    setRabiChecked,
+    setZaidChecked,
     fetchCropsForSeason,
     toggleCropSelection,
-
-    // Charts Actions
     clearChartData,
-
     computeDomesticDemand,
     computeAgriculturalDemand,
     computeIndustrialDemand,
-
-    // Helper functions
     canComputeDomesticDemand,
     canComputeAgriculturalDemand,
     canComputeIndustrialDemand,
+    
   };
 
   return (

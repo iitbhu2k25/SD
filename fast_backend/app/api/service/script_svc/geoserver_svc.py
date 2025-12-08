@@ -48,7 +48,6 @@ def create_workspace(workspace_name):
         check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}"
         check_response = geoserver_response(check_url)
         if check_response.status_code == 200:
-            print(f"Workspace '{workspace_name}' already exists")
             return True
 
         workspace_url = f"{geoserver_url}/rest/workspaces"
@@ -56,7 +55,7 @@ def create_workspace(workspace_name):
 
         response = geoserver_post(url=workspace_url,data=data)
         if response.status_code == 201:
-            print("workspace is created successfully")
+
             wfs_url = f"{geoserver_url}/rest/services/wfs/workspaces/{workspace_name}/settings"
             wfs_data = {
                 "wfs": {
@@ -68,7 +67,7 @@ def create_workspace(workspace_name):
             wfs_response = geoserver_put_service(url=wfs_url,data=wfs_data)
                 
             if wfs_response.status_code in (200, 201):
-                print(f"WFS service enabled for workspace '{workspace_name}'")
+               pass
             else:
                 print(f"Failed to enable WFS service. Status code: {wfs_response.status_code}")
                 print(f"Response: {wfs_response.text}")
@@ -104,7 +103,7 @@ def create_vector_stores(workspace_name, store_name):
     check_response = geoserver_response(check_url)
     
     if check_response.status_code == 200:
-        print(f"Store '{store_name}' already exists in workspace '{workspace_name}'")
+       
         return True
     
     create_shapefile_store(workspace_name,store_name,geoserver_url)
@@ -125,7 +124,7 @@ def create_shapefile_store(workspace_name, store_name, geoserver_url):
     response = geoserver_post(url=store_url,data=data)
     
     if response.status_code == 201:
-        print(f"Shapefile store '{store_name}' created successfully in workspace '{workspace_name}'")
+     
         return True
     else:
         print(f"Failed to create shapefile store. Status code: {response.status_code}")
@@ -138,7 +137,7 @@ def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
         check_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores/{store_name}"    
         check_response =geoserver_response(check_url)
         if check_response.status_code != 200:
-            print(f"Store '{store_name}' does not exist in workspace '{workspace_name}'")
+           
             return False
 
         
@@ -160,7 +159,7 @@ def upload_shapefile(workspace_name, store_name, shapefile_path, layer_name):
         response = geoserver_put(url=upload_url,data=data)
         
         if response.status_code in (200, 201):
-            print(f"Shapefile uploaded and published as layer '{layer_name}'")
+          
             return True
         else:
             print(f"Failed to upload shapefile. Status code: {response.status_code}")

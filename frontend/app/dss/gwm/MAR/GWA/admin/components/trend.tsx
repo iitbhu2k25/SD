@@ -4,7 +4,8 @@ import React, { useContext, useState, useMemo } from 'react';
 import { GroundwaterTrendContext } from "@/contexts/groundwater_assessment/admin/TrendContext";
 import { useWell } from '@/contexts/groundwater_assessment/admin/WellContext';
 import { useLocation } from '@/contexts/groundwater_assessment/admin/LocationContext';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line } from 'recharts';
+
 
 interface GroundwaterTrendProps {
   activeTab: string;
@@ -27,6 +28,9 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
     handleGenerate,
     availableCharts,
     getChartImage,
+    villageTimeseriesData,
+    allYears,
+    getVillageTimeseries,
   } = useContext(GroundwaterTrendContext);
 
   const { csvFilename, wellsData, isWellTableSaved } = useWell();
@@ -34,7 +38,8 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
   const [activeResultTab, setActiveResultTab] = useState<'overview' | 'table' | 'charts' | 'map' | 'files'>('overview');
   const [villageFilter, setVillageFilter] = useState<string>('');
   const [trendFilter, setTrendFilter] = useState<string>('All');
-
+  const [selectedVillageId, setSelectedVillageId] = useState<string>('');
+  
   // Extract available years from wells data columns
   const availableYears = useMemo(() => {
     if (!wellsData || wellsData.length === 0 || !isWellTableSaved) {
@@ -296,9 +301,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                     Trend analysis will be performed for {parseInt(yearEnd) - parseInt(yearStart) + 1} years
                     ({yearStart} to {yearEnd}).
                   </p>
-                  {/* <p className="text-blue-600">
-                    Method: {trendMethod?.replace('_', ' ')} | Wells: {wellsData?.length || 0} | Sub-districts: {selectedSubDistricts.length}
-                  </p> */}
                 </div>
               </div>
             </div>
@@ -368,6 +370,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                 {[
                   { id: 'overview', name: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
                   { id: 'table', name: 'Village Data', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z' },
+                  { id: 'charts', name: 'Village Charts', icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -521,7 +524,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statistics</th>
-
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -529,12 +531,10 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">{village.Village_Name}</div>
-                              <div className="text-sm text-gray-500">ID: {village.Village_ID}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div>{village.Block}</div>
                               <div className="text-xs text-gray-500">{village.District}</div>
-                              <div className="text-xs text-gray-400">SUBDIS: {village.SUBDIS_COD}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${village.Trend_Status === 'Increasing' ? 'bg-red-100 text-red-800' :
@@ -556,7 +556,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                               <div>P: {village.P_Value?.toFixed(4) || 'N/A'}</div>
                               <div>Slope: {village.Sen_Slope?.toFixed(4) || 'N/A'}</div>
                             </td>
-
                           </tr>
                         ))}
                       </tbody>
@@ -565,7 +564,183 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                 </div>
               )}
 
+              {activeResultTab === 'charts' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold text-gray-800">Village Yearly Groundwater Depth Trends</h4>
+                    <div className="text-sm text-gray-500">
+                      {villageTimeseriesData.length} villages available
+                    </div>
+                  </div>
 
+                  {/* Village Selector */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select a Village to View Yearly Trend
+                    </label>
+                    <select
+                      value={selectedVillageId}
+                      onChange={(e) => setSelectedVillageId(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">-- Select a Village --</option>
+                      {villageTimeseriesData.map((village) => (
+                        <option key={village.village_id} value={village.village_id}>
+                          {village.village_name} ({village.block}) - {village.trend_status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Chart Display with Trend Line */}
+                  {selectedVillageId && (() => {
+                    const villageData = getVillageTimeseries(selectedVillageId);
+                    if (!villageData) {
+                      return (
+                        <div className="text-center text-gray-500 py-8">
+                          Village data not found
+                        </div>
+                      );
+                    }
+
+                    // Prepare data for recharts with trend line
+                    const chartData = villageData.years.map((year, index) => ({
+                      year: year,
+                      depth: villageData.depths[index],
+                      trend_line: villageData.trend_line[index] // ⭐ NEW
+                    })).filter(d => d.depth !== null || d.trend_line !== null);
+
+                    if (chartData.length === 0) {
+                      return (
+                        <div className="text-center text-gray-500 py-8">
+                          No depth data available for this village
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Village Info Card */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Village Name</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.village_name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Block</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.block}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">District</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.district}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Trend Status</p>
+                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              villageData.trend_status === 'Increasing' ? 'bg-red-100 text-red-800' :
+                              villageData.trend_status === 'Decreasing' ? 'bg-green-100 text-green-800' :
+                              villageData.trend_status === 'No-Trend' ? 'bg-gray-100 text-gray-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {villageData.trend_status}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Line Chart with Trend Line */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-6">
+                          <h5 className="text-md font-semibold text-gray-800 mb-4">
+                            Yearly Groundwater Depth Trend
+                          </h5>
+                          <ResponsiveContainer width="100%" height={400}>
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                dataKey="year"
+                                label={{ value: 'Year', position: 'insideBottom', offset: -5 }}
+                              />
+                              <YAxis
+                                label={{ value: 'Groundwater Depth (m)', angle: -90, position: 'insideLeft', dy: 80 }}
+                                domain={['auto', 'auto']}
+                              />
+                              <Tooltip
+                                formatter={(value: number) => [`${value.toFixed(2)} m`, 'Depth']}
+                                labelFormatter={(label) => `Year: ${label}`}
+                              />
+                              <Legend />
+                              
+                              {/* Actual Depth Line */}
+                              <Line
+                                type="monotone"
+                                dataKey="depth"
+                                stroke={villageData.color}
+                                strokeWidth={3}
+                                dot={{ fill: villageData.color, r: 5 }}
+                                activeDot={{ r: 7 }}
+                                name="Actual Depth"
+                              />
+                              
+                              {/*Trend Line */}
+                              <Line
+                                type="monotone"
+                                dataKey="trend_line"
+                                stroke="#6366F1"
+                                strokeWidth={2}
+                                strokeDasharray="5 5"
+                                dot={false}
+                                activeDot={false}
+                                name="Trend Line "
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+
+                          {/* Statistical Summary */}
+                          {/* <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                            <div>
+                              <p className="text-xs text-gray-500">Mann-Kendall Tau (τ)</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {villageData.mann_kendall_tau !== null 
+                                  ? villageData.mann_kendall_tau.toFixed(4) 
+                                  : 'N/A'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.mann_kendall_tau && Math.abs(villageData.mann_kendall_tau) > 0.3
+                                  ? 'Strong correlation'
+                                  : 'Weak correlation'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Sen's Slope (m/year)</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {villageData.sen_slope !== null 
+                                  ? villageData.sen_slope.toFixed(4) 
+                                  : 'N/A'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.sen_slope && villageData.sen_slope > 0
+                                  ? 'Depth increasing'
+                                  : villageData.sen_slope && villageData.sen_slope < 0
+                                  ? 'Depth decreasing'
+                                  : 'No change'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Data Points</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {chartData.length} years
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.years[0]} - {villageData.years[villageData.years.length - 1]}
+                              </p>
+                            </div>
+                          </div> */}
+
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+// Import WeatherMap for the "weather" category
+import WeatherMap from "./weather/components/map"; 
+// CORRECTED: Path changed from 'weather' to 'Weather' (capital 'W')
+import { WeatherMapProvider } from "@/contexts/extract/Weather/MapContext";
+
+// Existing Imports
 import { DailyProvider } from "@/contexts/extract/Rainfal/RaifallContext";
 import { MapProvider } from "@/contexts/extract/Rainfal/MapContext";
 import { RainfallSelector } from "./rainfall/components/selector";
@@ -19,7 +25,7 @@ import {
   BarChart3,
   Waves,
   Globe2,
-  Droplet, // Added icon for water level
+  Droplet,
 } from "lucide-react";
 
 
@@ -68,23 +74,17 @@ const RainfallPage = () => {
   };
 
   const renderContent = () => {
+    // START: Updated 'weather' content to render WeatherMap
     if (mainCategory === "weather") {
       return (
-        <div className="flex items-center justify-center h-full">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
-            <Cloud size={64} className="mx-auto mb-4 text-gray-400" />
-            <h3 className="text-2xl font-semibold text-gray-700">
-              Weather Data
-            </h3>
-            <p className="text-gray-500 mt-2">Coming soon...</p>
-          </motion.div>
-        </div>
+        <WeatherMapProvider>
+          <div className="flex items-center justify-center h-full">
+            <WeatherMap />
+          </div>
+        </WeatherMapProvider>
       );
     }
+    // END: Updated 'weather' content
 
     if (mainCategory === "waterlevel") {
       return (
@@ -129,37 +129,37 @@ const RainfallPage = () => {
         rainfallSubCategory === "district"
       ) {
        return (
-  <DailyProvider>
-    <MapProvider>
-      <div className="flex h-full bg-gradient-to-br from-white via-slate-100 to-gray-100">
-        
-        {/* LEFT PANEL */}
-        <div className="flex-[6] flex flex-col bg-white border-r border-gray-300 shadow-lg overflow-hidden">
-          
-          {/* Header */}
-          <div className="p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
-            <RainfallSelector
-              forcedCategory={rainfallSubCategory}
-              selectedPeriod={selectedPeriod}
-              onPeriodChange={setSelectedPeriod}
-            />
-          </div>
+          <DailyProvider>
+            <MapProvider>
+              <div className="flex h-full bg-gradient-to-br from-white via-slate-100 to-gray-100">
+                
+                {/* LEFT PANEL */}
+                <div className="flex-[6] flex flex-col bg-white border-r border-gray-300 shadow-lg overflow-hidden">
+                  
+                  {/* Header */}
+                  <div className="p-4 border-b border-gray-200 bg-white sticky top-0 z-10">
+                    <RainfallSelector
+                      forcedCategory={rainfallSubCategory}
+                      selectedPeriod={selectedPeriod}
+                      onPeriodChange={setSelectedPeriod}
+                    />
+                  </div>
 
-          {/* Table Wrapper (NO HYDRATION ERROR HERE) */}
-          <div className="p-4 flex-1 overflow-auto">
-            {/* This will NOT cause hydration issues IF table component is fixed */}
-            <DailyRainfallTable />
-          </div>
-        </div>
+                  {/* Table Wrapper (NO HYDRATION ERROR HERE) */}
+                  <div className="p-4 flex-1 overflow-auto">
+                    {/* This will NOT cause hydration issues IF table component is fixed */}
+                    <DailyRainfallTable />
+                  </div>
+                </div>
 
-        {/* RIGHT PANEL */}
-        <div className="flex-[4] rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-          <RainfallMap />
-        </div>
-      </div>
-    </MapProvider>
-  </DailyProvider>
-);
+                {/* RIGHT PANEL */}
+                <div className="flex-[4] rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                  <RainfallMap />
+                </div>
+              </div>
+            </MapProvider>
+          </DailyProvider>
+        );
 
       }
     }

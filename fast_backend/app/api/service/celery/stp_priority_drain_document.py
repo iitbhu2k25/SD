@@ -1017,7 +1017,6 @@ class ReportGenerator:
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
-                            print("read image")
                             image_bytes = io.BytesIO(f.read())
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:

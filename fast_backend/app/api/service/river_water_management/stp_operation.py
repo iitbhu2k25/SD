@@ -1172,11 +1172,10 @@ class STP_Area:
 
         selected["closeness"] = (selected["area_ha"] - required_area_ha).abs()
         selected = selected.sort_values("closeness").head(top_n).reset_index(drop=True)
-        print(f"✅ Selected {len(selected)} cluster(s) within {tolerance*100:.0f}% tolerance\n")
-        for _, row in selected.iterrows():
-            print(f" Cluster {row['cluster_id']}:")
-            print(f"   • Area: {row['area_ha']:.2f} ha")
-            print(f"   • Difference from Required: {row['closeness']:.2f} ha\n")
+        # for _, row in selected.iterrows():
+        #     print(f" Cluster {row['cluster_id']}:")
+        #     print(f"   • Area: {row['area_ha']:.2f} ha")
+        #     print(f"   • Difference from Required: {row['closeness']:.2f} ha\n")
         return selected
     def stp_area_finding(self,db:db_dependency,payload:STP_suitability_Area):
         raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']

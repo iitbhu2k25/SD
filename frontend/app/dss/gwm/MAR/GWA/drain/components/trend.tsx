@@ -4,7 +4,7 @@ import React, { useContext, useState, useMemo } from 'react';
 import { GroundwaterTrendContext } from "@/contexts/groundwater_assessment/drain/TrendContext";
 import { useWell } from '@/contexts/groundwater_assessment/drain/WellContext';
 import { useLocation } from '@/contexts/groundwater_assessment/drain/LocationContext';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, CartesianGrid, XAxis, YAxis, Bar } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line } from 'recharts';
 
 interface GroundwaterTrendProps {
   activeTab: string;
@@ -27,15 +27,18 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
     handleGenerate,
     availableCharts,
     getChartImage,
+    villageTimeseriesData,
+    allYears,
+    getVillageTimeseries,
   } = useContext(GroundwaterTrendContext);
 
   const { csvFilename, wellsData, isWellTableSaved } = useWell();
   const { selectedVillages } = useLocation();
-
-  const [activeResultTab, setActiveResultTab] = useState<'overview' | 'table' | 'charts' | 'map'>('overview');
+  const [activeResultTab, setActiveResultTab] = useState<'overview' | 'table' | 'charts' | 'map' | 'files'>('overview');
   const [villageFilter, setVillageFilter] = useState<string>('');
   const [trendFilter, setTrendFilter] = useState<string>('All');
-
+  const [selectedVillageId, setSelectedVillageId] = useState<string>('');
+  
   // Extract available years from wells data columns
   const availableYears = useMemo(() => {
     if (!wellsData || wellsData.length === 0 || !isWellTableSaved) {
@@ -68,7 +71,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
     if (!trendMethod || !yearStart || !yearEnd || !csvFilename || !isWellTableSaved) {
       return false;
     }
-    if (!selectedVillages || selectedVillages.length === 0) {
+    if (selectedVillages.length === 0) {
       return false;
     }
     const yearStartNum = parseInt(yearStart);
@@ -105,11 +108,21 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
     });
   }, [trendData?.villages, villageFilter, trendFilter]);
 
+  // Enhanced statistical summary data
+  const enhancedStatsData = useMemo(() => {
+    if (!trendData?.summary_stats) return [];
+
+    const stats = trendData.summary_stats.statistical_summary;
+    return [
+      { name: 'Mean Tau', value: stats?.mean_tau?.toFixed(4) || 'N/A' },
+      { name: 'Median Tau', value: stats?.median_tau?.toFixed(4) || 'N/A' },
+      { name: 'Mean Sen Slope', value: stats?.mean_sen_slope?.toFixed(4) || 'N/A' },
+      { name: 'Significant %', value: `${stats?.significant_trends_percent?.toFixed(1) || 0}%` },
+    ];
+  }, [trendData]);
+
   return (
-    <div className="h-full overflow-auto flex flex-col relative">
-      {/* Full Screen Loading Overlay */}
-      {/* Full Screen Loading Overlay */}
-      {/* Full Screen Loading Overlay */}
+    <div className="h-full overflow-auto flex flex-col">
       {isLoading && (
         <div className="fixed inset-0 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="text-center bg-white rounded-xl shadow-2xl p-8">
@@ -194,7 +207,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
         </div>
       )}
 
-      {(!selectedVillages || selectedVillages.length === 0) && (
+      {selectedVillages.length === 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
           <div className="flex items-start gap-2">
             <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,7 +232,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
             readOnly
             className="w-full p-2 border rounded-md text-sm bg-gray-100 text-gray-700"
           />
-          {/* still send value with form */}
           <input type="hidden" name="trendMethod" value="mann_kendall" />
         </div>
 
@@ -288,7 +300,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                     Trend analysis will be performed for {parseInt(yearEnd) - parseInt(yearStart) + 1} years
                     ({yearStart} to {yearEnd}).
                   </p>
-
                 </div>
               </div>
             </div>
@@ -305,21 +316,50 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
         ].join(" ")}
       >
-        <svg
-          className="w-5 h-5 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-          />
-        </svg>
-        <span className="whitespace-nowrap">Generate Trend Analysis</span>
+        {isLoading ? (
+          <>
+            <svg
+              className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <span className="whitespace-nowrap">Analyzing Groundwater Trends...</span>
+          </>
+        ) : (
+          <>
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+            <span className="whitespace-nowrap">Generate Trend Analysis</span>
+          </>
+        )}
       </button>
+
 
       {trendData && !error && !isLoading && (
         <div className="mt-4 space-y-4">
@@ -329,6 +369,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                 {[
                   { id: 'overview', name: 'Overview', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
                   { id: 'table', name: 'Village Data', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z' },
+                  { id: 'charts', name: 'Village Charts', icon: 'M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -351,8 +392,8 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
             <div className="p-6 max-h-[800px] overflow-y-auto">
               {activeResultTab === 'overview' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-5 gap-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex-1">
+                  <div className="grid grid-cols-5 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -366,7 +407,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                       </div>
                     </div>
 
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex-1">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -380,7 +421,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                       </div>
                     </div>
 
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex-1">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +435,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex-1">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,7 +449,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                       </div>
                     </div>
 
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex-1">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -424,43 +465,22 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                   </div>
 
 
-
-                  <div className="w-full">
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-lg font-semibold text-gray-800 mb-3">Trend Distribution</h4>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={trendDistributionData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis
-                            dataKey="name"
-                            tick={{ fontSize: 12 }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip formatter={(value: number) => [`${value} villages`, "Villages"]} />
-                          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                            {trendDistributionData.map((entry, index) => (
-                              <Cell key={`bar-${index}`} fill={entry.color} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                        {trendDistributionData.map((entry, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <div
-                              className="w-3 h-3 rounded"
-                              style={{ backgroundColor: entry.color }}
-                            ></div>
-                            <span>{entry.name}: {entry.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-3">Trend Distribution (Bar Graph)</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={trendDistributionData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => [`${value} villages`, "Villages"]} />
+                        <Bar dataKey="value">
+                          {trendDistributionData.map((entry, index) => (
+                            <Cell key={`bar-${index}`} fill={entry.color} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-
 
                 </div>
               )}
@@ -503,8 +523,6 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statistics</th>
-                          {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Quality</th> */}
-                          {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depth Info</th> */}
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -512,14 +530,10 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">{village.Village_Name}</div>
-                              <div className="text-sm text-gray-500">ID: {village.Village_ID}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div>{village.Block}</div>
                               <div className="text-xs text-gray-500">{village.District}</div>
-                              {village.SUBDIS_COD && (
-                                <div className="text-xs text-gray-400">SUBDIS: {village.SUBDIS_COD}</div>
-                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${village.Trend_Status === 'Increasing' ? 'bg-red-100 text-red-800' :
@@ -539,7 +553,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               <div>τ: {village.Mann_Kendall_Tau?.toFixed(4) || 'N/A'}</div>
                               <div>P: {village.P_Value?.toFixed(4) || 'N/A'}</div>
-                              <div>Slope : {village.Sen_Slope?.toFixed(4) || 'N/A'}</div>
+                              <div>Slope: {village.Sen_Slope?.toFixed(4) || 'N/A'}</div>
                             </td>
                           </tr>
                         ))}
@@ -548,11 +562,188 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                   </div>
                 </div>
               )}
+
+              {activeResultTab === 'charts' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-semibold text-gray-800">Village Yearly Groundwater Depth Trends</h4>
+                    <div className="text-sm text-gray-500">
+                      {villageTimeseriesData.length} villages available
+                    </div>
+                  </div>
+
+                  {/* Village Selector */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select a Village to View Yearly Trend
+                    </label>
+                    <select
+                      value={selectedVillageId}
+                      onChange={(e) => setSelectedVillageId(e.target.value)}
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">-- Select a Village --</option>
+                      {villageTimeseriesData.map((village) => (
+                        <option key={village.village_id} value={village.village_id}>
+                          {village.village_name} ({village.block}) - {village.trend_status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Chart Display with Trend Line */}
+                  {selectedVillageId && (() => {
+                    const villageData = getVillageTimeseries(selectedVillageId);
+                    if (!villageData) {
+                      return (
+                        <div className="text-center text-gray-500 py-8">
+                          Village data not found
+                        </div>
+                      );
+                    }
+
+                    // Prepare data for recharts with trend line
+                    const chartData = villageData.years.map((year, index) => ({
+                      year: year,
+                      depth: villageData.depths[index],
+                      trend_line: villageData.trend_line[index] 
+                    })).filter(d => d.depth !== null || d.trend_line !== null);
+
+                    if (chartData.length === 0) {
+                      return (
+                        <div className="text-center text-gray-500 py-8">
+                          No depth data available for this village
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Village Info Card */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-gray-500">Village Name</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.village_name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Block</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.block}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">District</p>
+                            <p className="text-sm font-semibold text-gray-800">{villageData.district}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Trend Status</p>
+                            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              villageData.trend_status === 'Increasing' ? 'bg-red-100 text-red-800' :
+                              villageData.trend_status === 'Decreasing' ? 'bg-green-100 text-green-800' :
+                              villageData.trend_status === 'No-Trend' ? 'bg-gray-100 text-gray-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {villageData.trend_status}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Line Chart with Trend Line */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-6">
+                          <h5 className="text-md font-semibold text-gray-800 mb-4">
+                            Yearly Groundwater Depth Trend
+                          </h5>
+                          <ResponsiveContainer width="100%" height={400}>
+                            <LineChart data={chartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                dataKey="year"
+                                label={{ value: 'Year', position: 'insideBottom', offset: -5 }}
+                              />
+                              <YAxis
+                                label={{ value: 'Groundwater Depth (m)', angle: -90, position: 'insideLeft', dy: 80 }}
+                                domain={['auto', 'auto']}
+                              />
+                              <Tooltip
+                                formatter={(value: number) => [`${value.toFixed(2)} m`, 'Depth']}
+                                labelFormatter={(label) => `Year: ${label}`}
+                              />
+                              <Legend />
+                              
+                              {/* Actual Depth Line */}
+                              <Line
+                                type="monotone"
+                                dataKey="depth"
+                                stroke={villageData.color}
+                                strokeWidth={3}
+                                dot={{ fill: villageData.color, r: 5 }}
+                                activeDot={{ r: 7 }}
+                                name="Actual Depth"
+                              />
+                              
+                              {/*Trend Line */}
+                              <Line
+                                type="monotone"
+                                dataKey="trend_line"
+                                stroke="#6366F1"
+                                strokeWidth={2}
+                                strokeDasharray="5 5"
+                                dot={false}
+                                activeDot={false}
+                                name="Trend Line (Sen's Slope)"
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+
+                          {/* Statistical Summary */}
+                          {/* <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                            <div>
+                              <p className="text-xs text-gray-500">Mann-Kendall Tau (τ)</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {villageData.mann_kendall_tau !== null 
+                                  ? villageData.mann_kendall_tau.toFixed(4) 
+                                  : 'N/A'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.mann_kendall_tau && Math.abs(villageData.mann_kendall_tau) > 0.3
+                                  ? 'Strong correlation'
+                                  : 'Weak correlation'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Sen's Slope (m/year)</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {villageData.sen_slope !== null 
+                                  ? villageData.sen_slope.toFixed(4) 
+                                  : 'N/A'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.sen_slope && villageData.sen_slope > 0
+                                  ? 'Depth increasing'
+                                  : villageData.sen_slope && villageData.sen_slope < 0
+                                  ? 'Depth decreasing'
+                                  : 'No change'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Data Points</p>
+                              <p className="text-sm font-semibold text-gray-800">
+                                {chartData.length} years
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {villageData.years[0]} - {villageData.years[villageData.years.length - 1]}
+                              </p>
+                            </div>
+                          </div> */}
+
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
-
 
     </div>
   );

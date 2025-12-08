@@ -76,6 +76,35 @@ services:
       - -c
       - |
         celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+
+
+  fast_m:
+    build:
+      context: ./fast_m
+      dockerfile: Dockerfile
+    image: fast_m:latest
+    ports:
+      - "6500:6500"
+    env_file:
+      - .fastmdb.env
+    volumes:
+      - ./fast_m:/home/app:z
+    command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
+    restart: always
+    depends_on:
+      - fast_m_db
+      - geoserver    
+  fast_m_db:
+    image: postgres:16
+    ports:
+      - "5460:5432"
+    env_file:
+      - .fastmdb.env
+    volumes:
+      - postgres_fastm_data:/var/lib/postgresql/data
+    restart: always
+    depends_on:
+      - geoserver    
     
 
 
@@ -111,6 +140,9 @@ services:
     depends_on:
       - redis
       - geoserver
+
+
+
 
   redis:
     image: redis:7.4
@@ -249,3 +281,4 @@ volumes:
   geoserver_data:
   redis_data:
   grafana_data:
+  postgres_fastm_data:

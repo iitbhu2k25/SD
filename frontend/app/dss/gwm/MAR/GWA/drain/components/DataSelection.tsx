@@ -24,7 +24,7 @@ const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset }) => 
   const handleWellsConfirmed = (data: any) => {
     console.log("Wells confirmed:", data);
     setFinalConfirmed(true);
-    lockSelections(); // Lock the location selections
+    lockSelections(); 
 
     if (onConfirm) {
       onConfirm(data);
@@ -34,8 +34,8 @@ const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset }) => 
   const handleResetAll = () => {
     console.log("Resetting all data selection...");
     setFinalConfirmed(false);
-    resetSelections(); // Reset location selections
-    resetWellSelections(); // Reset well selections
+    resetSelections(); 
+    resetWellSelections();
 
     if (onReset) {
       onReset();
@@ -45,7 +45,7 @@ const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset }) => 
   const handleResetWells = () => {
     console.log("Resetting well selection only...");
     setFinalConfirmed(false);
-    resetWellSelections(); // Reset only well selections
+    resetWellSelections();
   };
 
   return (

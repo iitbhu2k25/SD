@@ -6,6 +6,7 @@ import { useDemand } from './DemandContext';
 import { useRecharge } from './RechargeContext';
 import { GroundwaterTrendContext } from './TrendContext';
 import { useMap } from '@/contexts/groundwater_assessment/admin/MapContext';
+import pako from 'pako';
 
 interface GSRData {
   [key: string]: string | number;
@@ -35,7 +36,7 @@ interface GSRContextType {
   stressError: string | null;
 
   // GeoJSON State
-  gsrGeojsonData: any | null; // GeoJSON FeatureCollection
+  gsrGeojsonData: any | null;
   mergeStatistics: MergeStatistics | null;
 
   // Map Image State
@@ -46,7 +47,7 @@ interface GSRContextType {
   computeGSR: () => Promise<void>;
   canComputeGSR: () => boolean;
 
-  // Stress Identification Actions (uses yearsCount instead of calendar year)
+  // Stress Identification Actions 
   computeStressIdentification: (yearsCount: number) => Promise<StressData[]>;
   canComputeStressIdentification: () => boolean;
 
@@ -86,13 +87,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
 
   // Context dependencies
   const { selectedSubDistricts } = useLocation();
-  const {
-    domesticTableData,
-    agriculturalTableData,
-    domesticChecked,
-    agriculturalChecked
-  } = useDemand();
-
+  const { combinedDemandData } = useDemand();
   const { tableData: rechargeTableData } = useRecharge();
   const { trendData } = React.useContext(GroundwaterTrendContext);
   const { addGsrLayer, removeGsrLayer } = useMap();
@@ -100,11 +95,10 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
   // Get map image URL helper
   const getMapImageUrl = (): string | null => {
     if (!mapImageFilename) return null;
-    // Construct the full URL to the image in media/temp/
     return `/django/media/temp/${mapImageFilename}`;
   };
 
-  // Get map image source helper (prefer base64 if available)
+  // Get map image source helper 
   const getMapImageSrc = (): string | null => {
     if (mapImageBase64) return mapImageBase64;
     return getMapImageUrl();
@@ -132,8 +126,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
     return !!(
       selectedSubDistricts.length > 0 &&
       rechargeTableData.length > 0 &&
-      ((domesticChecked && domesticTableData.length > 0) ||
-        (agriculturalChecked && agriculturalTableData.length > 0))
+      combinedDemandData.length > 0
     );
   };
 
@@ -157,29 +150,92 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
         throw new Error('Recharge data is required. Please compute recharge first.');
       }
 
-      if (domesticTableData.length === 0 && agriculturalTableData.length === 0) {
-        throw new Error('No demand data available. Please compute domestic or agricultural demand first.');
+      if (combinedDemandData.length === 0) {
+        throw new Error('No demand data available. Please compute demand first.');
       }
 
       // Trend CSV from trend context
       const trendCsvFilename = trendData?.summary_stats?.file_info?.trend_csv_filename || null;
 
-      const requestPayload = {
+      // Create payload object with combined demand data
+      const payload = {
         selectedSubDistricts: selectedSubDistricts,
         rechargeData: rechargeTableData,
-        domesticData: domesticTableData,
-        agriculturalData: agriculturalTableData,
-        hasDomesticDemand: domesticChecked && domesticTableData.length > 0,
-        hasAgriculturalDemand: agriculturalChecked && agriculturalTableData.length > 0,
+        combinedDemandData: combinedDemandData,
         hasRechargeData: rechargeTableData.length > 0,
-        trendCsvFilename: trendCsvFilename,
+        hasDemandData: combinedDemandData.length > 0,
+        trendCsvFilename: trendCsvFilename || '',
         timestamp: new Date().toISOString()
       };
 
-      const response = await fetch('/django/gwa/gsr', {
+      // 🏭 VERIFICATION LOGGING
+      console.log('═══════════════════════════════════════════════════════════════════════════════');
+      console.log('🏭 GSR PAYLOAD VERIFICATION - COMBINED DEMAND');
+      console.log('═══════════════════════════════════════════════════════════════════════════════');
+      console.log('📊 DATA SUMMARY:');
+      console.log(`   ✓ Recharge Records: ${rechargeTableData.length}`);
+      console.log(`   ✓ Combined Demand Records: ${combinedDemandData.length}`);
+      console.log('');
+      console.log('🎯 PAYLOAD FLAGS:');
+      console.log(`   • hasRechargeData: ${payload.hasRechargeData}`);
+      console.log(`   • hasDemandData: ${payload.hasDemandData}`);
+      console.log('');
+
+      if (combinedDemandData.length > 0) {
+        console.log('🏭 COMBINED DEMAND DATA SAMPLE (First 3 records):');
+        combinedDemandData.slice(0, 3).forEach((record, idx) => {
+          console.log(`   ${idx + 1}. Village Code: ${record.village_code}`);
+          console.log(`      Village Name: ${record.village_name}`);
+          console.log(`      - Domestic: ${record.domestic_demand || 0} MLD`);
+          console.log(`      - Agricultural: ${record.agricultural_demand || 0} MLD`);
+          console.log(`      - Industrial: ${record.industrial_demand || 0} MLD`);
+          console.log(`      - Total: ${record.total_demand || 0} MLD`);
+        });
+
+        const totalDemand = combinedDemandData.reduce((sum, v) => sum + (Number(v.total_demand) || 0), 0);
+        console.log(`   ✅ Total Demand (All Villages): ${totalDemand.toFixed(3)} MLD`);
+      } else {
+        console.log('   ⚠️ No combined demand data');
+      }
+      console.log('');
+      console.log('🔍 DEMAND BREAKDOWN BY TYPE:');
+      const domesticTotal = combinedDemandData.reduce((sum, v) => sum + (Number(v.domestic_demand) || 0), 0);
+      const agriculturalTotal = combinedDemandData.reduce((sum, v) => sum + (Number(v.agricultural_demand) || 0), 0);
+      const industrialTotal = combinedDemandData.reduce((sum, v) => sum + (Number(v.industrial_demand) || 0), 0);
+
+      console.log(`   Domestic: ${domesticTotal.toFixed(3)} MLD`);
+      console.log(`   Agricultural: ${agriculturalTotal.toFixed(3)} MLD`);
+      console.log(`   Industrial: ${industrialTotal.toFixed(3)} MLD`);
+      console.log(`   ─────────────────────────────────────────────────────`);
+      console.log(`   TOTAL: ${(domesticTotal + agriculturalTotal + industrialTotal).toFixed(3)} MLD`);
+      console.log('');
+      console.log('📍 Selected Sub-districts:', selectedSubDistricts);
+      console.log('📈 Trend CSV:', trendCsvFilename || 'Not provided');
+      console.log('═══════════════════════════════════════════════════════════════════════════════');
+
+      // Convert payload to JSON string and compress
+      const jsonString = JSON.stringify(payload);
+      const compressed = pako.gzip(jsonString);
+
+      // Convert to base64 without spreading (avoids stack overflow)
+      let binary = '';
+      const len = compressed.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(compressed[i]);
+      }
+      const base64Compressed = btoa(binary);
+
+      console.log('🔄 Sending compressed payload to GSR API...');
+      console.log(`   Payload size: ${jsonString.length} bytes`);
+      console.log(`   Compressed size: ${base64Compressed.length} bytes`);
+
+      // Send compressed data
+      const response = await fetch('/fastm/gwa/gsr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestPayload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ zipped_data: base64Compressed }),
       });
 
       if (!response.ok) {
@@ -189,7 +245,23 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
 
       const result = await response.json();
 
-      // Table data
+      console.log('✅ GSR API Response received');
+      console.log(`   Success: ${result.success}`);
+      console.log(`   Villages processed: ${result.villages_count || 0}`);
+
+      // Log summary if available
+      if (result.summary) {
+        console.log('');
+        console.log('📊 GSR COMPUTATION SUMMARY:');
+        console.log(`   Total Recharge: ${result.summary.total_recharge || 0} MCM`);
+        console.log(`   Total Demand: ${result.summary.total_demand || 0} MCM`);
+        console.log(`   ─────────────────────────────────────────────────────`);
+        console.log(`   OVERALL GSR: ${result.summary.overall_gsr || 0}`);
+      }
+
+      console.log('═══════════════════════════════════════════════════════════════════════════════');
+
+      // Handle GSR data response
       if (result.success && result.data && Array.isArray(result.data)) {
         setGSRTableData(result.data);
       } else if (result.gsr_data && Array.isArray(result.gsr_data)) {
@@ -200,13 +272,14 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
         throw new Error('Invalid response format from server');
       }
 
-      // Map GeoJSON
+      // GeoJSON handling
       if (result.geospatial_data) {
         try {
           addGsrLayer(result.geospatial_data);
           setGSRGeojsonData(result.geospatial_data);
+          console.log('✅ GSR layer added to map');
         } catch (e) {
-          console.log('Failed to add GSR layer to map:', e);
+          console.log('⚠️ Failed to add GSR layer to map:', e);
         }
       } else {
         removeGsrLayer();
@@ -216,28 +289,28 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       // Merge stats
       if (result.merge_statistics) {
         setMergeStatistics(result.merge_statistics);
+        console.log(`📊 Merge Statistics: ${result.merge_statistics.villages_with_geospatial_data}/${result.merge_statistics.total_gsr_villages} villages merged`);
       }
 
-      // Handle map image filename
+      // Map images
       if (result.map_image_filename) {
         setMapImageFilename(result.map_image_filename);
-        console.log('📍 GSR map image generated:', result.map_image_filename);
+        console.log('📸 GSR map image generated:', result.map_image_filename);
       } else {
         setMapImageFilename(null);
         console.log('⚠️ No map image generated');
       }
 
-      // Handle map image base64
       if (result.map_image_base64) {
         setMapImageBase64(result.map_image_base64);
-        console.log('📍 GSR map image base64 received');
+        console.log('📸 GSR map image base64 received');
       } else {
         setMapImageBase64(null);
-        console.log('⚠️ No map image base64 received');
       }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+      console.error('❌ GSR Computation Error:', errorMessage);
       setGSRError(errorMessage);
       setGSRTableData([]);
       setGSRGeojsonData(null);
@@ -249,7 +322,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
     }
   };
 
-  // Compute Stress Identification (UPDATED: uses yearsCount instead of calendar year)
+  // Compute Stress Identification
   const computeStressIdentification = async (yearsCount: number): Promise<StressData[]> => {
     try {
       setStressLoading(true);
@@ -268,12 +341,16 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       // Request payload: use yearsCount instead of year
       const requestPayload = {
         gsrData: gsrTableData,
-        years_count: yearsCount, // CHANGED: now accepts count of years (1-50)
+        years_count: yearsCount,
         selectedSubDistricts: selectedSubDistricts,
         timestamp: new Date().toISOString()
       };
 
-      const response = await fetch('/django/gwa/stress', {
+      console.log('🔄 Computing Stress Identification...');
+      console.log(`   Years: ${yearsCount}`);
+      console.log(`   GSR Records: ${gsrTableData.length}`);
+
+      const response = await fetch('/fastm/gwa/stress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),
@@ -299,10 +376,13 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       }
 
       setStressTableData(stressData);
+      console.log(`✅ Stress identification completed for ${stressData.length} villages`);
+
       return stressData;
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred during stress identification';
+      console.error('❌ Stress Identification Error:', errorMessage);
       setStressError(errorMessage);
       setStressTableData([]);
       throw err;
@@ -316,7 +396,6 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
     gsrTableData,
     gsrLoading,
     gsrError,
-
     // Stress State
     stressTableData,
     stressLoading,

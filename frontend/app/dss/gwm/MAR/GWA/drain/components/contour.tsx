@@ -230,9 +230,9 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             step="0.1"
             disabled={isLoading}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            💡 Recommended: 1-5m for groundwater levels, 5-20m for elevation
-          </p>
+          {/* <p className="text-xs text-gray-500 mt-1">
+             Recommended: 1-5m for groundwater levels, 5-20m for elevation
+          </p> */}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -246,8 +246,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
           >
             <option value="">Select Method...</option>
             <option value="idw">Inverse Distance Weighted (IDW)</option>
-            {/* <option value="kriging">Kriging</option>
-            <option value="spline">Spline</option> */}
+          
           </select>
         </div>
 
@@ -343,7 +342,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             </div>
           </div>
 
-          {/* PNG Preview Section - UPDATED WITH DOWNLOAD FUNCTIONALITY */}
+          {/* PNG Preview Section */}
           {visualizationData && (visualizationData.png_base64 || visualizationData.png_path) && (
             <div className="p-4 border border-gray-300 rounded-md bg-white mt-4">
               <div className="flex justify-between items-center mb-2">

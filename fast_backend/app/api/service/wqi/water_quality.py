@@ -247,7 +247,6 @@ class WQ_Index:
 
     def get_well(self,db: session,payload:Well_input):
         if payload.place == "Drain":
-            print(payload.location)
             return WQI(db).get_wqi_vill(payload.location,payload.year)
         else:
             return WQI(db).get_wqi(payload.location,payload.year)
@@ -621,6 +620,6 @@ def start_weight_raster(self,result:list):
     
     redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
     redis_client.setex(self.request.root_id, 3600, "Done")
-    print("XXXXX")
+
    
     

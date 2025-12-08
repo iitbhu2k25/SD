@@ -47,18 +47,18 @@ export const GroundwaterContourContext = createContext<GroundwaterContourContext
   contourInterval: '',
   isLoading: false,
   error: null,
-  setInterpolationMethod: () => {},
-  setParameter: () => {},
-  setDataType: () => {},
-  setSelectedYear: () => {},
-  setContourInterval: () => {},
-  handleGenerate: async () => {},
+  setInterpolationMethod: () => { },
+  setParameter: () => { },
+  setDataType: () => { },
+  setSelectedYear: () => { },
+  setContourInterval: () => { },
+  handleGenerate: async () => { },
 });
 
 export const GroundwaterContourProvider = ({
   children,
   activeTab,
-  onGeoJsonData = () => {},
+  onGeoJsonData = () => { },
 }: GroundwaterContourProviderProps) => {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   const [rasterData, setRasterData] = useState<any>(null);
@@ -129,7 +129,7 @@ export const GroundwaterContourProvider = ({
 
       console.log('Sending interpolation API request:', payload);
 
-      const response = await fetch('/django/gwa/interpolation', {
+      const response = await fetch('/fastm/gwa/interpolation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

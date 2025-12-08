@@ -40,18 +40,18 @@ interface LocationContextType {
   selectionsLocked: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   // Area confirmation
   areaConfirmed: boolean;
-  
+
   // Location functions
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number[]) => void;
   setSelectedSubDistricts: (subDistrictIds: number[]) => void;
-  
+
   // Area functions
   handleAreaConfirm: () => void;
-  
+
   // Final actions
   lockSelections: () => void;
   resetSelections: () => void;
@@ -73,12 +73,12 @@ const LocationContext = createContext<LocationContextType>({
   isLoading: false,
   error: null,
   areaConfirmed: false,
-  handleStateChange: () => {},
-  setSelectedDistricts: () => {},
-  setSelectedSubDistricts: () => {},
-  handleAreaConfirm: () => {},
-  lockSelections: () => {},
-  resetSelections: () => {},
+  handleStateChange: () => { },
+  setSelectedDistricts: () => { },
+  setSelectedSubDistricts: () => { },
+  handleAreaConfirm: () => { },
+  lockSelections: () => { },
+  resetSelections: () => { },
 });
 
 export const LocationProvider: React.FC<LocationProviderProps> = ({
@@ -95,7 +95,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Area confirmation state
   const [areaConfirmed, setAreaConfirmed] = useState(false);
 
@@ -270,7 +270,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedSubDistricts([]);
     setTotalPopulation(0);
     setSelectionsLocked(false);
-    // Reset area confirmation when state changes
     setAreaConfirmed(false);
   };
 
@@ -323,18 +322,18 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     selectionsLocked,
     isLoading,
     error,
-    
+
     // Area confirmation
     areaConfirmed,
-    
+
     // Location functions
     handleStateChange,
     setSelectedDistricts: updateSelectedDistricts,
     setSelectedSubDistricts: updateSelectedSubDistricts,
-    
+
     // Area functions
     handleAreaConfirm,
-    
+
     // Final actions
     lockSelections,
     resetSelections,
