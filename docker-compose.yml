@@ -15,96 +15,96 @@ services:
   #   command: npm start
 
 
-  backend:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: backend:latest
-    ports:
-      - "9000:9000"
-    env_file:
-      - .env
-    volumes:
-      - ./backend:/home/app:z
-    command: >
-      sh -c "python manage.py migrate &&
-             daphne -b 0.0.0.0 -p 9000 main.asgi:application"
-    restart: always
-    depends_on:
-      - db
-      - geoserver
+  # backend:
+  #   build:
+  #     context: ./backend/
+  #     dockerfile: docker/dockerfile.backend
+  #   image: backend:latest
+  #   ports:
+  #     - "9000:9000"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./backend:/home/app:z
+  #   command: >
+  #     sh -c "python manage.py migrate &&
+  #            daphne -b 0.0.0.0 -p 9000 main.asgi:application"
+  #   restart: always
+  #   depends_on:
+  #     - db
+  #     - geoserver
 
-  db:
-    image: postgres:16
-    ports:
-      - "5440:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis_django
-      - geoserver
+  # db:
+  #   image: postgres:16
+  #   ports:
+  #     - "5440:5432"
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: always
+  #   depends_on:
+  #     - redis_django
+  #     - geoserver
     
-  redis_django:
-    image: redis:7.4
-    ports:
-      - "6370:6379"
-    expose:
-      - "6370"
-    env_file:
-      - .env
-    restart: always
-    volumes:
-      - redis_data:/data 
+  # redis_django:
+  #   image: redis:7.4
+  #   ports:
+  #     - "6370:6379"
+  #   expose:
+  #     - "6370"
+  #   env_file:
+  #     - .env
+  #   restart: always
+  #   volumes:
+  #     - redis_data:/data 
 
-  celery_django:
-    build:
-      context: ./backend/
-      dockerfile: docker/dockerfile.backend
-    image: celery_django:latest
-    volumes:
-      - ./backend:/home/app:z
-    env_file:
-      - .env
-    depends_on:
-      - redis_django
-      - backend
-    command:
-      - /bin/sh
-      - -c
-      - |
-        celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
+  # celery_django:
+  #   build:
+  #     context: ./backend/
+  #     dockerfile: docker/dockerfile.backend
+  #   image: celery_django:latest
+  #   volumes:
+  #     - ./backend:/home/app:z
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - redis_django
+  #     - backend
+  #   command:
+  #     - /bin/sh
+  #     - -c
+  #     - |
+  #       celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
 
 
-  fast_m:
-    build:
-      context: ./fast_m
-      dockerfile: Dockerfile
-    image: fast_m:latest
-    ports:
-      - "6500:6500"
-    env_file:
-      - .fastmdb.env
-    volumes:
-      - ./fast_m:/home/app:z
-    command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
-    restart: always
-    depends_on:
-      - fast_m_db
-      - geoserver    
-  fast_m_db:
-    image: postgres:16
-    ports:
-      - "5460:5432"
-    env_file:
-      - .fastmdb.env
-    volumes:
-      - postgres_fastm_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - geoserver    
+  # fast_m:
+  #   build:
+  #     context: ./fast_m
+  #     dockerfile: Dockerfile
+  #   image: fast_m:latest
+  #   ports:
+  #     - "6500:6500"
+  #   env_file:
+  #     - .fastmdb.env
+  #   volumes:
+  #     - ./fast_m:/home/app:z
+  #   command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
+  #   restart: always
+  #   depends_on:
+  #     - fast_m_db
+  #     - geoserver    
+  # fast_m_db:
+  #   image: postgres:16
+  #   ports:
+  #     - "5460:5432"
+  #   env_file:
+  #     - .fastmdb.env
+  #   volumes:
+  #     - postgres_fastm_data:/var/lib/postgresql/data
+  #   restart: always
+  #   depends_on:
+  #     - geoserver    
     
 
 
@@ -220,59 +220,59 @@ services:
       - ./fast_backend/.fastdb.env
     restart: always
 
-  celery_exporter:
-    image: danihodovic/celery-exporter:0.12.2
-    container_name: celery_exporter
-    command: >
-      --broker-url redis://redis:6379/0 --port 9808
-    ports:
-      - "9808:9808"
-    restart: always
-    depends_on:
-      - redis
+  # celery_exporter:
+  #   image: danihodovic/celery-exporter:0.12.2
+  #   container_name: celery_exporter
+  #   command: >
+  #     --broker-url redis://redis:6379/0 --port 9808
+  #   ports:
+  #     - "9808:9808"
+  #   restart: always
+  #   depends_on:
+  #     - redis
 
 
-  prometheus:
-    image: prom/prometheus
-    container_name: prometheus
-    ports:
-      - "9092:9090"
-    volumes:
-      - ./fast_backend/logs/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      - redis
-      - celery_low
+  # prometheus:
+  #   image: prom/prometheus
+  #   container_name: prometheus
+  #   ports:
+  #     - "9092:9090"
+  #   volumes:
+  #     - ./fast_backend/logs/prometheus.yml:/etc/prometheus/prometheus.yml
+  #   depends_on:
+  #     - redis
+  #     - celery_low
 
-    restart: always
+  #   restart: always
 
-  redis_exporter:
-    image: oliver006/redis_exporter
-    container_name: redis_exporter
-    environment:
-      REDIS_ADDR: "redis:6379"
-    ports:
-      - "9121:9121"
-    restart: always
-    depends_on:
-      - redis
+  # redis_exporter:
+  #   image: oliver006/redis_exporter
+  #   container_name: redis_exporter
+  #   environment:
+  #     REDIS_ADDR: "redis:6379"
+  #   ports:
+  #     - "9121:9121"
+  #   restart: always
+  #   depends_on:
+  #     - redis
 
-  node_exporter:
-    image: prom/node-exporter
-    container_name: node_exporter
-    ports:
-      - "9100:9100"
-    restart: always
+  # node_exporter:
+  #   image: prom/node-exporter
+  #   container_name: node_exporter
+  #   ports:
+  #     - "9100:9100"
+  #   restart: always
 
-  grafana:
-    image: grafana/grafana
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-    restart: always
+  # grafana:
+  #   image: grafana/grafana
+  #   container_name: grafana
+  #   ports:
+  #     - "3001:3000"
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   restart: always
 
 
 volumes:
