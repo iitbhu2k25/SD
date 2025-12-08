@@ -144,21 +144,14 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
 
   const [isPlayingStory, setIsPlayingStory] = useState(false);
   const storyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const STORY_DELAY_MS = 3000; // 3 seconds between stations
+  const STORY_DELAY_MS = 10000; // 3 seconds between stations
 
   const riverLayersRef = useRef<{ [key: string]: VectorLayer<VectorSource> }>({});
   const stationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
 
   /* ---------- API BASE ---------- */
-  const getApiBase = () => {
-    if (typeof window !== 'undefined' && window.location.port === '3000') {
-      const { protocol, hostname } = window.location;
-      return `${protocol}//${hostname}:9000/django/drain-water-quality/`;
-    }
-    return '/django/drain-water-quality/';
-  };
-  const API_BASE = getApiBase();
+  const API_BASE = "/django/"
 
   /* ==============================================================
      1. INITIALISE MAP
@@ -217,7 +210,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
         setLoadingStations(true);
         setError(null);
 
-        const url = `${API_BASE}story-map/stations/`;
+        const url = `${API_BASE}drain-water-quality/story-map/stations/`;
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -343,7 +336,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
 
     for (const river of rivers) {
       try {
-        const geoResp = await fetch(`${API_BASE}rivers/geojson/${river.id}`);
+        const geoResp = await fetch(`${API_BASE}drain-water-quality/rivers/geojson/${river.id}`);
         if (!geoResp.ok) continue;
         const geojson = await geoResp.json();
 
@@ -368,7 +361,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
         riverLayersRef.current[river.id] = layer;
         mapInstanceRef.current?.addLayer(layer);
       } catch (e) {
-        console.log(`Failed to load river: ${river.id}`, e);
+        console.error(`Failed to load river: ${river.id}`, e);
       }
     }
 
@@ -516,7 +509,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
     mapInstanceRef.current?.getView().animate({
       center: fromLonLat([station.lon, station.lat]),
       zoom: 15, // Increased zoom level for a more significant zoom effect
-      duration: 2000, // Smooth transition
+      duration: 4000, // Smooth transition
     });
     // **********************************************
   };
@@ -583,7 +576,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
   return (
     <div className="relative w-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden shadow-2xl">
       {/* HEADER */}
-      <div className="bg-gradient-to-r from-green-400 via-cyan-500 to-blue-600 text-white p-6 shadow-lg flex justify-between items-center">
+      <div className="bg-gradient-to-r from-blue-400 to-blue-400 text-white p-6 shadow-lg flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Story Map</h1>
           <p className="text-white/80">Explore the water quality narrative through an interactive geographic story</p>
@@ -651,7 +644,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
                 
                 <button
                   onClick={handlePreviousStation}
-                  className="absolute bottom-4 left-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-10"
+                  className="absolute bottom-1 left-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-10"
                   title="Previous Station"
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -659,7 +652,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
 
                 <button
                   onClick={handleNextStation}
-                  className="absolute bottom-4 right-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-10"
+                  className="absolute bottom-1 right-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 z-10"
                   title="Next Station"
                 >
                   <ChevronRight className="w-6 h-6" />

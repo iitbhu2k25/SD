@@ -3,6 +3,7 @@ import './globals.css';
 import Header from '@/components/app_layout/Header';
 import Footer from '@/components/app_layout/Footer';
 import { ToastContainer } from 'react-toastify';
+import TopHeader from '@/components/app_layout/tophead'; 
 import 'react-toastify/dist/ReactToastify.css';
 
 interface RootLayoutProps {
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className="flex flex-col min-h-screen antialiased">
+           <TopHeader />
           <Header/>
           <main className="flex-1 flex flex-col w-full">
             {children}

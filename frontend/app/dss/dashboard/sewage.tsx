@@ -174,7 +174,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
       
       setIsMapReady(true);
     } catch (error) {
-      console.log('❌ Map init error:', error);
+      console.error('❌ Map init error:', error);
     }
 
     return () => {
@@ -231,7 +231,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
                     riverLayersRef.current[river.id] = vectorLayer;
                 }
             }
-        } catch (e) { console.log("Error loading rivers:", e); }
+        } catch (e) { console.error("Error loading rivers:", e); }
     };
 
     const loadBasin = async () => {
@@ -261,7 +261,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
               }
             }
           }
-        } catch (e) { console.log("Error loading basin:", e); }
+        } catch (e) { console.error("Error loading basin:", e); }
     };
 
     const loadInfrastructurePoints = async () => {
@@ -300,7 +300,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
                 layerRefsRef.current[layer.id] = vectorLayer;
                 setLayers(prev => prev.map(l => l.id === layer.id ? { ...l, features: features.length } : l));
               }
-            } catch (e) { console.log(`Error loading ${layer.id}:`, e); }
+            } catch (e) { console.error(`Error loading ${layer.id}:`, e); }
         }
     };
 

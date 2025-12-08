@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/django/:path*",
-        destination: "http://backend:9000/django/:path*",
+        destination: "http://localhost:9000/django/:path*",
       },
     ]
   },

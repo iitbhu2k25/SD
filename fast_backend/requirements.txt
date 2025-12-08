@@ -53,3 +53,5 @@ jenkspy
 cartopy
 celery-progress
 bs4
+prometheus-client 
+prometheus-fastapi-instrumentator

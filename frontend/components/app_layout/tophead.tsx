@@ -82,22 +82,22 @@ const TopHeader: React.FC = () => {
 };
 
   const scrollToMainContent = () => {
-    window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+    window.scrollBy({ top: 250, behavior: 'smooth' });
   };
 
   // HEADER styles - Fixed blue header with white text, no dynamic theme changes here
   const headerStyle: CSSProperties = {
-    backgroundColor: 'blue',
+    backgroundColor: '#ff9419ff',
     color: 'white',
     padding: '2px 16px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'stretch',
-    fontSize: '15px',
+    fontSize: '10px',
     fontFamily: '"Noto Sans", "Arial", sans-serif',
-    fontWeight: 600,
+    fontWeight: 400,
     flexWrap: 'nowrap',
-    height: '48px',
+    height: '38px',
   };
 
   const leftStyle: CSSProperties = {
@@ -113,7 +113,7 @@ const TopHeader: React.FC = () => {
     textAlign: 'center',
     lineHeight: '1.2',
     fontWeight: 600,
-    fontSize: '15px',
+    fontSize: '12px',
     cursor: 'pointer',
     textDecoration: 'none',
     color: 'white',
@@ -132,7 +132,7 @@ const TopHeader: React.FC = () => {
     gap: '10px',
     flexWrap: 'nowrap',
     fontWeight: 600,
-    fontSize: '15px',
+    fontSize: '12px',
     position: 'relative',
   };
 
@@ -207,17 +207,21 @@ const TopHeader: React.FC = () => {
           </a>
           <div style={verticalSeparator}></div>
 
-          <div title="Font Size Controls" style={{ display: 'flex', gap: '5px' }}>
+          <div title="Increase Font Size" style={{ display: 'flex', gap: '5px' }}>
             <MdTextIncrease style={iconStyle} onClick={() => changeFontSize('increase')} />
+              </div>
+              <div title="Reset Font Size" style={{ display: 'flex', gap: '5px' }}>
             <MdTextFields style={iconStyle} onClick={() => changeFontSize('reset')} />
+              </div>
+              <div title="Decrease Font Size" style={{ display: 'flex', gap: '5px' }}>
             <MdTextDecrease style={iconStyle} onClick={() => changeFontSize('decrease')} />
           </div>
           <div style={verticalSeparator}></div>
 
-          <div onClick={toggleTheme} title="Toggle dark/light mode">
+          {/* <div onClick={toggleTheme} title="Toggle dark/light mode">
             {theme === 'light' ? <FiMoon style={iconStyle} /> : <FiSun style={iconStyle} />}
           </div>
-          <div style={verticalSeparator}></div>
+          <div style={verticalSeparator}></div> */}
 
           {/* Search */}
           <div style={{ position: 'relative' }}>
@@ -230,9 +234,9 @@ const TopHeader: React.FC = () => {
                   right: 0,
                   backgroundColor: '#fff',
                   color: '#000',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  padding: '5px',
+                  borderRadius: '2px',
+                  boxShadow: '0 2px 2px rgba(0,0,0,0.2)',
                   zIndex: 1000,
                 }}
               >
@@ -241,9 +245,9 @@ const TopHeader: React.FC = () => {
                   placeholder="Search..."
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  style={{ padding: '5px', width: '200px', marginBottom: '5px' }}
+                  style={{ padding: '1px', width: '150px', marginBottom: '1px' }}
                 />
-                <ul style={{ maxHeight: '150px', overflowY: 'auto', padding: 0, margin: 0, listStyle: 'none' }}>
+                {/* <ul style={{ maxHeight: '150px', overflowY: 'auto', padding: 0, margin: 0, listStyle: 'none' }}>
                   {results.length > 0 ? (
                     results.map((item, index) => (
                       <li key={index} style={{ padding: '5px 0', borderBottom: '1px solid #ccc' }}>
@@ -251,40 +255,13 @@ const TopHeader: React.FC = () => {
                       </li>
                     ))
                   ) : (
-                    <li style={{ padding: '5px 0' }}>No results found</li>
+                    <li style={{ padding: '1px 0' }}>No results found</li>
                   )}
-                </ul>
+                </ul> */}
               </div>
             )}
           </div>
           <div style={verticalSeparator}></div>
-
-          
-
-          {/* Translate icon and element
-          <div
-            style={{
-              position: 'relative',
-              width: '30px',
-              height: '30px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            title="Select Language"
-          >
-            <MdTranslate style={{ color: 'white', fontSize: '22px' }} />
-            <div
-              id="google_translate_element"
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-            ></div>
-          </div>
-          <div style={verticalSeparator}></div>
-
-          <a href="/home/employee_login" title="Employee Login">
-            <FaUser style={iconStyle} />
-          </a> */}
         </div>
       </div>
     </>

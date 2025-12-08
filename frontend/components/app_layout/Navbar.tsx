@@ -1,19 +1,132 @@
 "use client";
 import { useState, useEffect, useRef, JSX } from "react";
 import Link from "next/link";
-import { ChevronRight, ChevronDown, Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronRight, Menu, X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/components/authentication/logout";
 import { startCase } from "lodash";
 
+type BreadcrumbItem = {
+  label: string;
+  href: string;
+};
+
 type DropdownState = {
   [key: string]: boolean;
+};
+
+
+const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
+  // Main Pages
+  "/dss/about": [{ label: "About", href: "/dss/about" }],
+  "/dss/dashboard": [{ label: "Dashboard", href: "/dss/dashboard" }],
+  "/dss/basic": [{ label: "Basic Module", href: "/dss/basic" }],
+  "/UserManagement/UserProfile": [{ label: "Profile", href: "/UserManagement/UserProfile" }],
+  
+  // GWM Routes
+  "/dss/gwm/pumping_location": [
+    { label: "GWM", href: "#" }, 
+    { label: "Groundwater Potential Assessment", href: "#" }, 
+    { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location" }
+  ],
+  "/dss/gwm/potential_zone": [
+    { label: "GWM", href: "#" }, 
+    { label: "Groundwater Potential Assessment", href: "#" }, 
+    { label: "GW Potential Zone", href: "/dss/gwm/potential_zone" }
+  ],
+  "/dss/gwm/resource_estimation/wqa": [
+    { label: "GWM", href: "#" }, 
+    { label: "Resource Estimation", href: "#" }, 
+    { label: "Water Quality Assessment", href: "/dss/gwm/resource_estimation/wqa" }
+  ],
+  "/dss/gwm/MAR/GWA": [
+    { label: "GWM", href: "#" },
+    { label: "Managed Aquifer Recharge", href: "#" },
+    { label: "Need Assessment", href: "/dss/gwm/MAR/GWA" }
+  ],
+  "/dss/gwm/MAR/SWA": [
+    { label: "GWM", href: "#" },
+    { label: "Managed Aquifer Recharge", href: "#" },
+    { label: "Water Source Estimation", href: "/dss/gwm/MAR/SWA" }
+  ],
+  "/dss/gwm/mar_suitability": [
+    { label: "GWM", href: "#" },
+    { label: "Managed Aquifer Recharge", href: "#" },
+    { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability" }
+  ],
+
+  // RWM Routes
+  "/dss/river": [
+    { label: "RWM", href: "#" }, 
+    { label: "Resource Estimation", href: "#" }, 
+    { label: "Water Quality Assessment", href: "#" }, 
+    { label: "Ground Based Assessment", href: "/dss/river" }
+  ],
+  "/dss/rwm/wwt/stp_priority": [
+    { label: "RWM", href: "#" },
+    { label: "Waste Water Treatment", href: "#" },
+    { label: "STP Priority", href: "/dss/rwm/wwt/stp_priority" }
+  ],
+  "/dss/rwm/wwt/stp_suitability": [
+    { label: "RWM", href: "#" },
+    { label: "Waste Water Treatment", href: "#" },
+    { label: "STP Suitability", href: "/dss/rwm/wwt/stp_suitability" }
+  ],
+  "/dss/rwm/rainwater": [
+    { label: "RWM", href: "#" },
+    { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" }
+  ],
+  
+  // Visualization
+  "/dss/watershed": [
+    { label: "Visualization", href: "#" }, 
+    { label: "Watershed", href: "/dss/watershed" }
+  ],
+  "/dss/visualizations/vector_visual": [
+     { label: "Visualization", href: "#" }, 
+     { label: "Vector", href: "/dss/visualizations/vector_visual" }
+  ],
+  "/dss/visualizations/raster_visual": [
+     { label: "Visualization", href: "#" }, 
+     { label: "Raster", href: "/dss/visualizations/raster_visual" }
+  ],
+  "/dss/visualizations/model_water": [
+     { label: "Visualization", href: "#" }, 
+     { label: "Water", href: "/dss/visualizations/model_water" }
+  ],
+  "/dss/nmcg": [
+     { label: "Visualization", href: "#" }, 
+     { label: "NMCG", href: "/dss/nmcg" }
+  ],
+  "/dss/extractdata": [
+     { label: "Visualization", href: "#" }, 
+     { label: "Extract Data", href: "/dss/extractdata" }
+  ],
+
+  // Activities
+  "/dss/components/gallery": [
+    { label: "Activities", href: "#" }, 
+    { label: "Gallery", href: "/dss/components/gallery" }
+  ],
 };
 
 const Navbar = (): JSX.Element => {
   const [isSticky, setIsSticky] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [openDropdowns, setOpenDropdowns] = useState<DropdownState>({});
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
+    { label: "Home", href: "/dss" }
+  ]);
+  const pathname = usePathname();
+  
+  // CHECK: Is the current page the Home page OR a sub-route of the Home Grid?
+  // This ensures breadcrumbs don't show on home sub-pages
+  const isHomePage = 
+    pathname === "/dss" || 
+    pathname === "/dss/" || 
+    pathname?.startsWith("/dss/home");
+
   const navRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -22,6 +135,38 @@ const Navbar = (): JSX.Element => {
   if (user_name.length > 8) {
     user_name = user_name.slice(0, 5) + "...";
   }
+
+  // --- UPDATED LOGIC: Breadcrumb Loader ---
+  useEffect(() => {
+    // 1. Priority Check: Is this URL in our static map?
+    if (staticBreadcrumbs[pathname]) {
+      const mappedCrumbs = staticBreadcrumbs[pathname];
+      setBreadcrumbs(mappedCrumbs);
+      sessionStorage.setItem('breadcrumbs', JSON.stringify(mappedCrumbs));
+      return;
+    }
+
+    // 2. Fallback: Check Session Storage (for complex state)
+    const storedBreadcrumbs = sessionStorage.getItem('breadcrumbs');
+    if (storedBreadcrumbs) {
+      try {
+        const parsed = JSON.parse(storedBreadcrumbs);
+        setBreadcrumbs(parsed);
+      } catch (e) {
+        setBreadcrumbs([{ label: "Home", href: "/dss" }]);
+      }
+    } else {
+      // 3. Default
+      setBreadcrumbs([{ label: "Home", href: "/dss" }]);
+    }
+  }, [pathname]);
+
+  const handleMenuClick = (path: BreadcrumbItem[]) => {
+    setBreadcrumbs(path);
+    sessionStorage.setItem('breadcrumbs', JSON.stringify(path));
+    setOpenDropdowns({});
+    setIsMobileMenuOpen(false);
+  };
 
   // Handle sticky navbar on scroll
   useEffect(() => {
@@ -101,12 +246,13 @@ const Navbar = (): JSX.Element => {
   const navLinkClasses = "text-white font-semibold text-lg lg:text-base xl:text-lg px-3 lg:px-4 xl:px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300 whitespace-nowrap";
 
   return (
-    <nav
+    <>
+      <nav
       ref={navRef}
       className={`${isSticky
         ? "bg-orange-300 shadow-md fixed top-0 left-0 w-full z-200"
-        : "bg-opacity-10 bg-[#081F5C]"
-        } border-b border-white border-opacity-20 py-4 relative transition-all duration-300 z-200`}
+        : "bg-gradient-to-r from-slate-800 to-slate-900"
+        } py-3 relative transition-all duration-300 z-200`}
     >
       <div className="container mx-auto px-4">
         {/* Mobile menu button */}
@@ -131,21 +277,24 @@ const Navbar = (): JSX.Element => {
 
             {/* Home */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss" className={navLinkClasses}>
+              <Link href="/dss" className={navLinkClasses}
+                        onClick={() => handleMenuClick([{ label: "Home", href: "/dss" }])}>
                 Home
               </Link>
             </li>
 
             {/* Dashboard */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss/dashboard" className={navLinkClasses}>
+              <Link href="/dss/dashboard" className={navLinkClasses}
+                        onClick={() => handleMenuClick([{ label: "Dashboard", href: "/dss/dashboard" }])}>
                 Dashboard
               </Link>
             </li>
 
             {/* Basic Modules */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss/basic" className={navLinkClasses}>
+              <Link href="/dss/basic" className={navLinkClasses}
+                        onClick={() => handleMenuClick([{ label: "Basic Module", href: "/dss/basic" }])}>
                 Basic module
               </Link>
             </li>
@@ -193,7 +342,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/pumping_location"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location" }])}>
                         Pumping Location Identification
                       </Link>
                     </li>
@@ -201,7 +351,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/potential_zone"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "GW Potential Zone", href: "/dss/gwm/potential_zone" }])}>
                         GW Potential Zone
                       </Link>
                     </li>
@@ -232,7 +383,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Regional Scale Quantification", href: "/dss/default" }])}>
                         Regional Scale Quantification
                       </Link>
                     </li>
@@ -240,7 +392,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/resource_estimation/wqa"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "/dss/gwm/resource_estimation/wqa" }])}>
                         Water Quality Assessment
                       </Link>
                     </li>
@@ -248,7 +401,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Identification Of Vulnerable zones", href: "/dss/default" }])}>
                         Identification Of Vulnerable zones
                       </Link>
                     </li>
@@ -279,7 +433,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/MAR/GWA"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Need Assessment", href: "/dss/gwm/MAR/GWA" }])}>
                         Need Assessment
                       </Link>
                     </li>
@@ -287,6 +442,7 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/MAR/SWA"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Water Source Estimation", href: "/dss/gwm/MAR/SWA" }])}
                       >
                         Water Source Estimation
                       </Link>
@@ -295,7 +451,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/gwm/mar_suitability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability" }])}>
                         MAR site Suitability
                       </Link>
                     </li>
@@ -303,7 +460,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Differential Optimum Solution", href: "/dss/default" }])}>
                         Differential Optimum Solution
                       </Link>
                     </li>
@@ -334,7 +492,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "River Aquifer Interaction", href: "#" }, { label: "Baseflow Estimation", href: "/dss/default" }])}>
                         Baseflow Estimation
                       </Link>
                     </li>
@@ -342,7 +501,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "River Aquifer Interaction", href: "#" }, { label: "Climate Change and Mitigation", href: "/dss/default" }])}>
                         Climate Change and Mitigation
                       </Link>
                     </li>
@@ -370,7 +530,7 @@ const Navbar = (): JSX.Element => {
                 className={`${openDropdowns.rwm ? "block" : "hidden"
                   } lg:group-hover:block absolute left-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[400px] p-3 z-200`}
               >
-
+                {/* Resource Estimation */}
                 <li
                   className="relative group/submenu"
                   onMouseEnter={() => toggleDropdown("rwEstimation", true)}
@@ -394,7 +554,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Availability", href: "/dss/default" }])}>
                         Water Availability
                       </Link>
                     </li>
@@ -402,32 +563,27 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Flow and Storage Estimation", href: "/dss/default" }])}>
                         Water Flow and Storage Estimation
                       </Link>
                     </li>
-                    <li
-                      className="relative group/wqa"
-                      onMouseEnter={(e) => toggleSubmenu(e, "wqa")}
-                      onMouseLeave={(e) => toggleSubmenu(e, "wqa")}
-                    >
-                      <div className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer">
+                    <li className="relative group/submenu">
+                      <div
+                        className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
+                        onClick={(e) => toggleSubmenu(e, 'wqa')}
+                      >
                         Water Quality Assessment
-                        <ChevronRight
-                          className={`w-4 h-4 ${openDropdowns.wqa ? "rotate-90" : ""
-                            } lg:group-hover/wqa:rotate-90 transition-transform duration-200`}
-                        />
+                        <ChevronRight className={`w-4 h-4 ${openDropdowns.wqa ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-90 transition-transform duration-200`} />
                       </div>
 
-                      <ul
-                        className={`${openDropdowns.wqa ? "block" : "hidden"
-                          } lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}
-                      >
+                      <ul className={`${openDropdowns.wqa ? 'block' : 'hidden'} lg:hidden lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:bg-opacity-95 lg:border lg:border-gray-200 lg:border-opacity-10 lg:rounded-lg lg:shadow-lg lg:min-w-[300px] lg:p-3 lg:ml-1 lg:z-50 ml-4`}>
+
                         {/* Ground Based Assessment */}
-                        <li className="relative group/wqa">
-                          <Link
-                            href="\dss\rwm\resource_estimation\river"
+                        <li className="relative group/submenu">
+                          <Link href="/dss/rwm/resource_estimation/river"
                             className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200 flex justify-between items-center cursor-pointer"
+                            onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Ground Based Assessment", href: "/dss/river" }])}
                           >
                             Ground Based Assessment
                           </Link>
@@ -435,9 +591,8 @@ const Navbar = (): JSX.Element => {
 
                         {/* Satellite Based Assessment */}
                         <li>
-                          <Link
-                            href="/default"
-                            className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                          <Link href="/default" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Satellite Based Assessment", href: "/default" }])}
                           >
                             Satellite Based Assessment
                           </Link>
@@ -449,7 +604,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Vulnerability Assessment", href: "/dss/default" }])}>
                         Vulnerability Assessment
                       </Link>
                     </li>
@@ -457,7 +613,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Contamination Risk Assessment", href: "/dss/default" }])}>
                         Contamination Risk Assessment
                       </Link>
                     </li>
@@ -488,7 +645,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "Flood Simulation", href: "/dss/default" }])}>
                         Flood Simulation
                       </Link>
                     </li>
@@ -496,7 +654,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "River Routing", href: "/dss/default" }])}>
                         River Routing
                       </Link>
                     </li>
@@ -504,7 +663,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "Contamination Transport Modelling", href: "/dss/default" }])}>
                         Contamination Transport Modelling
                       </Link>
                     </li>
@@ -535,7 +695,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Storage and Forecasting", href: "/dss/default" }])}>
                         Storage and Forecasting
                       </Link>
                     </li>
@@ -543,7 +704,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Climate Change", href: "/dss/default" }])}>
                         Climate Change
                       </Link>
                     </li>
@@ -551,7 +713,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Reservoir Operation", href: "/dss/default" }])}>
                         Reservoir Operation
                       </Link>
                     </li>
@@ -559,7 +722,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Water Quality and Monitoring", href: "/dss/default" }])}>
                         Water Quality and Monitoring
                       </Link>
                     </li>
@@ -590,7 +754,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "Water Pollution and Inventory", href: "/dss/default" }])}>
                         Water Pollution and Inventory
                       </Link>
                     </li>
@@ -598,7 +763,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/rwm/wwt/stp_priority"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "STP Priority", href: "/dss/rwm/wwt/stp_priority" }])}>
                         STP Priority
                       </Link>
                     </li>
@@ -606,7 +772,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/rwm/wwt/stp_suitability"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "STP Suitability", href: "/dss/rwm/wwt/stp_suitability" }])}>
                         STP Suitability
                       </Link>
                     </li>
@@ -614,14 +781,18 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "Treatment Technology", href: "/dss/default" }])}>
                         Treatment Technology
                       </Link>
                     </li>
                   </ul>
                 </li>
                 <li>
-                  <Link href="/dss/rwm/rainwater" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200">Rain Water Harvesting</Link>
+                  <Link href="/dss/rwm/rainwater" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                  onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" }])}>
+                    Rain Water Harvesting
+                  </Link>
                 </li>
               </ul>
             </li>
@@ -669,7 +840,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Demand and Forecasting", href: "#" }, { label: "Current Consumption Pattern", href: "/dss/default" }])}>
                         Current Consumption Pattern
                       </Link>
                     </li>
@@ -677,7 +849,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Demand and Forecasting", href: "#" }, { label: "Future Demand Projection", href: "/dss/default" }])}>
                         Future Demand Projection
                       </Link>
                     </li>
@@ -708,7 +881,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Resource Allocation", href: "#" }, { label: "Source Sustainability", href: "/dss/default" }])}>
                         Source Sustainability
                       </Link>
                     </li>
@@ -716,7 +890,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Resource Allocation", href: "#" }, { label: "Source Demarcation", href: "/dss/default" }])}>
                         Source Demarcation
                       </Link>
                     </li>
@@ -767,7 +942,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "Optimum and Sustainable Management", href: "/dss/default" }])}>
                         Optimum and Sustainable Management
                       </Link>
                     </li>
@@ -775,7 +951,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "Sensitive Socio-Economic Factors", href: "/dss/default" }])}>
                         Sensitive Socio-Economic Factors
                       </Link>
                     </li>
@@ -783,7 +960,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "System Dynamics Modelling", href: "/dss/default" }])}>
                         System Dynamics Modelling
                       </Link>
                     </li>
@@ -814,7 +992,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Impact Assessment", href: "#" }, { label: "Plant Solutions", href: "/dss/default" }])}>
                         Plant Solutions
                       </Link>
                     </li>
@@ -822,7 +1001,8 @@ const Navbar = (): JSX.Element => {
                       <Link
                         href="/dss/default"
                         className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      >
+                      
+                        onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Impact Assessment", href: "#" }, { label: "Optimization Framework", href: "/dss/default" }])}>
                         Optimization Framework
                       </Link>
                     </li>
@@ -851,7 +1031,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Training and Workshop", href: "/dss/default" }])}>
                     Training and Workshop
                   </Link>
                 </li>
@@ -859,7 +1040,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/components/gallery"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/components/gallery" }])}>
                     Gallery
                   </Link>
                 </li>
@@ -887,7 +1069,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Report & Publication", href: "#" }, { label: "Newsletter", href: "/dss/default" }])}>
                     Newsletter
                   </Link>
                 </li>
@@ -895,7 +1078,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/default"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Report & Publication", href: "#" }, { label: "Brochure", href: "/dss/default" }])}>
                     Brochure
                   </Link>
                 </li>
@@ -922,7 +1106,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/vector_visual"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Vector", href: "/dss/visualizations/vector_visual" }])}>
                     Vector
                   </Link>
                 </li>
@@ -930,7 +1115,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/raster_visual"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Raster", href: "/dss/visualizations/raster_visual" }])}>
                     Raster
                   </Link>
                 </li>
@@ -938,7 +1124,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/watershed"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Watershed", href: "/dss/watershed" }])}>
                     Watershed
                   </Link>
                 </li>
@@ -946,7 +1133,7 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/model_water"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Water", href: "/dss/visualizations/model_water" }])}>
                     Water
                   </Link>
                 </li>
@@ -954,7 +1141,7 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/nmcg"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "NMCG", href: "/dss/nmcg" }])}>
                     NMCG
                   </Link>
                 </li>
@@ -962,7 +1149,7 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/dss/visualizations/extractdata"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Extract data", href: "/dss/extractdata" }])}>
                     Extract Data
                   </Link>
                 </li>
@@ -971,7 +1158,8 @@ const Navbar = (): JSX.Element => {
 
             {/* About */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss/about" className={navLinkClasses}>
+              <Link href="/dss/about" className={navLinkClasses}
+                        onClick={() => handleMenuClick([{ label: "About", href: "/dss/about" }])}>
                 About
               </Link>
             </li>
@@ -996,7 +1184,8 @@ const Navbar = (): JSX.Element => {
                   <Link
                     href="/UserManagement/UserProfile"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                  >
+                  
+                        onClick={() => handleMenuClick([{ label: "Profile", href: "/UserManagement/UserProfile" }])}>
                     {user_name}
                   </Link>
                 </li>
@@ -1014,6 +1203,39 @@ const Navbar = (): JSX.Element => {
         </div>
       </div>
     </nav>
+
+
+      {!isHomePage && (
+       
+        <div className="bg-gray-100 px-4 py-3 border-t border-slate-600">
+          <div className="container mx-auto flex justify-center items-center space-x-2 text-sm md:text-base overflow-x-auto pb-1">
+            {breadcrumbs.map((item, index) => (
+              <div key={index} className="flex items-center space-x-2 whitespace-nowrap">
+                {index > 0 && (
+                  <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-orange-400 flex-shrink-0" />
+                )}
+                {index < breadcrumbs.length - 1 ? (
+                  <Link
+                    href={item.href}
+                    className="text-orange-400 hover:text-orange-300 transition-colors font-medium"
+                    onClick={() => {
+                      const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
+                      handleMenuClick(newBreadcrumbs);
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="text-amber-600 font-bold">
+                    {item.label}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
