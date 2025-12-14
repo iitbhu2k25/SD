@@ -9,7 +9,6 @@ from typing import Annotated
 from app.api.schema.auth_schema import login_input
 
 app = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @app.post("/token",response_model=Token)
 async def login_for_access_token(response:Response,db:db_dependency,

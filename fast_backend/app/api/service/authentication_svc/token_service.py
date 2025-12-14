@@ -32,7 +32,7 @@ class TokenManager:
             Settings().SECRET_KEY,
             algorithm=Settings().ALGORITHM
         )
-        redis_client.set(f"refresh:{user_id}", refresh_token, ex=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400)
+        redis_client.set(f"refresh:dss_{user_id}", refresh_token, ex=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400)
         return refresh_token
     @staticmethod
     def regenerate_access_token(db:Session,token:str,expire_time:timedelta|None=None):
@@ -42,12 +42,12 @@ class TokenManager:
             payload=TokenManager.validate_token(token)
             if payload.get('sub@x') is None:
                 raise Invalid_Token(CustomExceptionDetail="refresh token failed")
-            stored_token = redis_client.get(f"refresh:{payload.get('sub@x')}") == token
+            stored_token = redis_client.get(f"refresh:dss_{payload.get('sub@x')}") == token
             if not stored_token:
                 raise Invalid_Token(CustomExceptionDetail="refresh token is invalid")
             obj =UserCrud(db).get_user(id=payload.get('sub@x'))
             dict={"fullname":obj.fullname,"email":obj.email,"user_id":obj.id}
-            return TokenManager.generate_access_token(dict,expire_time=timedelta(minutes=15))
+            return TokenManager.generate_access_token(dict,expire_time=timedelta(minutes=Settings().ACCESS_TOKEN_EXPIRE_MINUTES))
         except (Invalid_Token,TokenNone) as e:
             raise e
         except Exception as e:

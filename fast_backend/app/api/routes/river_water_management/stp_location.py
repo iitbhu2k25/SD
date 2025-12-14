@@ -5,6 +5,10 @@ from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_resp
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
+from fastapi import Depends
+from typing import Annotated
+from app.api.schema.auth_schema import Token,Useroutput
+from app.dependency.token_dependency import validate_user
 router=APIRouter()
 
 @router.get("/get_states",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
@@ -69,5 +73,5 @@ async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
 
 @router.get("/get_raster_visual",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_visual(db:db_dependency):
+async def get_visual(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Raster_visual.visual_raster(db)

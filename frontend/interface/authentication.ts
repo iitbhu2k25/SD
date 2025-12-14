@@ -4,7 +4,6 @@ export interface USER {
   email?: string;
 }
 
-// Context-like API (optional if you want React Context feel)
 export interface AuthContextType {
   user: USER | null;
   loading: boolean;
@@ -16,7 +15,7 @@ export interface AuthContextType {
   refreshAuthState: () => void;
 }
 
-// Zustand store state & actions
+
 export interface AuthState {
   user: USER | null;
   accessToken: string | null;
@@ -25,4 +24,5 @@ export interface AuthState {
   setAccessToken: (token: string) => void;
   setVerification: (verified: boolean) => void;
   clearAuth: () => void;
+  logout: () => void;
 }

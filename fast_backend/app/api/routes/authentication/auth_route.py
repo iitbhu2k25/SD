@@ -5,7 +5,7 @@ from app.database.config.dependency import db_dependency
 from fastapi import Depends
 from typing import Annotated
 from app.api.schema.auth_schema import Token,Useroutput
-from app.dependency.token_dependency import get_current_user,get_current_user_cookie
+from app.dependency.token_dependency import get_current_user,get_current_user_cookie,validate_user
 from app.utils.exception import validate
 app = APIRouter()
 
@@ -36,8 +36,9 @@ async def signup(db:db_dependency,payload:signup_input)->bool:
 
 @app.post("/logout",status_code=status.HTTP_201_CREATED)
 @validate
-async def logout(response:Response,user: Annotated[str, Depends(get_current_user)]):
-    return AuthService().logout(response)
+async def logout(response:Response,user: Annotated[str, Depends(get_current_user)]):            
+    return AuthService().logout(response,user)
+
 
 @app.post("/email_otp",status_code=status.HTTP_201_CREATED)
 @validate

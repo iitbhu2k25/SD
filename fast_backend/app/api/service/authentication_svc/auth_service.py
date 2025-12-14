@@ -15,6 +15,8 @@ from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
 
+redis_client=Settings().redis_client
+
 
 class AuthServiceInterface(ABC):
     @abstractmethod
@@ -76,13 +78,26 @@ class AuthService(AuthServiceInterface):
         access_token,refresh_token=self._generate_token(user=user)
         response.set_cookie(key="refresh_token",value=refresh_token,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
         return access_token
+    
     def get_user(self,db:Session,token:str):
         try:
             payload=TokenManager.validate_token(token)
             return UserCrud(db).validate_email(payload.get('email'))
         except ExpiredSignatureError as e:
+            print(e)    
             raise SessionServerError("Session has expired. Please login again.")
         except Exception as e:
+            print(e)
+            raise InternalServerError(CustomExceptionDetail=str(e))
+    
+    def get_validation_user(self,db:Session,token:str):
+        try:
+            payload=TokenManager.validate_token(token)
+            return True
+        except ExpiredSignatureError as e:
+            raise SessionServerError("Session has expired. Please login again.")
+        except Exception as e:
+            print(e)
             raise InternalServerError(CustomExceptionDetail=str(e))
         
     def registration(self,db:Session,payload:signup_input)->bool:
@@ -115,9 +130,15 @@ class AuthService(AuthServiceInterface):
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
     
-    def logout(self, response):
-        response.delete_cookie(key="refresh_token")
-        response.delete_cookie(key="access_token")
+    def logout(self, response,user:any):
+        try:
+            redis_client.delete(f"refresh:dss_{user.id}")
+            response.delete_cookie(key="refresh_token")
+            response.delete_cookie(key="access_token")
+            return True
+        except Exception as e:
+            print(e)
+            raise InternalServerError(CustomExceptionDetail=str(e))
     
     def swagger_login(self,db:Session,payload:login_input,response:Response):
         try:
