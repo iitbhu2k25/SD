@@ -3,7 +3,7 @@ from app.database.crud.user_crud import UserCrud
 from sqlalchemy.orm import Session
 import bcrypt
 from app.conf.settings import Settings
-from fastapi import Response,BackgroundTasks
+from fastapi import Response,BackgroundTasks,Request
 from app.api.schema.auth_schema import Token
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
@@ -130,9 +130,22 @@ class AuthService(AuthServiceInterface):
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
     
-    def logout(self, response,user:any):
+    def logout(self, db:Session,request:Request,response:Response):
         try:
-            redis_client.delete(f"refresh:dss_{user.id}")
+            token = request.headers.get('Authorization').replace("Bearer ", "")
+            payload = None
+            try:
+                payload = TokenManager.validate_token(token)
+            except ExpiredSignatureError:
+                print("force sesison expired")
+                pass
+            except Exception as e:
+                print(f"Token validation error: {e}")
+            if payload and payload.get("user_id"):
+                user = UserCrud(db).get_user(id=payload.get("user_id"))
+                redis_client.delete(f"refresh:dss_{user.id}")
+            
+            # Delete cookies anyway
             response.delete_cookie(key="refresh_token")
             response.delete_cookie(key="access_token")
             return True

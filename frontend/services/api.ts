@@ -2,6 +2,7 @@ import { useAuthStore } from "@/store/authStore";
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
 import { performLogout } from "@/utils/logout";
+import { toast } from "react-toastify";
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 interface RequestOptions {
@@ -65,7 +66,7 @@ async function refreshAccessToken(): Promise<string> {
     });
     console.log("access failed", res)
     if (res.status >= 400) {
-      console.log("logout")
+      toast.error("All Sessions expired. Please login again.");
       await performLogout();
       return
     }

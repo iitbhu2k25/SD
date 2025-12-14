@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Response,status,BackgroundTasks
+from fastapi import APIRouter, Request,Response,status,BackgroundTasks
 from app.api.schema.auth_schema import signup_input,login_input,OTPVerify, UserOut
 from app.api.service.authentication_svc.auth_service import AuthService
 from app.database.config.dependency import db_dependency
@@ -36,8 +36,8 @@ async def signup(db:db_dependency,payload:signup_input)->bool:
 
 @app.post("/logout",status_code=status.HTTP_201_CREATED)
 @validate
-async def logout(response:Response,user: Annotated[str, Depends(get_current_user)]):            
-    return AuthService().logout(response,user)
+async def logout(db:db_dependency,request:Request,response:Response):            
+    return AuthService().logout(db,request,response)
 
 
 @app.post("/email_otp",status_code=status.HTTP_201_CREATED)

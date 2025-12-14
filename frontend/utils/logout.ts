@@ -1,7 +1,8 @@
 // src/utils/logout.ts
 import { useAuthStore } from "@/store/authStore";
+
 import { api } from "@/services/api";
-export async function performLogout(router?: { push: (path: string) => void }) {
+export async function performLogout() {
   try {
     const logout_url=`/authentication/logout`
     const response = await api.post(logout_url);
@@ -13,12 +14,12 @@ export async function performLogout(router?: { push: (path: string) => void }) {
         document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
       });
     }
-
-    console.log(" backend logout success");
     useAuthStore.getState().logout();
   } catch (err) {
     console.error("Logout error", err);
   } finally {
-    router?.push("/");
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }
 }
