@@ -1,31 +1,29 @@
-from fastapi import APIRouter,status
+from fastapi import APIRouter,status,Depends
+from app.dependency.token_dependency import validate_user
 from typing import List
 from app.database.config.dependency import db_dependency
 from app.api.schema.wqi import Well_input,Well_response,WQIOperation
 from app.api.service.wqi.water_quality import WQ_Index
-from app.database.crud.gwpz_crud import WQI_threshold
 from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
-from fastapi.websockets import WebSocketState
-from fastapi.responses import FileResponse
-from celery.result import AsyncResult
 import asyncio
 from app.conf.settings import Settings
 redis_client = Settings().redis_client
+from typing import Annotated
 router=APIRouter()
 connection_manager=ConnectionManager()
 from app.conf.logging import logger
 
 @router.get('/year',status_code=status.HTTP_201_CREATED)
-async def make_interpolation():
+async def make_interpolation(user: Annotated[bool, Depends(validate_user)]):
     return [2018,2019,2020,2021,2022,2023,2024]
 
 @router.post('/wells',status_code=status.HTTP_201_CREATED,response_model=List[Well_response])
-async def get_well(db:db_dependency,payload:Well_input):
+async def get_well(db:db_dependency,payload:Well_input,user: Annotated[bool, Depends(validate_user)]):
     return WQ_Index().get_well(db,payload)
 
 @router.post('/well_interpolation',status_code=status.HTTP_201_CREATED)
-async def make_interpolation(db:db_dependency,payload:WQIOperation):
+async def make_interpolation(db:db_dependency,payload:WQIOperation,user: Annotated[bool, Depends(validate_user)]):
     return WQ_Index().calculate_GWQI(db,payload)
 
 @router.websocket("/ws/{task_id}")

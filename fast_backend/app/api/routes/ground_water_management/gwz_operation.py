@@ -1,4 +1,6 @@
-from fastapi import APIRouter,status
+from fastapi import APIRouter,status,Depends
+from app.dependency.token_dependency import validate_user
+from typing import Annotated
 from app.database.config.dependency import db_dependency
 from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper,MARSuitabilityMapper
 from app.api.service.ground_water_management.gwpz_svc import MARSuitability_svc,Gwzp_service,GWPL_service
@@ -9,29 +11,29 @@ from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,STPPrior
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_raster_gwz(db:db_dependency,all_data: bool = False):
+async def get_raster_gwz(db:db_dependency,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return Gwzp_service.get_raster_GWZ(db,all_data)
 
 @router.post("/gwz_visual_display", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwz_raster_dislay(db:db_dependency,payload:category_raster):
+async def gwz_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
     return GWAPriorityMapper().get_visual_raster(db,payload.clip,payload.place)
 
 @router.post("/gwz_operation", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwz_raster_operation(db:db_dependency,payload: STPCategory):
+async def gwz_raster_operation(db:db_dependency,payload: STPCategory,user: Annotated[bool, Depends(validate_user)]):
     raster_path,raster_weights=Gwzp_service.get_raster(db,payload)
     return GWAPriorityMapper().create_gwpz_map(raster_path,raster_weights,payload.clip,payload.place)
 
 @router.post("/gwz_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def gwz_admin_report(payload:StpPriorityAdminReport):
+async def gwz_admin_report(payload:StpPriorityAdminReport,user: Annotated[bool, Depends(validate_user)]):
     task_id= document_gen4.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
 @router.post("/gwz_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def gwz_drain_report(payload:StpPriorityDrainReport):
+async def gwz_drain_report(payload:StpPriorityDrainReport,user: Annotated[bool, Depends(validate_user)]):
     task_id= document_gen5.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
  
@@ -40,39 +42,39 @@ async def gwz_drain_report(payload:StpPriorityDrainReport):
 # groud water pumping locations
 @router.get("/get_gwpl_category",response_model=list[STPsuitabilityOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_raster_gwpl(db:db_dependency,category:str,all_data: bool = False):
+async def get_raster_gwpl(db:db_dependency,category:str,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return GWPL_service.get_raster_GWPL(db,category,all_data)
 
 @router.post("/gwpl_visual_display", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwpl_raster_dislay(db:db_dependency,payload:category_raster):
+async def gwpl_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().get_visual_raster(db,payload.clip)
 
 @router.post("/gwpl_operation", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput):
+async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().create_gwpz_map(db,payload)
 
 @router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED)
 @validate
-async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input):
+async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location)
 
 
 # MAR suitability 
 @router.get("/get_mar_suitability_category",status_code=status.HTTP_201_CREATED,response_model=list[STPsuitabilityOutput])
 @validate
-async def get_raster_mar_suitability(db:db_dependency,category:str,all_data: bool = False):
+async def get_raster_mar_suitability(db:db_dependency,category:str,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return MARSuitability_svc.get_raster_MAR(db,category,all_data)
 
 
 @router.post("/mar_suitability_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
-async def gwz_raster_dislay(db:db_dependency,payload:category_raster):
+async def gwz_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
     return MARSuitabilityMapper().get_visual_raster(db,payload.clip)
 
     
 @router.post("/mar_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
-async def stp_classify(db:db_dependency,payload:STPsuitabilityInput):
+async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
     return MARSuitabilityMapper().create_suitability_map(db,payload)

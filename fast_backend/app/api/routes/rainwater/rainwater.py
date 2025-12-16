@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter,Depends
+from typing import Annotated
+from app.dependency.token_dependency import validate_user
 from fastapi.responses import JSONResponse
 from app.database.config.dependency import db_dependency
 from fastapi import HTTPException,status
@@ -9,7 +11,7 @@ from app.api.service.rainwater.modeled_water import ModelWater
 router=APIRouter()
 
 @router.get("/modeled_water",status_code=201)
-def getModelWater():
+def getModelWater(user: Annotated[bool, Depends(validate_user)]):
     data=ModelWater.get_data()
     return JSONResponse(content={"data":data},status_code=201)
 

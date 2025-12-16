@@ -1,4 +1,4 @@
-from fastapi import Depends,Cookie, Request
+from fastapi import Depends,Cookie
 from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer
 from app.api.service.authentication_svc.auth_service import AuthService

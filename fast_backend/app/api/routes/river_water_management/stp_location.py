@@ -7,67 +7,66 @@ from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
 from fastapi import Depends
 from typing import Annotated
-from app.api.schema.auth_schema import Token,Useroutput
 from app.dependency.token_dependency import validate_user
 router=APIRouter()
 
 @router.get("/get_states",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_states(db:db_dependency,all_data: bool = False):
+async def get_states(db:db_dependency,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return Stp_location.get_state(db,all_data)
 
 
 @router.post("/get_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_districts(db:db_dependency,payload:District_request):
+async def get_districts(db:db_dependency,payload:District_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_district(db,payload)
 
 
 @router.post("/get_sub_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_sub_districts(db:db_dependency,payload:Sub_district_request):
+async def get_sub_districts(db:db_dependency,payload:Sub_district_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_sub_district(db,payload)
 
 @router.post("/get_villages",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_villages(db:db_dependency,payload:Village_request):
+async def get_villages(db:db_dependency,payload:Village_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_villages(db,payload)
 
 @router.post("/get_towns",response_model=list[Stp_town_respons],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_towns(db:db_dependency,payload:Town_request):
+async def get_towns(db:db_dependency,payload:Town_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_town(db,payload)
 
 @router.get("/get_river",response_model=list[STPRiverOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_river(db:db_dependency):
+async def get_river(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_river(db)
 
 @router.post("/get_stretch",response_model=list[STPStretchesOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency,payload:STPStretchesInput):
+async def get_stretch(db:db_dependency,payload:STPStretchesInput,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_stretch(db,payload.river_code)
 
 @router.post("/get_drain",response_model=list[STPDrainOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency,payload:STPDrainInput):
+async def get_stretch(db:db_dependency,payload:STPDrainInput,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_drain(db,payload.stretch_ids)
 
 @router.post("/get_suitability_drain",response_model=list[STPDrainNewOutput],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency,payload:STPDrainInput):
+async def get_stretch(db:db_dependency,payload:STPDrainInput,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_drain_new(db,payload.stretch_ids)
 
 
 @router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
+async def get_stretch(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
     ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
     return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
 @router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency,payload:STPCatchmentInput):
+async def get_stretch(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
     ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
     return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
 
