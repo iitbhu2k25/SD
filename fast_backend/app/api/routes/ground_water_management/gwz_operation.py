@@ -7,7 +7,7 @@ from app.api.service.ground_water_management.gwpz_svc import MARSuitability_svc,
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
 from app.api.service.celery.gwz_drain_document import document_gen5
-from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,GWPL_Table_output,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
+from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,GWPL_output,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -55,9 +55,9 @@ async def gwpl_raster_dislay(db:db_dependency,payload:category_raster,user: Anno
 async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().create_gwpz_map(db,payload)
 
-@router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED,response_model=List[GWPL_Table_output])
+@router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED,response_model=GWPL_output)
 @validate
-async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input):
+async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location,payload.village_list)
 
 

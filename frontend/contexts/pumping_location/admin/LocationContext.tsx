@@ -1,8 +1,8 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode, use } from 'react';
 import { api } from '@/services/api';
-import { CsvRow,Gwpl_Table } from "@/interface/table";
-import { State,villages,SubDistrict,ClipRasters,District } from '@/interface/raster_context';
+import { CsvRow, Gwpl_Table } from "@/interface/table";
+import { State, villages, SubDistrict, ClipRasters, District } from '@/interface/raster_context';
 
 
 
@@ -12,6 +12,10 @@ export interface SelectionsData {
   villages: villages[];
 }
 
+interface GwplResponse {
+  table: Gwpl_Table[];
+  well_points: CsvRow[];
+}
 
 // Define the context type
 interface LocationContextType {
@@ -35,7 +39,7 @@ interface LocationContextType {
   resetSelections: () => void;
   well_points: CsvRow[];
   setwell_points: (points: CsvRow[]) => void;
-  setValidateTable:(value: boolean) => void
+  setValidateTable: (value: boolean) => void
   tableData: Gwpl_Table[];
 }
 
@@ -67,7 +71,7 @@ const LocationContext = createContext<LocationContextType>({
   well_points: [],
   setwell_points: () => { },
   setValidateTable: () => { },
-  tableData:[],
+  tableData: [],
 });
 
 // Create the provider component
@@ -282,9 +286,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const findScore = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/gwz_operation/gwpl_find_score", {
+        const response = await api.post<GwplResponse>("/gwz_operation/gwpl_find_score", {
           body: {
-            location :well_points,
+            location: well_points,
             raster_name: displayRaster.filter((raster) => raster.file_name === "Pumping_location")[0].layer_name,
             village_list: selectedvillages
           },
@@ -293,7 +297,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         if (response.status > 201) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        setTableData(response.message as Gwpl_Table[]);
+        setTableData(response.message!.table);
+        setwell_points(response.message!.well_points);
+
       } catch (error) {
         console.log('Error fetching villages:', error);
       } finally {

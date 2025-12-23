@@ -816,7 +816,10 @@ class GWPumpingMapper:
 
                     well_data[col_name] = val
             records.append(well_data)
-        return self._find_rank(records)
+        return {
+            "table": self._find_rank(records),
+            "well_points": well_point
+        }
 
 class MARSuitabilityMapper:                                                                                                                                                                                                                                      
     def __init__(self, config: GeoConfig = None):

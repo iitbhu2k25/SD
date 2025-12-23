@@ -78,6 +78,10 @@ class GWPL_Table_output(BaseModel):
         from_attributes = True
         populate_by_name = True
 
+class GWPL_output(BaseModel):
+    table : List[GWPL_Table_output]
+    well_points : list
+
 # "Well_id": "7",
 #         "Groundwater table": 10.375,
 #         "Groundwater trends": -0.0869717076420784,
