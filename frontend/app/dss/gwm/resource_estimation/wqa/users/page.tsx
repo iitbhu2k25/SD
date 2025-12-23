@@ -27,8 +27,7 @@ const MainContent = () => {
     totalArea,
     totalCatchments,
     selectionsLocked,
-    confirmSelections,
-    resetSelections,
+
   } = useRiverSystem();
 
   const { setstpOperation, loading, isMapLoading, stpOperation, setCatchmentLayer } =
@@ -38,7 +37,14 @@ const MainContent = () => {
   useEffect(() => {
     setshowYears(selectionsLocked);
   }, [selectionsLocked]);
+    const handlePdfComplete = () => {
+    setIsPdfGenerating(false);
+    setShowPdfStatus(false);
+  };
 
+  const handlePdfFailure = () => {
+    setIsPdfGenerating(false);
+  };
 
 
   return (

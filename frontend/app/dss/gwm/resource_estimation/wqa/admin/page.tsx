@@ -33,7 +33,14 @@ const MainContent = () => {
     setshowYears(selectionsLocked);
   }, [selectionsLocked]);
 
+  const handlePdfComplete = () => {
+    setIsPdfGenerating(false);
+    setShowPdfStatus(false);
+  };
 
+  const handlePdfFailure = () => {
+    setIsPdfGenerating(false);
+  };
 
   return (
     <div className="bg-gray-50 flex flex-col">
