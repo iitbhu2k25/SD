@@ -24,15 +24,15 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/access_token/:path*',
-        destination: "http://localhost:7000//access_token/:path*"
+        destination: "http://localhost:7000/access_token/:path*"
       },
       {
         source: "/django/:path*",
-        destination: "http://localhost:9000/django/:path*",
+        destination: "http://backend:9000/django/:path*",
       },
       {
         source: "/fastm/:path*",
-        destination: "http://localhost:6500/:path*",
+        destination: "http://fast_m:6500/:path*",
       },
     ]
   },

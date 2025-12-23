@@ -9,7 +9,8 @@ import React, {
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
-import { DRAIN_LAYER_NAMES,ClipRasters } from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES,ClipRasters, stp_priority_Output } from "@/interface/raster_context";
+import { api } from "@/services/api";
 interface LayerFilter {
   filterField: string | null;
   filterValue: number[] |string[] | null;
@@ -290,27 +291,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       setRasterLoading(true);
       setError(null);
       setStpProcess(true);
-
-      const bodyPayload = JSON.stringify({
-        data: selectedCategories,
-        clip: selectedCatchments,
-        place: "Drain",
-      });
       try {
-        const resp = await fetch(
-          "/api/stp_operation/stp_priority",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: bodyPayload,
-          }
-        );
+        const resp = await api.post("/stp_operation/stp_priority", {
+          body: {
+            data: selectedCategories,
+            clip: selectedCatchments,
+            place: "Drain",
+          },
+        })
 
-        if (!resp.ok) {
+        if (resp.status != 201) {
           throw new Error(`STP operation failed with status: ${resp.status}`);
         }
 
-        const result = await resp.json();
+        const result = await resp.message as stp_priority_Output;
         if (result) {
           const append_data = {
             file_name: "STP_Priority",
@@ -332,12 +326,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           }
 
           setDisplayRaster(newData);
-          setRasterLayerInfo(result);
+          setRasterLayerInfo(append_data);
           setShowTable(true);
           handleLayerSelection(append_data.file_name)
           setShowLegend(true);
         } else {
-          setError(`STP operation failed: ${result.status || "Unknown error"}`);
           setRasterLoading(false);
         }
       } catch (error: any) {

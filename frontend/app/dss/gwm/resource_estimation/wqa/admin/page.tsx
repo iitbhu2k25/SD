@@ -19,6 +19,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const { wqi_data, selectedParam ,qualityParam} = useYear();
   const {
     selectionsLocked,
@@ -130,12 +131,14 @@ const MainContent = () => {
       </main>
 
       {showPdfStatus && taskId && (
-        <PDFGenerationStatus
+         <PDFGenerationStatus
           taskId={taskId}
           className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
           autoClose={true}
           closeDelay={3000}
           enableAutoDownload={true}
+          onComplete={handlePdfComplete}
+          onFailure={handlePdfFailure}
         />
       )}
     </div>

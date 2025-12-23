@@ -21,3 +21,10 @@ async def regenerate_access_token(
     db:db_dependency,refresh_token: Annotated[str, Cookie()] = None,
 ):  
     return TokenManager.regenerate_access_token(db,token=refresh_token)
+
+
+# @app.put('/refresh_token')
+# async def regenerate_refresh_token(
+#     db:db_dependency,refresh_token: Annotated[str, Cookie()] = None,
+# ):  
+#     return TokenManager.regenerate_refresh_token(db,token=refresh_token)

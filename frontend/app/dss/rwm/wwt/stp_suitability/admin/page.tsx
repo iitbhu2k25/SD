@@ -50,6 +50,7 @@ const MainContent: React.FC = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
 
@@ -78,7 +79,7 @@ const MainContent: React.FC = () => {
       setReportLoading(true);
       setTaskId(null);
       setShowPdfStatus(false);
-
+      setIsPdfGenerating(true);
       const locationData = {
         state: selectedStateName,
         districts: selectedDistrictsNames,
@@ -103,6 +104,7 @@ const MainContent: React.FC = () => {
 
       if (response.status !== 201) {
         toast.error("Report failed", { position: "top-center" });
+        setIsPdfGenerating(false);
         return;
       }
 
@@ -113,9 +115,18 @@ const MainContent: React.FC = () => {
     } catch (error) {
       console.log("Report error", error);
       toast.error("Failed to start report");
+      setIsPdfGenerating(false);
     } finally {
       setReportLoading(false);
     }
+  };
+    const handlePdfComplete = () => {
+    setIsPdfGenerating(false);
+    setShowPdfStatus(false);
+  };
+
+  const handlePdfFailure = () => {
+    setIsPdfGenerating(false);
   };
 
   return (
@@ -227,20 +238,16 @@ const MainContent: React.FC = () => {
           )}
 
           {tableData.length > 0 && (
-            <div className="flex justify-center mt-4">
+            <div className="flex justify-center mt-8">
               <button
                 onClick={handleReport}
-                disabled={reportLoading}
-                className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 ${
-                  reportLoading
+                disabled={isPdfGenerating} // Use isPdfGenerating state
+                className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 ${isPdfGenerating
                     ? "bg-gray-400 cursor-not-allowed"
                     : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                }`}
+                  }`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586l5.414 5.414V19a2 2 0 01-2 2z" />
-                </svg>
-                {reportLoading ? "Starting..." : "Generate Report"}
+                {isPdfGenerating ? "Generating PDF..." : "Generate Report"}
               </button>
             </div>
           )}
@@ -318,12 +325,14 @@ const MainContent: React.FC = () => {
       </main>
 
       {showPdfStatus && taskId && (
-        <PDFGenerationStatus
+         <PDFGenerationStatus
           taskId={taskId}
           className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
           autoClose={true}
           closeDelay={3000}
           enableAutoDownload={true}
+          onComplete={handlePdfComplete}
+          onFailure={handlePdfFailure}
         />
       )}
     </div>

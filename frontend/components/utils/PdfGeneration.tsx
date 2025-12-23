@@ -10,6 +10,7 @@ import {
 import { toast } from "react-toastify";
 import { api } from "@/services/api";
 import { useWebSocket } from "@/services/websocket";
+import { on } from "node:events";
 
 interface PDFGenerationStatusProps {
   taskId: string | null;
@@ -17,6 +18,8 @@ interface PDFGenerationStatusProps {
   autoClose?: boolean;
   closeDelay?: number;
   enableAutoDownload?: boolean;
+  onComplete?: () => void; // Add this prop
+  onFailure?: () => void;
 }
 
 const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
@@ -25,6 +28,8 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
   autoClose = true,
   closeDelay = 3000,
   enableAutoDownload = true,
+  onComplete, // Add this
+  onFailure,
 }) => {
   const [status, setStatus] = useState<
     "idle" | "pending" | "started" | "progress" | "success" | "downloading" | "complete" | "failure"
@@ -63,7 +68,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
 
   // Only connect when we have a valid URL and not in terminal state
   const shouldConnect = Boolean(wsUrl && !["complete", "failure"].includes(status));
-  
+
   // Use empty string when not connecting - your hook should handle this
   const { messages, isConnected, disconnect } = useWebSocket(
     shouldConnect && wsUrl ? wsUrl : "",
@@ -107,15 +112,15 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
     }
 
     const lastMessage = messages[messages.length - 1];
-    
+
     try {
       const parsed = JSON.parse(lastMessage);
       console.log("WebSocket message received:", parsed);
-      
+
       if (!parsed.state) return;
-      
+
       const state = parsed.state.toUpperCase();
-      
+
       // Skip if this is a duplicate SUCCESS message
       if (state === "SUCCESS" && chordId === parsed.result) return;
 
@@ -151,12 +156,15 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           setDescription(parsed.description || "Failed to generate PDF");
           toast.error(parsed.description || "Failed to generate PDF");
           disconnect();
+          if (onFailure) {
+            onFailure();
+          }
           break;
       }
     } catch {
       console.warn("Non-JSON message:", lastMessage);
     }
-  }, [messages, chordId, status, wsUrl, disconnect]);
+  }, [messages, chordId, status, wsUrl, disconnect, onFailure]);
 
   // Reset helper function
   const reset = useCallback(() => {
@@ -183,24 +191,22 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
 
   // Download PDF function - now handleClose is available
   const downloadPDF = useCallback(async (chord_id: string) => {
-    console.log("downloadPDF called with chord_id:", chord_id);
-    
     try {
       setStatus("downloading");
       setDescription("Downloading...");
-      
+
       const response = await api.get<Blob>(`/stp_operation/get_report`, {
         params: { chord_id },
         responseType: "blob",
       });
-      
+
       console.log("API response:", response);
-      
+
       const blob = response.message;
       if (!blob) {
         throw new Error("No blob data received");
       }
-      
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -214,28 +220,27 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
       setDescription("Download complete!");
       toast.success("PDF downloaded successfully");
       disconnect();
-      
+      if (onComplete) {
+        onComplete();
+      }
       if (autoClose) {
         closeTimeoutRef.current = setTimeout(handleClose, closeDelay);
       }
     } catch (e) {
-      console.log("Download failed:", e);
       setStatus("failure");
       setDescription("Download failed. Please try again.");
       toast.error("Download failed");
       hasDownloadedRef.current = false;
+
+      // Call onFailure callback when download fails
+      if (onFailure) {
+        onFailure();
+      }
     }
-  }, [autoClose, closeDelay, disconnect, handleClose]);
+  }, [autoClose, closeDelay, disconnect, handleClose, onFailure, onComplete]);
 
   // Auto-download effect - THIS IS THE KEY FIX
   useEffect(() => {
-    console.log("Auto-download effect triggered:", {
-      status,
-      chordId,
-      enableAutoDownload,
-      hasDownloaded: hasDownloadedRef.current
-    });
-    
     if (status === "success" && chordId && enableAutoDownload && !hasDownloadedRef.current) {
       console.log("Starting auto-download...");
       hasDownloadedRef.current = true;
@@ -286,7 +291,7 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
           </div>
           <p className="text-xl font-bold">{cfg.title}</p>
           <p className="text-sm text-white/80 text-center">{description}</p>
-          
+
           {/* Show elapsed time during processing */}
           {["started", "progress", "downloading"].includes(status) && (
             <p className="text-xs text-white/60">

@@ -55,7 +55,7 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   // Context hooks
-  const { displayRaster, setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
+  const { displayRaster, selectedState,setSelectedState, setSelectedDistricts, setSelectedSubDistricts, selectionsLocked } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -89,7 +89,10 @@ const Maping: React.FC = () => {
       primaryLayerRef.current.setVisible(showPrimaryLayer);
     }
   }, [showPrimaryLayer]);
-
+  useEffect(() => {
+    setShowPrimaryLayer(false);
+    primaryLayerRef.current?.setVisible(false);
+  },[selectedState])
   // Add a new useEffect for secondary layer visibility
   useEffect(() => {
     if (secondaryLayerRef.current) {

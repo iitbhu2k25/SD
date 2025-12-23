@@ -25,6 +25,7 @@ const MainContent = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   const {
     selectionsLocked,
@@ -57,7 +58,7 @@ const MainContent = () => {
       setReportLoading(true);
       setTaskId(null);
       setShowPdfStatus(false);
-
+      setIsPdfGenerating(true);
       const locationData = {
         state: selectedStateName,
         districts: selectedDistrictsNames,
@@ -79,6 +80,7 @@ const MainContent = () => {
 
       if (response.status !== 201) {
         toast.error("Report failed", { position: "top-center" });
+        setIsPdfGenerating(false);
         return;
       }
 
@@ -88,9 +90,18 @@ const MainContent = () => {
       setShowPdfStatus(true);
     } catch (error) {
       toast.error("Failed to start report");
+      setIsPdfGenerating(false);
     } finally {
       setReportLoading(false);
     }
+  };
+  const handlePdfComplete = () => {
+    setIsPdfGenerating(false);
+    setShowPdfStatus(false);
+  };
+
+  const handlePdfFailure = () => {
+    setIsPdfGenerating(false);
   };
 
   return (
@@ -184,13 +195,17 @@ const MainContent = () => {
             </section>
           )}
 
-          {tableData.length > 0 && (
+         {tableData.length > 0 && (
             <div className="flex justify-center mt-8">
               <button
                 onClick={handleReport}
-                className="px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                disabled={isPdfGenerating} // Use isPdfGenerating state
+                className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 ${isPdfGenerating
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                  }`}
               >
-                {reportLoading ? "Starting..." : "Generate Report"}
+                {isPdfGenerating ? "Generating PDF..." : "Generate Report"}
               </button>
             </div>
           )}
@@ -221,12 +236,14 @@ const MainContent = () => {
       </main>
 
       {showPdfStatus && taskId && (
-        <PDFGenerationStatus
+         <PDFGenerationStatus
           taskId={taskId}
           className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
           autoClose={true}
           closeDelay={3000}
           enableAutoDownload={true}
+          onComplete={handlePdfComplete}
+          onFailure={handlePdfFailure}
         />
       )}
     </div>
