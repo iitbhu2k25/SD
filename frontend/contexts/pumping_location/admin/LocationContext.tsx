@@ -286,6 +286,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           body: {
             location :well_points,
             raster_name: displayRaster.filter((raster) => raster.file_name === "Pumping_location")[0].layer_name,
+            village_list: selectedvillages
           },
         });
 

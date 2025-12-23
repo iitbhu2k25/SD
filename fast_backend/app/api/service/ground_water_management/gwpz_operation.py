@@ -769,10 +769,31 @@ class GWPumpingMapper:
                 "type": "raster",
             }
         return False
+    def _get_validate_points(self,well_point:list,village_list:list):
+        df = pd.DataFrame(well_point)
+        df["Latitude"] = df["Latitude"].astype(float)
+        df["Longitude"] = df["Longitude"].astype(float)
+        wells_gdf = gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df["Longitude"], df["Latitude"]),
+            crs="EPSG:4326"
+        )
+        village_gdf =self.processor.get_village(village_list).to_crs("EPSG:4326")
+        wells_inside_village = gpd.sjoin(
+            wells_gdf,
+            village_gdf,
+            predicate="within",
+            how="inner"
+        )
+        result = wells_inside_village[["Well_id", "Latitude", "Longitude"]]
+        output = result.to_dict(orient="records")
+        return output
 
-    def gwpl_table(self,db:db_dependency,raster:str,well_point:list):
+    def gwpl_table(self,db:db_dependency,raster:str,well_point:list,village_list:list):
         Relevance=self._get_relevance_raster(db,raster)
         records = []
+        # update the well points
+        well_point=self._get_validate_points(well_point,village_list)
 
         for well_geom in well_point:
             well_id,lat ,lon = well_geom["Well_id"],well_geom["Latitude"],well_geom["Longitude"]

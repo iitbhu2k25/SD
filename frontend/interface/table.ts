@@ -17,11 +17,11 @@ export interface Gwpl_Table{
   Well_id:number;
   Rank:number;
   "Groundwater table":number;
-  "Rainfall": number;
-  "Sand thickness": number;
-  "Temperature": number;
-  "Top clay thickness":number;
-  "Merit Score": number;
+  "Groundwater trends": number;
+  "Slope": number;
+  "Specific yield": number;
+  "slope per year":number;
+ 
 }
 export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
   {
@@ -39,14 +39,7 @@ export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
     format: row => row.Rank,
     width: '120px',
   }
-  ,
-   {
-    name: 'Merit Score',
-    selector: row => row["Merit Score"],
-    sortable: true,
-    format: row => `${row["Merit Score"].toFixed(2)}`,
-    width: '120px',
-  },
+,
   {
     name: 'Groundwater table',
     selector: row => row["Groundwater table"],
@@ -55,31 +48,31 @@ export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
     width: '120px',
   },
   {
-    name: 'Rainfall',
-    selector: row => row["Rainfall"],
+    name: 'Groundwater trends',
+    selector: row => row["Groundwater trends"],
     sortable: true,
-    format: row => `${row["Rainfall"].toFixed(2)}`,
+    format: row => `${row["Groundwater trends"].toFixed(2)}`,
     width: '120px',
   },
   {
-    name: 'Sand thickness',
-    selector: row => row["Sand thickness"],
+    name: 'Slope',
+    selector: row => row["Slope"],
     sortable: true,
-    format: row => `${row["Sand thickness"].toFixed(2)}`,
+    format: row => `${row["Slope"].toFixed(2)}`,
     width: '120px',
   },
   {
-    name: 'Temperature',
-    selector: row => row["Temperature"],
+    name: 'Specific yield',
+    selector: row => row["Specific yield"],
     sortable: true,
-    format: row => `${row["Temperature"].toFixed(2)}`,
+    format: row => `${row["Specific yield"].toFixed(2)}`,
     width: '120px',
   },
   {
-    name: 'Top clay thickness',
-    selector: row => row["Top clay thickness"],
+    name: 'slope per year',
+    selector: row => row["slope per year"],
     sortable: true,
-    format: row => `${row["Top clay thickness"].toFixed(2)}`,
+    format: row => `${row["slope per year"].toFixed(2)}`,
     width: '120px',
   }
 ]

@@ -61,9 +61,31 @@ class Raster_operation_input(BaseModel):
 class GWPL_Table_input(BaseModel):
     location:list
     raster_name:str
+    village_list:list
     class Config:
         from_attributes = True
-    
+
+class GWPL_Table_output(BaseModel):
+    well_id: int = Field(..., alias="Well_id")
+    groundwater_table: float = Field(..., alias="Groundwater table")
+    groundwater_trends: float = Field(..., alias="Groundwater trends")
+    slope: float = Field(..., alias="Slope")
+    specific_yield: float = Field(..., alias="Specific yield")
+    slope_per_year: float = Field(..., alias="slope per year")
+    rank: int = Field(..., alias="Rank")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+# "Well_id": "7",
+#         "Groundwater table": 10.375,
+#         "Groundwater trends": -0.0869717076420784,
+#         "Slope": 3.199601411819458,
+#         "Specific yield": 0.09668262302875519,
+#         "slope per year": -0.0869717076420784,
+#         "Merit Score": 0.6592300534248352,
+#         "Rank": 1
 class STPsuitabilityInput(BaseModel):
     data: List[Raster_operation_input] = None
     clip: List[int] = None
