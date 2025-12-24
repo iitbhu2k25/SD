@@ -47,7 +47,7 @@ export const LocationProvider: React.FC<React.PropsWithChildren> = ({ children }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/subbasin`, {
+      const res = await fetch(`${apiBase}/subbasin`, {
         method: 'GET',
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },

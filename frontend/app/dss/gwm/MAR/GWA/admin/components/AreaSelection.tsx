@@ -148,7 +148,7 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
                     disabled={!selectable}
                     className={!selectable ? "text-gray-400 bg-gray-100" : ""}
                   >
-                    {state.name} {!selectable ? "(Not Available)" : ""}
+                    {state.name} {!selectable ? "" : ""}
                   </option>
                 );
               })}

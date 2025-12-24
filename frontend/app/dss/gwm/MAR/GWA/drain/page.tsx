@@ -20,6 +20,7 @@ import { RechargeProvider } from "@/contexts/groundwater_assessment/drain/Rechar
 import { DemandProvider } from "@/contexts/groundwater_assessment/drain/DemandContext";
 import { GSRProvider, useGSR } from "@/contexts/groundwater_assessment/drain/GSRContext";
 import { PDFProvider } from "@/contexts/groundwater_assessment/drain/PDFContext";
+import { AdminUnitsProvider, useAdminUnits } from "@/contexts/groundwater_assessment/drain/AdminUnitsContext";
 import ResizablePanels from "./components/resizable-panels";
 import { useRecharge } from "@/contexts/groundwater_assessment/drain/RechargeContext";
 
@@ -35,6 +36,106 @@ interface GroundwaterAssessmentContentProps {
   forecastData: any;
 }
 
+// ✅ UPDATED: Compute Available Water Button - Uses pre-fetched admin units
+function ComputeAvailableWaterButton() {
+  const { selectedVillages } = useLocation();
+  const { stateCode, districtCodes, subdistrictCodes, isLoading, error } = useAdminUnits();
+  const { stressTableData } = useGSR();
+
+  const handleClick = () => {
+    // Validate that we have admin units data
+    if (!stateCode && districtCodes.length === 0 && subdistrictCodes.length === 0) {
+      alert('Location data is not available. Please try again or contact support.');
+      console.error('❌ Admin units data not available');
+      return;
+    }
+
+    // Build query parameters using pre-fetched admin units
+    const params = new URLSearchParams();
+    
+    if (stateCode) {
+      params.append('state', stateCode.toString());
+    }
+    if (districtCodes.length > 0) {
+      params.append('districts', districtCodes.join(','));
+    }
+    if (subdistrictCodes.length > 0) {
+      params.append('subdistricts', subdistrictCodes.join(','));
+    }
+
+    // Store stress data (injection need data) in localStorage
+    if (stressTableData && stressTableData.length > 0) {
+      try {
+        localStorage.setItem('gwa_stress_data', JSON.stringify(stressTableData));
+        console.log('✅ Stress data stored in localStorage:', stressTableData.length, 'villages');
+      } catch (error) {
+        console.error('❌ Failed to store stress data:', error);
+        alert('Warning: Could not transfer stress data. The dataset might be too large.');
+      }
+    } else {
+      // Clear any old stress data
+      localStorage.removeItem('gwa_stress_data');
+      console.log('⚠️ No stress data available to transfer');
+    }
+
+    const url = `/dss/gwm/MAR/SWA?${params.toString()}`;
+    
+    // Log what we're sending (same as admin case)
+    console.log('=== SENDING DATA TO SWA MODULE (DRAIN CASE) ===');
+    console.log('State Code:', stateCode);
+    console.log('District Codes:', districtCodes);
+    console.log('Subdistrict Codes:', subdistrictCodes);
+    console.log('Stress Data (Injection Need):', stressTableData.length, 'villages');
+    console.log('Selected Villages (Source):', selectedVillages);
+    console.log('Full URL:', url);
+    console.log('===============================================');
+
+    // Open in new tab (same as admin case)
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Show loading state if admin units are still being fetched
+  if (isLoading) {
+    return (
+      <button
+        disabled
+        className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold rounded-full py-3 px-6 shadow-lg opacity-50 cursor-not-allowed"
+      >
+        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span className="whitespace-nowrap">Fetching Location Data...</span>
+      </button>
+    );
+  }
+
+  // Show error state if there was an error fetching admin units
+  if (error) {
+    return (
+      <button
+        onClick={handleClick}
+        className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold transition-all duration-200 rounded-full py-3 px-6 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-400 focus:ring-opacity-50"
+        title={error}
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <span className="whitespace-nowrap">Retry Location Data</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 rounded-full py-3 px-6 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-cyan-400 focus:ring-opacity-50 transform hover:scale-105"
+    >
+      <span className="whitespace-nowrap">Compute Available Water</span>
+    </button>
+  );
+}
+
 function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: GroundwaterAssessmentContentProps) {
   const [activeStep, setActiveStep] = useState<number>(1);
   const [enableGroundwaterDepth, setEnableGroundwaterDepth] = useState<boolean>(false);
@@ -48,7 +149,7 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
 
   React.useEffect(() => {
     if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
-      console.log(" Auto-triggering groundwater recharge computation (drain)...");
+      console.log("✅ Auto-triggering groundwater recharge computation (drain)...");
       computeRecharge();
     }
   }, [activeStep]);
@@ -178,7 +279,7 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
               }}
               className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
-            <span className="text-xs sm:text-sm font-medium text-gray-700"> Groundwater Depth Analysis</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Groundwater Depth Analysis</span>
           </label>
 
           <label className="flex items-center space-x-2 cursor-pointer">
@@ -195,7 +296,7 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
               }}
               className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
-            <span className="text-xs sm:text-sm font-medium text-gray-700"> Timeseries Analysis and Forecasting</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Timeseries Analysis and Forecasting</span>
           </label>
         </div>
       </div>
@@ -281,7 +382,6 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-
           </div>
 
           {/* PDF Download and Compute Available Water Buttons */}
@@ -289,42 +389,9 @@ function GroundwaterAssessmentContent({ contourData, trendData, forecastData }: 
             <div className="w-full sm:w-auto flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-3 mb-1">
               <PDF contourData={contourData} trendData={trendData} forecastData={forecastData} />
 
-              {/* Compute Available Water Button - Only shown when stress data is available */}
+              {/* ✅ Compute Available Water Button - Only shown when stress data is available */}
               {stressTableData.length > 0 && (
-                <Link
-                  href="/dss/GWM/MAR/SWA"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold transition-all duration-200 rounded-full py-3 px-6 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-cyan-400 focus:ring-opacity-50 transform hover:scale-105"
-                >
-                  {/* <svg 
-                    className="w-5 h-5" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" 
-                    />
-                  </svg> */}
-                  <span className="whitespace-nowrap">Compute Available Water</span>
-                  {/* <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
-                    />
-                  </svg> */}
-                </Link>
+                <ComputeAvailableWaterButton />
               )}
             </div>
           )}
@@ -369,25 +436,27 @@ export default function GroundwaterAssessmentDrain() {
 
   return (
     <LocationProvider>
-      <WellProvider>
-        <MapProvider>
-          <PDFProvider>
-            <GroundwaterContourProvider activeTab="groundwater-contour" onGeoJsonData={handleGeoJsonData}>
-              <GroundwaterTrendProvider activeTab="groundwater-trend" onTrendData={handleTrendData}>
-                <GroundwaterForecastProvider activeTab="groundwater-forecast" onForecastData={handleForecastData}>
-                  <RechargeProvider>
-                    <DemandProvider>
-                      <GSRProvider>
-                        <GroundwaterAssessmentContent contourData={contourData} trendData={trendData} forecastData={forecastData} />
-                      </GSRProvider>
-                    </DemandProvider>
-                  </RechargeProvider>
-                </GroundwaterForecastProvider>
-              </GroundwaterTrendProvider>
-            </GroundwaterContourProvider>
-          </PDFProvider>
-        </MapProvider>
-      </WellProvider>
+      <AdminUnitsProvider> {/* ✅ AdminUnitsProvider wraps everything to provide location data */}
+        <WellProvider>
+          <MapProvider>
+            <PDFProvider>
+              <GroundwaterContourProvider activeTab="groundwater-contour" onGeoJsonData={handleGeoJsonData}>
+                <GroundwaterTrendProvider activeTab="groundwater-trend" onTrendData={handleTrendData}>
+                  <GroundwaterForecastProvider activeTab="groundwater-forecast" onForecastData={handleForecastData}>
+                    <RechargeProvider>
+                      <DemandProvider>
+                        <GSRProvider>
+                          <GroundwaterAssessmentContent contourData={contourData} trendData={trendData} forecastData={forecastData} />
+                        </GSRProvider>
+                      </DemandProvider>
+                    </RechargeProvider>
+                  </GroundwaterForecastProvider>
+                </GroundwaterTrendProvider>
+              </GroundwaterContourProvider>
+            </PDFProvider>
+          </MapProvider>
+        </WellProvider>
+      </AdminUnitsProvider>
     </LocationProvider>
   );
 }

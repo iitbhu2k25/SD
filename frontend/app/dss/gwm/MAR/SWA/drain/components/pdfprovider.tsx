@@ -51,7 +51,7 @@ export const PdfProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const data = await response.json();
       return data.image_base64 || null;
     } catch (error) {
-      console.log('Error fetching subbasin map image:', error);
+      console.error('Error fetching subbasin map image:', error);
       return null;
     }
   };
@@ -119,7 +119,7 @@ export const PdfProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       setIsPdfReady(true);
     } catch (error) {
-      console.log('Error preparing PDF:', error);
+      console.error('Error preparing PDF:', error);
       setPdfError('Failed to prepare PDF data. Please try again.');
     } finally {
       setIsPreparingPdf(false);

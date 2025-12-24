@@ -463,46 +463,66 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
           </select>
         </div>
 
-        {/* Forecast Type */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Forecast Type <span className="text-red-500">*</span>
-          </label>
-          <div className="flex gap-4">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="forecastType"
-                value="single"
-                checked={forecastType === 'single'}
-                onChange={(e) => {
-                  setForecastType(e.target.value);
-                  setForecastYear('');
-                  setForecastYears(['', '']);
-                }}
-                disabled={isLoading}
-                className="mr-2"
-              />
-              Single Year
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="forecastType"
-                value="range"
-                checked={forecastType === 'range'}
-                onChange={(e) => {
-                  setForecastType(e.target.value);
-                  setForecastYear('');
-                  setForecastYears(['', '']);
-                }}
-                disabled={isLoading}
-                className="mr-2"
-              />
-              Year Range
-            </label>
-          </div>
-        </div>
+       {/* Forecast Type - ULTRA THIN WIDE PROFESSIONAL GREEN */}
+<div className="space-y-1">
+  <label className="block text-[11px] font-semibold text-gray-700">
+    Forecast Type <span className="text-red-500">*</span>
+  </label>
+
+  <div className="flex gap-2">
+    {/* Single Year */}
+    <button
+      type="button"
+      onClick={() => {
+        setForecastType("single");
+        setForecastYear("");
+        setForecastYears(["", ""]);
+      }}
+      disabled={isLoading}
+      className={`
+        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
+        transition-all duration-200
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${
+          forecastType === "single"
+            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
+            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
+        }
+      `}
+    >
+      <div className="flex justify-between items-center">
+        <span>Single</span>
+        <span className="text-[10px] opacity-75">1 Year</span>
+      </div>
+    </button>
+
+    {/* Range */}
+    <button
+      type="button"
+      onClick={() => {
+        setForecastType("range");
+        setForecastYear("");
+        setForecastYears(["", ""]);
+      }}
+      disabled={isLoading}
+      className={`
+        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
+        transition-all duration-200
+        disabled:opacity-50 disabled:cursor-not-allowed
+        ${
+          forecastType === "range"
+            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
+            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
+        }
+      `}
+    >
+      <div className="flex justify-between items-center">
+        <span>Range</span>
+        <span className="text-[10px] opacity-75">Multi Year</span>
+      </div>
+    </button>
+  </div>
+</div>
 
         {/* Year Input */}
         {forecastType === 'single' && (

@@ -1,5 +1,5 @@
 'use client';
-import React from "react";
+import React, { useEffect } from "react";
 import { MultiSelect } from "./Multiselect";
 import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationContext";
 
@@ -21,12 +21,24 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
   const handleRiverSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectionsLocked) handleRiverChange(Number(e.target.value));
   };
+  
   const handleStretchSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectionsLocked) handleStretchChange(Number(e.target.value));
   };
+  
   const handleDrainSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     if (!selectionsLocked) handleDrainChange(Number(e.target.value));
   };
+
+  // ✅ AUTO-SELECT ALL CATCHMENTS WHEN DRAIN SELECTED + CATCHMENTS LOADED
+  useEffect(() => {
+    if (selectedDrain && catchments.length > 0 && selectedCatchments.length === 0) {
+      const allCatchmentIds = catchments.map(c => Number(c.objectId));
+      setSelectedCatchments(allCatchmentIds);
+      console.log(`✅ AUTO-SELECTED ${allCatchmentIds.length} catchments for Drain ${selectedDrain}`);
+    }
+  }, [selectedDrain, catchments.length, selectedCatchments.length]);
+
   const handleCatchmentsChange = (ids: (number | string)[]) => {
     if (!selectionsLocked) {
       const numericIds = ids.map(id => Number(id));
@@ -41,7 +53,10 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
     }
   };
 
-  const handleConfirmArea = () => { handleAreaConfirm(); onAreaConfirmed?.(); };
+  const handleConfirmArea = () => { 
+    handleAreaConfirm(); 
+    onAreaConfirmed?.(); 
+  };
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-md">
@@ -85,14 +100,14 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <MultiSelect
+        {/* <MultiSelect
           items={catchments.map(c => ({ id: c.objectId, name: c.name }))}
           selectedItems={selectedCatchments}
           onSelectionChange={handleCatchmentsChange}
           label="Catchments"
-          placeholder="--Choose Catchments--"
+          placeholder="All Auto-Selected"
           disabled={!selectedDrain || selectionsLocked || isLoading || areaConfirmed}
-        />
+        /> */}
         <MultiSelect
           items={villages.map(v => ({ id: v.code, name: v.name }))}
           selectedItems={selectedVillages}
@@ -109,8 +124,8 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
           <p><span className="font-medium">River:</span> {rivers.find(r => r.code === selectedRiver)?.name || "None"}</p>
           <p><span className="font-medium">Stretch:</span> {stretches.find(s => s.stretchId === selectedStretch)?.name || "None"}</p>
           <p><span className="font-medium">Drain:</span> {selectedDrain ? `Drain ${selectedDrain}` : "None"}</p>
-          <p><span className="font-medium">Catchments:</span> {selectedCatchments.length > 0 ? selectedCatchments.length === catchments.length ? "All Catchments" : catchments.filter(c => selectedCatchments.includes(c.objectId)).map(c => c.name).join(", ") : "None"}</p>
-          <p><span className="font-medium">Villages:</span> {selectedVillages.length > 0 ? selectedVillages.length === villages.length ? "All Villages" : villages.filter(v => selectedVillages.includes(v.code)).map(v => v.name).join(", ") : "None"}</p>
+          <p><span className="font-medium">Catchments:</span> {selectedCatchments.length > 0 ? `${selectedCatchments.length} (All Auto-Selected)` : "None"}</p>
+          <p><span className="font-medium">Villages:</span> {selectedVillages.length > 0 ? `${selectedVillages.length} villages` : "None"}</p>
           {areaConfirmed && <p className="mt-2 text-green-600 font-medium">✓ Area selection confirmed</p>}
         </div>
       </div>

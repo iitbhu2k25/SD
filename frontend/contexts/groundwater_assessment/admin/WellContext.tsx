@@ -25,6 +25,7 @@ interface WellContextType {
   // Well selection state
   wellSelectionMode: 'existing_and_new' | 'upload_csv' | null;
   wellsData: WellData[];
+  wellCount: number;
   wellsLoading: boolean;
   wellsError: string | null;
   isWellTableSaved: boolean;
@@ -81,6 +82,7 @@ interface WellProviderProps {
 const WellContext = createContext<WellContextType>({
   wellSelectionMode: null,
   wellsData: [],
+  wellCount: 0, // ADD THIS LINE
   wellsLoading: false,
   wellsError: null,
   isWellTableSaved: false,
@@ -120,6 +122,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
   // Well selection state
   const [wellSelectionMode, setWellSelectionMode] = useState<'existing_and_new' | 'upload_csv' | null>(null);
   const [wellsData, setWellsData] = useState<WellData[]>([]);
+  const [wellCount, setWellCount] = useState(0); // ADD THIS LINE
   const [wellsLoading, setWellsLoading] = useState(false);
   const [wellsError, setWellsError] = useState<string | null>(null);
   const [isWellTableSaved, setIsWellTableSaved] = useState(false);
@@ -356,7 +359,12 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     a.click();
     window.URL.revokeObjectURL(url);
   };
-
+  // Track well count changes
+  useEffect(() => {
+    const count = wellsData.length;
+    setWellCount(count);
+    console.log("Well count updated:", count);
+  }, [wellsData]);
   // CSV Upload functions
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -634,7 +642,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     wellsError,
     isWellTableSaved,
     isSavingWells,
-
+    wellCount, // ADD THIS LINE
     // Table editing state
     customColumns,
     newColumnName,

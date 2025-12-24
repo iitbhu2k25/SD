@@ -78,7 +78,7 @@ export const GroundwaterContourProvider = ({
   const { selectedVillages } = useLocation();
 
   // Get well context for csvFilename
-  const { csvFilename } = useWell();
+  const { csvFilename, wellCount } = useWell(); // ADD wellCount
 
   useEffect(() => {
     if (activeTab !== 'groundwater-contour') {
@@ -100,7 +100,11 @@ export const GroundwaterContourProvider = ({
       alert('Please select villages first.');
       return;
     }
-
+// ADD THIS CHECK
+if (wellCount < 3) {
+  alert(`You need at least 3 well points for interpolation. Currently you have ${wellCount} well(s).`);
+  return;
+}
     // Validate contour interval
     const intervalValue = parseFloat(contourInterval);
     if (isNaN(intervalValue) || intervalValue <= 0) {

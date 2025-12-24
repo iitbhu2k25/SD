@@ -230,7 +230,7 @@ export default function SurfaceWaterCard() {
         await requestElFullscreen(chartWrapRef.current);
       }
     } catch (e) {
-      console.log('Fullscreen error:', e);
+      console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 

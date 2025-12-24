@@ -4,12 +4,13 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useClimateAdmin } from '@/contexts/surfacewater_assessment/admin/ClimateContext';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 import dynamic from 'next/dynamic';
 
-
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
+const Plot = dynamic(() => import('react-plotly.js'), {
+  ssr: false,
+});
 const SCENARIO_OPTIONS: { value: number; label: string }[] = [
   { value: 126, label: ' 126' },
   { value: 245, label: ' 245' },
@@ -55,7 +56,7 @@ export default function ClimateAdmin() {
     setSelectedSourceId, setSelectedStartYear, setSelectedEndYear, run
   } = useClimateAdmin();
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const canRunBase = selectionConfirmed && selectedSubdistrictIds.length > 0 && !posting && selectedSourceId !== null && selectedSourceId !== '';
 
@@ -199,7 +200,7 @@ export default function ClimateAdmin() {
       if (isFullscreen) await exitDocFullscreen();
       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
-      console.log('Fullscreen error', e);
+      console.error('Fullscreen error', e);
     }
   }, [isFullscreen]);
 
@@ -220,7 +221,7 @@ export default function ClimateAdmin() {
       end_year: Number(selectedEndYear),
     };
 
-    const res = await fetch(`/django/swa/adminclimateimage`, {
+    const res = await fetch(`${apiBase}/django/swa/adminclimateimage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -273,7 +274,7 @@ export default function ClimateAdmin() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.log('Download PNG error', e);
+      console.error('Download PNG error', e);
       alert((e as Error)?.message || 'Failed to download PNG');
     }
   }, [fetchServerPng, selectedStartYear, selectedEndYear]);

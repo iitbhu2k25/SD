@@ -139,7 +139,7 @@ export const ClimateProvider: React.FC<React.PropsWithChildren> = ({ children })
           end_year,
         };
 
-        const res = await fetch(`/climate`, {
+        const res = await fetch(`${apiBase}/climate`, {
           method: 'POST',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },

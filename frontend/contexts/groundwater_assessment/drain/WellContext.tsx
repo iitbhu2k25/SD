@@ -25,6 +25,7 @@ interface WellContextType {
   // Well selection state
   wellSelectionMode: 'existing_and_new' | 'upload_csv' | null;
   wellsData: WellData[];
+  wellCount: number; // ADD THIS
   wellsLoading: boolean;
   wellsError: string | null;
   isWellTableSaved: boolean;
@@ -81,6 +82,7 @@ interface WellProviderProps {
 const WellContext = createContext<WellContextType>({
   wellSelectionMode: null,
   wellsData: [],
+  wellCount: 0, // ADD THIS
   wellsLoading: false,
   wellsError: null,
   isWellTableSaved: false,
@@ -120,6 +122,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
   // Well selection state
   const [wellSelectionMode, setWellSelectionMode] = useState<'existing_and_new' | 'upload_csv' | null>(null);
   const [wellsData, setWellsData] = useState<WellData[]>([]);
+  const [wellCount, setWellCount] = useState(0);
   const [wellsLoading, setWellsLoading] = useState(false);
   const [wellsError, setWellsError] = useState<string | null>(null);
   const [isWellTableSaved, setIsWellTableSaved] = useState(false);
@@ -333,7 +336,12 @@ export const WellProvider: React.FC<WellProviderProps> = ({
       setIsSavingWells(false);
     }
   };
-
+// Track well count changes
+useEffect(() => {
+  const count = wellsData.length;
+  setWellCount(count);
+  console.log("Well count updated:", count);
+}, [wellsData]);
   const exportToCSV = () => {
     if (wellsData.length === 0) return;
 
@@ -626,6 +634,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     // Well selection state
     wellSelectionMode,
     wellsData,
+     wellCount,
     wellsLoading,
     wellsError,
     isWellTableSaved,

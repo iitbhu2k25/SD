@@ -230,9 +230,9 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
             step="0.1"
             disabled={isLoading}
           />
-          {/* <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1">
              Recommended: 1-5m for groundwater levels, 5-20m for elevation
-          </p> */}
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

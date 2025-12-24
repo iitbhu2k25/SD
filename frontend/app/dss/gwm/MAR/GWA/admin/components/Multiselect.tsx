@@ -40,8 +40,13 @@ export const MultiSelect = <
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const allItemIds = items.map((i) => Number(i.id));
-  const allSelected = items.length > 0 && selectedItems.length === items.length;
+  // Get only selectable (non-disabled) item IDs
+  const selectableItemIds = items
+    .filter(item => !(itemDisabled && itemDisabled(item)))
+    .map(item => Number(item.id));
+  
+  const allSelected = selectableItemIds.length > 0 && 
+    selectableItemIds.every(id => selectedItems.includes(id));
 
   const savedScrollTop = useRef(0);
 
@@ -113,8 +118,8 @@ export const MultiSelect = <
         onSelectionChange(newSelection);
       }
     } else {
-      // When not searching, toggle all items
-      onSelectionChange(allSelected ? [] : [...allItemIds]);
+      // When not searching, toggle all selectable items (excluding disabled ones)
+      onSelectionChange(allSelected ? [] : [...selectableItemIds]);
     }
   };
 
@@ -139,7 +144,7 @@ export const MultiSelect = <
   };
 
   // ---------- CLASSES ----------
-  const dropdownBase = 'absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg';
+  const dropdownBase = 'absolute z-[9999] w-full bg-white border border-gray-300 rounded-md shadow-lg';
   const dropdownClasses =
     dropdownPosition === 'top'
       ? `${dropdownBase} bottom-full mb-1`

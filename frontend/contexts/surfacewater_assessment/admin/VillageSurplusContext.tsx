@@ -45,7 +45,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const fetchSurplusBulk = useCallback(
     async (subdistrictIds: number[]) => {
@@ -57,7 +57,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
       setError(null);
 
       try {
-        const res = await fetch(`/django/swa/adminsurfacewater`, {
+        const res = await fetch(`${apiBase}/django/swa/adminsurfacewater`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -207,7 +207,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const fetchVillagePng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`/django/swa/adminsurfacewaterimage`, {
+        const res = await fetch(`${apiBase}/django/swa/adminsurfacewaterimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),
@@ -220,7 +220,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.log('Failed to fetch village PNG:', err);
+        console.error('Failed to fetch village PNG:', err);
         return null;
       }
     },

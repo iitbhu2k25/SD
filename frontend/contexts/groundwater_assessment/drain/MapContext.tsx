@@ -1793,7 +1793,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       } else if (selectedRiver && riverCode === selectedRiver && !selectedStretch) {
         baseStyle = new Style({
           stroke: new Stroke({
-            color: "rgba(202, 12, 12, 1)ff",
+            color: "rgba(233, 13, 13, 1)",
             width: 3,
           }),
         });
@@ -1974,6 +1974,61 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     console.log(`Drains layer styling updated`);
   }, [selectedStretch, selectedRiver, selectedDrain]);
+
+
+  // Effect to UPDATE rivers styling when river is selected
+  useEffect(() => {
+    if (!mapInstanceRef.current || !riversLayerRef.current) return;
+
+    console.log(`Updating rivers layer styling for selected river: ${selectedRiver}`);
+
+    // Update the style function to highlight selected river
+    riversLayerRef.current.setStyle((feature) => {
+      const riverCode = feature.get('River_Code');
+
+      if (selectedRiver && riverCode === selectedRiver) {
+        // Highlighted style for selected river
+        return new Style({
+          stroke: new Stroke({
+            color: '#ec0c0cff', // Black color for selected river
+            width: 4,
+          }),
+        });
+      } else {
+        // Default blue style for unselected rivers
+        return riverStyle;
+      }
+    });
+
+    // Force layer refresh
+    riversLayerRef.current.changed();
+
+    // ZOOM TO SELECTED RIVER
+    if (selectedRiver) {
+      setTimeout(() => {
+        const source = riversLayerRef.current?.getSource();
+        if (!source || !mapInstanceRef.current) return;
+
+        const features = source.getFeatures();
+        const selectedFeature = features.find((f: any) => f.get('River_Code') === selectedRiver);
+        
+        if (selectedFeature) {
+          const geometry = selectedFeature.getGeometry();
+          if (geometry) {
+            const extent = geometry.getExtent();
+            mapInstanceRef.current.getView().fit(extent, {
+              padding: [100, 100, 100, 100],
+              duration: 1000,
+              maxZoom: 11,
+            });
+            console.log(`Zoomed to river ${selectedRiver}`);
+          }
+        }
+      }, 300);
+    }
+
+    console.log(`Rivers layer styling updated`);
+  }, [selectedRiver]);
 
   // Effect to handle catchments - Keep as is (only show when drain selected)
   useEffect(() => {

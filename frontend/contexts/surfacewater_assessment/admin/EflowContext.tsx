@@ -89,7 +89,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const [stressDataMap, setStressDataMap] = useState<Map<number, VillageStressData>>(new Map());
   const [stressColumns, setStressColumns] = useState<string[]>([]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   // Load stress data from localStorage if present (keeps earlier behavior)
   useEffect(() => {
@@ -124,7 +124,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
         }
       }
     } catch (err) {
-      console.log('Failed to load stress data:', err);
+      console.error('Failed to load stress data:', err);
     }
   }, []);
 
@@ -151,7 +151,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/django/swa/eflowadmin`, {
+        const res = await fetch(`${apiBase}/django/swa/eflowadmin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -231,7 +231,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const fetchMethodPng = useCallback(
     async (vlcode: number, methodKey: MethodKey): Promise<MethodPngResponse | null> => {
       try {
-        const res = await fetch(`/django/swa/eflowadminimage`, {
+        const res = await fetch(`${apiBase}/django/swa/eflowadminimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode, method_key: methodKey }),
@@ -249,7 +249,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           method_key: data?.method_key ?? methodKey,
         };
       } catch (err) {
-        console.log('Failed to fetch PNG:', err);
+        console.error('Failed to fetch PNG:', err);
         return null;
       }
     },

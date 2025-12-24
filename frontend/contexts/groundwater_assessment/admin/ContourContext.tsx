@@ -72,7 +72,7 @@ export const GroundwaterContourProvider = ({
 
   const { addContourLayer, addRasterLayer } = useMap();
   const { selectedSubDistricts } = useLocation();
-  const { csvFilename } = useWell();
+  const { csvFilename, wellCount } = useWell();
 
   useEffect(() => {
     if (activeTab !== 'groundwater-contour') {
@@ -93,7 +93,10 @@ export const GroundwaterContourProvider = ({
       alert('Please select villages/subdistricts first.');
       return;
     }
-
+if (wellCount < 3) {
+    alert(`You need at least 3 well points for interpolation. Currently you have ${wellCount} well(s).`);
+    return;
+  }
     const intervalValue = parseFloat(contourInterval);
     if (isNaN(intervalValue) || intervalValue <= 0) {
       alert('Please enter a valid contour interval (greater than 0).');

@@ -74,7 +74,7 @@ const WaterLevelMap = () => {
       try {
         map.setTarget(mapElement.current);
       } catch (error) {
-        console.log("Error setting map target:", error);
+        console.error("Error setting map target:", error);
       }
     }
   }, [map, mapElement]);
@@ -84,7 +84,7 @@ const WaterLevelMap = () => {
       try {
         popupOverlay.setElement(popupRef.current);
       } catch (error) {
-        console.log("Error setting popup overlay:", error);
+        console.error("Error setting popup overlay:", error);
       }
     }
   }, [popupOverlay, popupRef]);

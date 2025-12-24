@@ -36,7 +36,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const fetchFDCBulk = useCallback(
     async (subdistrictIds: number[]) => {
@@ -47,7 +47,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
       setError(null);
 
       try {
-        const res = await fetch(`/django/swa/adminfdc`, {
+        const res = await fetch(`${apiBase}/django/swa/adminfdc`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -193,7 +193,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const fetchFdcPng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`/django/swa/adminfdcimage`, {
+        const res = await fetch(`${apiBase}/django/swa/adminfdcimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),
@@ -206,7 +206,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
         const b64: string | undefined = data?.image_base64;
         return b64 ?? null;
       } catch (err) {
-        console.log('Failed to fetch FDC PNG:', err);
+        console.error('Failed to fetch FDC PNG:', err);
         return null;
       }
     },

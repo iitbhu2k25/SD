@@ -108,7 +108,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     return []; // fallback to empty array
   } catch (error) {
-    console.log("[ERROR] fetchHydrographStationData:", error);
+    console.error("[ERROR] fetchHydrographStationData:", error);
     return []; // return empty array instead of throwing to prevent .sort error
   }
 };
@@ -165,7 +165,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     const waterLevelLayer = new ImageLayer({
       source: new ImageWMS({
-        url: "/geoserver/api/myworkspace/wms",
+        url: "http://localhost:9090/geoserver/myworkspace/wms",
         params: {
           LAYERS: "myworkspace:waterlevel",
           TILED: true,
@@ -350,7 +350,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
           updatePopupPosition(evt.coordinate);
         } catch (err) {
-          console.log("Failed to load station data", err);
+          console.error("Failed to load station data", err);
           setPopupData(null);
           setIsPopupVisible(false);
           popupOverlay.setPosition(undefined);
@@ -363,7 +363,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
         setIsPopupVisible(false);
       }
     } catch (err) {
-      console.log("GetFeatureInfo failed", err);
+      console.error("GetFeatureInfo failed", err);
       popupOverlay.setPosition(undefined);
       setIsPopupVisible(false);
     }

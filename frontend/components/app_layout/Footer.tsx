@@ -11,7 +11,7 @@ export default function Footer() {
     { src: "/Images/footer/iitbombay.png", alt: "IIT Bombay", link: "https://www.iitb.ac.in/" },
     { src: "/Images/footer/iit_delhi_logo.png", alt: "IIT Delhi", link: "https://home.iitd.ac.in/" },
     { src: "/Images/footer/IIT_Madras_Logo.svg.png", alt: "IIT Madras", link: "https://www.iitm.ac.in/" },
-    { src: "/Images/footer/japan.svg", alt: "Japan", link: "https://www.global.hokudai.ac.jp/" },
+    { src: "/Images/footer/japan.webp", alt: "Japan", link: "https://www.global.hokudai.ac.jp/" },
   ];
 
   return (

@@ -8,8 +8,7 @@ import React, {
   useRef,
 } from 'react';
 import dynamic from 'next/dynamic';
-import type Plotly from 'plotly.js';
-
+import type Plotly from 'plotly.js-dist-min';
 import { useStreamFlowContext } from '@/contexts/surfacewater_assessment/admin/StreamFlowContext';
 import { useLocationContext } from '@/contexts/surfacewater_assessment/admin/LocationContext';
 
@@ -152,7 +151,7 @@ export default function StreamFlowPlotly() {
       if (isFullscreen) await exitDocFullscreen();
       else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
-      console.log('Fullscreen error:', e);
+      console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 
@@ -291,7 +290,7 @@ export default function StreamFlowPlotly() {
       a.click();
       a.remove();
     } catch (err) {
-      console.log('Plotly export error', err);
+      console.error('Plotly export error', err);
     }
   }, [plotRef, selectedVillage, series]);
 
