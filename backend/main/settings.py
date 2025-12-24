@@ -222,3 +222,9 @@ CACHES = {
         }
     }
 }
+
+# Increase request body size (example: 50 MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+
+# Optional: limit in-memory file upload size
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024

@@ -6,9 +6,10 @@ from channels.auth import AuthMiddlewareStack
 import rwm.routing  # ✅ Import routing from rwm app
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
+django_app = get_asgi_application()
 
 application = ProtocolTypeRouter({
-    "http": get_asgi_application(),
+    "http": django_app,
     "websocket": AuthMiddlewareStack(
         URLRouter(
             rwm.routing.websocket_urlpatterns  # ✅ Use rwm routing

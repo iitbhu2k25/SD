@@ -238,6 +238,33 @@ const Chart: React.FC = () => {
     };
   };
 
+  // Calculate WQI mean - simple approach
+const calculateWQIMean = () => {
+  if (!processedChartData || processedChartData.length === 0) return null;
+  
+  const wqiValues = processedChartData
+    .map((item) => parseValue(item['wqi']))
+    .filter((val) => typeof val === 'number' && !isNaN(val) && val > 0);
+  
+  if (wqiValues.length === 0) return null;
+  
+  const mean = wqiValues.reduce((sum, val) => sum + val, 0) / wqiValues.length;
+  return mean.toFixed(2);
+};
+
+const getWQIInfo = (wqi: string | number | null) => {
+  const value = Number(wqi);
+  if (!wqi || isNaN(value)) return { label: 'N/A', color: 'text-gray-400' };
+  if (value <= 50) return { label: 'Excellent', color: 'text-blue-600' };
+  if (value <= 100) return { label: 'Good', color: 'text-green-600' };
+  if (value <= 200) return { label: 'Poor', color: 'text-orange-600' };
+  if (value <= 300) return { label: 'Very Poor', color: 'text-red-600' };
+  return { label: 'Unsuitable for use', color: 'text-red-800' };
+};
+
+const wqiMean = calculateWQIMean();
+const wqiInfo = getWQIInfo(wqiMean);
+
   // NEW: Helper function to get parameter value from data point
   const getParameterValue = (
     dataPoint: ProcessedWaterQualityData | null,
@@ -353,22 +380,19 @@ const Chart: React.FC = () => {
       console.log("   Season:", selectedSeason);
 
       // ==================== FETCH DATA FROM BACKEND ====================
-      const response = await fetch(
-        `/django/rwm/start-pdf-report/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            subdistrict_codes: selectedSubDistricts, // ✅ Changed from stretch_ids
-            attributes: backendAttributes,
-            points_data: waterQualityData,
-            season: selectedSeason,
-            data_type: "subdistbased", // ✅ Changed from stretchbased
-          }),
-        }
-      );
+      const response = await fetch(`/django/rwm/start-pdf-report/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          subdistrict_codes: selectedSubDistricts, // ✅ Changed from stretch_ids
+          attributes: backendAttributes,
+          points_data: waterQualityData,
+          season: selectedSeason,
+          data_type: "subdistbased", // ✅ Changed from stretchbased
+        }),
+      });
 
       console.log("Response status:", response.status);
 
@@ -577,7 +601,6 @@ const Chart: React.FC = () => {
         };
 
         const addLogosToPage = () => {
-
           try {
             doc.addImage(leftLogo, "PNG", 15, 10, 20, 20);
             doc.addImage(rightLogo, "PNG", pageWidth - 40, 10, 25, 25);
@@ -1254,7 +1277,7 @@ const Chart: React.FC = () => {
             ["BOD", "5", "5", "0.1636"],
             ["Faecal Coliform", "50", "50", "0.1455"],
             ["pH", "(6.5, 8.5)", "7.5", "0.1273"],
-            ["Turbidity", "5", "5", "0.1091"],  
+            ["Turbidity", "5", "5", "0.1091"],
             ["EC", "1500", "1500", "0.0909"],
             ["TS", "1500", "1500", "0.0727"],
             ["COD", "10", "10", "0.0545"],
@@ -1418,7 +1441,6 @@ const Chart: React.FC = () => {
 
             // ADD TABLE FOR THIS PARAMETER
             checkPageBreak(30);
-
 
             doc.setFontSize(9);
             doc.setFont("times", "bold");
@@ -1669,6 +1691,20 @@ const Chart: React.FC = () => {
     setErrorMessage("");
   };
 
+  const TOP_TEN_PRIORITY: Record<string, number> = {
+    dissolvedOxygen: 1,
+    bod: 2,
+    faecalColiform: 3,
+    ph: 4,
+    turbidity: 5,
+    ec: 6,
+    ts: 7,
+    cod: 8,
+    temperature: 9,
+    nitrate: 10,
+  };
+
+
   return (
     <>
       {isGeneratingPDF && (
@@ -1688,11 +1724,11 @@ const Chart: React.FC = () => {
           areaConfirmed && (
             <div className="mb-6">
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-8 border border-blue-100 shadow-sm">
-                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
-                  <div className="w-full lg:w-1/3">
                     <label className="block text-sm font-semibold text-gray-800 mb-3">
                       Water Quality Parameter
                     </label>
+                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+                  <div className="w-full lg:w-1/3">
                     <select
                       className="w-full p-3 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white shadow-sm transition-all duration-200 hover:shadow-md text-gray-700 font-medium outline-none"
                       value={selectedAttribute}
@@ -1704,6 +1740,20 @@ const Chart: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                    <div className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 mt-4">
+                    <div className="flex items-center gap-2 my-2 mx-auto">
+                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <p className="text-sm font-semibold text-gray-800">
+                        Mean WQI
+                      </p>
+                      <p className="text-xl font-bold text-green-600">
+                        {wqiMean || "N/A"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {wqiInfo.label}
+                      </p>
+                    </div>
+                  </div>
                   </div>
                   <div className="w-full lg:w-2/3">
                     {stats && (
@@ -2160,7 +2210,7 @@ const Chart: React.FC = () => {
                                 }}
                               >
                                 <td className="px-4 py-2 text-blue-700">
-                                  Total
+                                  All points Average
                                 </td>
                                 <td className="px-4 py-2 text-center text-green-700">
                                   {totalMin.toFixed(2)}
@@ -2408,13 +2458,46 @@ const Chart: React.FC = () => {
                   {/* Water Quality Parameters Selection */}
                   <div className="mb-5">
                     <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700">
-                          Select Water Quality Parameters:
-                        </label>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Choose parameters to include in the report
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <label className="text-xs font-semibold text-gray-700">
+                            Select Water Quality Parameters:
+                          </label>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Choose parameters to include in the report
+                          </p>
+                        </div>
+
+                        {/* Question Mark Info Button */}
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 cursor-help"
+                            aria-label="Information about priority rankings"
+                          >
+                            ?
+                          </button>
+                        
+
+                        {/* Tooltip */}
+                        <div
+                          role="tooltip"
+                          className="absolute left-1/2 -translate-x-1/2 top-full mb-2 px-3 py-2 w-64 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 pointer-events-none z-50"
+                        >
+                          <p className="font-semibold mb-1">
+                            Priority Rankings
+                          </p>
+                          <p className="text-gray-300 leading-relaxed">
+                            Parameters numbered 1-10 are the most important
+                            indicators for water quality assessment, ranked by
+                            significance.
+                          </p>
+                          {/* Tooltip Arrow */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mt-px">
+                            <div className="border-[6px] border-transparent border-b-gray-900"></div>
+                          </div>
+                        </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
@@ -2434,37 +2517,60 @@ const Chart: React.FC = () => {
 
                     {/* Parameters Grid - Compact Version */}
                     <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                      {reportParameters.map((param) => (
-                        <div
-                          key={param.key}
-                          className={`relative flex items-center p-2 border-2 rounded-lg transition-all cursor-pointer hover:shadow-sm ${
-                            selectedParameters.includes(param.key)
-                              ? "border-blue-500 bg-blue-50"
-                              : "border-gray-200 bg-white hover:border-gray-300"
-                          }`}
-                          onClick={() => handleParameterToggle(param.key)}
-                        >
-                          <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedParameters.includes(param.key)}
-                              onClick={(e)=>e.stopPropagation()}
-                              onChange={() => handleParameterToggle(param.key)}
-                              className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                            />
-                          </div>
-                          <div className="ml-2 text-xs flex-1 min-w-0">
-                            <label className="font-semibold text-gray-900 cursor-pointer block truncate">
-                              {param.label}
-                            </label>
-                            {param.unit && (
-                              <p className="text-gray-500 text-[10px] truncate">
-                                {param.unit}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                      {reportParameters
+                        .slice()
+                        .sort((a, b) => {
+                          const priorityA = TOP_TEN_PRIORITY[a.key] || 999;
+                          const priorityB = TOP_TEN_PRIORITY[b.key] || 999;
+                          return priorityA - priorityB;
+                        })
+                        .map((param) => {
+                          const topTenPriority = TOP_TEN_PRIORITY[param.key];
+
+                          return (
+                            <div
+                              key={param.key}
+                              className={`flex items-center justify-between p-2 border-2 rounded-lg transition-all cursor-pointer hover:shadow-sm ${
+                                selectedParameters.includes(param.key)
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-gray-200 bg-white hover:border-gray-300"
+                              }`}
+                              onClick={() => handleParameterToggle(param.key)}
+                            >
+                              {/* Left side: Checkbox + Label */}
+                              <div className="flex items-center min-w-0 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedParameters.includes(
+                                    param.key
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={() =>
+                                    handleParameterToggle(param.key)
+                                  }
+                                  className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                                />
+                                <div className="ml-2 text-xs min-w-0 flex-1">
+                                  <label className="font-semibold text-gray-900 cursor-pointer block truncate">
+                                    {param.label}
+                                  </label>
+                                  {param.unit && (
+                                    <p className="text-gray-500 text-[10px] truncate">
+                                      {param.unit}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Right side: Priority Badge */}
+                              {topTenPriority && (
+                                <div className="ml-2 flex-shrink-0 bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                                  {topTenPriority}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
 

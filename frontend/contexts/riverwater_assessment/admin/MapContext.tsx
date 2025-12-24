@@ -90,7 +90,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
 };
  
 // Workspace used for GeoServer layer names (can be overridden via env var)
-const WORKSPACE = process.env.NEXT_PUBLIC_GEOSERVER_WORKSPACE || "myworkspace_rwm";
+const WORKSPACE = "myworkspace";
 
 interface LegendData {
   mean?: number;
@@ -918,7 +918,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: "/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace_rwm:India&outputFormat=application/json",
+        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
       }),
       style: boundaryLayerStyle,
       zIndex: 1,
@@ -997,7 +997,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const layer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace_rwm:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
           cqlFilter
         )}`,
       }),
@@ -1043,7 +1043,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         `Attempting to zoom to ${layerName} with filter: ${cqlFilter}`
       );
 
-      const wfsUrl = `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace_rwm:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+      const wfsUrl = `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
         cqlFilter
       )}`;
 

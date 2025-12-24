@@ -386,6 +386,7 @@ def finalize_interpolation_job(self,
     # logger.info(f"WS_DEBUG → finalize sending using JOB_ID = {job_id}")
     # logger.warning(f"[CELERY BEFORE DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
 
+    # cache.delete("pdf_job_lock")
     cache.delete(f"user_active_{job_id}")
     cache.delete(f"group_for_{job_id}")
     

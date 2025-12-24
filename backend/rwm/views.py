@@ -2208,7 +2208,7 @@ def create_multi_resolution_idw(
             },
         ]
 
-        workspace = "myworkspace_rwm"
+        workspace = "myworkspace"
         safe_attribute = (
             decoded_attribute.replace("(", "")
             .replace(")", "")
@@ -4993,6 +4993,19 @@ def start_pdf_report_job(request):
     Response: 202 Accepted with job_id
     """
     
+    # logger.warning(f"[DJANGO BEFORE] pdf_job_lock = {cache.get('pdf_job_lock')}")
+
+    # job_lock_key = f"pdf_job_lock"
+
+    # if cache.get(job_lock_key):
+    #     return Response(
+    #         {"status": "error", "message": "A report is already running"},
+    #         status=429
+    #     )
+
+    # Set lock for 10 minutes (remove earlier on success)
+    # cache.set(job_lock_key, True, timeout=600)
+    # logger.warning(f"[DJANGO AFTER SET] pdf_job_lock = {cache.get('pdf_job_lock')}")
 
 
     try:

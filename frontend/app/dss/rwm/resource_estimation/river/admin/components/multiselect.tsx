@@ -33,13 +33,17 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   const triggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const allSelected =
-    options.length > 0 && selectedValues.length === options.length;
-
-  // Filter options based on search query
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+
+  const allowedOptions = filteredOptions.filter(o => !o.disabled);
+
+  const allSelected =
+  allowedOptions.length > 0 &&
+  selectedValues.length === allowedOptions.length;
+
 
   // Calculate dropdown position based on available space
   const calculateDropdownPosition = () => {
@@ -101,12 +105,12 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
   // Handle select all
   const handleSelectAll = () => {
-    if (allSelected) {
-      onChange([]);
-    } else {
-      onChange(options.map((option) => option.value));
-    }
-  };
+  if (allSelected) {
+    onChange([]);
+  } else {
+    onChange(allowedOptions.map(o => o.value));
+  }
+};
 
   // Handle individual option selection
   const handleOptionSelect = (value: string) => {
@@ -236,6 +240,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
               <input
                 type="checkbox"
                 checked={allSelected}
+                onClick={(e) => e.stopPropagation()}
                 onChange={handleSelectAll}
                 className="mr-2"
               />
