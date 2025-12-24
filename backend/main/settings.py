@@ -28,7 +28,6 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "Basic",
-    "mapplot",
     "authapp",
     "gwa",
     "swa",
@@ -39,6 +38,8 @@ INSTALLED_APPS = [
     'django_celery_results',
     'django_celery_beat',
     'channels',
+    'rsq',
+    'management',
 ]
 
 MIDDLEWARE = [
@@ -187,7 +188,7 @@ CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND')
 CACHE_URL = os.getenv('CACHE_URL')
 
-print("XXXX")
+
 print("CELERY_BROKER_URL",CELERY_BROKER_URL)
 print("CELERY_RESULT_BACKEND",CELERY_RESULT_BACKEND)
 print("CACHE_URL",CACHE_URL)

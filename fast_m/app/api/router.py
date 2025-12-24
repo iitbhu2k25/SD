@@ -15,6 +15,7 @@ from app.api.v1.forecast import router as forecast_router
 from app.api.v1.interpolation import router as interpolation_router
 from app.api.v1.industrial_api import router as industrial_router
 from app.api.v1.pdf_api import router as pdf_router
+from app.api.v1.admin_unit import router as admin_unit_router
 
 router = APIRouter()
 
@@ -32,5 +33,6 @@ router.include_router(stress_router, prefix="/gwa", tags=["Stress Identification
 router.include_router(forecast_router, prefix="/gwa", tags=["Forecast"])
 router.include_router(interpolation_router, prefix="/gwa", tags=["Interpolation"])
 router.include_router(industrial_router, prefix="/gwa", tags=["Industrial"])
+router.include_router(admin_unit_router, prefix="/gwa", tags=["Admin Unit"])
 
 

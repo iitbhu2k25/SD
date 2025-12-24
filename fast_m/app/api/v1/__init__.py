@@ -13,6 +13,7 @@ __all__ = [
     "gsr",
     "agriculture",
     "pdf_api",
-    "industrial_api"
+    "industrial_api",
+    "admin_unit_api"
 
 ]

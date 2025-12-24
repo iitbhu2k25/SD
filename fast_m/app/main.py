@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Create tables if they don't exist
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 # Include routers AFTER defining middleware
 app.include_router(api_router)

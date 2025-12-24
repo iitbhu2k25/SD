@@ -79,7 +79,8 @@ def interpolate_for_villages(
     coords, values = coords[valid], values[valid]
 
     if len(coords) < 3:
-        raise ValueError(f"Need ≥3 valid points, got {len(coords)}")
+        # This will be handled by the fallback mechanism
+        raise ValueError(f"Need ≥3 valid points for IDW, got {len(coords)}")
 
     tree = cKDTree(coords)
     xi = np.column_stack([grid_x.ravel(), grid_y.ravel()])
@@ -134,6 +135,123 @@ class RechargeService:
         self.media_root = media_root
         self.temp_dir = os.path.join(media_root, "temp")
         os.makedirs(self.temp_dir, exist_ok=True)
+
+    # ------------------------------------------------------------------
+    # Fallback: Use CSV recharge when points < 3
+    # ------------------------------------------------------------------
+    def _fallback_to_csv_recharge(
+        self,
+        filtered: gpd.GeoDataFrame,
+        filter_type: str,
+        filter_vals: List,
+        csv_filename: str,
+        ts: str
+    ) -> Dict[str, Any]:
+        """
+        When insufficient points for IDW, use pre-calculated recharge from CSV
+        """
+        print(f"⚠️ Insufficient points (<3). Falling back to CSV recharge data...")
+
+        # Load recharge CSV
+        recharge_csv_path = os.path.join(
+            self.media_root, "gwa_data", "gwa_csv", "recharge.csv"
+        )
+        
+        if not os.path.exists(recharge_csv_path):
+            raise ValueError(f"Recharge CSV not found: {recharge_csv_path}")
+
+        recharge_df = pd.read_csv(recharge_csv_path)
+        recharge_df.columns = recharge_df.columns.str.strip()
+        
+        # Ensure village_co is string for matching
+        recharge_df['village_co'] = recharge_df['village_co'].astype(str)
+        filtered['village_co'] = filtered['village_co'].astype(str)
+
+        # Filter recharge_df based on filter_type
+        if filter_type == "villages":
+            # Filter by village codes
+            recharge_filtered = recharge_df[recharge_df['village_co'].isin([str(v) for v in filter_vals])]
+        else:  # subdistricts
+            # Filter by subdistrict codes
+            recharge_df['SUBDIS_COD'] = pd.to_numeric(recharge_df['SUBDIS_COD'], errors='coerce')
+            recharge_filtered = recharge_df[recharge_df['SUBDIS_COD'].isin(filter_vals)]
+
+        if recharge_filtered.empty:
+            raise ValueError(f"No matching data in recharge.csv for {filter_type}: {filter_vals}")
+
+        # Build results directly from CSV data
+        results = []
+        no_data = []
+        
+        for _, row in recharge_filtered.iterrows():
+            village_code = str(row['village_co'])
+            recharge_val = row.get('recharge', np.nan)
+            
+            if pd.isna(recharge_val):
+                no_data.append(village_code)
+            
+            results.append({
+                'village_co': village_code,
+                'village': row.get('village'),
+                'SY': row.get('SY'),
+                'Shape_Area': row.get('Shape_Area'),
+                'mean_water_fluctuation': row.get('mean_water_fluctuation'),
+                'median_water_fluctuation': row.get('median_water_fluctuation'),
+                'min_water_fluctuation': row.get('min_water_fluctuation'),
+                'max_water_fluctuation': row.get('max_water_fluctuation'),
+                'std_water_fluctuation': row.get('std_water Villages'),  # Note: column name from CSV
+                'pixel_count': row.get('pixel_count'),
+                'recharge': recharge_val
+            })
+
+        results_df = pd.DataFrame(results)
+        
+        # Save results CSV
+        csv_out = f"village_wise_groundwater_recharge_{ts}.csv"
+        csv_path = os.path.join(self.temp_dir, csv_out)
+        results_df.to_csv(csv_path, index=False)
+
+        # Summary statistics
+        valid = results_df[results_df['recharge'].notna()]
+        total_recharge_m3 = valid['recharge'].sum() if not valid.empty else 0
+        total_recharge_mcm = total_recharge_m3 / 1_000_000
+
+        summary = {
+            "total_villages": len(results_df),
+            "villages_with_interpolated_data": len(valid),  # Using CSV data count
+            "villages_with_valid_recharge": int(valid['recharge'].notna().sum()),
+            "villages_without_data": len(no_data),
+            "data_coverage_percentage": round((len(valid) / len(results_df)) * 100, 1) if len(results_df) > 0 else 0,
+            "total_points_used": 0,  # No points used for interpolation
+            "region_area_km2": round(valid['Shape_Area'].sum() / 1_000_000, 2) if not valid.empty else 0,
+            "mean_recharge_m3": safe_float(valid['recharge'].mean()),
+            "total_recharge_mcm": round(total_recharge_mcm, 4),
+        }
+
+        return {
+            "success": True,
+            "message": f"⚠️ Insufficient data points (<3). Used pre-calculated recharge from CSV. {len(valid)}/{len(results_df)} villages have data.",
+            "metadata": {
+                "processing_timestamp": datetime.now().isoformat(),
+                "input_csv": csv_filename,
+                "filter_type": filter_type,
+                "filter_values": filter_vals,
+                "interpolation_method": "CSV_FALLBACK (Insufficient points for IDW)",
+                "recharge_calculation": "Pre-calculated values from recharge.csv",
+                "data_source": recharge_csv_path
+            },
+            "output_files": {
+                "interpolated_raster_full": None,  # No raster generated
+                "interpolated_raster_clipped": None,
+                "village_results_csv": {
+                    "filename": csv_out, 
+                    "path": csv_path, 
+                    "size_bytes": os.path.getsize(csv_path)
+                },
+            },
+            "summary_statistics": summary,
+            "village_wise_results": [safe_dict(r) for r in results_df.to_dict("records")]
+        }
 
     # ------------------------------------------------------------------
     # Main entry point – called from API
@@ -210,12 +328,25 @@ class RechargeService:
         if len(pts_in) < 5:
             pts_in = points_gdf
 
-        # === 5. IDW ===
+        # === 5. Check if we have enough points for IDW ===
+        valid_points = pts_in[~pts_in['water_fluctuation'].isna()]
+        if len(valid_points) < 3:
+            # FALLBACK: Use pre-calculated recharge from CSV
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            return self._fallback_to_csv_recharge(
+                filtered=filtered,
+                filter_type=filter_type,
+                filter_vals=filter_vals,
+                csv_filename=csv_filename,
+                ts=ts
+            )
+
+        # === 6. IDW (only if points >= 3) ===
         grid, bounds, w, h, transform, _ = interpolate_for_villages(
             pts_in, filtered, cell_size=30, power=2, search_mode="variable", n_neighbors=3
         )
 
-        # === 6. Save rasters ===
+        # === 7. Save rasters ===
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         full_raster = f"water_fluctuation_idw_full_{ts}.tif"
         full_path = os.path.join(self.temp_dir, full_raster)
@@ -235,13 +366,13 @@ class RechargeService:
         with rasterio.open(clipped_path, "w", **meta) as dst:
             dst.write(img)
 
-        # === 7. Zonal stats ===
+        # === 8. Zonal stats ===
         geoms = [r.geometry for _, r in filtered.iterrows()]
         codes = [r['village_co'] for _, r in filtered.iterrows()]
         chunk = max(10, min(len(geoms) // (multiprocessing.cpu_count() * 2), 200))
         stats = fast_zonal_stats(geoms, clipped_path, ['mean', 'count', 'min', 'max', 'std', 'median'], chunk_size=chunk)
 
-        # === 8. Recharge ===
+        # === 9. Recharge ===
         attr_map = {
             str(r['village_co']): {'village_name': r['village'], 'sy_value': r['SY'], 'shape_area': r['Shape_Area']}
             for _, r in filtered.iterrows()
@@ -269,7 +400,7 @@ class RechargeService:
                 'median_water_fluctuation': stat['median'],
                 'min_water_fluctuation': stat['min'],
                 'max_water_fluctuation': stat['max'],
-                'std_water Villages': stat['std'],
+                'std_water_fluctuation': stat['std'],
                 'pixel_count': count,
                 'recharge': recharge
             })
@@ -279,7 +410,7 @@ class RechargeService:
         csv_path = os.path.join(self.temp_dir, csv_out)
         results_df.to_csv(csv_path, index=False)
 
-        # === 9. Summary ===
+        # === 10. Summary ===
         valid = results_df[results_df['pixel_count'] > 0]
         total_recharge_m3 = valid['recharge'].sum() if not valid.empty else 0
         total_recharge_mcm = total_recharge_m3 / 1_000_000
@@ -296,7 +427,7 @@ class RechargeService:
             "total_recharge_mcm": round(total_recharge_mcm, 4),
         }
 
-        # === 10. Response ===
+        # === 11. Response ===
         return {
             "success": True,
             "message": f"Analysis complete. {len(valid)}/{len(results_df)} villages have data.",
@@ -310,7 +441,7 @@ class RechargeService:
             },
             "output_files": {
                 "interpolated_raster_full": {"filename": full_raster, "path": full_path, "size_bytes": os.path.getsize(full_path)},
-                1: {"filename": clipped_raster, "path": clipped_path, "size_bytes": os.path.getsize(clipped_path)},
+                "interpolated_raster_clipped": {"filename": clipped_raster, "path": clipped_path, "size_bytes": os.path.getsize(clipped_path)},
                 "village_results_csv": {"filename": csv_out, "path": csv_path, "size_bytes": os.path.getsize(csv_path)},
             },
             "summary_statistics": summary,

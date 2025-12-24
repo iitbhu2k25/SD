@@ -7,6 +7,7 @@ from .forecast_service import ForecastService
 from .interpolation_service import InterpolationService
 from .industrial_service import IndustrialForecastService
 from .pdf_service import PDFMapService
+from .admin_unit_service import fetch_admin_units_from_villages
 
 __all__ = [
     "PopulationService",
@@ -16,7 +17,8 @@ __all__ = [
     "InterpolationService",
     "TrendService",
     "PDFMapService",
-    "IndustrialForecastService"
+    "IndustrialForecastService",
+    "fetch_admin_units_from_villages"
     
 ]
 

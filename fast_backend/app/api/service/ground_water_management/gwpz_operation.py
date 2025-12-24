@@ -15,6 +15,7 @@ from xml.dom import minidom
 from xml.etree import ElementTree as ET
 from app.utils.network_conf import GeoConfig
 import uuid
+from shapely.ops import nearest_points
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.conf.settings import Settings
@@ -769,6 +770,19 @@ class GWPumpingMapper:
                 "type": "raster",
             }
         return False
+    
+    def __well_distance(self,wells_gdf:pd.DataFrame):
+        road_paths="/home/app/media/Rajat_data/shape_stp/Roads/Roads.shp"
+        gdf_roads = gpd.read_file(road_paths)
+        gdf_roads = gdf_roads.to_crs( wells_gdf.crs)
+        roads_union = gdf_roads.union_all()
+        distances = []
+        for geom in wells_gdf.geometry:
+            nearest_geom_on_roads = nearest_points(geom, roads_union)[1]
+            dist = geom.distance(nearest_geom_on_roads)
+            distances.append(dist)
+        wells_gdf["Distance"] = distances
+        return wells_gdf
     def _get_validate_points(self,well_point:list,village_list:list):
         df = pd.DataFrame(well_point)
         df["Latitude"] = df["Latitude"].astype(float)
@@ -779,21 +793,24 @@ class GWPumpingMapper:
             crs="EPSG:4326"
         )
         village_gdf =self.processor.get_village(village_list).to_crs("EPSG:4326")
+        wells_gdf=self.__well_distance(wells_gdf)    
         wells_inside_village = gpd.sjoin(
             wells_gdf,
             village_gdf,
             predicate="within",
             how="inner"
         )
-        result = wells_inside_village[["Well_id", "Latitude", "Longitude"]]
+
+        result = wells_inside_village[["Well_id", "Latitude", "Longitude", "Distance"]]
         output = result.to_dict(orient="records")
         return output
+    
+
 
     def gwpl_table(self,db:db_dependency,raster:str,well_point:list,village_list:list):
         Relevance=self._get_relevance_raster(db,raster)
         records = []
-        # update the well points
-        well_point=self._get_validate_points(well_point,village_list)
+        well_point=self._get_validate_points(well_point,village_list)      
 
         for well_geom in well_point:
             well_id,lat ,lon = well_geom["Well_id"],well_geom["Latitude"],well_geom["Longitude"]

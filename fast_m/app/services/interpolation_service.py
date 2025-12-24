@@ -661,6 +661,14 @@ class InterpolationService:
         y = df['LATITUDE'].values
         z = df[parameter].astype(float).values
         
+        # ADD MINIMUM 3 POINTS VALIDATION FOR IDW
+        if method == 'idw' and len(x) < 3:
+            raise ValueError(
+                f"IDW interpolation requires minimum 3 data points. "
+                f"Found only {len(x)} points. Please choose at least three points."
+            )
+        # END VALIDATION
+        
         # Generate store name
         csv_name = Path(csv_path).stem
         store_name = f"interpolated_raster_{csv_name}_{parameter.replace(' ', '_')}"
@@ -793,7 +801,7 @@ class InterpolationService:
         
         with rasterio.open(initial_tiff_path) as src:
             valid_geometries = [geom if geom.is_valid else geom.buffer(0) 
-                               for geom in selected_area_utm.geometry if geom.is_valid or geom.buffer(0).is_valid]
+                            for geom in selected_area_utm.geometry if geom.is_valid or geom.buffer(0).is_valid]
             
             try:
                 unified_geometry = unary_union(valid_geometries)
