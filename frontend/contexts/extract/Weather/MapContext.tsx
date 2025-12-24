@@ -369,7 +369,7 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
     // Weather WMS layer (background)
     const weatherLayer = new ImageLayer({
       source: new ImageWMS({
-        url: "http://localhost:9090/geoserver/myworkspace/wms",
+        url: "/geoserver/api/myworkspace/wms",
         params: {
           LAYERS: "myworkspace:weather",
           TILED: true,

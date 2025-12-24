@@ -165,7 +165,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     const waterLevelLayer = new ImageLayer({
       source: new ImageWMS({
-        url: "http://localhost:9090/geoserver/myworkspace/wms",
+        url: "/geoserver/api/myworkspace/wms",
         params: {
           LAYERS: "myworkspace:waterlevel",
           TILED: true,
