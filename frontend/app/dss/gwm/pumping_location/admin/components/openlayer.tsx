@@ -316,8 +316,6 @@ const Mapping: React.FC = () => {
     const features = well_points.map((well: CsvRow) => {
       const lon = parseFloat(well.Longitude);
       const lat = parseFloat(well.Latitude);
-      console.log('lon', lon)
-      // Validate coordinates
       if (isNaN(lon) || isNaN(lat)) {
         console.warn(`Invalid coordinates for well ${well.Well_id}:`, well);
         return null;
@@ -328,8 +326,10 @@ const Mapping: React.FC = () => {
       const feature = new Feature({
         geometry: new Point(fromLonLat([lon, lat])),
         Well_id: well.Well_id,
+        Distance: well.Distance || 'N/A',
         Longitude: lon,
         Latitude: lat,
+        featureType: 'well_point' 
       });
       return feature;
     }).filter(f => f !== null);
@@ -532,7 +532,56 @@ const Mapping: React.FC = () => {
         <div className="hidden md:block">
           <GISCompass />
         </div>
-        <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
+        
+        {/* Well Points Tooltip - Only for well points */}
+        {hoveredFeature && hoveredFeature.get('featureType') === 'well_point' && (
+          <div 
+            className="absolute z-50 pointer-events-none"
+            style={{
+              left: `${mousePosition.x + 15}px`,
+              top: `${mousePosition.y - 10}px`,
+            }}
+          >
+            <div className="bg-white/95 backdrop-blur-md rounded-lg shadow-xl border border-gray-200 p-3 min-w-[200px]">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 border-b border-orange-200 pb-2">
+                  <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                  <span className="font-bold text-orange-800 text-sm">Well Point</span>
+                </div>
+                
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600 font-medium">Well ID:</span>
+                    <span className="text-xs font-semibold text-gray-800">
+                      {hoveredFeature.get('Well_id') || 'N/A'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600 font-medium">Name:</span>
+                    <span className="text-xs font-semibold text-gray-800">
+                      {hoveredFeature.get('Name') || 'N/A'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-600 font-medium">Distance:</span>
+                    <span className="text-xs font-semibold text-gray-800">
+                      {hoveredFeature.get('Distance') || 'N/A'}
+                    </span>
+                  </div>
+                  
+                  <div className="pt-1 border-t border-gray-200">
+                    <div className="text-xs text-gray-500">
+                      <div>Lat: {hoveredFeature.get('Latitude')?.toFixed(6) || 'N/A'}</div>
+                      <div>Lon: {hoveredFeature.get('Longitude')?.toFixed(6) || 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-3 sm:px-6 py-3 flex items-center space-x-2 sm:space-x-4">

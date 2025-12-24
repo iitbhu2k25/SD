@@ -3,6 +3,7 @@ export interface CsvRow {
   Well_id: string;
   Longitude: string;
   Latitude: string;
+  Distance?: string;
 }
 export interface DataRow {
   Village_Name: string;
