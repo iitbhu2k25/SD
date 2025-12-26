@@ -1287,12 +1287,13 @@ class ReportGenerator:
             and transparent decision-making for sewage infrastructure planning. Weight for the all
             conditioning factors"""
             self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
-            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
             if weights_table:
                 self.elements.append(weights_table)
             
-            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
-                                             self.style_manager.styles['FigureCaption']))
+           
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
@@ -1301,11 +1302,12 @@ class ReportGenerator:
             
         
             # Village analysis table
+            self.elements.append(Paragraph("Table 2: Details of the Village-wise STP suitability Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             village_table = TableGenerator.create_styled_table(self.table_data.village_suitability_table)
             if village_table:
                 self.elements.append(village_table)
-                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP suitability Analysis", 
-                                             self.style_manager.styles['FigureCaption']))
+                
             
             self.elements.append(PageBreak())
             

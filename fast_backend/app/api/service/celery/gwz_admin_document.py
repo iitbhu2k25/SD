@@ -1209,11 +1209,13 @@ class ReportGenerator:
             very low categories. This zonation supports informed, transparent, and scientifically robust
             decision-making for groundwater exploration, development, and management."""
             self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
-            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
-            if weights_table:
-                self.elements.append(weights_table)
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
             self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
                                              self.style_manager.styles['FigureCaption']))
+            
+            if weights_table:
+                self.elements.append(weights_table)
+           
             
             self.elements.append(Spacer(1, 20))
             
@@ -1222,12 +1224,13 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
         
+            self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             # Village analysis table
             village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
             if village_table:
                 self.elements.append(village_table)
-                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
-                                             self.style_manager.styles['FigureCaption']))
+                
             
             self.elements.append(PageBreak())
             
