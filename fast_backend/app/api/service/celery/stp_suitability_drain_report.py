@@ -57,6 +57,16 @@ import rasterio
 import matplotlib.pyplot as plt
 from celery_progress.backend import ProgressRecorder
 import time
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
+
+pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
+
 redis_client = Settings().redis_client
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
@@ -317,7 +327,7 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold'
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -325,7 +335,7 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 20,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
                 'borderPadding': 5
@@ -336,7 +346,7 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold'
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -359,7 +369,7 @@ class StyleManager:
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'textColor': colors.white
             })
         ]
@@ -385,14 +395,14 @@ class TableGenerator:
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
                 
@@ -843,7 +853,7 @@ class ReportGenerator:
             self._draw_logos(canvas, doc)
             page_num = canvas.getPageNumber()
             text = f"Page {page_num}"
-            canvas.setFont('Helvetica', 9)
+            canvas.setFont('TimesNewRoman', 9)
             canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
         except Exception as e:
             logging.error(f"Error creating header/footer: {str(e)}")

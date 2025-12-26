@@ -850,19 +850,33 @@ const Maping: React.FC = () => {
 
 
         {legendUrl && rasterLayerInfo && (
-          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center ">
+          <div
+            className={`
+              absolute bottom-16 right-16 z-20
+              bg-white/95 backdrop-blur-md
+              p-2 rounded-xl shadow-2xl
+              transition-all duration-200
+              ${isFullScreen ? "w-[250px]" : "w-[150px]"}
+            `}
+          >
+            <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
+              <button
+                onClick={() => setLegendUrl(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
             </div>
+
             <Image
               src={legendUrl}
               alt="Layer Legend"
-              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
-              width={100}
-              height={100}
+              width={200}     // max expected size
+              height={300}
+              className="w-full h-auto object-contain rounded-lg border border-gray-200"
               onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
+              unoptimized
             />
           </div>
         )}
