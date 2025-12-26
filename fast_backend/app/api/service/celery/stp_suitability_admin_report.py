@@ -1049,25 +1049,27 @@ class ReportGenerator:
 
             
             factors = [
-                ("(a) Distance_from_Builtup", self.static_data.Distance_from_Builtup),
-                ("(b) Distance_from_Waterbody", self.static_data.Distance_from_Waterbody),
-                ("(c) Elevation", self.static_data.Elevation),
-                ("(d) Geomorphology", self.static_data.Geomorphology),
-                ("(e) Groundwater_Depth", self.static_data.Groundwater_Depth),
-                ("(g) Groundwater_Quality", self.static_data.Groundwater_Quality),
-                ("(h) Land_Availability", self.static_data.Land_Availability),
-                ("(i) Land_Use_Land_Cover", self.static_data.Land_Use_Land_Cover),
-                ("(j) Population_Density", self.static_data.Population_Density),
-                ("(k) Slope", self.static_data.Slope),
-                ("(l) Soil_Texture", self.static_data.Soil_Texture),
+                ("Distance_from_Builtup", self.static_data.Distance_from_Builtup),
+                ("Distance_from_Waterbody", self.static_data.Distance_from_Waterbody),
+                ("Elevation", self.static_data.Elevation),
+                ("Geomorphology", self.static_data.Geomorphology),
+                ("Groundwater_Depth", self.static_data.Groundwater_Depth),
+                ("Groundwater_Quality", self.static_data.Groundwater_Quality),
+                ("Land_Availability", self.static_data.Land_Availability),
+                ("Land_Use_Land_Cover", self.static_data.Land_Use_Land_Cover),
+                ("Population_Density", self.static_data.Population_Density),
+                ("Slope", self.static_data.Slope),
+                ("Soil_Texture", self.static_data.Soil_Texture),
             ]
             factors_data = []
-            for factor_name, description in factors:
-                name = factor_name.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+            for idx, (key, value) in enumerate(factors):
+                prefix = f"({string.ascii_lowercase[idx]})"
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
                 if match:
                     factors_data.append((name,
-                        description,
+                        value,
                         match["file_path"]
                     ))
             self._add_fallback_elements(factors_data)
@@ -1080,22 +1082,24 @@ class ReportGenerator:
             self.elements.append(Paragraph(constraint_text, self.style_manager.styles['JustifiedBody']))
 
             constraint_factors = [
-                ("(a) ASI_Sites_constraint", self.static_data.ASI_Sites_constraint),
-                ("(b) Builtup_constraint", self.static_data.Builtup_constraint),
-                ("(c) Flood_Plain_constraint", self.static_data.Flood_Plain_constraint),
-                ("(d) Groundwater_Depth_constraint", self.static_data.Groundwater_Depth_constraint),
-                ("(e) Highway_constraint", self.static_data.Highway_constraint),
-                ("(f) Railway_constraint", self.static_data.Railway_constraint),
-                ("(g) STP_constraint", self.static_data.STP_constraint),
-                ("(h) Water_Body_constraint", self.static_data.Water_Body_constraint),
+                ("ASI_Sites_constraint", self.static_data.ASI_Sites_constraint),
+                ("Builtup_constraint", self.static_data.Builtup_constraint),
+                ("Flood_Plain_constraint", self.static_data.Flood_Plain_constraint),
+                ("Groundwater_Depth_constraint", self.static_data.Groundwater_Depth_constraint),
+                ("Highway_constraint", self.static_data.Highway_constraint),
+                ("Railway_constraint", self.static_data.Railway_constraint),
+                ("STP_constraint", self.static_data.STP_constraint),
+                ("Water_Body_constraint", self.static_data.Water_Body_constraint),
             ]
             factors_data = []
-            for factor_name, description in constraint_factors:
-                name = factor_name.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+            for idx, (key, value) in enumerate(constraint_factors):
+                prefix = f"({string.ascii_lowercase[idx]})" 
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
                 if match:
                     factors_data.append((name,
-                        description,
+                        value,
                         match["file_path"]
                     ))
             self._add_fallback_elements(factors_data)
@@ -1457,7 +1461,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
 @app.task(bind=True,pydantic=True,name="stp_suitability_admin_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, parent_task_id: str) -> dict:
     try:
-        file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+        file_path=MapGenerator(dpi=10).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
         redis_client.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,

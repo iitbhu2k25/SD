@@ -1404,7 +1404,7 @@ def document_gen5(self,payload: StpPriorityDrainReport):
 def celery_currency_image5(self,file_path:str,raster_path:str,sld_path:str,clip:List[str],task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=150).make_image(
+        file_path = MapGenerator(dpi=10).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,
