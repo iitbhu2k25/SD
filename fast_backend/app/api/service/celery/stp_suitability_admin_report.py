@@ -1444,7 +1444,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
 @app.task(bind=True,pydantic=True,name="stp_suitability_admin_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, parent_task_id: str) -> dict:
     try:
-        file_path=MapGenerator(dpi=50).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+        file_path=MapGenerator(dpi=150).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
         redis_client.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,
