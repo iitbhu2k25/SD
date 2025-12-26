@@ -1,5 +1,6 @@
 import os
 import io
+import string
 import uuid
 import logging
 from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
@@ -658,13 +659,24 @@ class MapGenerator:
                 ]
                 
                 ax.legend(
-                    handles=legend_elements, 
-                    title="Legends", 
+                    handles=legend_elements,
+                    title="Legends",
                     loc='upper center',
                     bbox_to_anchor=(0.5, -0.12),
+
                     fontsize=20,
                     title_fontsize=34,
-                    framealpha=0.9
+
+                    framealpha=0.95,
+                    
+                    # 🔽 HEIGHT (keep as-is)
+                    handleheight=3.5,
+                    labelspacing=0.8,
+                    borderpad=1.2,
+
+                    # 🔽 WIDTH CONTROLS (important)
+                    handlelength=1.8,     # ↓ smaller color box width
+                    columnspacing=1.0,    # ↓ space between columns / text
                 )
 
                 plt.tight_layout()
@@ -1002,18 +1014,18 @@ class ReportGenerator:
             
 
             factors = [
-                ("Drainage_Density", self.static_data.Drainage_Density),
-                ("Elevation", self.static_data.Elevation),
-                ("Groundwater_Recharge", self.static_data.Groundwater_Recharge),
-                ("Groundwater_Table", self.static_data.Groundwater_Table),
-                ("Lineament_Density", self.static_data.Lineament_Density),
-                ("LULC", self.static_data.LULC),
-                ("NDVI", self.static_data.NDVI),
-                ("Rainfall", self.static_data.Rainfall),
-                ("Slope", self.static_data.Slope),
-                ("Soil_Texture", self.static_data.Soil_Texture),
-                ("TPI", self.static_data.TPI),
-                ("Ground_water_Potential", self.static_data.Ground_water_Potential),
+                ("(a) Drainage_Density", self.static_data.Drainage_Density),
+                ("(b) Elevation", self.static_data.Elevation),
+                ("(c) Groundwater_Recharge", self.static_data.Groundwater_Recharge),
+                ("(d) Groundwater_Table", self.static_data.Groundwater_Table),
+                ("(e) Lineament_Density", self.static_data.Lineament_Density),
+                ("(f) LULC", self.static_data.LULC),
+                ("(g) NDVI", self.static_data.NDVI),
+                ("(h) Rainfall", self.static_data.Rainfall),
+                ("(i) Slope", self.static_data.Slope),
+                ("(j) Soil_Texture", self.static_data.Soil_Texture),
+                ("(k) TPI", self.static_data.TPI),
+                ("(l) Ground_water_Potential", self.static_data.Ground_water_Potential),
             ]
             
             factors_data = []
@@ -1144,10 +1156,7 @@ class ReportGenerator:
                             self.style_manager.styles['JustifiedBody']
                         ))
                     
-                    self.elements.append(Paragraph(
-                        factor_title, 
-                        self.style_manager.styles['FigureCaption']
-                    ))
+                    
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
@@ -1155,6 +1164,10 @@ class ReportGenerator:
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
                                 self.elements.extend(image_elements)
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
                     self.elements.append(Spacer(1, 15))
                     self.elements.append(PageBreak())
         except Exception as e:
@@ -1210,7 +1223,8 @@ class ReportGenerator:
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
             if weights_table:
                 self.elements.append(weights_table)
-            
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis

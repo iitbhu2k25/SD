@@ -1,5 +1,6 @@
 import os
 import io
+import string
 import uuid
 import logging
 from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
@@ -655,13 +656,24 @@ class MapGenerator:
                 ]
                 
                 ax.legend(
-                    handles=legend_elements, 
-                    title="Legends", 
+                    handles=legend_elements,
+                    title="Legends",
                     loc='upper center',
                     bbox_to_anchor=(0.5, -0.12),
+
                     fontsize=20,
                     title_fontsize=34,
-                    framealpha=0.9
+
+                    framealpha=0.95,
+                    
+                    # 🔽 HEIGHT (keep as-is)
+                    handleheight=3.5,
+                    labelspacing=0.8,
+                    borderpad=1.2,
+
+                    # 🔽 WIDTH CONTROLS (important)
+                    handlelength=1.8,     # ↓ smaller color box width
+                    columnspacing=1.0,    # ↓ space between columns / text
                 )
 
                 plt.tight_layout()
@@ -960,15 +972,15 @@ class ReportGenerator:
             
             # Factor descriptions
             factors = [
-                ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
-                ("Drainage Distance", self.static_data.Drainage_Distance),
-                ("Groundwater Depth", self.static_data.Groundwater_Depth),
-                ("Groundwater Quality", self.static_data.Groundwater_Quality),
-                ("Land Use Land Cover", self.static_data.Land_Use_Land_Cover),
-                ("Major City Risk", self.static_data.Major_City_Risk),
-                ("Population", self.static_data.Population),
-                ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
-            ]
+                ("(a) Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
+                ("(b) Drainage Distance", self.static_data.Drainage_Distance),
+                ("(c) Groundwater Depth", self.static_data.Groundwater_Depth),
+                ("(d) Groundwater Quality", self.static_data.Groundwater_Quality),
+                ("(e) Land Use Land Cover", self.static_data.Land_Use_Land_Cover),
+                ("(f) Major City Risk", self.static_data.Major_City_Risk),
+                ("(g) Population", self.static_data.Population),
+                ("(h) Proximity to River Quality", self.static_data.Proximity_River_Quality),
+                ]
             
             for factor_name, description in factors:
                 if description.strip():
@@ -1008,10 +1020,7 @@ class ReportGenerator:
                             self.style_manager.styles['JustifiedBody']
                         ))
                     
-                    self.elements.append(Paragraph(
-                        factor_title, 
-                        self.style_manager.styles['FigureCaption']
-                    ))
+                  
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
@@ -1019,6 +1028,10 @@ class ReportGenerator:
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
                                 self.elements.extend(image_elements)
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
                     self.elements.append(Spacer(1, 15))
                     self.elements.append(PageBreak())
         except Exception as e:
@@ -1042,9 +1055,14 @@ class ReportGenerator:
             self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
 
             factors_data = []
-            for key, value in asdict(self.static_data).items():
-                name = key.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
+            for idx, (key, value) in enumerate(asdict(self.static_data).items()):
+                prefix = f"({string.ascii_lowercase[idx]})"   # (a), (b), (c)...
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(
+                    (d for d in layer_names if d.get("file_name") == key),
+                    None
+                )
                 if match:
                     factors_data.append((name,
                         value,
@@ -1063,6 +1081,8 @@ class ReportGenerator:
             if weights_table:
                 self.elements.append(weights_table)
             
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
