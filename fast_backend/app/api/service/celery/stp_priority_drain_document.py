@@ -25,6 +25,7 @@ import contextily as ctx
 import rasterio
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
 from lxml import etree
 from PIL import Image as PILImage
 from reportlab.platypus import  Paragraph, Spacer, PageBreak
@@ -271,7 +272,7 @@ class ImageManager:
             style = ParagraphStyle(
                 'PlaceholderStyle',
                 parent=getSampleStyleSheet()['Normal'],
-                alignment=1,
+                alignment=TA_CENTER,
                 fontSize=11,
                 fontName='TimesNewRoman',
                 textColor=colors.HexColor("#201E1E"),
@@ -391,14 +392,23 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling using Times New Roman."""
+        """Create a styled table with headers and error handling using Times New Roman,
+        with Serial Number column added.
+        """
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
-        
+
         try:
-            table = Table(data, hAlign='LEFT')
-            
+            # Add Serial No column
+            header = ["S. No"] + data[0]
+            table_data = [header]
+
+            for idx, row in enumerate(data[1:], start=1):
+                table_data.append([str(idx)] + row)
+
+            table = Table(table_data, hAlign='LEFT')
+
             table_style = [
                 # Header row styling
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
@@ -407,25 +417,26 @@ class TableGenerator:
                 ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                
+
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
                 ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                
+
                 # Grid and borders
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                
+
                 # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                    [colors.white, colors.lightgrey]),
             ]
-            
+
             table.setStyle(TableStyle(table_style))
             return table
-            
+
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
             return None
@@ -515,7 +526,6 @@ class MapGenerator:
                 edgecolor='none'
             )
             return file_path
-            logger.info(f"Plot saved to file: {file_path}")
         except Exception as e:
             logger.error(f"Failed to save plot: {e}")
             raise ResourceError(f"Plot saving failed: {e}")
@@ -693,7 +703,26 @@ class MapGenerator:
                     handlelength=1.8,     # ↓ smaller color box width
                     columnspacing=1.0,    # ↓ space between columns / text
                 )
-
+                
+                # Add scale bar for GIS data
+                # EPSG:3857 is in meters, so we use 'm' as the unit
+                scalebar = ScaleBar(
+                    dx=1,  # 1 pixel = 1 meter in EPSG:3857
+                    units='m',
+                    location='lower right',
+                    length_fraction=0.25,  # Scale bar will be 25% of the plot width
+                    width_fraction=0.01,  # Thickness of the scale bar
+                    box_alpha=0.7,  # Semi-transparent background
+                    color='black',
+                    box_color='white',
+                    font_properties={'size': 16, 'weight': 'bold'},
+                    scale_loc='top',  # Location of the scale text
+                    pad=0.5,
+                    border_pad=0.5,
+                    sep=5,
+                    frameon=True
+                )
+                ax.add_artist(scalebar)
 
                 plt.tight_layout()
                 return self._save_plot(fig, file_path=file_path[:-4])
@@ -701,6 +730,7 @@ class MapGenerator:
         except Exception as e:
             logger.error(f"Failed to generate image: {e}")
             raise ResourceError(f"Image generation failed: {e}")
+
 class StpDocument:
     """Main document class with improved error handling and resource management."""
     
@@ -783,23 +813,11 @@ class StpDocument:
                 raise ValidationError("Layer names list cannot be empty")
             
             try:
-
-                # Generate PDF
                 pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data,location_data=location_data,weight_data=weight_data)
-                
                 logger.info(f"Report generated successfully: {pdf_path}")
                 return pdf_path
             except Exception as e:
                 pass
-            # finally:
-            #     # Optional: Clean up temp folder after PDF generation
-            #     # Comment this out if you want to keep images for debugging
-            #     try:
-            #         shutil.rmtree(temp_folder)
-            #         logger.info(f"Cleaned up temporary folder: {temp_folder}")
-            #     except Exception as e:
-            #         logger.warning(f"Failed to cleanup temporary folder {temp_folder}: {e}")
-                
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
             raise STRPReportError(f"Report generation failed: {e}")
@@ -808,7 +826,7 @@ class ReportGenerator:
     """Main report generation class with improved error handling."""
     
     def __init__(self, config: 'ReportConfig', static_data: 'StaticTextData', 
-                 table_data: 'TableData', dpi: int = 100):
+                 table_data: 'TableData', dpi: int = 50):
         
         self.config = config
         self.static_data = static_data
@@ -920,7 +938,16 @@ class ReportGenerator:
             title = Paragraph(self.config.title, self.style_manager.styles['CustomTitle'])
             subtitle = Paragraph(
                 "A Geospatial and Multi-Criteria Analysis for Prioritizing Sewage Treatment Infrastructure",
-                self.style_manager.styles['Heading2']
+                self.style_manager.styles['SubsectionHeader']
+            )
+            
+            details_style = ParagraphStyle(
+                'TitlePageDetails',
+                parent=self.style_manager.styles['JustifiedBody'],
+                alignment=TA_CENTER,
+                fontSize=12,
+                fontName='TimesNewRoman',
+                leading=16
             )
             
             details = f"""
@@ -936,7 +963,7 @@ class ReportGenerator:
                 Spacer(1, 50),
                 subtitle, 
                 Spacer(1, 100),
-                Paragraph(details, self.style_manager.styles['Normal']),
+                Paragraph(details, details_style),
                 PageBreak()
             ]
             
@@ -975,10 +1002,10 @@ class ReportGenerator:
         lines = [
             narrative,
             "",
-            f"River: {location_data[0][1]}",
-            f"Stretch(s): {', '.join(str(location_data[1][1]))}",
-            f"Drain(s): {', '.join(str(location_data[2][1]))}",
-            f"Catchment(s): {', '.join(location_data[3][1])}"
+            f"<b>River:</b> {location_data[0][1]}",
+            f"<b>Stretch(s):</b> {', '.join(str(location_data[1][1]))}",
+            f"<b>Drain(s):</b> {', '.join(str(location_data[2][1]))}",
+            f"<b>Catchment(s):</b> {', '.join(location_data[3][1])}"
         ]
         content = "<br/>".join(lines)
 
@@ -1012,7 +1039,7 @@ class ReportGenerator:
                 ("(f) Major City Risk", self.static_data.Major_City_Risk),
                 ("(g) Population", self.static_data.Population),
                 ("(h) Proximity to River Quality", self.static_data.Proximity_River_Quality),
-            ]
+                ]
             
             for factor_name, description in factors:
                 if description.strip():
@@ -1020,6 +1047,7 @@ class ReportGenerator:
                                                  self.style_manager.styles['JustifiedBody']))
             
             # Methodology subsection
+            self.elements.append(PageBreak())
             self.elements.append(Paragraph("3.2 Methodology", 
                                          self.style_manager.styles['SubsectionHeader']))
             
@@ -1051,6 +1079,8 @@ class ReportGenerator:
                             static_text, 
                             self.style_manager.styles['JustifiedBody']
                         ))
+                    
+                  
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
@@ -1093,30 +1123,27 @@ class ReportGenerator:
                     (d for d in layer_names if d.get("file_name") == key),
                     None
                 )
-
                 if match:
-                    factors_data.append((
-                        name,
+                    factors_data.append((name,
                         value,
                         match["file_path"]
                     ))
-
             self._add_fallback_elements(factors_data)
             self.elements.append(Spacer(1, 15))
             
             # Weights details
             self.elements.append(Paragraph("4.2 Details of the Assigned Weights", 
                                          self.style_manager.styles['SubsectionHeader']))
-           
             
+
             # Weights table
             weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
             self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
                                              self.style_manager.styles['FigureCaption']))
             if weights_table:
                 self.elements.append(weights_table)
-           
             
+           
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
@@ -1124,9 +1151,9 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
         
-            # Village analysis table
             self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
                                              self.style_manager.styles['FigureCaption']))
+            # Village analysis table
             village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
             if village_table:
                 self.elements.append(village_table)
@@ -1198,7 +1225,7 @@ class ReportGenerator:
             self._add_executive_summary()
             self._add_study_area_overview(location_data=location_data)
             self._add_methodology_section()
-            self._add_results_section(layer_names=layer_names)  # Uncomment when gdf is available
+            self._add_results_section(layer_names=layer_names) 
             self._add_references()
             
             doc.build(self.elements, onFirstPage=self._create_title_page_header, 
@@ -1219,34 +1246,53 @@ class ReportGenerator:
 def document_gen1(self,payload: StpPriorityDrainReport):
     progress_recorder = ProgressRecorder(self)
     total = 100
-   
     try:
         progress_recorder.set_progress(1, total, description="Starting task")
-        unique_folder_path=f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
+        
+        unique_folder_path = f"{Settings().TEMP_DIR}/{str(uuid.uuid4())}"
         table_data = [item.model_dump() for item in payload.table]
-        location_data =[item for item in payload.location]
-        weight_data= [["Factor", "Weight"]] + [[d.file_name, str(d.weight)] for d in payload.weight_data]
+        location_data = [item for item in payload.location]
+        weight_data = [["Factor", "Weight"]] + [[d.file_name, str(d.weight)] for d in payload.weight_data]
+        
         progress_recorder.set_progress(5, total, description="Data loaded")
-        file_paths=StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
+        
+        file_paths = StpDocument(unique_folder_path)._geoserver_load(layer_names=payload.raster)
+        
+        progress_recorder.set_progress(15, total, description="Raster data downloaded")
+        
+
         tasks = []
         total_images = len(file_paths)
-        progress_recorder.set_progress(15, total, description="Raster data downloaded")
+        
         for idx, item in enumerate(file_paths):
-            file_name = os.path.basename(item["raster_path"])  # Gets the file name from the full path
-            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ","_"))  
+            file_name = os.path.basename(item["raster_path"])
+            file_path = os.path.join(unique_folder_path, "image", file_name.replace(" ", "_"))
+            
             tasks.append(
-            celery_currency_image1.s(
-            file_path=file_path,
-            raster_path=item["raster_path"],
-            sld_path=item["sld_path"],
-            clip=payload.clip,
-            task_index=idx,
-            total_tasks=total_images,
-            parent_task_id=self.request.id
-            ) 
-        )
+                celery_currency_image1.s(
+                    file_path=file_path,
+                    raster_path=item["raster_path"],
+                    sld_path=item["sld_path"],
+                    clip=payload.clip,
+                    task_index=idx,
+                    total_tasks=total_images,
+                    parent_task_id=self.request.id
+                )
+            )
+        
         progress_recorder.set_progress(20, total, description="Launching parallel image processing")
-        job = chord(group(tasks))(final_step1.s(table_data=table_data,location_data=location_data,weight_data=weight_data,parent_task_id=self.request.id))
+        
+
+        job = chord(group(tasks))(
+            final_step1.s(
+                table_data=table_data,
+                location_data=location_data,
+                weight_data=weight_data,
+                parent_task_id=self.request.id
+            )
+        )
+        
+     
         redis_client.setex(
             f"chord:{self.request.id}",
             3600,  
@@ -1267,25 +1313,25 @@ def document_gen1(self,payload: StpPriorityDrainReport):
 
             time.sleep(1)
         
-        
         progress_recorder.set_progress(100, total, description="Complete")
         
-
+        # Cleanup Redis keys
         for i in range(total_images):
             redis_client.delete(f"image_complete:{self.request.id}:{i}")
         redis_client.delete(f"chord:{self.request.id}")
         return {"chord_id": job.id}
-
+        
     except Exception as e:
         logger.error(f"Task failed: {e}")
         progress_recorder.set_progress(total, total, description=f"Error: {str(e)}")
         raise STRPReportError(f"PDF generation failed: {e}")
 
+
 @app.task(bind=True,pydantic=True,name="stp_priority_drain_currency_image")
-def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str],task_index: int, total_tasks: int, 
+def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=10).make_image(
+        file_path = MapGenerator(dpi=100).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,
@@ -1305,17 +1351,26 @@ def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:
     except Exception as e:
         logger.error(f"Image processing failed for task {task_index}: {e}")
         raise
-   
+
+
 
 @app.task(bind=True,pydantic=True,name="stp_priority_drain_generation_start")
-def final_step1(self,results: List[dict],table_data:list,location_data:list,weight_data:list,parent_task_id: str)->None:
+def final_step1(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
     try:
+        
         redis_client.setex(
             f"pdf_generation:{parent_task_id}",
             3600,
             "started"
         )
-        pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
+        
+        pdf_path = StpDocument().report_generator(
+            layer_names=results,
+            csv_data=table_data,
+            location_data=location_data,
+            weight_data=weight_data
+        )
+        
         redis_client.delete(f"pdf_generation:{parent_task_id}")
         
         return pdf_path
