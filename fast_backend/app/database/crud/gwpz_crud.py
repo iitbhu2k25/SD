@@ -1,7 +1,7 @@
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
-from app.database.models import Groundwater_Zone_Visual_raster,WaterQualityAssessment,GWQI_Threshold,MAR_suitability_visual_raster,MAR_suitability_raster,Groundwater_Zone_raster,Groundwater_Identification,Groundwater_Identification_visual_raster
+from app.database.models import Groundwater_Zone_Visual_raster,MAR_raster_details,WaterQualityAssessment,GWQI_Threshold,MAR_suitability_visual_raster,MAR_suitability_raster,Groundwater_Zone_raster,Groundwater_Identification,Groundwater_Identification_visual_raster
 class GWZ_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Zone_raster):
         super().__init__(db,Model)
@@ -70,6 +70,14 @@ class MARSuitability_visualization_crud(CrudBase):
         query=self.db.query(self.Model).filter().all()
         return query
     
+class MAR_Details(CrudBase):
+    def __init__(self,db:Session,Model=MAR_raster_details):
+        super().__init__(db,Model)
+        self.obj = None
+    
+    def get_all(self):
+        query=self.db.query(self.Model).filter().all()
+        return query
 
 class WQI(CrudBase):
     def __init__(self,db:Session,Model=WaterQualityAssessment):

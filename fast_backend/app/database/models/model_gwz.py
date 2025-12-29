@@ -51,6 +51,12 @@ class MAR_suitability_visual_raster(Base):
     sld_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
 
+class MAR_raster_details(Base):
+    __tablename__='mar_raster_details'
+    layer_name:Mapped[str]=mapped_column(String,nullable=False)
+    file_path:Mapped[str]=mapped_column(String,nullable=False)
+    units:Mapped[str]=mapped_column(String,nullable=False)
+
 class WaterQualityAssessment(Base):
     __tablename__='water_quality_assessment'
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

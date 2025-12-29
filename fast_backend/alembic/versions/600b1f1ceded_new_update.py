@@ -1,8 +1,8 @@
-"""start
+"""new update 
 
-Revision ID: 2ef8ee7691e5
+Revision ID: 600b1f1ceded
 Revises: 
-Create Date: 2025-11-24 05:08:49.220273
+Create Date: 2025-12-29 21:12:26.436309
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '2ef8ee7691e5'
+revision: str = '600b1f1ceded'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -75,6 +75,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_groundwater_zone_visual_raster_id'), 'groundwater_zone_visual_raster', ['id'], unique=True)
+    op.create_table('mar_raster_details',
+    sa.Column('layer_name', sa.String(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('units', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_mar_raster_details_id'), 'mar_raster_details', ['id'], unique=True)
     op.create_table('mar_suitability_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -386,6 +396,8 @@ def downgrade() -> None:
     op.drop_table('mar_suitability_visual_raster')
     op.drop_index(op.f('ix_mar_suitability_raster_id'), table_name='mar_suitability_raster')
     op.drop_table('mar_suitability_raster')
+    op.drop_index(op.f('ix_mar_raster_details_id'), table_name='mar_raster_details')
+    op.drop_table('mar_raster_details')
     op.drop_index(op.f('ix_groundwater_zone_visual_raster_id'), table_name='groundwater_zone_visual_raster')
     op.drop_table('groundwater_zone_visual_raster')
     op.drop_index(op.f('ix_groundwater_zone_raster_id'), table_name='groundwater_zone_raster')

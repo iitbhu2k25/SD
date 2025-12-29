@@ -2,12 +2,12 @@ from fastapi import APIRouter,status,Depends
 from app.dependency.token_dependency import validate_user
 from typing import Annotated,List
 from app.database.config.dependency import db_dependency
-from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper,MARSuitabilityMapper
+from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper, MARRasterDetails,MARSuitabilityMapper
 from app.api.service.ground_water_management.gwpz_svc import MARSuitability_svc,Gwzp_service,GWPL_service
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
 from app.api.service.celery.gwz_drain_document import document_gen5
-from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,GWPL_output,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
+from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,GWPL_output,Mardetails,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -78,3 +78,8 @@ async def gwz_raster_dislay(db:db_dependency,payload:category_raster,user: Annot
 @validate
 async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
     return MARSuitabilityMapper().create_suitability_map(db,payload)
+
+@router.post("/mar_raster_details",status_code=status.HTTP_201_CREATED)
+@validate
+async def mar_raster_details(db:db_dependency,payload:Mardetails):
+    return  MARRasterDetails().get_value(db,payload.lat,payload.long)

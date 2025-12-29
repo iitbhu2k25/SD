@@ -19,13 +19,14 @@ from shapely.ops import nearest_points
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.conf.settings import Settings
-from datetime import datetime
+from rasterio.warp import transform
+from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSuitability_svc
-from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud
+from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud,MAR_Details
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
 from app.utils.name import Unique_name
@@ -933,3 +934,39 @@ class MARSuitabilityMapper:
                 "csv_details":csv_details
             }
         return False
+    
+
+class MARRasterDetails:
+    def _pixel_value(self,raster_path:str,lat: float,lon: float):
+        print("rastr",raster_path)
+        with rasterio.open(raster_path) as ds:
+            x, y = transform(
+                "EPSG:4326",
+                ds.crs, 
+                [lon],
+                [lat]
+            )
+            x, y = x[0], y[0]
+            row, col = ds.index(x, y)
+            if row < 0 or col < 0 or row >= ds.height or col >= ds.width:
+                return None, None, None
+            value = ds.read(1)[row, col]
+
+            if ds.nodata is not None and value == ds.nodata:
+                return None, row, col
+
+            return float(value), row, col
+        
+    def _get_details(self,rasters:any,lat:float,long:float):
+        return  [
+            {
+                "layer_name": i.layer_name,
+                "value": self._pixel_value(i.file_path, lat, long)[0],
+                "units": i.units,
+            }
+            for i in rasters
+        ]
+    def get_value(self,db:db_dependency,lat:float,long:float):
+        obj=MAR_Details(db).get_all()
+        return self._get_details(rasters=obj,lat=lat,long=long)
+        
