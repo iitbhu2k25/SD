@@ -24,7 +24,8 @@ import matplotlib.pyplot as plt
 import contextily as ctx
 import rasterio
 from matplotlib.colors import ListedColormap, BoundaryNorm
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
+from matplotlib_scalebar.scalebar import ScaleBar
 from lxml import etree
 from PIL import Image as PILImage
 from reportlab.platypus import  Paragraph, Spacer, PageBreak
@@ -393,14 +394,23 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling using Times New Roman."""
+        """Create a styled table with headers and error handling using Times New Roman,
+        with Serial Number column added.
+        """
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
-        
+
         try:
-            table = Table(data, hAlign='LEFT')
-            
+            # Add Serial No column
+            header = ["S. No"] + data[0]
+            table_data = [header]
+
+            for idx, row in enumerate(data[1:], start=1):
+                table_data.append([str(idx)] + row)
+
+            table = Table(table_data, hAlign='LEFT')
+
             table_style = [
                 # Header row styling
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
@@ -409,29 +419,29 @@ class TableGenerator:
                 ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                
+
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
                 ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                
+
                 # Grid and borders
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                
+
                 # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                    [colors.white, colors.lightgrey]),
             ]
-            
+
             table.setStyle(TableStyle(table_style))
             return table
-            
+
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
             return None
-
 class SpatialDataset:
     def __init__(self):
         self.village_path = Settings().villages_path
@@ -694,6 +704,26 @@ class MapGenerator:
                     handlelength=1.8,     # ↓ smaller color box width
                     columnspacing=1.0,    # ↓ space between columns / text
                 )
+                
+                # Add scale bar for GIS data
+                # EPSG:3857 is in meters, so we use 'm' as the unit
+                scalebar = ScaleBar(
+                    dx=1,  # 1 pixel = 1 meter in EPSG:3857
+                    units='m',
+                    location='lower right',
+                    length_fraction=0.25,  # Scale bar will be 25% of the plot width
+                    width_fraction=0.01,  # Thickness of the scale bar
+                    box_alpha=0.7,  # Semi-transparent background
+                    color='black',
+                    box_color='white',
+                    font_properties={'size': 16, 'weight': 'bold'},
+                    scale_loc='top',  # Location of the scale text
+                    pad=0.5,
+                    border_pad=0.5,
+                    sep=5,
+                    frameon=True
+                )
+                ax.add_artist(scalebar)
 
                 plt.tight_layout()
                 return self._save_plot(fig, file_path=file_path[:-4])
@@ -1300,7 +1330,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=10).make_image(
+        file_path = MapGenerator(dpi=100).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,

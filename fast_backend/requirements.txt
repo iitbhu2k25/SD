@@ -55,3 +55,4 @@ celery-progress
 bs4
 prometheus-client 
 prometheus-fastapi-instrumentator
+matplotlib-scalebar

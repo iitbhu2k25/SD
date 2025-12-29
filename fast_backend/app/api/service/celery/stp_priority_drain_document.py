@@ -63,21 +63,21 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
 
+# Register Times New Roman font family
 pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
 
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-
-FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
-
-pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
-pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
-pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
-pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
-
+# Register font family for easier usage
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+registerFontFamily(
+    'TimesNewRoman',
+    normal='TimesNewRoman',
+    bold='TimesNewRoman-Bold',
+    italic='TimesNewRoman-Italic',
+    boldItalic='TimesNewRoman-BoldItalic'
+)
 
 redis_client = Settings().redis_client
 
@@ -273,6 +273,7 @@ class ImageManager:
                 parent=getSampleStyleSheet()['Normal'],
                 alignment=1,
                 fontSize=11,
+                fontName='TimesNewRoman',
                 textColor=colors.HexColor("#201E1E"),
                 borderPadding=6,
                 spaceAfter=6,
@@ -318,10 +319,9 @@ class StyleManager:
             StyleManager._styles = self.styles
         else:
             self.styles = StyleManager._styles
-        self.styles['Normal'].fontName = 'TimesNewRoman'
     
     def _create_custom_styles(self):
-        """Create custom styles for the document."""
+        """Create custom styles for the document using Times New Roman throughout."""
         custom_styles = [
             ('CustomTitle', {
                 'parent': self.styles['Title'],
@@ -329,7 +329,8 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'TimesNewRoman-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 28
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -340,7 +341,8 @@ class StyleManager:
                 'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
-                'borderPadding': 5
+                'borderPadding': 5,
+                'leading': 20
             }),
             ('SubsectionHeader', {
                 'parent': self.styles['Heading2'],
@@ -348,7 +350,8 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                  'fontName': 'TimesNewRoman-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 18
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -356,7 +359,9 @@ class StyleManager:
                 'spaceAfter': 12,
                 'alignment': TA_JUSTIFY,
                 'leftIndent': 0,
-                'rightIndent': 0
+                'rightIndent': 0,
+                'fontName': 'TimesNewRoman',
+                'leading': 14
             }),
             ('FigureCaption', {
                 'parent': self.styles['Normal'],
@@ -364,15 +369,17 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 6,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Oblique',
-                'textColor': colors.grey
+                'fontName': 'TimesNewRoman-Italic',
+                'textColor': colors.grey,
+                'leading': 12
             }),
             ('TableHeader', {
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
                 'fontName': 'TimesNewRoman-Bold',
-                'textColor': colors.white
+                'textColor': colors.white,
+                'leading': 12
             })
         ]
         
@@ -384,7 +391,7 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling."""
+        """Create a styled table with headers and error handling using Times New Roman."""
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
