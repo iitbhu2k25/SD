@@ -139,3 +139,9 @@ export interface RasterLayer{
   workspace: string;
   layer_name: string;
 }
+
+export interface LayerData {
+  layer_name: string;
+  value: number;
+  units: string;
+}

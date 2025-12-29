@@ -41,6 +41,9 @@ const Mapping: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
 
+  // **NEW STATE** for vector interaction control
+  const [vectorInteractionEnabled, setVectorInteractionEnabled] = useState(true);
+
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0, result: 0 });
@@ -57,10 +60,10 @@ const Mapping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [selectedRadioLayer, setSelectedRadioLayer] = useState("");
+
 
   // Context hooks
-  const { displayRaster,selectionsLocked  } = useLocation();
+  const { displayRaster, selectionsLocked } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -71,7 +74,30 @@ const Mapping: React.FC = () => {
     resultLayer,
     selectedradioLayer
   } = useMap();
-  const { selectedCategory,setRasterLayerInfo, rasterLayerInfo } = useCategory();
+  const { selectedCategory, setRasterLayerInfo, rasterLayerInfo, tableData } = useCategory();
+
+  // **NEW FUNCTION** - Toggle vector interactions
+  const toggleVectorInteraction = () => {
+    const newState = !vectorInteractionEnabled;
+    setVectorInteractionEnabled(newState);
+
+    // Toggle interactions
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(newState);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(newState);
+    }
+
+    // Clear current selections when disabling
+    if (!newState) {
+      setHoveredFeature(null);
+      selectInteractionRef.current?.getFeatures().clear();
+      hoverInteractionRef.current?.getFeatures().clear();
+    }
+
+    console.log(`Vector interactions ${newState ? 'ENABLED' : 'DISABLED'}`);
+  };
 
   // Helper functions
   const toggleFullScreen = () => {
@@ -108,8 +134,6 @@ const Mapping: React.FC = () => {
     });
   };
 
-
-
   const createVectorStyle = (isSecondary = false, isResult = false) => (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
@@ -119,7 +143,7 @@ const Mapping: React.FC = () => {
 
     let color = "#3b82f6"; // Primary blue
     if (isSecondary) color = "#5E1520"; // Secondary red
-    if (isResult) color = "#10b981"; // Result green
+    if (isResult) color = "#10b981"; // Result green;
 
     const width = isSecondary ? 3 : 2;
 
@@ -163,6 +187,7 @@ const Mapping: React.FC = () => {
     return styles;
   };
 
+  // Rest of your existing useEffects remain the same...
   useEffect(() => {
     if (primaryLayerRef.current && featureCounts.secondary > 0) {
       primaryLayerRef.current.setVisible(!showSecondaryLayer);
@@ -172,11 +197,13 @@ const Mapping: React.FC = () => {
   }, [showSecondaryLayer, featureCounts.secondary]);
 
   useEffect(() => {
-      if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
-      if (selectionsLocked) {
-        selectInteractionRef.current.setActive(false);
-      }
-    }, [selectionsLocked]);
+    if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
+    if (selectionsLocked) {
+      selectInteractionRef.current.setActive(false);
+    }
+  }, [selectionsLocked]);
+
+  // **UPDATED** - Initialize map with interaction state management
   useEffect(() => {
     if (!mapRef.current) return;
     const initialBaseLayer = new TileLayer({
@@ -193,7 +220,7 @@ const Mapping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -222,6 +249,7 @@ const Mapping: React.FC = () => {
       }),
     });
 
+    // **UPDATED** - Interactions respect initial state
     const selectInteraction = new Select({
       condition: doubleClick,
       style: new Style({
@@ -238,7 +266,12 @@ const Mapping: React.FC = () => {
       }),
     });
 
+    // Set initial interaction state
+    selectInteraction.setActive(vectorInteractionEnabled);
+    hoverInteraction.setActive(vectorInteractionEnabled);
+
     hoverInteraction.on('select', (event) => {
+      if (!vectorInteractionEnabled) return; // Skip when disabled
       const hoveredFeatures = event.selected;
       setHoveredFeature(hoveredFeatures.length > 0 ? hoveredFeatures[0] : null);
     });
@@ -265,6 +298,19 @@ const Mapping: React.FC = () => {
     };
   }, []);
 
+  // **NEW** - Sync interaction state changes
+  useEffect(() => {
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(vectorInteractionEnabled);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(vectorInteractionEnabled);
+    }
+    if (!vectorInteractionEnabled) {
+      setHoveredFeature(null);
+    }
+  }, [vectorInteractionEnabled]);
+
   // Handle layers with simplified logic
   const handleVectorLayer = (layer: string | null, type: 'primary' | 'secondary' | 'result') => {
     if (!mapInstanceRef.current || !layer) return;
@@ -277,6 +323,7 @@ const Mapping: React.FC = () => {
     const vectorSource = new VectorSource({
       format: new GeoJSON(),
       url: wfsUrl,
+
     });
 
     const vectorLayer = new VectorLayer({
@@ -334,7 +381,7 @@ const Mapping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-    
+
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
@@ -384,13 +431,13 @@ const Mapping: React.FC = () => {
       setError(`Error setting up raster layer: ${error.message}`);
     }
   }, [rasterLayerInfo, layerOpacity]);
-   useEffect(() => {
-      displayRaster.forEach((item: any) => {
-        if (item.file_name === selectedradioLayer) {
-          setRasterLayerInfo(item);
-        }
-      });
-    }, [selectedradioLayer, displayRaster]);
+  useEffect(() => {
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
   // Fullscreen event listener
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -411,7 +458,8 @@ const Mapping: React.FC = () => {
           <GISCompass />
         </div>
         <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
-        {/* Header Panel */}
+
+        {/* Header Panel - **UPDATED** with new button */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-6 py-3 flex items-center space-x-4">
           <span className="font-bold text-gray-800 flex items-center">
             <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -421,6 +469,26 @@ const Mapping: React.FC = () => {
           </span>
 
           <div className="flex space-x-2">
+            {/* **NEW BUTTON** - Disable Vector Interaction */}
+            { tableData.length > 0 && (
+              <button
+              onClick={toggleVectorInteraction}
+              className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${vectorInteractionEnabled
+                  ? "bg-green-100 hover:bg-green-200 text-green-700"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                }`}
+              title={vectorInteractionEnabled ? "Disable vector hover/select" : "Enable vector interaction"}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {vectorInteractionEnabled ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                )}
+              </svg>
+            </button>
+            )}
+
             {["layers", "basemap", "tools"].map((panel) => (
               <button
                 key={panel}
