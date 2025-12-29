@@ -63,10 +63,21 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
 
+# Register Times New Roman font family
 pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
+
+# Register font family for easier usage
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+registerFontFamily(
+    'TimesNewRoman',
+    normal='TimesNewRoman',
+    bold='TimesNewRoman-Bold',
+    italic='TimesNewRoman-Italic',
+    boldItalic='TimesNewRoman-BoldItalic'
+)
 
 redis_client = Settings().redis_client
 
@@ -262,8 +273,9 @@ class ImageManager:
             style = ParagraphStyle(
                 'PlaceholderStyle',
                 parent=getSampleStyleSheet()['Normal'],
-                alignment=1,
+                alignment=TA_CENTER,
                 fontSize=11,
+                fontName='TimesNewRoman',
                 textColor=colors.HexColor("#201E1E"),
                 borderPadding=6,
                 spaceAfter=6,
@@ -311,7 +323,7 @@ class StyleManager:
             self.styles = StyleManager._styles
     
     def _create_custom_styles(self):
-        """Create custom styles for the document."""
+        """Create custom styles for the document using Times New Roman throughout."""
         custom_styles = [
             ('CustomTitle', {
                 'parent': self.styles['Title'],
@@ -319,7 +331,8 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'TimesNewRoman-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 28
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -330,7 +343,8 @@ class StyleManager:
                 'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
-                'borderPadding': 5
+                'borderPadding': 5,
+                'leading': 20
             }),
             ('SubsectionHeader', {
                 'parent': self.styles['Heading2'],
@@ -338,7 +352,8 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                'fontName': 'TimesNewRoman-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 18
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -346,7 +361,9 @@ class StyleManager:
                 'spaceAfter': 12,
                 'alignment': TA_JUSTIFY,
                 'leftIndent': 0,
-                'rightIndent': 0
+                'rightIndent': 0,
+                'fontName': 'TimesNewRoman',
+                'leading': 14
             }),
             ('FigureCaption', {
                 'parent': self.styles['Normal'],
@@ -354,15 +371,17 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 6,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Oblique',
-                'textColor': colors.grey
+                'fontName': 'TimesNewRoman-Italic',
+                'textColor': colors.grey,
+                'leading': 12
             }),
             ('TableHeader', {
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
                 'fontName': 'TimesNewRoman-Bold',
-                'textColor': colors.white
+                'textColor': colors.white,
+                'leading': 12
             })
         ]
         
@@ -374,7 +393,7 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling."""
+        """Create a styled table with headers and error handling using Times New Roman."""
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
@@ -889,7 +908,16 @@ class ReportGenerator:
             title = Paragraph(self.config.title, self.style_manager.styles['CustomTitle'])
             subtitle = Paragraph(
                 "A Geospatial and Multi-Criteria Analysis for Prioritizing Sewage Treatment Infrastructure",
-                self.style_manager.styles['Heading2']
+                self.style_manager.styles['SubsectionHeader']
+            )
+            
+            details_style = ParagraphStyle(
+                'TitlePageDetails',
+                parent=self.style_manager.styles['JustifiedBody'],
+                alignment=TA_CENTER,
+                fontSize=12,
+                fontName='TimesNewRoman',
+                leading=16
             )
             
             details = f"""
@@ -905,7 +933,7 @@ class ReportGenerator:
                 Spacer(1, 50),
                 subtitle, 
                 Spacer(1, 100),
-                Paragraph(details, self.style_manager.styles['Normal']),
+                Paragraph(details, details_style),
                 PageBreak()
             ]
             
@@ -944,9 +972,9 @@ class ReportGenerator:
         lines = [
             narrative,
             "",
-            f"State: {location_data[0][1]}",
-            f"District(s): {', '.join(location_data[1][1])}",
-            f"SubDistrict(s): {', '.join(location_data[2][1])}"
+            f"<b>State:</b> {location_data[0][1]}",
+            f"<b>District(s):</b> {', '.join(location_data[1][1])}",
+            f"<b>SubDistrict(s):</b> {', '.join(location_data[2][1])}"
         ]
         content = "<br/>".join(lines)
 
@@ -988,6 +1016,7 @@ class ReportGenerator:
                                                  self.style_manager.styles['JustifiedBody']))
             
             # Methodology subsection
+            self.elements.append(PageBreak())
             self.elements.append(Paragraph("3.2 Methodology", 
                                          self.style_manager.styles['SubsectionHeader']))
             
