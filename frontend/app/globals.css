@@ -35,6 +35,20 @@ img {
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.borehole-enter {
+  animation: slideInFromLeft 0.3s ease-out;
+}
 
 /* Component base styles */
 .btn-primary {

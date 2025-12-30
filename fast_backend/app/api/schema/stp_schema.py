@@ -271,4 +271,4 @@ class StpsuitabilityDrainReport(BaseModel):
 
 class Mardetails(BaseModel):
     lat:float
-    long:float
+    lon:float

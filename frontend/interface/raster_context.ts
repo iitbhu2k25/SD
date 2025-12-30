@@ -140,8 +140,8 @@ export interface RasterLayer{
   layer_name: string;
 }
 
-export interface LayerData {
+
+export interface RasterValue {
   layer_name: string;
   value: number;
-  units: string;
 }

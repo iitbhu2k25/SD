@@ -82,4 +82,4 @@ async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annota
 @router.post("/mar_raster_details",status_code=status.HTTP_201_CREATED)
 @validate
 async def mar_raster_details(db:db_dependency,payload:Mardetails):
-    return  MARRasterDetails().get_value(db,payload.lat,payload.long)
+    return  MARRasterDetails().get_value(db,payload.lat,payload.lon)

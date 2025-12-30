@@ -1,6 +1,0 @@
-layer_name,file_path,units
-Aquifer Thickness,media/Rajat_data/shape_stp/MAR_Suitability/Operation/Condition/Aquifer_Thickness.tif,mm
-Canals,media/Rajat_data/shape_stp/MAR_Suitability/Operation/Condition/Canals.tif,cm
-Drainage Density,media/Rajat_data/shape_stp/MAR_Suitability/Operation/Condition/Drainage_Density.tif,m
-Drawdown,media/Rajat_data/shape_stp/MAR_Suitability/Operation/Condition/Drawdown.tif,mm
-Elevation,media/Rajat_data/shape_stp/MAR_Suitability/Operation/Condition/Elevation.tif,km
