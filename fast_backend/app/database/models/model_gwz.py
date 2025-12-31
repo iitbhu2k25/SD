@@ -55,7 +55,7 @@ class MAR_raster_details(Base):
     __tablename__='mar_raster_details'
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
-    units:Mapped[str]=mapped_column(String,nullable=False)
+    units:Mapped[int]=mapped_column(Integer,nullable=False)
 
 class WaterQualityAssessment(Base):
     __tablename__='water_quality_assessment'

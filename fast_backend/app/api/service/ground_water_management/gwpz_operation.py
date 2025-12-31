@@ -3,6 +3,7 @@ import os
 from typing import List, Tuple
 import geopandas as gpd
 import rasterio
+import math
 from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
@@ -19,8 +20,7 @@ from shapely.ops import nearest_points
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.conf.settings import Settings
-from rasterio.warp import transform
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
@@ -30,6 +30,9 @@ from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud,MAR_Detail
 from rasterstats import zonal_stats
 import matplotlib.cm as cm
 from app.utils.name import Unique_name
+
+
+
 
 
 geo=Geoserver()
@@ -936,37 +939,158 @@ class MARSuitabilityMapper:
         return False
     
 
-class MARRasterDetails:
-    def _pixel_value(self,raster_path:str,lat: float,lon: float):
-        print("rastr",raster_path)
-        with rasterio.open(raster_path) as ds:
-            x, y = transform(
-                "EPSG:4326",
-                ds.crs, 
-                [lon],
-                [lat]
-            )
-            x, y = x[0], y[0]
-            row, col = ds.index(x, y)
-            if row < 0 or col < 0 or row >= ds.height or col >= ds.width:
-                return None, None, None
-            value = ds.read(1)[row, col]
 
-            if ds.nodata is not None and value == ds.nodata:
+
+from typing import Any, Dict, List, Optional, Tuple
+import rasterio
+from pyproj import Transformer
+
+
+class MARRasterDetails:
+    _WGS84_EPSG = "EPSG:4326"
+
+    RIVER_THRESHOLD = 25
+    RECHARGE_MIN = 21
+    RECHARGE_MAX = 30
+
+    def __init__(self) -> None:
+        self._transformer_cache: Dict[str, Transformer] = {}
+
+
+    def _get_transformer(self, target_crs) -> Transformer:
+        crs_key = str(target_crs)
+        if crs_key not in self._transformer_cache:
+            self._transformer_cache[crs_key] = Transformer.from_crs(
+                self._WGS84_EPSG,
+                target_crs,
+                always_xy=True
+            )
+        return self._transformer_cache[crs_key]
+
+    def _pixel_value(
+        self,
+        raster_path: str,
+        lat: float,
+        lon: float
+    ) -> Tuple[Optional[float], Optional[int], Optional[int]]:
+
+        with rasterio.open(raster_path) as dataset:
+            transformer = self._get_transformer(dataset.crs)
+            x, y = transformer.transform(lon, lat)
+            row, col = dataset.index(x, y)
+
+            if not (0 <= row < dataset.height and 0 <= col < dataset.width):
+                return None, None, None
+
+            value = dataset.read(1, masked=True)[row, col]
+
+            if value is None or value is dataset.nodata or math.isnan(value):
                 return None, row, col
 
             return float(value), row, col
-        
-    def _get_details(self,rasters:any,lat:float,long:float):
-        return  [
-            {
-                "layer_name": i.layer_name,
-                "value": self._pixel_value(i.file_path, lat, long)[0],
-                "units": i.units,
-            }
-            for i in rasters
-        ]
-    def get_value(self,db:db_dependency,lat:float,long:float):
-        obj=MAR_Details(db).get_all()
-        return self._get_details(rasters=obj,lat=lat,long=long)
-        
+
+
+    def _get_name(self, unit: int, value: float) -> str:
+        if unit <= 15 and value > self.RIVER_THRESHOLD:
+            return "clayey silt / silt-calcrete horizons"
+        return self._classify_by_value(value)
+
+    @staticmethod
+    def _classify_by_value(value: float) -> str:
+        if value < 12:
+            return "clay"
+        if value <= 20:
+            return "silt or silty clay"
+        if value <= 30:
+            return "silty sand / sandy clay"
+        if value <= 35:
+            return "fine to medium sand"
+        if value <= 40:
+            return "medium to coarse sand"
+        return "coarse sand"
+
+
+    def _get_details(
+        self,
+        rasters: List[Any],
+        lat: float,
+        lon: float
+    ) -> List[Dict[str, Any]]:
+
+        results: List[Dict[str, Any]] = []
+
+        for raster in rasters:
+            value, _, _ = self._pixel_value(raster.file_path, lat, lon)
+
+            if value is None or math.isnan(value):
+                pass
+               
+            else:
+                results.append({
+                    "value": value,
+                    "layer_name": self._get_name(raster.units, value)
+                })
+
+        return results
+
+
+    def get_final_result(self, layers: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        res: List[Dict[str, str]] = []
+
+        if len(layers) < 6:
+            return res
+
+        values = [layer.get("value", 0) for layer in layers]
+
+        if all(v > self.RIVER_THRESHOLD for v in values[0:3]):
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "0–15 m depth validates"
+            })
+        elif values[0] > self.RIVER_THRESHOLD and values[1] > self.RIVER_THRESHOLD:
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "0–10 m depth validates"
+            })
+        elif values[1] > self.RIVER_THRESHOLD and values[2] > self.RIVER_THRESHOLD:
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "5–15 m depth validates"
+            })
+        else:
+            res.append({
+                "River Aquifer": "Non feasible",
+                "reason": "0–15 m depth not validates"
+            })
+
+
+        v4, v5 = values[4], values[5]
+
+        if self.RECHARGE_MIN <= v4 <= self.RECHARGE_MAX and \
+           self.RECHARGE_MIN <= v5 <= self.RECHARGE_MAX:
+            res.append({
+                "Aquifer Recharge": "feasible",
+                "reason": "21–30 m depth validates"
+            })
+        else:
+            res.append({
+                "Aquifer Recharge": "Conditional feasible",
+                "reason": "21–30 m depth partially validates"
+            })
+        return res
+
+    def get_value(
+        self,
+        db: Any,
+        lat: float,
+        lon: float
+    ) -> Dict[str, Any]:
+
+        rasters = MAR_Details(db).get_all()
+        layers = self._get_details(rasters, lat, lon)
+        validation = self.get_final_result(layers)
+
+        return {
+            "layers": layers,
+            "validation": validation
+        }

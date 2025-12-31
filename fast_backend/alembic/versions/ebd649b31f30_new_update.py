@@ -1,8 +1,8 @@
 """new update 
 
-Revision ID: 600b1f1ceded
+Revision ID: ebd649b31f30
 Revises: 
-Create Date: 2025-12-29 21:12:26.436309
+Create Date: 2025-12-31 09:34:18.828613
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '600b1f1ceded'
+revision: str = 'ebd649b31f30'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -78,7 +78,7 @@ def upgrade() -> None:
     op.create_table('mar_raster_details',
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
-    sa.Column('units', sa.String(), nullable=False),
+    sa.Column('units', sa.Integer(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
