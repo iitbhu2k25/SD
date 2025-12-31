@@ -7,7 +7,12 @@ from .models import PersonalAdmin, PersonalEmployee
 import jwt
 from datetime import datetime, timedelta
 from .serializers import EmployeeRegisterSerializer, EmployeeLoginSerializer
+import random
+from django.utils import timezone
+from datetime import timedelta
+from django.core.mail import send_mail
 
+from .models import OTPVerification
 
 def register_admin(data):
     from .serializers import RegisterSerializer
@@ -211,3 +216,150 @@ def filter_employees_by_projects(projects):
 
     except Exception as e:
         return False, f"Error filtering employees: {str(e)}"
+
+
+
+
+
+def generate_otp():
+    """Generate 6-digit OTP"""
+    return str(random.randint(100000, 999999))
+
+
+def send_otp_email(email, otp, user_type):
+    """Send OTP via email"""
+    subject = "Password Reset OTP - LEMS"
+    message = f"""
+    Hello,
+
+    Your OTP for password reset is: {otp}
+
+    This OTP is valid for 2 minutes only.
+    User Type: {user_type.capitalize()}
+
+    If you did not request this, please ignore this email.
+
+    Regards,
+    LEMS Team
+    """
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.EMAIL_HOST_USER,
+            [email],
+            fail_silently=False,
+        )
+        return True
+    except Exception as e:
+        print(f"Email sending failed: {str(e)}")
+        return False
+
+
+def send_otp_service(email, user_type):
+    """Generate and send OTP"""
+    try:
+        # Check if user exists
+        if user_type == 'admin':
+            if not PersonalAdmin.objects.filter(email=email).exists():
+                return False, "Admin email not found"
+        elif user_type == 'employee':
+            if not PersonalEmployee.objects.filter(email=email).exists():
+                return False, "Employee email not found"
+        
+        # Invalidate old OTPs for this email
+        OTPVerification.objects.filter(email=email, user_type=user_type).delete()
+        
+        # Generate new OTP
+        otp = generate_otp()
+        expires_at = timezone.now() + timedelta(minutes=2)
+        
+        # Save OTP
+        otp_record = OTPVerification.objects.create(
+            email=email,
+            otp=otp,
+            user_type=user_type,
+            expires_at=expires_at
+        )
+        
+        # Send email
+        email_sent = send_otp_email(email, otp, user_type)
+        
+        if email_sent:
+            return True, "OTP sent successfully to your email"
+        else:
+            return False, "Failed to send OTP email"
+            
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
+
+def verify_otp_service(email, otp, user_type):
+    """Verify OTP"""
+    try:
+        otp_record = OTPVerification.objects.filter(
+            email=email,
+            otp=otp,
+            user_type=user_type,
+            is_verified=False
+        ).order_by('-created_at').first()
+        
+        if not otp_record:
+            return False, "Invalid OTP"
+        
+        if otp_record.is_expired():
+            return False, "OTP has expired"
+        
+        # Mark as verified
+        otp_record.is_verified = True
+        otp_record.save()
+        
+        return True, "OTP verified successfully"
+        
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
+
+def reset_password_service(email, user_type, new_password, otp):
+    """Reset password after OTP verification"""
+    try:
+        # Check if OTP is verified
+        otp_record = OTPVerification.objects.filter(
+            email=email,
+            otp=otp,
+            user_type=user_type,
+            is_verified=True
+        ).order_by('-created_at').first()
+        
+        if not otp_record:
+            return False, "OTP not verified. Please verify OTP first"
+        
+        if otp_record.is_expired():
+            return False, "OTP has expired"
+        
+        # Hash new password
+        hashed_password = make_password(new_password)
+        
+        # Update password based on user type
+        if user_type == 'admin':
+            admin = PersonalAdmin.objects.filter(email=email).first()
+            if not admin:
+                return False, "Admin not found"
+            admin.password = hashed_password
+            admin.save()
+            
+        elif user_type == 'employee':
+            employee = PersonalEmployee.objects.filter(email=email).first()
+            if not employee:
+                return False, "Employee not found"
+            employee.password = hashed_password
+            employee.save()
+        
+        # Delete OTP record after successful reset
+        OTPVerification.objects.filter(email=email, user_type=user_type).delete()
+        
+        return True, "Password reset successfully"
+        
+    except Exception as e:
+        return False, f"Error: {str(e)}"

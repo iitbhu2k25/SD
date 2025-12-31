@@ -5,8 +5,9 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import PersonalAdmin, PersonalEmployee, LeaveEmployee
+from .models import OTPVerification
 
-
+# Base directory for CSV exports
 BASE_DIR = os.path.join(settings.MEDIA_ROOT, "management")
 os.makedirs(BASE_DIR, exist_ok=True)
 
@@ -19,8 +20,7 @@ def write_csv(file_name, headers, rows):
     with open(file_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(headers)
-        for row in rows:
-            writer.writerow(row)
+        writer.writerows(rows)
 
 
 # ==========================
@@ -31,16 +31,15 @@ def export_personal_admin():
     write_csv(
         "personal_admin.csv",
         [
-            "id", "name", "email", "username", "password",
+            "name", "email", "username", "password",
             "department", "projects", "is_active", "created_at"
         ],
         [
             [
-                a.id,
                 a.name,
                 a.email,
                 a.username,
-                a.password,          
+                a.password,
                 a.department,
                 a.projects,
                 a.is_active,
@@ -65,23 +64,22 @@ def export_personal_employee():
     write_csv(
         "personal_employee.csv",
         [
-            "id", "name", "email", "username", "password",
+            "name", "email", "username", "password",
             "department", "supervisor_name", "supervisor_email",
             "project_name", "joining_date", "position",
             "resign_date", "is_active", "created_at", "updated_at"
         ],
         [
             [
-                e.id,
                 e.name,
                 e.email,
                 e.username,
-                e.password,          
+                e.password,
                 e.department,
                 e.supervisor_name,
                 e.supervisor_email.email if e.supervisor_email else None,
                 e.project_name,
-                e.joining_date,
+                e.joining_date.strftime("%Y-%m-%d") if e.joining_date else None,
                 e.position,
                 e.resign_date,
                 e.is_active,
@@ -107,19 +105,18 @@ def export_leave_employee():
     write_csv(
         "leave_employee.csv",
         [
-            "id", "employee_email", "employee_name",
+            "employee_email", "employee_name",
             "supervisor_email", "from_date", "to_date",
             "total_days", "reason", "leave_type",
             "approval_status", "created_at", "updated_at"
         ],
         [
             [
-                l.id,
                 l.employee_email.email,
                 l.employee_name,
                 l.supervisor_email,
-                l.from_date,
-                l.to_date,
+                l.from_date.strftime("%Y-%m-%d") if l.from_date else None,
+                l.to_date.strftime("%Y-%m-%d") if l.to_date else None,
                 l.total_days,
                 l.reason,
                 l.leave_type,
@@ -136,3 +133,34 @@ def export_leave_employee():
 @receiver(post_delete, sender=LeaveEmployee)
 def sync_leave_employee(sender, **kwargs):
     export_leave_employee()
+
+
+# ==========================
+# OTP VERIFICATION
+# ==========================
+def export_otp_verification():
+    otps = OTPVerification.objects.all()
+    write_csv(
+        "otp_verification.csv",
+        [
+            "email", "otp", "user_type",
+            "is_verified", "created_at", "expires_at"
+        ],
+        [
+            [
+                o.email,
+                o.otp,
+                o.user_type,
+                o.is_verified,
+                o.created_at,
+                o.expires_at,
+            ]
+            for o in otps
+        ],
+    )
+
+
+@receiver(post_save, sender=OTPVerification)
+@receiver(post_delete, sender=OTPVerification)
+def sync_otp_verification(sender, **kwargs):
+    export_otp_verification()

@@ -297,3 +297,105 @@ class FilterEmployeesByProjectView(APIView):
                 "success": False,
                 "message": result
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SendOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .serializers import SendOTPSerializer
+        from .service import send_otp_service
+        
+        serializer = SendOTPSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                "success": False,
+                "message": "Invalid data",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = serializer.validated_data['email']
+        user_type = serializer.validated_data['user_type']
+        
+        success, message = send_otp_service(email, user_type)
+        
+        if success:
+            return Response({
+                "success": True,
+                "message": message
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "success": False,
+                "message": message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .serializers import VerifyOTPSerializer
+        from .service import verify_otp_service
+        
+        serializer = VerifyOTPSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                "success": False,
+                "message": "Invalid data",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = serializer.validated_data['email']
+        otp = serializer.validated_data['otp']
+        user_type = serializer.validated_data['user_type']
+        
+        success, message = verify_otp_service(email, otp, user_type)
+        
+        if success:
+            return Response({
+                "success": True,
+                "message": message
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "success": False,
+                "message": message
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from .serializers import ResetPasswordSerializer
+        from .service import reset_password_service
+        
+        serializer = ResetPasswordSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                "success": False,
+                "message": "Invalid data",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        email = serializer.validated_data['email']
+        user_type = serializer.validated_data['user_type']
+        new_password = serializer.validated_data['new_password']
+        otp = serializer.validated_data['otp']
+        
+        success, message = reset_password_service(email, user_type, new_password, otp)
+        
+        if success:
+            return Response({
+                "success": True,
+                "message": message
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                "success": False,
+                "message": message
+            }, status=status.HTTP_400_BAD_REQUEST)

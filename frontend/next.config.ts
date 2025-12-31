@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/fastm/:path*",
-        destination: "http://localhost:6500/:path*",
+        destination: "http://fast_m:6500/:path*",
       },
     ]
   },

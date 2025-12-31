@@ -141,3 +141,22 @@ class ApprovalSerializer(serializers.Serializer):
     approval_status = serializers.ChoiceField(
         choices=['approved', 'rejected']
     )
+    
+    
+    
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    user_type = serializers.ChoiceField(choices=['admin', 'employee'], required=True)
+
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    otp = serializers.CharField(max_length=6, required=True)
+    user_type = serializers.ChoiceField(choices=['admin', 'employee'], required=True)
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    user_type = serializers.ChoiceField(choices=['admin', 'employee'], required=True)
+    new_password = serializers.CharField(min_length=6, required=True, write_only=True)
+    otp = serializers.CharField(max_length=6, required=True)

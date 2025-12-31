@@ -58,7 +58,7 @@ const Right = () => {
                 const baseName =
                     activeShapefile.shapefile_path.split('/').pop()?.replace('.shp', '') ||
                     activeShapefile.shapefile_name;
-                const url = `/geoserver/api/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${baseName}&outputFormat=application/json`;
+                const url = `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${baseName}&outputFormat=application/json`;
 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -84,7 +84,7 @@ const Right = () => {
                     setUniqueColumnValues({});
                 }
             } catch (err) {
-                console.log('❌ Error fetching attributes:', err);
+                console.error('❌ Error fetching attributes:', err);
                 setFeatureAttributes([]);
                 setAllFeatureAttributes([]);
                 setUniqueColumnValues({});

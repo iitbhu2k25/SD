@@ -51,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "management.middleware.auth_middleware.TokenAuthenticationMiddleware",
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -138,9 +139,9 @@ CORS_ALLOWED_ORIGINS = [
     "https://slcrdss.in",
     "https://*.slcrdss.in",
     "http://localhost:3000",
-    "http://192.168.1.2:3000",
-    "http://127.0.0.1:3000",
-    "http://172.16.32.69:3000", 
+    "https://lems-two.vercel.app",
+    
+
     # Add your frontend domain here
 ]
 CSRF_TRUSTED_ORIGINS = [
@@ -181,6 +182,7 @@ ALLOWED_HOSTS = [
     ".slcrdss.in",
     "kalki.space",
     'localhost',
+    'lems-two.vercel.app',
     # Add any other IPs you need
 ]
 # Media files (User uploaded files)
@@ -228,9 +230,27 @@ CACHES = {
         }
     }
 }
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
-# Increase request body size (example: 50 MB)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
 
-# Optional: limit in-memory file upload size
-FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+EMAIL_HOST_USER = 'ak2968028@gmail.com'
+EMAIL_HOST_PASSWORD = 'ascy zoee zdsg jkef'
+
+
+# JWT Settings
+JWT_SECRET_KEY = SECRET_KEY
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_DAYS = 30
+
+# Session settings for added security
+SESSION_COOKIE_SECURE = not DEBUG  # Use secure cookies in production
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'

@@ -15,35 +15,14 @@ export interface GroundWaterFeature {
   type: "Feature";
   id?: string;
   properties: {
-    village: string;
-    blockname?: string;
-    Year: string;
-
-    Total_Annual_Ground_Water_Recharge?: number;
-    Annual_Extractable_Ground_Water_Resource?: number;
-    Irrigation_Use?: number;
-    Domestic_Use?: number;
-    Industrial_Use?: number | null;
-    Total_Extraction?: number;
-    Net_Ground_Water_Availability_for_future_use?: number;
-
-    Stage_of_Ground_Water_Extraction?: number;
-
-    Recharge_from_Rainfall_MON?: number;
-    Recharge_from_Other_Sources_MON?: number;
-    Recharge_from_Rainfall_NM?: number;
-    Recharge_from_Other_Sources_NM?: number;
-    Total_Natural_Discharges?: number;
-
-    status?: "Safe" | "Semi-Critical" | "Critical" | "Over-Exploited" | "No Data";
-
-    [key: string]: any;
+    [key: string]: any; // Accept any fields from backend
   };
   geometry: {
     type: string;
     coordinates: any;
   };
 }
+
 export interface GroundWaterGeoJSON {
   type: "FeatureCollection";
   features: GroundWaterFeature[];
@@ -80,19 +59,17 @@ export const RSQProvider = ({ children }: { children: ReactNode }) => {
 
   const { selectedVillages } = useLocation();
 
-// In RsqContext.tsx — THIS IS CRITICAL
-useEffect(() => {
-  if (selectedYear && selectedVillages.length > 0) {
-    console.log('RSQ: Fetching data for', selectedYear, selectedVillages.length, 'villages');
-    setGroundWaterData(null);
-    const timer = setTimeout(() => fetchGroundWaterData(), 300);
-    return () => clearTimeout(timer);
-  } else {
-    setGroundWaterData(null);
-  }
-}, [selectedYear, selectedVillages]); // ← MUST INCLUDE selectedVillages
+  useEffect(() => {
+    if (selectedYear && selectedVillages.length > 0) {
+      console.log('RSQ: Fetching data for', selectedYear, selectedVillages.length, 'villages');
+      setGroundWaterData(null);
+      const timer = setTimeout(() => fetchGroundWaterData(), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setGroundWaterData(null);
+    }
+  }, [selectedYear, selectedVillages]);
 
-  // Clear data when villages change
   useEffect(() => {
     console.log('🌊 Villages changed - clearing RSQ data');
     setGroundWaterData(null);
@@ -139,7 +116,6 @@ useEffect(() => {
         firstFeature: data.features?.[0]?.properties,
       });
 
-      // Set the new data
       setGroundWaterData(data);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Fetch failed";
