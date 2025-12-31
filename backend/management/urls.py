@@ -2,6 +2,7 @@
 from django.urls import path
 from .views import RegisterAdminView, LoginAdminView, LogoutAdminView, PersonalAdminListView, RegisterEmployeeView, LoginEmployeeView, LogoutEmployeeView, EmployeeStatusView, FilterEmployeesByProjectView
 from .leave_views import ApplyLeaveAPIView, LeaveApprovalAPIView, LeaveByEmployeeEmailView, UpdateLeaveApprovalStatusView, UpdateLeaveApprovalStatusWebView, LeaveByEmployeeEmailGetView
+from .views import SendOTPView, VerifyOTPView, ResetPasswordView
 urlpatterns = [
     path('register', RegisterAdminView.as_view()),
     path('login', LoginAdminView.as_view(), name="admin-login"),
@@ -16,6 +17,10 @@ urlpatterns = [
     path('leave-update-status',UpdateLeaveApprovalStatusView.as_view(),name='update_leave_status'),
     path('leave-update-status-web',UpdateLeaveApprovalStatusWebView.as_view(),name='update_leave_status_web'),
     path('leave-employee-email', LeaveByEmployeeEmailView.as_view(), name='leave_by_employee_email'),
-    path('leave-employee-email-get/<path:email>', LeaveByEmployeeEmailGetView.as_view())
+    path('leave-employee-email-get/<path:email>', LeaveByEmployeeEmailGetView.as_view()),
+     path('send-otp', SendOTPView.as_view(), name='send_otp'),
+    path('verify-otp', VerifyOTPView.as_view(), name='verify_otp'),
+    path('reset-password', ResetPasswordView.as_view(), name='reset_password'),
 
 ]
+

@@ -31,7 +31,7 @@ export const ShapefileProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const data = await response.json();
       setShapefiles(data);
     } catch (error) {
-      console.log('Error fetching shapefiles:', error);
+      console.error('Error fetching shapefiles:', error);
     } finally {
       setIsLoading(false);
     }

@@ -13,6 +13,11 @@ import Image from "next/image";
 import { doubleClick, pointerMove } from "ol/events/condition";
 import { fromLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
+import dynamic from 'next/dynamic';
+import { toLonLat } from 'ol/proj';
+import { Feature } from 'ol';
+import { Point } from 'ol/geom';
+import { MarLayerInfo, MarSuitabilityResponse } from "@/interface/raster_context";
 import {
   defaults as defaultControls,
   ScaleLine,
@@ -25,10 +30,15 @@ import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
 import { useLocation } from "@/contexts/mar_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
+import { api } from "@/services/api";
+import { toast } from "react-toastify";
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
-
+const SubsurfaceBorehole = dynamic(
+  () => import("@/components/layerDetails"),
+  { ssr: false }
+);
 const Mapping: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,6 +50,9 @@ const Mapping: React.FC = () => {
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
+
+  // **NEW STATE** for vector interaction control
+  const [vectorInteractionEnabled, setVectorInteractionEnabled] = useState(true);
 
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
@@ -57,10 +70,17 @@ const Mapping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [selectedRadioLayer, setSelectedRadioLayer] = useState("");
 
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  // layer details
+  const [boreholeData, setBoreholeData] = useState<MarLayerInfo[] | null>(null);
+  const [boreholePosition, setBoreholePosition] = useState<{ x: number; y: number } | null>(null);
+  const [isLoadingBorehole, setIsLoadingBorehole] = useState(false);
+  const pinMarkerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const [pinCoordinate, setPinCoordinate] = useState<[number, number] | null>(null);
   // Context hooks
-  const { displayRaster,selectionsLocked  } = useLocation();
+  const { displayRaster, selectionsLocked } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -69,9 +89,33 @@ const Mapping: React.FC = () => {
     defaultWorkspace,
     handleLayerSelection,
     resultLayer,
-    selectedradioLayer
+    selectedradioLayer,
+    setMarSuitabilityData
   } = useMap();
-  const { selectedCategory,setRasterLayerInfo, rasterLayerInfo } = useCategory();
+  const { selectedCategory, setRasterLayerInfo, rasterLayerInfo, tableData } = useCategory();
+
+  // **NEW FUNCTION** - Toggle vector interactions
+  const toggleVectorInteraction = () => {
+    const newState = !vectorInteractionEnabled;
+    setVectorInteractionEnabled(newState);
+
+    // Toggle interactions
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(newState);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(newState);
+    }
+
+    // Clear current selections when disabling
+    if (!newState) {
+      setHoveredFeature(null);
+      selectInteractionRef.current?.getFeatures().clear();
+      hoverInteractionRef.current?.getFeatures().clear();
+    }
+
+    console.log(`Vector interactions ${newState ? 'ENABLED' : 'DISABLED'}`);
+  };
 
   // Helper functions
   const toggleFullScreen = () => {
@@ -108,8 +152,6 @@ const Mapping: React.FC = () => {
     });
   };
 
-
-
   const createVectorStyle = (isSecondary = false, isResult = false) => (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
@@ -119,7 +161,7 @@ const Mapping: React.FC = () => {
 
     let color = "#3b82f6"; // Primary blue
     if (isSecondary) color = "#5E1520"; // Secondary red
-    if (isResult) color = "#10b981"; // Result green
+    if (isResult) color = "#10b981"; // Result green;
 
     const width = isSecondary ? 3 : 2;
 
@@ -163,6 +205,7 @@ const Mapping: React.FC = () => {
     return styles;
   };
 
+  // Rest of your existing useEffects remain the same...
   useEffect(() => {
     if (primaryLayerRef.current && featureCounts.secondary > 0) {
       primaryLayerRef.current.setVisible(!showSecondaryLayer);
@@ -172,11 +215,13 @@ const Mapping: React.FC = () => {
   }, [showSecondaryLayer, featureCounts.secondary]);
 
   useEffect(() => {
-      if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
-      if (selectionsLocked) {
-        selectInteractionRef.current.setActive(false);
-      }
-    }, [selectionsLocked]);
+    if (!selectInteractionRef.current || !hoverInteractionRef.current) return;
+    if (selectionsLocked) {
+      selectInteractionRef.current.setActive(false);
+    }
+  }, [selectionsLocked]);
+
+  // **UPDATED** - Initialize map with interaction state management
   useEffect(() => {
     if (!mapRef.current) return;
     const initialBaseLayer = new TileLayer({
@@ -193,7 +238,7 @@ const Mapping: React.FC = () => {
         coordinateFormat: (coordinate) => {
           if (!coordinate) return "No coordinates";
           const [Longitude, latitude] = coordinate;
-         return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
+          return `${latitude.toFixed(6)}°N, ${Longitude.toFixed(6)}°E`;
         },
         projection: "EPSG:4326",
         className: "custom-mouse-position",
@@ -222,6 +267,7 @@ const Mapping: React.FC = () => {
       }),
     });
 
+    // **UPDATED** - Interactions respect initial state
     const selectInteraction = new Select({
       condition: doubleClick,
       style: new Style({
@@ -238,7 +284,12 @@ const Mapping: React.FC = () => {
       }),
     });
 
+    // Set initial interaction state
+    selectInteraction.setActive(vectorInteractionEnabled);
+    hoverInteraction.setActive(vectorInteractionEnabled);
+
     hoverInteraction.on('select', (event) => {
+      if (!vectorInteractionEnabled) return; // Skip when disabled
       const hoveredFeatures = event.selected;
       setHoveredFeature(hoveredFeatures.length > 0 ? hoveredFeatures[0] : null);
     });
@@ -265,6 +316,19 @@ const Mapping: React.FC = () => {
     };
   }, []);
 
+  // **NEW** - Sync interaction state changes
+  useEffect(() => {
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(vectorInteractionEnabled);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(vectorInteractionEnabled);
+    }
+    if (!vectorInteractionEnabled) {
+      setHoveredFeature(null);
+    }
+  }, [vectorInteractionEnabled]);
+
   // Handle layers with simplified logic
   const handleVectorLayer = (layer: string | null, type: 'primary' | 'secondary' | 'result') => {
     if (!mapInstanceRef.current || !layer) return;
@@ -277,6 +341,7 @@ const Mapping: React.FC = () => {
     const vectorSource = new VectorSource({
       format: new GeoJSON(),
       url: wfsUrl,
+
     });
 
     const vectorLayer = new VectorLayer({
@@ -328,13 +393,73 @@ const Mapping: React.FC = () => {
     handleVectorLayer(resultLayer, 'result');
   }, [resultLayer, defaultWorkspace]);
 
+  // Handle pin marker visualization
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+
+    // Remove existing pin marker
+    if (pinMarkerRef.current) {
+      map.removeLayer(pinMarkerRef.current);
+      pinMarkerRef.current = null;
+    }
+
+    // Add new pin marker if coordinate exists
+    if (pinCoordinate) {
+      const pinFeature = new Feature({
+        geometry: new Point(pinCoordinate),
+        name: 'Subsurface Analysis Point',
+      });
+
+      const pinSource = new VectorSource({
+        features: [pinFeature],
+      });
+
+      const pinLayer = new VectorLayer({
+        source: pinSource,
+        style: new Style({
+          image: new Circle({
+            radius: 8,
+            fill: new Fill({ color: '#ef4444' }),
+            stroke: new Stroke({
+              color: '#ffffff',
+              width: 3
+            }),
+          }),
+          // Optional: Add a label
+          text: new Text({
+            text: '📍',
+            font: '24px serif',
+            offsetY: -20,
+            fill: new Fill({ color: '#ef4444' }),
+            stroke: new Stroke({
+              color: '#ffffff',
+              width: 2
+            }),
+          }),
+        }),
+        zIndex: 1000, // Ensure it's on top
+      });
+
+      map.addLayer(pinLayer);
+      pinMarkerRef.current = pinLayer;
+    }
+
+    return () => {
+      if (pinMarkerRef.current) {
+        map.removeLayer(pinMarkerRef.current);
+        pinMarkerRef.current = null;
+      }
+    };
+  }, [pinCoordinate]);
   // Handle raster layer and STP operation
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
 
-    
+
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]: [string, any]) => {
       map.removeLayer(layer);
@@ -384,14 +509,77 @@ const Mapping: React.FC = () => {
       setError(`Error setting up raster layer: ${error.message}`);
     }
   }, [rasterLayerInfo, layerOpacity]);
-   useEffect(() => {
-      displayRaster.forEach((item: any) => {
-        if (item.file_name === selectedradioLayer) {
-          setRasterLayerInfo(item);
-        }
-      });
-    }, [selectedradioLayer, displayRaster]);
+  useEffect(() => {
+    displayRaster.forEach((item: any) => {
+      if (item.file_name === selectedradioLayer) {
+        setRasterLayerInfo(item);
+      }
+    });
+  }, [selectedradioLayer, displayRaster]);
   // Fullscreen event listener
+
+  // Handle map clicks when vector interaction is disabled
+  // Handle map clicks when vector interaction is disabled
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const handleMapClick = async (event: any) => {
+      // Only handle clicks when vector interaction is disabled
+      if (vectorInteractionEnabled) return;
+
+      const coordinate = event.coordinate;
+      const lonLat = toLonLat(coordinate);
+      const [lon, lat] = lonLat;
+
+      console.log('Map clicked at:', { lat, lon });
+
+      // Store the coordinate for the pin marker
+      setPinCoordinate(coordinate);
+
+      // Calculate position for borehole (offset to the right of pin)
+      const offsetX = 200; // pixels to the right of pin
+      const offsetY = -130; // center vertically with pin
+
+      setBoreholePosition({
+        x: event.pixel[0] + offsetX,
+        y: event.pixel[1] + offsetY
+      });
+
+      setIsLoadingBorehole(true);
+
+      try {
+        // Make API call to your backend
+        const response = await api.post("/gwz_operation/mar_raster_details", {
+          body: {
+            lat: lat,
+            lon: lon
+          }
+        })
+        if (response.status > 201) {
+          toast.error("No subsurface data found", { position: "top-center" });
+        }
+
+        const data = await response.message as MarSuitabilityResponse
+        setBoreholeData(data.layers);
+        setMarSuitabilityData(data.validation);
+      } catch (error) {
+        console.error('Error fetching raster values:', error);
+        setError('Failed to load subsurface data');
+        setBoreholeData(null);
+        setPinCoordinate(null);
+      } finally {
+        setIsLoadingBorehole(false);
+      }
+    };
+
+    const map = mapInstanceRef.current;
+    map.on('singleclick', handleMapClick);
+
+    return () => {
+      map.un('singleclick', handleMapClick);
+    };
+  }, [vectorInteractionEnabled]);
+
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -411,7 +599,8 @@ const Mapping: React.FC = () => {
           <GISCompass />
         </div>
         <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
-        {/* Header Panel */}
+
+        {/* Header Panel - **UPDATED** with new button */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-6 py-3 flex items-center space-x-4">
           <span className="font-bold text-gray-800 flex items-center">
             <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -421,6 +610,36 @@ const Mapping: React.FC = () => {
           </span>
 
           <div className="flex space-x-2">
+            {/* **NEW BUTTON** - Disable Vector Interaction */}
+            {tableData.length > 0 && (
+              <button
+                onClick={toggleVectorInteraction}
+                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 relative ${vectorInteractionEnabled
+                  ? "bg-green-100 hover:bg-green-200 text-green-700"
+                  : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                  }`}
+                title={
+                  vectorInteractionEnabled
+                    ? "Switch to Subsurface Analysis Mode"
+                    : "Switch to Vector Selection Mode (Click map to clear pin)"
+                }
+              >
+                {!vectorInteractionEnabled && pinCoordinate && (
+                  <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                  </span>
+                )}
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {vectorInteractionEnabled ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  )}
+                </svg>
+              </button>
+            )}
+
             {["layers", "basemap", "tools"].map((panel) => (
               <button
                 key={panel}
@@ -470,7 +689,7 @@ const Mapping: React.FC = () => {
                   <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMap.icon} />
                   </svg>
-                  <span className="text-sm font-medium">{baseMap.name}</span>
+                  <span className="text-sm text-gray-700 font-medium">{baseMap.name}</span>
                 </button>
               ))}
             </div>
@@ -752,19 +971,33 @@ const Mapping: React.FC = () => {
 
         {/* Legend */}
         {legendUrl && rasterLayerInfo && (
-          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center ">
+          <div
+            className={`
+              absolute bottom-16 right-16 z-20
+              bg-white/95 backdrop-blur-md
+              p-2 rounded-xl shadow-2xl
+              transition-all duration-200
+              ${isFullScreen ? "w-[250px]" : "w-[150px]"}
+            `}
+          >
+            <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
+              <button
+                onClick={() => setLegendUrl(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
             </div>
+
             <Image
               src={legendUrl}
               alt="Layer Legend"
-              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
-              width={100}
-              height={100}
+              width={200}     // max expected size
+              height={300}
+              className="w-full h-auto object-contain rounded-lg border border-gray-200"
               onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
+              unoptimized
             />
           </div>
         )}
@@ -785,6 +1018,141 @@ const Mapping: React.FC = () => {
             </svg>
             <span className="text-sm font-medium pr-8">{error}</span>
             <button onClick={() => setError(null)} className="absolute right-2 top-2 text-red-400 hover:text-red-600">×</button>
+          </div>
+        )}
+        {/* Subsurface Borehole Visualization with Connection Line */}
+        {!vectorInteractionEnabled && boreholePosition && boreholeData && pinCoordinate && (
+          <>
+            {/* Connection Line from Pin to Borehole */}
+            <svg
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 99,
+              }}
+            >
+              <defs>
+                <marker
+                  id="arrowhead"
+                  markerWidth="10"
+                  markerHeight="7"
+                  refX="9"
+                  refY="3.5"
+                  orient="auto"
+                >
+                  <polygon
+                    points="0 0, 10 3.5, 0 7"
+                    fill="#3b82f6"
+                  />
+                </marker>
+              </defs>
+              <line
+                x1={mapInstanceRef.current?.getPixelFromCoordinate(pinCoordinate)?.[0]}
+                y1={mapInstanceRef.current?.getPixelFromCoordinate(pinCoordinate)?.[1]}
+                x2={boreholePosition.x}
+                y2={boreholePosition.y + 130}
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                markerEnd="url(#arrowhead)"
+              />
+            </svg>
+
+            {/* Borehole Component */}
+            <div
+              style={{
+                position: 'absolute',
+                left: boreholePosition.x - 70,
+                top: boreholePosition.y,
+                zIndex: 100,
+                pointerEvents: 'none',
+              }}
+            >
+              <div
+                className="rounded-xl shadow-2xl border-2 border-blue-400/60 overflow-hidden backdrop-blur-sm"
+                style={{
+                  pointerEvents: 'auto',
+                  background: 'rgba(255, 255, 255, 0.1)', // Very transparent background
+                }}
+              >
+                {/* Header */}
+                <div
+                  className="px-3 py-2 flex items-center justify-between backdrop-blur-md"
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.3)', // Semi-transparent blue
+                  }}
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-white drop-shadow-lg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                    <span className="text-white font-semibold text-sm drop-shadow-lg">Subsurface Data</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setBoreholeData(null);
+                      setBoreholePosition(null);
+                      setPinCoordinate(null);
+                    }}
+                    className="bg-white/30 hover:bg-white/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors backdrop-blur-sm"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Borehole Visualization - Fully transparent background */}
+                <div
+                  className="p-2"
+
+                >
+                  <SubsurfaceBorehole
+                    data={boreholeData}
+                    width={140}
+                    height={260}
+                    radius={0.6}
+                    depthStep={0.3}
+                  />
+                </div>
+
+                {/* Footer with coordinates */}
+                <div
+                  className="px-3 py-2 border-t border-white/30 backdrop-blur-md"
+                  style={{
+                    background: 'rgba(249, 250, 251, 0.3)', // Semi-transparent gray
+                  }}
+                >
+                  <div className="text-xs text-white drop-shadow-lg">
+                    <div className="font-mono font-semibold">
+                      {toLonLat(pinCoordinate).map((coord, i) => (
+                        <div key={i}>
+                          {i === 1 ? 'Lat' : 'Lon'}: {coord.toFixed(6)}°
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Loading indicator for borehole data */}
+        {isLoadingBorehole && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white/95 backdrop-blur-md rounded-xl p-5 shadow-2xl border border-blue-200">
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-100"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-blue-600 absolute top-0 left-0"></div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-800">Analyzing Subsurface</div>
+                <div className="text-xs text-gray-500 mt-1">Fetching raster data...</div>
+              </div>
+            </div>
           </div>
         )}
       </div>

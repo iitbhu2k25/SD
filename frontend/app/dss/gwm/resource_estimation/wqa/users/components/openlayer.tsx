@@ -65,7 +65,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
   }
   if (showLabels && featureName) {
     let minZoomForLabel = 10; // Default
-    
+
     // Catchment villages: show at zoom >= 12 (appears when zoomed in)
     if (layerType === 'catchment') {
       minZoomForLabel = 12;
@@ -93,7 +93,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
           text: featureName.toString(),
           font: '12px Arial, sans-serif',
           fill: new Fill({ color: colorConfig.color }),
-        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
           offsetY: geometryType.includes('Point') ? -20 : 0,
           textAlign: 'center',
           textBaseline: 'middle'
@@ -1331,23 +1331,36 @@ const Maping: React.FC = () => {
         )}
 
         {legendUrl && rasterLayerInfo && (
-          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center ">
+          <div
+            className={`
+              absolute bottom-16 right-16 z-20
+              bg-white/95 backdrop-blur-md
+              p-2 rounded-xl shadow-2xl
+              transition-all duration-200
+              ${isFullScreen ? "w-[250px]" : "w-[150px]"}
+            `}
+          >
+            <div className="flex justify-between items-center mb-1">
               <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button onClick={() => setLegendUrl(null)} className="text-gray-400 hover:text-gray-600">×</button>
+              <button
+                onClick={() => setLegendUrl(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
             </div>
+
             <Image
               src={legendUrl}
               alt="Layer Legend"
-              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
-              width={100}
-              height={100}
+              width={200}     // max expected size
+              height={300}
+              className="w-full h-auto object-contain rounded-lg border border-gray-200"
               onErrorCapture={() => setError("Failed to load legend")}
               unoptimized
             />
           </div>
         )}
-
         {/* Coordinates */}
         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">

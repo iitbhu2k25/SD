@@ -1,5 +1,6 @@
 import os
 import io
+import string
 import uuid
 import logging
 from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
@@ -57,6 +58,16 @@ import rasterio
 import matplotlib.pyplot as plt
 from celery_progress.backend import ProgressRecorder
 import time
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
+
+pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
+
 redis_client = Settings().redis_client
 
 
@@ -312,7 +323,7 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold'
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -320,7 +331,7 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 20,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
                 'borderPadding': 5
@@ -331,7 +342,7 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold'
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -354,7 +365,7 @@ class StyleManager:
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'textColor': colors.white
             })
         ]
@@ -380,14 +391,14 @@ class TableGenerator:
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
                 
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
                 
@@ -649,13 +660,24 @@ class MapGenerator:
                 ]
                 
                 ax.legend(
-                    handles=legend_elements, 
-                    title="Legends", 
+                    handles=legend_elements,
+                    title="Legends",
                     loc='upper center',
                     bbox_to_anchor=(0.5, -0.12),
+
                     fontsize=20,
                     title_fontsize=34,
-                    framealpha=0.9
+
+                    framealpha=0.95,
+                    
+                    # 🔽 HEIGHT (keep as-is)
+                    handleheight=3.5,
+                    labelspacing=0.8,
+                    borderpad=1.2,
+
+                    # 🔽 WIDTH CONTROLS (important)
+                    handlelength=1.8,     # ↓ smaller color box width
+                    columnspacing=1.0,    # ↓ space between columns / text
                 )
 
                 plt.tight_layout()
@@ -829,7 +851,7 @@ class ReportGenerator:
             self._draw_logos(canvas, doc)
             page_num = canvas.getPageNumber()
             text = f"Page {page_num}"
-            canvas.setFont('Helvetica', 9)
+            canvas.setFont('TimesNewRoman', 9)
             canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
         except Exception as e:
             logging.error(f"Error creating header/footer: {str(e)}")
@@ -980,18 +1002,18 @@ class ReportGenerator:
             
 
             factors = [
-                ("Drainage_Density", self.static_data.Drainage_Density),
-                ("Elevation", self.static_data.Elevation),
-                ("Groundwater_Recharge", self.static_data.Groundwater_Recharge),
-                ("Groundwater_Table", self.static_data.Groundwater_Table),
-                ("Lineament_Density", self.static_data.Lineament_Density),
-                ("LULC", self.static_data.LULC),
-                ("NDVI", self.static_data.NDVI),
-                ("Rainfall", self.static_data.Rainfall),
-                ("Slope", self.static_data.Slope),
-                ("Soil_Texture", self.static_data.Soil_Texture),
-                ("TPI", self.static_data.TPI),
-                ("Ground_water_Potential", self.static_data.Ground_water_Potential),
+                ("(a) Drainage_Density", self.static_data.Drainage_Density),
+                ("(b) Elevation", self.static_data.Elevation),
+                ("(c) Groundwater_Recharge", self.static_data.Groundwater_Recharge),
+                ("(d) Groundwater_Table", self.static_data.Groundwater_Table),
+                ("(e) Lineament_Density", self.static_data.Lineament_Density),
+                ("(f) LULC", self.static_data.LULC),
+                ("(g) NDVI", self.static_data.NDVI),
+                ("(h) Rainfall", self.static_data.Rainfall),
+                ("(i) Slope", self.static_data.Slope),
+                ("(j) Soil_Texture", self.static_data.Soil_Texture),
+                ("(k) TPI", self.static_data.TPI),
+                ("(l) Ground_water_Potential", self.static_data.Ground_water_Potential),
             ]
             
             factors_data = []
@@ -1122,10 +1144,7 @@ class ReportGenerator:
                             self.style_manager.styles['JustifiedBody']
                         ))
                     
-                    self.elements.append(Paragraph(
-                        factor_title, 
-                        self.style_manager.styles['FigureCaption']
-                    ))
+                    
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
@@ -1134,6 +1153,10 @@ class ReportGenerator:
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
                                 self.elements.extend(image_elements)
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
                     self.elements.append(Spacer(1, 15))
                     self.elements.append(PageBreak())
         except Exception as e:
@@ -1186,9 +1209,13 @@ class ReportGenerator:
             very low categories. This zonation supports informed, transparent, and scientifically robust
             decision-making for groundwater exploration, development, and management."""
             self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
-            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
+            
             if weights_table:
                 self.elements.append(weights_table)
+           
             
             self.elements.append(Spacer(1, 20))
             
@@ -1197,12 +1224,13 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
         
+            self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             # Village analysis table
             village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
             if village_table:
                 self.elements.append(village_table)
-                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
-                                             self.style_manager.styles['FigureCaption']))
+                
             
             self.elements.append(PageBreak())
             
@@ -1387,7 +1415,7 @@ def document_gen4(self,payload: StpPriorityAdminReport):
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=50).make_image(
+        file_path = MapGenerator(dpi=10).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,

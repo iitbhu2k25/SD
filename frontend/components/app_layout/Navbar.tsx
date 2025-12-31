@@ -95,9 +95,9 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
      { label: "Visualization", href: "#" }, 
      { label: "Water", href: "/dss/visualizations/model_water" }
   ],
-  "/dss/nmcg": [
+  "/dss/seawage_infrastructure": [
      { label: "Visualization", href: "#" }, 
-     { label: "NMCG", href: "/dss/nmcg" }
+     { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }
   ],
   "/dss/extractdata": [
      { label: "Visualization", href: "#" }, 
@@ -1139,9 +1139,9 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/dss/visualizations/nmcg"
+                    href="/dss/visualizations/"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "NMCG", href: "/dss/nmcg" }])}>
+                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }])}>
                     NMCG
                   </Link>
                 </li>

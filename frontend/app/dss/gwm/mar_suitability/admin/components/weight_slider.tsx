@@ -4,6 +4,8 @@ import { useCategory } from '@/contexts/mar_suitability/admin/CategoryContext';
 
 interface CategorySliderProps {
   activeTab: 'condition' | 'constraint';
+  editable?: boolean; 
+
 }
 
 // Constants for better maintainability
@@ -13,7 +15,7 @@ const SLIDER_CONFIG = {
   STEP: 0.1,
 } as const;
 
-export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => {
+export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab,editable = false }) => {
 
   const {
     condition_categories,
@@ -65,7 +67,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
           {condition_categories
             .filter(category => isConditionSelected(category.id))
             .map((category) => (
-              <div key={category.id} className="mb-4">
+             <div key={category.id} className={`mb-4 ${!editable ? 'opacity-50' : ''}`}>
                <div className="grid grid-cols-3 gap-2 items-center mb-2">
                   <span title={category.file_name}>{category.file_name}</span>
                   <span className="text-sm font-bold text-center">
@@ -101,18 +103,21 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
                       max={SLIDER_CONFIG.MAX}
                      
                       value={getConditionCategoryInfluence(category.id)}
-                      onChange={(e) => updateConditionCategoryInfluence(
+                      onChange={(e) => editable && updateConditionCategoryInfluence(
                         category.id, 
                         category.file_name,
                         parseFloat(e.target.value)
                       )}
-                      className="relative w-full h-2 bg-transparent appearance-none cursor-pointer z-10"
+                       className={`relative w-full h-2 bg-transparent appearance-none z-10 ${
+                        !editable ? 'cursor-not-allowed' : 'cursor-pointer'
+                      }`}
                        style={{
                         // Custom thumb styling for better visibility
                         WebkitAppearance: "none",
                         appearance: "none",
                       }}
                       aria-label={`Adjust importance of ${formatName(category.file_name)} from ${SLIDER_CONFIG.MIN} (least important) to ${SLIDER_CONFIG.MAX} (most important)`}
+                      disabled={!editable}
                     />
                   </div>
                   

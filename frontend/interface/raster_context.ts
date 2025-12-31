@@ -139,3 +139,22 @@ export interface RasterLayer{
   workspace: string;
   layer_name: string;
 }
+
+
+export interface MarLayerInfo {
+  value: number;
+  layer_name: string;
+  color_code: string;
+}
+
+export interface MarValidationItem {
+  reason: string;
+  [structureName: string]: string;
+}
+
+export interface MarSuitabilityResponse {
+  layers: MarLayerInfo[];
+  validation: MarValidationItem[];
+}
+
+

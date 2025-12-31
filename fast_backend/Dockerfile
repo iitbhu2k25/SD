@@ -5,7 +5,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/home/app
 
-# Install system dependencies + GDAL
+
+RUN echo "deb http://deb.debian.org/debian bookworm contrib" >> /etc/apt/sources.list
+
+
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+
+
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
@@ -16,27 +22,29 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
     wget \
+    ttf-mscorefonts-installer \
+    fontconfig \
+    && fc-cache -f -v \
     && rm -rf /var/lib/apt/lists/*
 
-# Set GDAL include paths
+
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 ENV GDAL_CONFIG=/usr/bin/gdal-config
 
-# Set working directory
+
 WORKDIR /home/app
 
-# Upgrade pip & build tools
+
 RUN python -m pip install --upgrade pip setuptools wheel
 
-# Copy requirements
+
 COPY requirements.txt .
 
-# Install Python dependencies
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-# Create non-root user
 RUN useradd -m appuser && chown -R appuser:appuser /home/app
 USER appuser
 

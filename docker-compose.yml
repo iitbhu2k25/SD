@@ -28,7 +28,7 @@ services:
       - ./backend:/home/app:z
     command: >
       sh -c "python manage.py migrate &&
-             daphne -b 0.0.0.0 -p 9000 main.asgi:application"
+             daphne -b 0.0.0.0 -p 9000 --proxy-headers main.asgi:application"
     restart: always
     depends_on:
       - db

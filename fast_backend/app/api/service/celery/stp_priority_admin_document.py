@@ -1,5 +1,6 @@
 import os
 import io
+import string
 import uuid
 import logging
 from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak
@@ -23,7 +24,8 @@ import matplotlib.pyplot as plt
 import contextily as ctx
 import rasterio
 from matplotlib.colors import ListedColormap, BoundaryNorm
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
+from matplotlib_scalebar.scalebar import ScaleBar
 from lxml import etree
 from PIL import Image as PILImage
 from reportlab.platypus import  Paragraph, Spacer, PageBreak
@@ -57,6 +59,27 @@ import rasterio
 import matplotlib.pyplot as plt
 from celery_progress.backend import ProgressRecorder
 import time
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
+
+# Register Times New Roman font family
+pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
+
+# Register font family for easier usage
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+registerFontFamily(
+    'TimesNewRoman',
+    normal='TimesNewRoman',
+    bold='TimesNewRoman-Bold',
+    italic='TimesNewRoman-Italic',
+    boldItalic='TimesNewRoman-BoldItalic'
+)
+
 redis_client = Settings().redis_client
 
 
@@ -251,8 +274,9 @@ class ImageManager:
             style = ParagraphStyle(
                 'PlaceholderStyle',
                 parent=getSampleStyleSheet()['Normal'],
-                alignment=1,
+                alignment=TA_CENTER,
                 fontSize=11,
+                fontName='TimesNewRoman',
                 textColor=colors.HexColor("#201E1E"),
                 borderPadding=6,
                 spaceAfter=6,
@@ -300,7 +324,7 @@ class StyleManager:
             self.styles = StyleManager._styles
     
     def _create_custom_styles(self):
-        """Create custom styles for the document."""
+        """Create custom styles for the document using Times New Roman throughout."""
         custom_styles = [
             ('CustomTitle', {
                 'parent': self.styles['Title'],
@@ -308,7 +332,8 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 28
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -316,10 +341,11 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 20,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
-                'borderPadding': 5
+                'borderPadding': 5,
+                'leading': 20
             }),
             ('SubsectionHeader', {
                 'parent': self.styles['Heading2'],
@@ -327,7 +353,8 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 18
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -335,7 +362,9 @@ class StyleManager:
                 'spaceAfter': 12,
                 'alignment': TA_JUSTIFY,
                 'leftIndent': 0,
-                'rightIndent': 0
+                'rightIndent': 0,
+                'fontName': 'TimesNewRoman',
+                'leading': 14
             }),
             ('FigureCaption', {
                 'parent': self.styles['Normal'],
@@ -343,15 +372,17 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 6,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Oblique',
-                'textColor': colors.grey
+                'fontName': 'TimesNewRoman-Italic',
+                'textColor': colors.grey,
+                'leading': 12
             }),
             ('TableHeader', {
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Bold',
-                'textColor': colors.white
+                'fontName': 'TimesNewRoman-Bold',
+                'textColor': colors.white,
+                'leading': 12
             })
         ]
         
@@ -363,45 +394,54 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling."""
+        """Create a styled table with headers and error handling using Times New Roman,
+        with Serial Number column added.
+        """
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
-        
+
         try:
-            table = Table(data, hAlign='LEFT')
-            
+            # Add Serial No column
+            header = ["S. No"] + data[0]
+            table_data = [header]
+
+            for idx, row in enumerate(data[1:], start=1):
+                table_data.append([str(idx)] + row)
+
+            table = Table(table_data, hAlign='LEFT')
+
             table_style = [
                 # Header row styling
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                
+
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                
+
                 # Grid and borders
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                
+
                 # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                    [colors.white, colors.lightgrey]),
             ]
-            
+
             table.setStyle(TableStyle(table_style))
             return table
-            
+
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
             return None
-
 class SpatialDataset:
     def __init__(self):
         self.village_path = Settings().villages_path
@@ -645,14 +685,45 @@ class MapGenerator:
                 ]
                 
                 ax.legend(
-                    handles=legend_elements, 
-                    title="Legends", 
+                    handles=legend_elements,
+                    title="Legends",
                     loc='upper center',
                     bbox_to_anchor=(0.5, -0.12),
+
                     fontsize=20,
                     title_fontsize=34,
-                    framealpha=0.9
+
+                    framealpha=0.95,
+                    
+                    # 🔽 HEIGHT (keep as-is)
+                    handleheight=3.5,
+                    labelspacing=0.8,
+                    borderpad=1.2,
+
+                    # 🔽 WIDTH CONTROLS (important)
+                    handlelength=1.8,     # ↓ smaller color box width
+                    columnspacing=1.0,    # ↓ space between columns / text
                 )
+                
+                # Add scale bar for GIS data
+                # EPSG:3857 is in meters, so we use 'm' as the unit
+                scalebar = ScaleBar(
+                    dx=1,  # 1 pixel = 1 meter in EPSG:3857
+                    units='m',
+                    location='lower right',
+                    length_fraction=0.25,  # Scale bar will be 25% of the plot width
+                    width_fraction=0.01,  # Thickness of the scale bar
+                    box_alpha=0.7,  # Semi-transparent background
+                    color='black',
+                    box_color='white',
+                    font_properties={'size': 16, 'weight': 'bold'},
+                    scale_loc='top',  # Location of the scale text
+                    pad=0.5,
+                    border_pad=0.5,
+                    sep=5,
+                    frameon=True
+                )
+                ax.add_artist(scalebar)
 
                 plt.tight_layout()
                 return self._save_plot(fig, file_path=file_path[:-4])
@@ -818,7 +889,7 @@ class ReportGenerator:
             self._draw_logos(canvas, doc)
             page_num = canvas.getPageNumber()
             text = f"Page {page_num}"
-            canvas.setFont('Helvetica', 9)
+            canvas.setFont('TimesNewRoman', 9)
             canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
         except Exception as e:
             logging.error(f"Error creating header/footer: {str(e)}")
@@ -867,7 +938,16 @@ class ReportGenerator:
             title = Paragraph(self.config.title, self.style_manager.styles['CustomTitle'])
             subtitle = Paragraph(
                 "A Geospatial and Multi-Criteria Analysis for Prioritizing Sewage Treatment Infrastructure",
-                self.style_manager.styles['Heading2']
+                self.style_manager.styles['SubsectionHeader']
+            )
+            
+            details_style = ParagraphStyle(
+                'TitlePageDetails',
+                parent=self.style_manager.styles['JustifiedBody'],
+                alignment=TA_CENTER,
+                fontSize=12,
+                fontName='TimesNewRoman',
+                leading=16
             )
             
             details = f"""
@@ -883,7 +963,7 @@ class ReportGenerator:
                 Spacer(1, 50),
                 subtitle, 
                 Spacer(1, 100),
-                Paragraph(details, self.style_manager.styles['Normal']),
+                Paragraph(details, details_style),
                 PageBreak()
             ]
             
@@ -922,9 +1002,9 @@ class ReportGenerator:
         lines = [
             narrative,
             "",
-            f"State: {location_data[0][1]}",
-            f"District(s): {', '.join(location_data[1][1])}",
-            f"SubDistrict(s): {', '.join(location_data[2][1])}"
+            f"<b>State:</b> {location_data[0][1]}",
+            f"<b>District(s):</b> {', '.join(location_data[1][1])}",
+            f"<b>SubDistrict(s):</b> {', '.join(location_data[2][1])}"
         ]
         content = "<br/>".join(lines)
 
@@ -950,15 +1030,15 @@ class ReportGenerator:
             
             # Factor descriptions
             factors = [
-                ("Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
-                ("Drainage Distance", self.static_data.Drainage_Distance),
-                ("Groundwater Depth", self.static_data.Groundwater_Depth),
-                ("Groundwater Quality", self.static_data.Groundwater_Quality),
-                ("Land Use Land Cover", self.static_data.Land_Use_Land_Cover),
-                ("Major City Risk", self.static_data.Major_City_Risk),
-                ("Population", self.static_data.Population),
-                ("Proximity to River Quality", self.static_data.Proximity_River_Quality),
-            ]
+                ("(a) Downstream Effect of Drain", self.static_data.Downstream_Effect_of_Drain),
+                ("(b) Drainage Distance", self.static_data.Drainage_Distance),
+                ("(c) Groundwater Depth", self.static_data.Groundwater_Depth),
+                ("(d) Groundwater Quality", self.static_data.Groundwater_Quality),
+                ("(e) Land Use Land Cover", self.static_data.Land_Use_Land_Cover),
+                ("(f) Major City Risk", self.static_data.Major_City_Risk),
+                ("(g) Population", self.static_data.Population),
+                ("(h) Proximity to River Quality", self.static_data.Proximity_River_Quality),
+                ]
             
             for factor_name, description in factors:
                 if description.strip():
@@ -966,6 +1046,7 @@ class ReportGenerator:
                                                  self.style_manager.styles['JustifiedBody']))
             
             # Methodology subsection
+            self.elements.append(PageBreak())
             self.elements.append(Paragraph("3.2 Methodology", 
                                          self.style_manager.styles['SubsectionHeader']))
             
@@ -998,10 +1079,7 @@ class ReportGenerator:
                             self.style_manager.styles['JustifiedBody']
                         ))
                     
-                    self.elements.append(Paragraph(
-                        factor_title, 
-                        self.style_manager.styles['FigureCaption']
-                    ))
+                  
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
@@ -1009,6 +1087,10 @@ class ReportGenerator:
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
                                 self.elements.extend(image_elements)
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
                     self.elements.append(Spacer(1, 15))
                     self.elements.append(PageBreak())
         except Exception as e:
@@ -1032,9 +1114,14 @@ class ReportGenerator:
             self.elements.append(Paragraph(factors_text, self.style_manager.styles['JustifiedBody']))
 
             factors_data = []
-            for key, value in asdict(self.static_data).items():
-                name = key.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
+            for idx, (key, value) in enumerate(asdict(self.static_data).items()):
+                prefix = f"({string.ascii_lowercase[idx]})"   # (a), (b), (c)...
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(
+                    (d for d in layer_names if d.get("file_name") == key),
+                    None
+                )
                 if match:
                     factors_data.append((name,
                         value,
@@ -1049,10 +1136,13 @@ class ReportGenerator:
             
 
             # Weights table
-            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
             if weights_table:
                 self.elements.append(weights_table)
             
+           
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
@@ -1060,12 +1150,13 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
         
+            self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             # Village analysis table
             village_table = TableGenerator.create_styled_table(self.table_data.village_priority_table)
             if village_table:
                 self.elements.append(village_table)
-                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP Priority Analysis", 
-                                             self.style_manager.styles['FigureCaption']))
+                
             
             self.elements.append(PageBreak())
             
@@ -1239,7 +1330,7 @@ def document_gen(self,payload: StpPriorityAdminReport):
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, 
                           parent_task_id: str) -> dict:
     try:
-        file_path = MapGenerator(dpi=50).make_image(
+        file_path = MapGenerator(dpi=100).make_image(
             file_path=file_path,
             raster_path=raster_path,
             sld_path=sld_path,

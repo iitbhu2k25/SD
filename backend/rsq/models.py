@@ -1,37 +1,60 @@
 from django.db import models
 
 class GroundWaterData(models.Model):
-    srno = models.BigAutoField(primary_key=True)  
 
-    blockcode = models.IntegerField()
-    SUBDIS_COD = models.IntegerField()
+    # Location Codes
+    village_co = models.BigIntegerField(db_index=True)
+    block_code = models.BigIntegerField(db_index=True)
+    district_code = models.FloatField(null=True, blank=True)
+    subdistrict_code = models.FloatField(null=True, blank=True)
 
-    vlcode = models.IntegerField()   
+    # Time
+    year = models.CharField(max_length=10, db_index=True)
 
-    village = models.CharField(max_length=255)
-    blockname = models.CharField(max_length=255, null=True, blank=True)
+    # Area & Factor
+    factor = models.FloatField(null=True, blank=True)
+    village_area = models.FloatField(null=True, blank=True)
+    block_area = models.FloatField(null=True, blank=True)
+    total_geographical_area = models.FloatField(null=True, blank=True)
+    recharge_worthy_area = models.FloatField(null=True, blank=True)
 
-    Total_Geographical_Area = models.FloatField(null=True, blank=True)
-    Recharge_Worthy_Area = models.FloatField(null=True, blank=True)
-    Recharge_from_Rainfall_MON = models.FloatField(null=True, blank=True)
-    Recharge_from_Other_Sources_MON = models.FloatField(null=True, blank=True)
-    Recharge_from_Rainfall_NM = models.FloatField(null=True, blank=True)
-    Recharge_from_Other_Sources_NM = models.FloatField(null=True, blank=True)
-    Total_Annual_Ground_Water_Recharge = models.FloatField(null=True, blank=True)
-    Total_Natural_Discharges = models.FloatField(null=True, blank=True)
-    Annual_Extractable_Ground_Water_Resource = models.FloatField(null=True, blank=True)
-    Irrigation_Use = models.FloatField(null=True, blank=True)
-    Domestic_Use = models.FloatField(null=True, blank=True)
-    Total_Extraction = models.FloatField(null=True, blank=True)
-    Net_Ground_Water_Availability_for_future_use = models.FloatField(null=True, blank=True)
-    Stage_of_Ground_Water_Extraction = models.FloatField(null=True, blank=True)
-    Annual_GW_Allocation_for_Domestic_Use_as_on_2025 = models.FloatField(null=True, blank=True)
-    Industrial_Use = models.FloatField(null=True, blank=True)
+    # Recharge (MON / NM)
+    recharge_rainfall_mon = models.FloatField(null=True, blank=True)
+    recharge_other_mon = models.FloatField(null=True, blank=True)
+    recharge_rainfall_nm = models.FloatField(null=True, blank=True)
+    recharge_other_nm = models.FloatField(null=True, blank=True)
 
-    Year = models.CharField(max_length=50)
+    # Groundwater Balance
+    total_annual_recharge = models.FloatField(null=True, blank=True)
+    total_natural_discharge = models.FloatField(null=True, blank=True)
+    extractable_resource = models.FloatField(null=True, blank=True)
+
+    # Usage
+    irrigation_use = models.FloatField(null=True, blank=True)
+    industrial_use = models.FloatField(null=True, blank=True)
+    domestic_use = models.FloatField(null=True, blank=True)
+    total_extraction = models.FloatField(null=True, blank=True)
+
+    # Future Availability
+    annual_gw_allocation_domestic = models.FloatField(null=True, blank=True)
+    net_future_availability = models.FloatField(null=True, blank=True)
+
+    # Status
+    bo_aquifer = models.FloatField(null=True, blank=True)
+    stage_of_extraction = models.CharField(max_length=50, null=True, blank=True)
+    category = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        db_table = "village_groundwater"
+        indexes = [
+            models.Index(fields=["village_co", "year"]),
+            models.Index(fields=["block_code"]),
+        ]
 
     def __str__(self):
-        return f"{self.SrNo} - {self.village} ({self.vlcode})"
+        return f"{self.village_co} - {self.year}"
+
+
 
 
 class Village(models.Model):

@@ -16,6 +16,11 @@ from django.conf import settings
 import traceback
 
 
+
+
+
+
+
 # ==============================================================
 # 1. Block by District
 # ==============================================================
@@ -53,121 +58,170 @@ class VillageByBlockAPI(APIView):
 # ==============================================================
 # 3. RSQ GeoJSON API – WITH CRS DECLARATION FOR EPSG:3857
 # ==============================================================
+
+
+
 class VillageGroundWaterGeoJSONAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
         try:
-            year_full = request.data.get("year")        # e.g. "2022 - 23"
-            vlcodes = request.data.get("vlcodes")       # [210151, 210152, ...]
+            # ---------------------------------------------
+            # 1. INPUT VALIDATION
+            # ---------------------------------------------
+            year_full = request.data.get("year")     # e.g. "2022 - 23"
+            village_codes = request.data.get("vlcodes")  # [210151, 210152, ...]
 
-            if not year_full or not vlcodes or not isinstance(vlcodes, list):
-                return Response({"error": "year and vlcodes are required"}, status=400)
+            if not year_full or not village_codes or not isinstance(village_codes, list):
+                return Response(
+                    {"error": "year and vlcodes are required"},
+                    status=400
+                )
 
-            # Convert year format: "2022 - 23" → "2022-23"
+            # Convert year: "2022 - 23" → "2022-23"
             db_year = year_full[:4] + "-" + year_full[7:9]
 
-            # Convert vlcodes to strings for shapefile matching
-            vlcodes_str = [str(v) for v in vlcodes]
+            # Convert village codes to int
+            village_codes_int = []
+            for v in village_codes:
+                try:
+                    village_codes_int.append(int(v))
+                except (TypeError, ValueError):
+                    pass
 
-            # Fetch groundwater data
-            gw_data_qs = GroundWaterData.objects.filter(
-                Year=db_year,
-                vlcode__in=vlcodes
+            if not village_codes_int:
+                return Response(
+                    {"error": "Invalid village codes"},
+                    status=400
+                )
+
+            # ---------------------------------------------
+            # 2. FETCH GROUNDWATER DATA (UPDATED MODEL FIELDS)
+            # ---------------------------------------------
+            gw_qs = GroundWaterData.objects.filter(
+                year=db_year,
+                village_co__in=village_codes_int
             ).values()
 
-            if not gw_data_qs.exists():
-                return Response({
-                    "error": "No groundwater data found for this year",
-                    "year": db_year,
-                    "villages_requested": len(vlcodes)
-                }, status=404)
+            if not gw_qs.exists():
+                return Response(
+                    {
+                        "error": "No groundwater data found",
+                        "year": db_year,
+                        "villages_requested": len(village_codes_int),
+                    },
+                    status=404
+                )
 
-            # Load village shapefile
+            # ---------------------------------------------
+            # 3. LOAD VILLAGE SHAPEFILE
+            # ---------------------------------------------
             shp_path = os.path.join(
                 settings.MEDIA_ROOT,
-                "gwa_data", "gwa_shp", "Final_Village", "Village_New.shp"
+                "gwa_data",
+                "gwa_shp",
+                "Final_Village",
+                "Village_New.shp",
             )
 
             if not os.path.exists(shp_path):
-                return Response({"error": "Village shapefile not found on server"}, status=500)
+                return Response(
+                    {"error": "Village shapefile not found on server"},
+                    status=500
+                )
 
-            # Read shapefile
             gdf = gpd.read_file(shp_path)
 
-            # Set CRS if missing
+            # Ensure CRS
             if gdf.crs is None:
                 gdf = gdf.set_crs("EPSG:4326")
-            
-            # ALWAYS ensure we're in EPSG:4326 (lat/lon)
+
             if gdf.crs.to_epsg() != 4326:
                 gdf = gdf.to_crs("EPSG:4326")
 
-            # Filter by vlcode
-            gdf_filtered = gdf[gdf["vlcode"].astype(str).isin(vlcodes_str)]
+            # ---------------------------------------------
+            # 4. FILTER SHAPEFILE BY village_co
+            # ---------------------------------------------
+            gdf_filtered = gdf[
+                gdf["vlcode"].astype(str).isin(
+                    [str(v) for v in village_codes_int]
+                )
+            ]
 
             if gdf_filtered.empty:
-                return Response({"error": "No villages found in shapefile"}, status=404)
+                return Response(
+                    {"error": "No villages found in shapefile"},
+                    status=404
+                )
 
-            # Build DB lookup: vlcode (int) → full groundwater data + status + color
+            # ---------------------------------------------
+            # 5. BUILD DB LOOKUP (village_co → data)
+            # ---------------------------------------------
             db_dict = {}
-            for item in gw_data_qs:
+
+            for item in gw_qs:
                 try:
-                    vlcode_key = int(item["vlcode"])
+                    village_key = int(item["village_co"])
                 except (TypeError, ValueError):
                     continue
 
-                stage = item.get("Stage_of_Ground_Water_Extraction")
+                stage = item.get("stage_of_extraction")
                 status_text, color = get_stage_status_and_color(stage)
 
-                item_dict = dict(item)
-                item_dict["status"] = status_text
-                item_dict["color"] = color
+                item_copy = dict(item)
+                item_copy["status"] = status_text
+                item_copy["color"] = color
 
-                db_dict[vlcode_key] = item_dict
+                db_dict[village_key] = item_copy
 
-            # Build final GeoJSON features with EPSG:4326 coordinates
+            # ---------------------------------------------
+            # 6. BUILD FINAL GEOJSON
+            # ---------------------------------------------
             features = []
+
             for _, row in gdf_filtered.iterrows():
                 try:
-                    vlcode_int = int(float(row["vlcode"]))
-                except:
+                    village_int = int(float(row["vlcode"]))
+                except Exception:
                     continue
 
-                # Base info from shapefile
                 props = {
-                    "vlcode": vlcode_int,
+                    "village_co": village_int,
                     "village": (
-                        row.get("village") or
-                        row.get("VILL_NAME") or
-                        row.get("VILLAGE") or
-                        "Unknown Village"
+                        row.get("village")
+                        or row.get("VILL_NAME")
+                        or row.get("VILLAGE")
+                        or "Unknown Village"
                     ),
-                    "blockname": row.get("blockname") or row.get("BLOCK_NAME") or "",
+                    
                 }
 
                 # Merge groundwater data
-                if vlcode_int in db_dict:
-                    props.update(db_dict[vlcode_int])
+                if village_int in db_dict:
+                    props.update(db_dict[village_int])
 
                 features.append({
-                "type": "Feature",
-                "geometry": row.geometry.__geo_interface__,
-                "properties": round_props_to_2_decimals(props)
-            })
+                    "type": "Feature",
+                    "geometry": row.geometry.__geo_interface__,
+                    "properties": round_props_to_2_decimals(props),
+                })
 
-
-            # Return standard GeoJSON in EPSG:4326 (no CRS declaration needed - it's the default)
+            # ---------------------------------------------
+            # 7. RETURN GEOJSON
+            # ---------------------------------------------
             final_geojson = {
                 "type": "FeatureCollection",
-                "features": features
+                "features": features,
             }
 
             return Response(final_geojson, status=200)
 
         except Exception as e:
             traceback.print_exc()
-            return Response({
-                "error": "Server error",
-                "detail": str(e)
-            }, status=500)
+            return Response(
+                {
+                    "error": "Server error",
+                    "detail": str(e),
+                },
+                status=500
+            )

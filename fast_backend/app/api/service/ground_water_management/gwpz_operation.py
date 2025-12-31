@@ -3,6 +3,7 @@ import os
 from typing import List, Tuple
 import geopandas as gpd
 import rasterio
+import math
 from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
@@ -19,16 +20,21 @@ from shapely.ops import nearest_points
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.conf.settings import Settings
-from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSuitability_svc
-from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud
+from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud,MAR_Details
 from rasterstats import zonal_stats
-import matplotlib.cm as cm
+
 from app.utils.name import Unique_name
+
+
+
+
+
 
 
 geo=Geoserver()
@@ -933,3 +939,170 @@ class MARSuitabilityMapper:
                 "csv_details":csv_details
             }
         return False
+    
+
+
+
+class MARRasterDetails:
+    _WGS84_EPSG = "EPSG:4326"
+
+    RIVER_THRESHOLD = 25
+    RECHARGE_MIN = 21
+    RECHARGE_MAX = 30
+    LITHOLOGY_COLORS = {
+    "clay": "#8B4513",
+    "silt or silty clay": "#C2B280",
+    "silty sand / sandy clay": "#E6C27A",
+    "fine to medium sand": "#FFD966",
+    "medium to coarse sand": "#F4A261",
+    "coarse sand": "#E76F51",
+    "clayey silt / silt-calcrete horizons": "#9E9E9E",
+    }
+    def __init__(self) -> None:
+        self._transformer_cache: Dict[str, Transformer] = {}
+
+
+    def _get_transformer(self, target_crs) -> Transformer:
+        crs_key = str(target_crs)
+        if crs_key not in self._transformer_cache:
+            self._transformer_cache[crs_key] = Transformer.from_crs(
+                self._WGS84_EPSG,
+                target_crs,
+                always_xy=True
+            )
+        return self._transformer_cache[crs_key]
+
+    def _pixel_value(
+        self,
+        raster_path: str,
+        lat: float,
+        lon: float
+    ) -> Tuple[Optional[float], Optional[int], Optional[int]]:
+
+        with rasterio.open(raster_path) as dataset:
+            transformer = self._get_transformer(dataset.crs)
+            x, y = transformer.transform(lon, lat)
+            row, col = dataset.index(x, y)
+
+            if not (0 <= row < dataset.height and 0 <= col < dataset.width):
+                return None, None, None
+
+            value = dataset.read(1, masked=True)[row, col]
+
+            if value is None or value is dataset.nodata or math.isnan(value):
+                return None, row, col
+
+            return float(value), row, col
+
+
+    def _get_name(self, unit: int, value: float) -> Tuple[str, str]:
+        if unit <= 15 and value > self.RIVER_THRESHOLD:
+            name = "clayey silt / silt-calcrete horizons"
+            return name, self.LITHOLOGY_COLORS[name]
+
+        return self._classify_by_value(value)
+
+    @staticmethod
+    def _classify_by_value(value: float) -> Tuple[str, str]:
+        if value < 12:
+            name = "clay"
+        elif value <= 20:
+            name = "silt or silty clay"
+        elif value <= 30:
+            name = "silty sand / sandy clay"
+        elif value <= 35:
+            name = "fine to medium sand"
+        elif value <= 40:
+            name = "medium to coarse sand"
+        else:
+            name = "coarse sand"
+
+        return name, MARRasterDetails.LITHOLOGY_COLORS[name]
+
+
+    def _get_details(
+        self,
+        rasters: List[Any],
+        lat: float,
+        lon: float
+    ) -> List[Dict[str, Any]]:
+
+        results: List[Dict[str, Any]] = []
+
+        for raster in rasters:
+            value, _, _ = self._pixel_value(raster.file_path, lat, lon)
+
+            if value is None or math.isnan(value):
+                pass
+            
+            else:
+                layer_name,color_code=self._get_name(raster.units, value)
+                results.append({
+                    "value": value,
+                    "layer_name": layer_name,
+                    "color_code":color_code
+                })
+
+        return results
+
+
+    def get_final_result(self, layers: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        res: List[Dict[str, str]] = []
+
+        if len(layers) < 6:
+            return res
+
+        values = [layer.get("value", 0) for layer in layers]
+
+        if all(v > self.RIVER_THRESHOLD for v in values[0:3]):
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "0–15 m depth validates"
+            })
+        elif values[0] > self.RIVER_THRESHOLD and values[1] > self.RIVER_THRESHOLD:
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "0–10 m depth validates"
+            })
+        elif values[1] > self.RIVER_THRESHOLD and values[2] > self.RIVER_THRESHOLD:
+            res.append({
+                "River Aquifer": "feasible",
+                "reason": "5–15 m depth validates"
+            })
+        else:
+            res.append({
+                "River Aquifer": "Non feasible",
+                "reason": "0–15 m depth not validates"
+            })
+
+
+        v4, v5 = values[4], values[5]
+
+        if self.RECHARGE_MIN <= v4 <= self.RECHARGE_MAX and \
+           self.RECHARGE_MIN <= v5 <= self.RECHARGE_MAX:
+            res.append({
+                "Aquifer Recharge": "feasible",
+                "reason": "21–30 m depth validates"
+            })
+        else:
+            res.append({
+                "Aquifer Recharge": "Conditional feasible",
+                "reason": "21–30 m depth partially validates"
+            })
+        return res
+
+    def get_value(
+        self,
+        db: Any,
+        lat: float,
+        lon: float
+    ) -> Dict[str, Any]:
+
+        rasters = MAR_Details(db).get_all()
+        layers = self._get_details(rasters, lat, lon)
+        validation = self.get_final_result(layers)
+
+        return {
+            "layers": layers,
+            "validation": validation
+        }

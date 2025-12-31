@@ -267,3 +267,8 @@ class StpsuitabilityDrainReport(BaseModel):
     location: LocationData
     weight_data: List[weight_insight]
     non_weight_data: List[weight_insight]
+
+
+class Mardetails(BaseModel):
+    lat:float
+    lon:float

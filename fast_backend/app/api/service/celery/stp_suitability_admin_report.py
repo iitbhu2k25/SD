@@ -1,6 +1,7 @@
 import os
 import io
 import uuid
+import string
 import logging
 from reportlab.platypus import  Frame, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib import colors
@@ -25,6 +26,7 @@ import contextily as ctx
 import rasterio
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.patches import Patch
+from matplotlib_scalebar.scalebar import ScaleBar
 from lxml import etree
 from PIL import Image as PILImage
 from reportlab.platypus import  Paragraph, Spacer, PageBreak
@@ -59,6 +61,26 @@ import matplotlib.pyplot as plt
 from app.utils.network_conf import GeoConfig
 from celery_progress.backend import ProgressRecorder
 import time
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/'
+
+pdfmetrics.registerFont(TTFont('TimesNewRoman', f'{FONT_PATH}Times_New_Roman.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roman_Bold.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
+pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
+
+# Register font family for easier usage
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
+registerFontFamily(
+    'TimesNewRoman',
+    normal='TimesNewRoman',
+    bold='TimesNewRoman-Bold',
+    italic='TimesNewRoman-Italic',
+    boldItalic='TimesNewRoman-BoldItalic'
+)
+
 redis_client = Settings().redis_client
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
@@ -262,8 +284,9 @@ class ImageManager:
             style = ParagraphStyle(
                 'PlaceholderStyle',
                 parent=getSampleStyleSheet()['Normal'],
-                alignment=1,
+                alignment=TA_CENTER,
                 fontSize=11,
+                fontName='TimesNewRoman',
                 textColor=colors.HexColor("#201E1E"),
                 borderPadding=6,
                 spaceAfter=6,
@@ -311,7 +334,7 @@ class StyleManager:
             self.styles = StyleManager._styles
     
     def _create_custom_styles(self):
-        """Create custom styles for the document."""
+        """Create custom styles for the document using Times New Roman throughout."""
         custom_styles = [
             ('CustomTitle', {
                 'parent': self.styles['Title'],
@@ -319,7 +342,8 @@ class StyleManager:
                 'spaceAfter': 30,
                 'alignment': TA_CENTER,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 28
             }),
             ('SectionHeader', {
                 'parent': self.styles['Heading1'],
@@ -327,10 +351,11 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 20,
                 'textColor': colors.darkblue,
-                'fontName': 'Helvetica-Bold',
+                'fontName': 'TimesNewRoman-Bold',
                 'borderWidth': 1,
                 'borderColor': colors.darkblue,
-                'borderPadding': 5
+                'borderPadding': 5,
+                'leading': 20
             }),
             ('SubsectionHeader', {
                 'parent': self.styles['Heading2'],
@@ -338,7 +363,8 @@ class StyleManager:
                 'spaceAfter': 8,
                 'spaceBefore': 15,
                 'textColor': colors.darkgreen,
-                'fontName': 'Helvetica-Bold'
+                'fontName': 'TimesNewRoman-Bold',
+                'leading': 18
             }),
             ('JustifiedBody', {
                 'parent': self.styles['Normal'],
@@ -346,7 +372,9 @@ class StyleManager:
                 'spaceAfter': 12,
                 'alignment': TA_JUSTIFY,
                 'leftIndent': 0,
-                'rightIndent': 0
+                'rightIndent': 0,
+                'fontName': 'TimesNewRoman',
+                'leading': 14
             }),
             ('FigureCaption', {
                 'parent': self.styles['Normal'],
@@ -354,15 +382,17 @@ class StyleManager:
                 'spaceAfter': 12,
                 'spaceBefore': 6,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Oblique',
-                'textColor': colors.grey
+                'fontName': 'TimesNewRoman-Italic',
+                'textColor': colors.grey,
+                'leading': 12
             }),
             ('TableHeader', {
                 'parent': self.styles['Normal'],
                 'fontSize': 10,
                 'alignment': TA_CENTER,
-                'fontName': 'Helvetica-Bold',
-                'textColor': colors.white
+                'fontName': 'TimesNewRoman-Bold',
+                'textColor': colors.white,
+                'leading': 12
             })
         ]
         
@@ -374,41 +404,51 @@ class TableGenerator:
     
     @staticmethod
     def create_styled_table(data: List[List[str]]) -> Optional[Table]:
-        """Create a styled table with headers and error handling."""
+        """Create a styled table with headers and error handling using Times New Roman,
+        with Serial Number column added.
+        """
         if not data or len(data) < 2:
             logger.warning("Insufficient data for table creation")
             return None
-        
+
         try:
-            table = Table(data, hAlign='LEFT')
-            
+            # Add Serial No column
+            header = ["S. No"] + data[0]
+            table_data = [header]
+
+            for idx, row in enumerate(data[1:], start=1):
+                table_data.append([str(idx)] + row)
+
+            table = Table(table_data, hAlign='LEFT')
+
             table_style = [
                 # Header row styling
                 ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                
+
                 # Data rows styling
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTNAME', (0, 1), (-1, -1), 'TimesNewRoman'),
                 ('FONTSIZE', (0, 1), (-1, -1), 9),
                 ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
-                
+
                 # Grid and borders
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                
+
                 # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1),
+                    [colors.white, colors.lightgrey]),
             ]
-            
+
             table.setStyle(TableStyle(table_style))
             return table
-            
+
         except Exception as e:
             logger.error(f"Failed to create table: {e}")
             return None
@@ -693,14 +733,45 @@ class MapGenerator:
                 ]
                 
                 ax.legend(
-                    handles=legend_elements, 
-                    title="Legends", 
+                    handles=legend_elements,
+                    title="Legends",
                     loc='upper center',
                     bbox_to_anchor=(0.5, -0.12),
+
                     fontsize=20,
                     title_fontsize=34,
-                    framealpha=0.9
+
+                    framealpha=0.95,
+                    
+                    # 🔽 HEIGHT (keep as-is)
+                    handleheight=3.5,
+                    labelspacing=0.8,
+                    borderpad=1.2,
+
+                    # 🔽 WIDTH CONTROLS (important)
+                    handlelength=1.8,     # ↓ smaller color box width
+                    columnspacing=1.0,    # ↓ space between columns / text
                 )
+                
+                # Add scale bar for GIS data
+                # EPSG:3857 is in meters, so we use 'm' as the unit
+                scalebar = ScaleBar(
+                    dx=1,  # 1 pixel = 1 meter in EPSG:3857
+                    units='m',
+                    location='lower right',
+                    length_fraction=0.25,  # Scale bar will be 25% of the plot width
+                    width_fraction=0.01,  # Thickness of the scale bar
+                    box_alpha=0.7,  # Semi-transparent background
+                    color='black',
+                    box_color='white',
+                    font_properties={'size': 16, 'weight': 'bold'},
+                    scale_loc='top',  # Location of the scale text
+                    pad=0.5,
+                    border_pad=0.5,
+                    sep=5,
+                    frameon=True
+                )
+                ax.add_artist(scalebar)
 
                 plt.tight_layout()
                 return self._save_plot(fig, file_path=file_path[:-4])
@@ -708,6 +779,7 @@ class MapGenerator:
         except Exception as e:
             logger.error(f"Failed to generate image: {e}")
             raise ResourceError(f"Image generation failed: {e}")
+            
 class StpDocument:
     """Main document class with improved error handling and resource management."""
     
@@ -772,7 +844,7 @@ class StpDocument:
                Builtup_constraint="Highly built-up zones must be masked due to land scarcity, community opposition, and incompatibility with local land use and public health protection. STP construction in developed urban areas is generally not feasible (Mansouri et al., 2013).",
                Flood_Plain_constraint="Active flood plains are highly unsuitable for STP siting due to elevated risk of inundation, which can cause catastrophic equipment failure and contamination of surface waters. Regulatory and engineering standards require excluding these zones (Mansouri et al., 2013).",
                Groundwater_Depth_constraint="Sites with shallow groundwater tables are masked as unsuitable due to high risk of aquifer contamination by seepage, aligning with requirements for vadose zone thickness and sustainable hydrogeology (Ahmadi et al., 2017). In Varuna River Basin, depth < 2m is considered as the constraint zone to prevent the development of any treatment infrastructure",
-               Highway_constraint="Highways require exclusion zones to prevent interference with traffic flow, infrastructure risks, and exposure of travelers to possible odor and accidental releases. Buffering highways ensures the plant’s activities do not diminish road safety and environmental quality (Awawdeh, 2024). 60 m, as Right of Way (RoW) on either side of the highway is used to protect any development.",
+               Highway_constraint="Highways require exclusion zones to prevent interference with traffic flow, infrastructure risks, and exposure of travelers to possible odor and accidental releases. Buffering highways ensures the plant's activities do not diminish road safety and environmental quality (Awawdeh, 2024). 60 m, as Right of Way (RoW) on either side of the highway is used to protect any development.",
                Railway_constraint="Safety and infrastructure constraints necessitate avoiding railway corridors, as STP construction near railways can disrupt operations, pose accident risks, and violate regulatory setbacks for pollution control and vibration impact (Awawdeh, 2024). Therefore 100 m of distance on either of the side of the railway should not be considered as the suitable zone for the development.",
                STP_constraint="The presence of existing STPs serves as a constraint for new plant siting to prevent redundancy, operational conflicts, and potential cumulative environmental impacts. This is standard to avoid overburdening infrastructure in a locale and promote spatialcoverage (Awawdeh, 2024).",
                Water_Body_constraint="Proximity to rivers, lakes, or ponds is a constraint, since STPs can be a source of accidental pollution and must avoid flood-prone areas. Siting too close violates environmental regulations aimed at protecting aquatic ecosystems and human health due to waterborne exposure risks (Mansouri et al., 2013)"
@@ -801,9 +873,7 @@ class StpDocument:
                 raise ValidationError("Layer names list cannot be empty")
             
             try:
-
                 pdf_path = self.static_pdf(folder_path=layer_names, csv_data=csv_data,location_data=location_data,weight_data=weight_data)
-                
                 logger.info(f"Report generated successfully: {pdf_path}")
                 return pdf_path
             except Exception as e:
@@ -876,11 +946,10 @@ class ReportGenerator:
         canvas.saveState()
         
         try:
-
             self._draw_logos(canvas, doc)
             page_num = canvas.getPageNumber()
             text = f"Page {page_num}"
-            canvas.setFont('Helvetica', 9)
+            canvas.setFont('TimesNewRoman', 9)
             canvas.drawRightString(letter[0] - inch, 0.75*inch, text)
         except Exception as e:
             logging.error(f"Error creating header/footer: {str(e)}")
@@ -929,7 +998,16 @@ class ReportGenerator:
             title = Paragraph(self.config.title, self.style_manager.styles['CustomTitle'])
             subtitle = Paragraph(
                 "A Geospatial and Multi-Criteria Analysis for Prioritizing Sewage Treatment Infrastructure",
-                self.style_manager.styles['Heading2']
+                self.style_manager.styles['SubsectionHeader']
+            )
+            
+            details_style = ParagraphStyle(
+                'TitlePageDetails',
+                parent=self.style_manager.styles['JustifiedBody'],
+                alignment=TA_CENTER,
+                fontSize=12,
+                fontName='TimesNewRoman',
+                leading=16
             )
             
             details = f"""
@@ -945,7 +1023,7 @@ class ReportGenerator:
                 Spacer(1, 50),
                 subtitle, 
                 Spacer(1, 100),
-                Paragraph(details, self.style_manager.styles['Normal']),
+                Paragraph(details, details_style),
                 PageBreak()
             ]
             
@@ -966,8 +1044,8 @@ class ReportGenerator:
             evaluates environmental, infrastructural, and technological factors to delineate locations
             that will enable efficient and sustainable STP deployment. The outputs serve policy makers
             and urban planners by ensuring strategic alignment with Sustainable Development Goal
-            (SDG) 6: “Ensure availability and sustainable management of water and sanitation for
-            all.” Specifically, the module supports achievement of SDG target 6.3 by facilitating water
+            (SDG) 6: "Ensure availability and sustainable management of water and sanitation for
+            all." Specifically, the module supports achievement of SDG target 6.3 by facilitating water
             quality improvements, reducing pollution, minimizing hazardous releases, and increasing
             the proportion of safely treated and reused wastewater in the study region. By enabling
             data-driven prioritization and design, this work also contributes to other SDGs including
@@ -993,11 +1071,11 @@ class ReportGenerator:
         lines = [
             narrative,
             "",
-            f"State: {location_data[0][1]}",
-            f"District(s): {', '.join(location_data[1][1])}",
-            f"SubDistrict(s): {', '.join(location_data[2][1])}",
-            f"Towns: {', '.join(location_data[3][1])}",
-            f"Total population: {location_data[4][1]}",
+            f"<b>State:</b> {location_data[0][1]}",
+            f"<b>District(s):</b> {', '.join(location_data[1][1])}",
+            f"<b>SubDistrict(s):</b> {', '.join(location_data[2][1])}",
+            f"<b>Towns:</b> {', '.join(location_data[3][1])}",
+            f"<b>Total population:</b> {location_data[4][1]}",
         ]
         content = "<br/>".join(lines)
 
@@ -1041,12 +1119,14 @@ class ReportGenerator:
                 ("Soil_Texture", self.static_data.Soil_Texture),
             ]
             factors_data = []
-            for factor_name, description in factors:
-                name = factor_name.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+            for idx, (key, value) in enumerate(factors):
+                prefix = f"({string.ascii_lowercase[idx]})"
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
                 if match:
                     factors_data.append((name,
-                        description,
+                        value,
                         match["file_path"]
                     ))
             self._add_fallback_elements(factors_data)
@@ -1069,12 +1149,14 @@ class ReportGenerator:
                 ("Water_Body_constraint", self.static_data.Water_Body_constraint),
             ]
             factors_data = []
-            for factor_name, description in constraint_factors:
-                name = factor_name.replace("_", " ")
-                match = next(filter(lambda d: d.get("file_name") == factor_name, layer_names), None)
+            for idx, (key, value) in enumerate(constraint_factors):
+                prefix = f"({string.ascii_lowercase[idx]})" 
+                name = f"{prefix} {key.replace('_', ' ')}"
+
+                match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
                 if match:
                     factors_data.append((name,
-                        description,
+                        value,
                         match["file_path"]
                     ))
             self._add_fallback_elements(factors_data)
@@ -1198,19 +1280,18 @@ class ReportGenerator:
                             self.style_manager.styles['JustifiedBody']
                         ))
                     
-                    self.elements.append(Paragraph(
-                        factor_title, 
-                        self.style_manager.styles['FigureCaption']
-                    ))
+                  
 
                     if figure_path:
                         with open(figure_path, 'rb') as f:
-            
                             image_bytes = io.BytesIO(f.read())
                             image_elements = ImageManager.insert_actual_image(image_bytes)
                             if image_elements:
                                 self.elements.extend(image_elements)
-                    self.elements.append(Spacer(1, 15))
+                    self.elements.append(Paragraph(
+                        factor_title, 
+                        self.style_manager.styles['FigureCaption']
+                    ))
                     self.elements.append(PageBreak())
         except Exception as e:
             logger.error(f"Error processing Celery results: {e}")
@@ -1225,7 +1306,7 @@ class ReportGenerator:
                                          self.style_manager.styles['SubsectionHeader']))
             
             factors_text = """The final STP Suitability map, provides a spatial visualization zones for
-            sewage treatment plant in ‘low’, ‘medium’, ‘high’ and ‘very high’ category, based on
+            sewage treatment plant in 'low', 'medium', 'high' and 'very high' category, based on
             integrated GIS analysis using multiple conditioning and constraint factors. This map clearly
             distinguishes areas prioritized for construction, balancing environmental safeguards,
             infrastructure accessibility, and regulatory compliance, thereby supporting strategic
@@ -1263,10 +1344,13 @@ class ReportGenerator:
             and transparent decision-making for sewage infrastructure planning. Weight for the all
             conditioning factors"""
             self.elements.append(Paragraph(weight_text, self.style_manager.styles['JustifiedBody']))
-            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table)
+            weights_table = TableGenerator.create_styled_table(self.table_data.weights_table) 
+            self.elements.append(Paragraph("Table 1: Details of the Assigned Weights", 
+                                             self.style_manager.styles['FigureCaption']))
             if weights_table:
                 self.elements.append(weights_table)
             
+           
             self.elements.append(Spacer(1, 20))
             
             # Village-wise analysis
@@ -1275,11 +1359,12 @@ class ReportGenerator:
             
         
             # Village analysis table
+            self.elements.append(Paragraph("Table 2: Details of the Village-wise STP suitability Analysis", 
+                                             self.style_manager.styles['FigureCaption']))
             village_table = TableGenerator.create_styled_table(self.table_data.village_suitability_table)
             if village_table:
                 self.elements.append(village_table)
-                self.elements.append(Paragraph("Table 2: Details of the Village-wise STP suitability Analysis", 
-                                             self.style_manager.styles['FigureCaption']))
+                
             
             self.elements.append(PageBreak())
             
@@ -1344,6 +1429,7 @@ class ReportGenerator:
             doc.title = self.config.title
             doc.author = self.config.author
             doc.subject = self.config.subject
+            
             # Build document sections
             self._add_title_page()
             self._add_executive_summary()
@@ -1435,7 +1521,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
 @app.task(bind=True,pydantic=True,name="stp_suitability_admin_currency_image")
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, parent_task_id: str) -> dict:
     try:
-        file_path=MapGenerator(dpi=50).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
+        file_path=MapGenerator(dpi=100).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
         redis_client.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,

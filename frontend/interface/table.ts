@@ -88,7 +88,7 @@ interface VillageDataTableProps {
 // Column configuration
 export const Village_columns: TableColumn<DataRow>[] = [
   {
-    name: 'Village Name',
+    name: 'Village Name ',
     selector: row => row.Village_Name,
     sortable: true,
     width: '200px',

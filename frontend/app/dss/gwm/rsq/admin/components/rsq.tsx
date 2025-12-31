@@ -1,4 +1,3 @@
-// frontend/app/dss/rsq/admin/components/rsq.tsx
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -15,6 +14,12 @@ const YEAR_OPTIONS = [
   "2023 - 24",
 ];
 
+// Fields to always exclude from the table display
+const EXCLUDED_FIELDS = ['status', 'color', 'Year', 'year'];
+
+// Fields to show first in the table (if they exist)
+const PRIORITY_FIELDS = ['village', 'blockname', 'village_co', 'block_code'];
+
 export default function RSQAnalysis() {
   const { selectedYear, setSelectedYear, groundWaterData, isLoading, error, fetchGroundWaterData, clearData } =
     useRSQ();
@@ -28,8 +33,6 @@ export default function RSQAnalysis() {
   const [globalSearch, setGlobalSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-
-  // Clear data when villages change
   useEffect(() => {
     clearData();
   }, [selectedVillages]);
@@ -42,11 +45,15 @@ export default function RSQAnalysis() {
     const firstFeature = groundWaterData.features[0];
     const props = firstFeature.properties;
 
-    const keys = Object.keys(props).filter(
-      key => !['status', 'color','vlcode', 'blockcode','srno','SUBDIS_COD', 'Total_Geographical_Area', 'Recharge_Worthy_Area'].includes(key)
-    );
+    // Get all keys except excluded ones
+    const allKeys = Object.keys(props).filter(key => !EXCLUDED_FIELDS.includes(key));
 
-    return keys;
+    // Separate priority fields and other fields
+    const priorityColumns = PRIORITY_FIELDS.filter(field => allKeys.includes(field));
+    const otherColumns = allKeys.filter(key => !PRIORITY_FIELDS.includes(key));
+
+    // Return priority fields first, then others
+    return [...priorityColumns, ...otherColumns];
   }, [groundWaterData]);
 
   /* ================= SORT ================= */
@@ -62,31 +69,39 @@ export default function RSQAnalysis() {
   /* ================= FORMAT COLUMN NAME ================= */
 
   const formatColumnName = (key: string) => {
+    // Replace underscores with spaces and capitalize each word
     return key
       .split("_")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
   };
 
   /* ================= FORMAT CELL VALUE ================= */
 
-  /* ================= FORMAT CELL VALUE ================= */
-
-const formatCellValue = (value: any) => {
-  if (value === null || value === undefined) return "-";
-  
-  // ✅ Handle numbers (already in your code)
-  if (typeof value === "number") {
-    return value.toFixed(2);
-  }
-  
-  // ✅ NEW: Handle numeric strings
-  if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
-    return Number(value).toFixed(2);
-  }
-  
-  return String(value);
-};
+  const formatCellValue = (value: any, key?: string) => {
+    if (value === null || value === undefined) return "-";
+    
+    // Handle numbers
+    if (typeof value === "number") {
+      // Check if it's likely an ID or code (don't format these)
+      if (key && (key.includes('_co') || key.includes('code') || key.includes('_id'))) {
+        return value.toString();
+      }
+      // Format other numbers to 2 decimal places
+      return value.toFixed(2);
+    }
+    
+    // Handle numeric strings
+    if (typeof value === "string" && !isNaN(Number(value)) && value.trim() !== "") {
+      // Check if it's likely an ID or code
+      if (key && (key.includes('_co') || key.includes('code') || key.includes('_id'))) {
+        return value;
+      }
+      return Number(value).toFixed(2);
+    }
+    
+    return String(value);
+  };
 
   /* ================= HIGHLIGHT SEARCH TERM ================= */
 
@@ -188,7 +203,7 @@ const formatCellValue = (value: any) => {
       const rows = processedData.map(feature => {
         const p = feature.properties;
         const rowData = allColumns.map(key => {
-          const value = formatCellValue(p[key]);
+          const value = formatCellValue(p[key], key);
           // Escape commas and quotes in CSV
           return `"${String(value).replace(/"/g, '""')}"`;
         });
@@ -280,10 +295,11 @@ const formatCellValue = (value: any) => {
                 <span className="text-xs font-semibold text-gray-700 mr-2">Filter by Status:</span>
                 <button
                   onClick={() => setStatusFilter("all")}
-                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${statusFilter === "all"
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    statusFilter === "all"
                       ? "bg-gray-800 text-white shadow-md"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
+                  }`}
                 >
                   All ({groundWaterData?.features?.length || 0})
                 </button>
@@ -297,8 +313,9 @@ const formatCellValue = (value: any) => {
                     <button
                       key={cat}
                       onClick={() => setStatusFilter(cat)}
-                      className={`px-3 py-1.5 rounded-md text-white text-xs font-semibold transition-all ${statusFilter === cat ? "ring-2 ring-offset-1 shadow-md scale-105" : "hover:opacity-90 shadow-sm"
-                        }`}
+                      className={`px-3 py-1.5 rounded-md text-white text-xs font-semibold transition-all ${
+                        statusFilter === cat ? "ring-2 ring-offset-1 shadow-md scale-105" : "hover:opacity-90 shadow-sm"
+                      }`}
                       style={{ backgroundColor: color }}
                     >
                       {cat}: {count}
@@ -449,8 +466,8 @@ const formatCellValue = (value: any) => {
                             {allColumns.map((key) => (
                               <td key={key} className="px-4 py-3 text-xs text-gray-700 whitespace-nowrap">
                                 {typeof p[key] === "string"
-                                  ? highlightText(formatCellValue(p[key]), globalSearch)
-                                  : formatCellValue(p[key])}
+                                  ? highlightText(formatCellValue(p[key], key), globalSearch)
+                                  : formatCellValue(p[key], key)}
                               </td>
                             ))}
                             <td className="px-4 py-3 whitespace-nowrap">

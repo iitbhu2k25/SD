@@ -17,14 +17,16 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { downloadCSV } from "@/components/utils/downloadCsv";
+import AnalysisList from '@/components/AnalysisItem'
 
 const MainContent = () => {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
   const { selectedCondition, selectedConstraint, setSelectedCategory, tableData } = useCategory();
   const { selectionsLocked, confirmSelections, resetSelections } = useLocation();
-  const { setstpOperation, isMapLoading, loading, stpOperation } = useMap();
+  const { setstpOperation, isMapLoading, loading, stpOperation, marSuitabilityData } = useMap();
   const [showCategories, setShowCategories] = useState(false);
+  const [categoriesEditable, setCategoriesEditable] = useState(false);
 
   useEffect(() => {
     setShowCategories(selectionsLocked);
@@ -75,7 +77,7 @@ const MainContent = () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-2">
               Administrative Selection
             </h2>
-            
+
           </section>
 
           <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -85,21 +87,31 @@ const MainContent = () => {
           {showCategories && (
             <div className="animate-fadeIn">
               <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-2">
-                  Analysis Categories
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-800">
+                    Analysis Categories
+                  </h3>
+                  <button
+                    onClick={() => setCategoriesEditable(!categoriesEditable)}
+                    className={`px-4 py-1 rounded-lg text-sm font-medium shadow-sm transition duration-200 ${categoriesEditable
+                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                      }`}
+                  >
+                    {categoriesEditable ? "Editing Enabled" : "Change"}
+                  </button>
+                </div>
                 <CategorySelector />
               </section>
 
               <div className="flex justify-start mt-4">
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting}
-                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${
-                    submitting
+                  disabled={submitting } // disable submit if not editable
+                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${submitting 
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                  }`}
+                    }`}
                 >
                   Analyze Suitability
                 </button>
@@ -132,6 +144,11 @@ const MainContent = () => {
               </div>
             </section>
           )}
+          {marSuitabilityData && marSuitabilityData.length > 0 && (
+            AnalysisList({ data: marSuitabilityData })
+          )
+
+          }
         </div>
 
         {/* RIGHT PANEL */}
@@ -148,21 +165,19 @@ const MainContent = () => {
                 <div className="flex border-b border-gray-200">
                   <button
                     onClick={() => setActiveTab("condition")}
-                    className={`flex-1 py-2 font-medium ${
-                      activeTab === "condition"
+                    className={`flex-1 py-2 font-medium ${activeTab === "condition"
                         ? "text-blue-600 border-b-2 border-blue-500"
                         : "text-gray-500 hover:text-gray-700"
-                    }`}
+                      }`}
                   >
                     Condition Influences
                   </button>
                   <button
                     onClick={() => setActiveTab("constraint")}
-                    className={`flex-1 py-2 font-medium ${
-                      activeTab === "constraint"
+                    className={`flex-1 py-2 font-medium ${activeTab === "constraint"
                         ? "text-blue-600 border-b-2 border-blue-500"
                         : "text-gray-500 hover:text-gray-700"
-                    }`}
+                      }`}
                   >
                     Constraint Influences
                   </button>
@@ -176,7 +191,7 @@ const MainContent = () => {
                       No condition categories selected.
                     </div>
                   ) : (
-                    <CategorySlider activeTab={activeTab} />
+                    <CategorySlider activeTab={activeTab} editable={categoriesEditable} />
                   ))}
 
                 {activeTab === "constraint" &&

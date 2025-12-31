@@ -64,14 +64,14 @@ from celery.result import GroupResult
 from celery import current_app
 
 
-auth = base64.b64encode(b"admin:geoserver2").decode("utf-8")
+auth = base64.b64encode(b"admin:geoserver").decode("utf-8")
 
 
 GEOSERVER_URL = "http://geoserver:8080/geoserver"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "myworkspace"
-wms_base_url = "http://localhost:9090/geoserver" # Frontend fetches rasters from geoserver
+wms_base_url = "/geoserver/api" # Frontend fetches rasters from geoserver
 
 # Add this at the top of your file
 BACKEND_PARAMETER_DISPLAY_NAMES = {
@@ -3057,7 +3057,7 @@ def check_geoserver_health():
     try:
 
         # Test internal container communication
-        internal_url = "http://geoserver2:8080/geoserver/rest/workspaces"
+        internal_url = "http://geoserver:8080/geoserver/rest/workspaces"
         headers = {"Authorization": f"Basic {auth}"}
 
         response = requests.get(internal_url, headers=headers, timeout=30)
@@ -3267,7 +3267,7 @@ def test_wms_layer(workspace, layer_name, auth):
     """
     try:
         # Use internal container URL (same as REST API)
-        internal_wms_url = "http://geoserver2:8080/geoserver/wms"
+        internal_wms_url = "http://geoserver:8080/geoserver/wms"
 
         test_url = f"{internal_wms_url}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS={workspace}:{layer_name}&STYLES=&SRS=EPSG:3857&BBOX=9200000,2900000,9220000,2920000&WIDTH=256&HEIGHT=256&FORMAT=image/png"
 

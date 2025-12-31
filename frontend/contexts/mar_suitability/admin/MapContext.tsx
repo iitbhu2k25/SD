@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useLocation } from '@/contexts/mar_suitability/admin/LocationContext';
 import { useCategory } from '@/contexts/mar_suitability/admin/CategoryContext';
-import { ADMIN_LAYER_NAMES, stp_priority_Output, ClipRasters } from '@/interface/raster_context';
+import { ADMIN_LAYER_NAMES, stp_priority_Output, ClipRasters, MarValidationItem } from '@/interface/raster_context';
 import { api } from '@/services/api';
 
 interface MapContextType {
@@ -28,8 +28,10 @@ interface MapContextType {
   loading: boolean;
   setLoading: (loading: boolean) => void;
   selectedradioLayer: string | null;
-  setSelectedradioLayer: (layer: string | null) => void; 
+  setSelectedradioLayer: (layer: string | null) => void;
   handleLayerSelection: (layer: string) => void;
+  marSuitabilityData: MarValidationItem[] | null;
+  setMarSuitabilityData: (data: MarValidationItem[]) => void;
 
 }
 
@@ -64,8 +66,10 @@ const MapContext = createContext<MapContextType>({
   resultLayer: null,
   setResultLayer: () => { },
   selectedradioLayer: "",
-  setSelectedradioLayer: () => {},
-  handleLayerSelection: () => {}
+  setSelectedradioLayer: () => { },
+  handleLayerSelection: () => { },
+  marSuitabilityData: null,
+  setMarSuitabilityData: () => { },
 });
 
 // Create the provider component
@@ -88,6 +92,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [marSuitabilityData, setMarSuitabilityData] =
+    useState<MarValidationItem[] | null>(null);
+
+
 
   // Get location context data
   const {
@@ -250,8 +258,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resultLayer,
     setResultLayer,
     selectedradioLayer,
-    setSelectedradioLayer: () => {},
+    setSelectedradioLayer: () => { },
     handleLayerSelection,
+    marSuitabilityData,
+    setMarSuitabilityData,
   };
 
   return (
