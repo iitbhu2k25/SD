@@ -28,8 +28,10 @@ from rasterio.enums import Resampling
 from app.api.service.ground_water_management.gwpz_svc import Gwzp_service,GWPL_service,MARSuitability_svc
 from app.database.crud.gwpz_crud import MARSuitability_crud,GWPL_crud,MAR_Details
 from rasterstats import zonal_stats
-import matplotlib.cm as cm
+
 from app.utils.name import Unique_name
+
+
 
 
 
@@ -941,18 +943,21 @@ class MARSuitabilityMapper:
 
 
 
-from typing import Any, Dict, List, Optional, Tuple
-import rasterio
-from pyproj import Transformer
-
-
 class MARRasterDetails:
     _WGS84_EPSG = "EPSG:4326"
 
     RIVER_THRESHOLD = 25
     RECHARGE_MIN = 21
     RECHARGE_MAX = 30
-
+    LITHOLOGY_COLORS = {
+    "clay": "#8B4513",
+    "silt or silty clay": "#C2B280",
+    "silty sand / sandy clay": "#E6C27A",
+    "fine to medium sand": "#FFD966",
+    "medium to coarse sand": "#F4A261",
+    "coarse sand": "#E76F51",
+    "clayey silt / silt-calcrete horizons": "#9E9E9E",
+    }
     def __init__(self) -> None:
         self._transformer_cache: Dict[str, Transformer] = {}
 
@@ -990,24 +995,29 @@ class MARRasterDetails:
             return float(value), row, col
 
 
-    def _get_name(self, unit: int, value: float) -> str:
+    def _get_name(self, unit: int, value: float) -> Tuple[str, str]:
         if unit <= 15 and value > self.RIVER_THRESHOLD:
-            return "clayey silt / silt-calcrete horizons"
+            name = "clayey silt / silt-calcrete horizons"
+            return name, self.LITHOLOGY_COLORS[name]
+
         return self._classify_by_value(value)
 
     @staticmethod
-    def _classify_by_value(value: float) -> str:
+    def _classify_by_value(value: float) -> Tuple[str, str]:
         if value < 12:
-            return "clay"
-        if value <= 20:
-            return "silt or silty clay"
-        if value <= 30:
-            return "silty sand / sandy clay"
-        if value <= 35:
-            return "fine to medium sand"
-        if value <= 40:
-            return "medium to coarse sand"
-        return "coarse sand"
+            name = "clay"
+        elif value <= 20:
+            name = "silt or silty clay"
+        elif value <= 30:
+            name = "silty sand / sandy clay"
+        elif value <= 35:
+            name = "fine to medium sand"
+        elif value <= 40:
+            name = "medium to coarse sand"
+        else:
+            name = "coarse sand"
+
+        return name, MARRasterDetails.LITHOLOGY_COLORS[name]
 
 
     def _get_details(
@@ -1024,11 +1034,13 @@ class MARRasterDetails:
 
             if value is None or math.isnan(value):
                 pass
-               
+            
             else:
+                layer_name,color_code=self._get_name(raster.units, value)
                 results.append({
                     "value": value,
-                    "layer_name": self._get_name(raster.units, value)
+                    "layer_name": layer_name,
+                    "color_code":color_code
                 })
 
         return results

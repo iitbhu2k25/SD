@@ -17,7 +17,7 @@ import dynamic from 'next/dynamic';
 import { toLonLat } from 'ol/proj';
 import { Feature } from 'ol';
 import { Point } from 'ol/geom';
-import { RasterValue } from "@/interface/raster_context";
+import { MarLayerInfo, MarSuitabilityResponse } from "@/interface/raster_context";
 import {
   defaults as defaultControls,
   ScaleLine,
@@ -71,8 +71,10 @@ const Mapping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
 
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
   // layer details
-  const [boreholeData, setBoreholeData] = useState<RasterValue[] | null>(null);
+  const [boreholeData, setBoreholeData] = useState<MarLayerInfo[] | null>(null);
   const [boreholePosition, setBoreholePosition] = useState<{ x: number; y: number } | null>(null);
   const [isLoadingBorehole, setIsLoadingBorehole] = useState(false);
   const pinMarkerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -87,7 +89,8 @@ const Mapping: React.FC = () => {
     defaultWorkspace,
     handleLayerSelection,
     resultLayer,
-    selectedradioLayer
+    selectedradioLayer,
+    setMarSuitabilityData
   } = useMap();
   const { selectedCategory, setRasterLayerInfo, rasterLayerInfo, tableData } = useCategory();
 
@@ -556,8 +559,9 @@ const Mapping: React.FC = () => {
           toast.error("No subsurface data found", { position: "top-center" });
         }
 
-        const data = await response.message as RasterValue[]
-        setBoreholeData(data);
+        const data = await response.message as MarSuitabilityResponse
+        setBoreholeData(data.layers);
+        setMarSuitabilityData(data.validation);
       } catch (error) {
         console.error('Error fetching raster values:', error);
         setError('Failed to load subsurface data');
@@ -685,7 +689,7 @@ const Mapping: React.FC = () => {
                   <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMap.icon} />
                   </svg>
-                  <span className="text-sm font-medium">{baseMap.name}</span>
+                  <span className="text-sm text-gray-700 font-medium">{baseMap.name}</span>
                 </button>
               ))}
             </div>
@@ -1103,7 +1107,7 @@ const Mapping: React.FC = () => {
                 {/* Borehole Visualization - Fully transparent background */}
                 <div
                   className="p-2"
-                  
+
                 >
                   <SubsurfaceBorehole
                     data={boreholeData}
