@@ -10,10 +10,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-3v41%tzyrz#l*y4^^me+81i1!jp%p^&t31ouqvd+_=bb+34135"
+DEBUG = False
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 # Application definition
 
@@ -135,12 +135,19 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS
 CORS_ALLOWED_ORIGINS = [
+    "https://slcrdss.in",
+    "https://*.slcrdss.in",
     "http://localhost:3000",
     "http://192.168.1.2:3000",
     "http://127.0.0.1:3000",
     "http://172.16.32.69:3000", 
     # Add your frontend domain here
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://slcrdss.in",
+    "https://*.slcrdss.in",
+]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG 
 CORS_ALLOWED_HEADERS = [
@@ -170,13 +177,10 @@ REST_FRAMEWORK = {
 APPEND_SLASH = False
 
 ALLOWED_HOSTS = [
+    "slcrdss.in",
+    ".slcrdss.in",
+    "kalki.space",
     'localhost',
-    '127.0.0.1',
-    '192.168.1.5',
-    '0.0.0.0',
-    '172.16.32.94',
-    '172.22.176.1',
-    '172.16.32.69',
     # Add any other IPs you need
 ]
 # Media files (User uploaded files)
@@ -209,6 +213,8 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [('redis_django', 6379)],  # Redis server
+            "capacity": 2000,
+            "expiry": 600, 
         },
     },
 }

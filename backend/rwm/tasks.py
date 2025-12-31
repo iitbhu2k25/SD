@@ -42,6 +42,16 @@ def send_task_update(job_id, data):
     # logger.info(f"     group: {group_name}")
     # logger.info(f"     data: {data}")
     
+    cache_key = f"task:{job_id}:state"
+    cache.set(cache_key, data, timeout=60 * 60)
+
+    logger.info(
+        "[CELERY] Stored task state | task_id=%s | progress=%s",
+        job_id,
+        data.get("progress"),
+    )
+
+    
     try:
         async_to_sync(channel_layer.group_send)(
             group_name,
@@ -50,6 +60,11 @@ def send_task_update(job_id, data):
                 'data': data
             }
         )
+        
+        logger.info(
+        "[CELERY] WS event sent | task_id=%s",
+        job_id,
+    )
         # logger.info(f"✅ Sent WebSocket update for {job_id}: {data.get('status')}")
     except Exception as e:
         # ❌ WebSocket send failed - stop the task
