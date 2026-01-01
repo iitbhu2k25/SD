@@ -145,11 +145,13 @@ export interface MarLayerInfo {
   value: number;
   layer_name: string;
   color_code: string;
+  depth: string;
 }
 
 export interface MarValidationItem {
   reason: string;
   [structureName: string]: string;
+  color_code: string;
 }
 
 export interface MarSuitabilityResponse {

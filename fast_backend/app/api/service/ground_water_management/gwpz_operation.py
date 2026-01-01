@@ -999,7 +999,6 @@ class MARRasterDetails:
         if unit <= 15 and value > self.RIVER_THRESHOLD:
             name = "clayey silt / silt-calcrete horizons"
             return name, self.LITHOLOGY_COLORS[name]
-
         return self._classify_by_value(value)
 
     @staticmethod
@@ -1040,7 +1039,8 @@ class MARRasterDetails:
                 results.append({
                     "value": value,
                     "layer_name": layer_name,
-                    "color_code":color_code
+                    "color_code":color_code,
+                    "depth": raster.layer_name
                 })
 
         return results
@@ -1057,22 +1057,26 @@ class MARRasterDetails:
         if all(v > self.RIVER_THRESHOLD for v in values[0:3]):
             res.append({
                 "River Aquifer": "feasible",
-                "reason": "0–15 m depth validates"
+                "reason": "0–15 m depth validates",
+                "color_code": "#27ae60"
             })
         elif values[0] > self.RIVER_THRESHOLD and values[1] > self.RIVER_THRESHOLD:
             res.append({
                 "River Aquifer": "feasible",
-                "reason": "0–10 m depth validates"
+                "reason": "0–10 m depth validates",
+                "color_code": "#27ae60"
             })
         elif values[1] > self.RIVER_THRESHOLD and values[2] > self.RIVER_THRESHOLD:
             res.append({
                 "River Aquifer": "feasible",
-                "reason": "5–15 m depth validates"
+                "reason": "5–15 m depth validates",
+                "color_code": "#27ae60"
             })
         else:
             res.append({
                 "River Aquifer": "Non feasible",
-                "reason": "0–15 m depth not validates"
+                "reason": "0–15 m depth not validates",
+                "color_code": "#d13f2f"
             })
 
 
@@ -1082,12 +1086,14 @@ class MARRasterDetails:
            self.RECHARGE_MIN <= v5 <= self.RECHARGE_MAX:
             res.append({
                 "Aquifer Recharge": "feasible",
-                "reason": "21–30 m depth validates"
+                "reason": "21–30 m depth validates",
+                "color_code": "#27ae60"
             })
         else:
             res.append({
                 "Aquifer Recharge": "Conditional feasible",
-                "reason": "21–30 m depth partially validates"
+                "reason": "21–30 m depth partially validates",
+                "color_code": "#f39302"
             })
         return res
 

@@ -17,7 +17,7 @@ import { Village_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { downloadCSV } from "@/components/utils/downloadCsv";
-import AnalysisList from '@/components/AnalysisItem'
+import AnalysisList from '@/app/dss/gwm/mar_suitability/component/AnalysisItem'
 
 const MainContent = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -94,8 +94,8 @@ const MainContent = () => {
                   <button
                     onClick={() => setCategoriesEditable(!categoriesEditable)}
                     className={`px-4 py-1 rounded-lg text-sm font-medium shadow-sm transition duration-200 ${categoriesEditable
-                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
                       }`}
                   >
                     {categoriesEditable ? "Editing Enabled" : "Change"}
@@ -107,10 +107,10 @@ const MainContent = () => {
               <div className="flex justify-start mt-4">
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting } // disable submit if not editable
-                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${submitting 
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                  disabled={submitting} // disable submit if not editable
+                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${submitting
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
                     }`}
                 >
                   Analyze Suitability
@@ -166,8 +166,8 @@ const MainContent = () => {
                   <button
                     onClick={() => setActiveTab("condition")}
                     className={`flex-1 py-2 font-medium ${activeTab === "condition"
-                        ? "text-blue-600 border-b-2 border-blue-500"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "text-blue-600 border-b-2 border-blue-500"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     Condition Influences
@@ -175,8 +175,8 @@ const MainContent = () => {
                   <button
                     onClick={() => setActiveTab("constraint")}
                     className={`flex-1 py-2 font-medium ${activeTab === "constraint"
-                        ? "text-blue-600 border-b-2 border-blue-500"
-                        : "text-gray-500 hover:text-gray-700"
+                      ? "text-blue-600 border-b-2 border-blue-500"
+                      : "text-gray-500 hover:text-gray-700"
                       }`}
                   >
                     Constraint Influences

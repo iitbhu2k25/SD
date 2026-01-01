@@ -36,7 +36,7 @@ import { toast } from "react-toastify";
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
 const SubsurfaceBorehole = dynamic(
-  () => import("@/components/layerDetails"),
+  () => import("@/app/dss/gwm/mar_suitability/component/layerDetails"),
   { ssr: false }
 );
 const Mapping: React.FC = () => {
@@ -1111,9 +1111,9 @@ const Mapping: React.FC = () => {
                 >
                   <SubsurfaceBorehole
                     data={boreholeData}
-                    width={140}
+                    width={240}
                     height={260}
-                    radius={0.6}
+                    radius={0.7}
                     depthStep={0.3}
                   />
                 </div>
