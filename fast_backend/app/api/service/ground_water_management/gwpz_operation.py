@@ -1081,7 +1081,6 @@ class MARRasterDetails:
 
 
         v4, v5 = values[4], values[5]
-
         if self.RECHARGE_MIN <= v4 <= self.RECHARGE_MAX and \
            self.RECHARGE_MIN <= v5 <= self.RECHARGE_MAX:
             res.append({

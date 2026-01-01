@@ -373,7 +373,6 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         body: JSON.stringify({
           stretch_ids: selectedStretches,
           attributes: backendAttributes,
-          points_data: waterQualityData,
           season: selectedSeason,
           data_type: "stretchbased",
         }),

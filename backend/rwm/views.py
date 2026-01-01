@@ -45,6 +45,7 @@ from shapely.geometry import mapping
 import hashlib
 from django.core.cache import cache
 from rasterio.crs import CRS
+import math
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 # from .raster_styling import integrate_coloring_into_idw
@@ -271,9 +272,6 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
             if not df.empty:
                 df = WQI(df, pcm, labels)  # Process WQI and get DataFrame
 
-            # Most robust NaN handling
-            import numpy as np
-            import math
 
             def safe_json_convert(dataframe):
                 """Convert DataFrame to JSON-safe dictionary"""
@@ -340,10 +338,6 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
             df = pd.DataFrame(data)
             if not df.empty:
                 df = WQI(df, pcm, labels)  # Process WQI and get DataFrame
-
-            # Most robust NaN handling
-            import numpy as np
-            import math
 
             def safe_json_convert(dataframe):
                 """Convert DataFrame to JSON-safe dictionary"""
@@ -692,130 +686,110 @@ def River_100m_buffer(request, data_type="subdistbased"):
         )
 
 
-#
-@csrf_exempt
-def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
+
+def get_points_shapefile_gdf(
+    *,
+    data_type: str,
+    season: str,
+    sub_district_codes=None,
+    stretch_ids=None,
+):
     """
-    API endpoint to return shapefile data as GeoJSON, optionally filtered by subdistricts
+    Shared internal function.
+    - No request
+    - No response
+    - No Django / DRF objects
+    - Safe for Celery & API use
     """
-    try:
-        if season == "premonsoon":
-            shp_path = os.path.join(
-                settings.MEDIA_ROOT,
-                "rwm_data",
-                "DRAINS_Final_point",
-                "DRAINS_Final_point.shp",
-            )
-        elif season == "monsoon":
-            shp_path = os.path.join(
-                settings.MEDIA_ROOT, "rwm_data", "monsoon", "monsoon.shp"
-            )
-        # elif season == 'downstream':
-        #     shp_path = os.path.join(settings.MEDIA_ROOT, 'rwm_data', 'during_monsoon_DRAINS_Final_point', 'during_monsoon_DRAINS_Final_point.shp')
 
-        # shp_path = os.path.join(settings.MEDIA_ROOT, 'rwm_data', 'DRAINS_Final_point', 'DRAINS_Final_point.shp')
-        if not os.path.exists(shp_path):
-            # logger.error(f"Shapefile not found at: {shp_path}")
-            return JsonResponse({"error": "Shapefile not found"}, status=404)
+    # -----------------------------
+    # Shapefile selection
+    # -----------------------------
+    if season == "premonsoon":
+        shp_path = os.path.join(
+            settings.MEDIA_ROOT,
+            "rwm_data",
+            "DRAINS_Final_point",
+            "DRAINS_Final_point.shp",
+        )
+    elif season == "monsoon":
+        shp_path = os.path.join(
+            settings.MEDIA_ROOT,
+            "rwm_data",
+            "monsoon",
+            "monsoon.shp",
+        )
+    else:
+        raise ValueError("Invalid season")
 
-        gdf = gpd.read_file(shp_path)
+    if not os.path.exists(shp_path):
+        return JsonResponse({"error": "Shapefile not found"}, status=404)
 
-        # Handle POST request with subdistrict filtering
-        if request.method == "POST":
-            try:
-                body = json.loads(request.body)
-                sub_district_codes = body.get("Sub_District_Code", [])
-                Stretch_IDs = body.get("Stretch_ID", [])
-                # Convert sub_district_codes to a set for efficient lookup
-                if data_type == "subdistbased":
-                    if sub_district_codes:
-                        # Filter by subdistrict codes if provided
-                        # Assuming your shapefile has a column for subdistrict codes
-                        # Adjust the column name based on your actual shapefile structure
+    gdf = gpd.read_file(shp_path)
 
-                        subdistrict_column = (
-                            "Sub_Dist_1"  # or whatever column name you use
-                        )
-                        Stretch_column = "Stretch_ID"
-                        if subdistrict_column in gdf.columns:
+    # -----------------------------
+    # Filtering
+    # -----------------------------
+    if data_type == "subdistbased" and sub_district_codes:
+        col = "Sub_Dist_1"
+        if col in gdf.columns:
+            gdf[col] = gdf[col].astype(str)
+            sub_district_codes = [str(c).strip() for c in sub_district_codes]
+            gdf = gdf[gdf[col].isin(sub_district_codes)]
 
-                            # Convert both sides to strings for consistent comparison
-                            gdf[subdistrict_column] = gdf[subdistrict_column].astype(
-                                str
-                            )
-                            sub_district_codes = [
-                                str(code).strip() for code in sub_district_codes
-                            ]
+    elif data_type == "stretchbased" and stretch_ids:
+        col = "Stretch_ID"
+        if col in gdf.columns:
+            gdf[col] = gdf[col].astype(str)
+            stretch_ids = [str(s).strip() for s in stretch_ids]
+            gdf = gdf[gdf[col].isin(stretch_ids)]
 
-                            gdf = gdf[gdf[subdistrict_column].isin(sub_district_codes)]
-                            # print(
-                            #     f"SUBDISTRICT Filtered shapefile to {len(gdf)} features for subdistricts: {sub_district_codes}"
-                            # )
-                        
-                elif data_type == "stretchbased":
-                    if Stretch_IDs:
-                        # Filter by subdistrict codes if provided
-                        # Assuming your shapefile has a column for subdistrict codes
-                        # Adjust the column name based on your actual shapefile structure
-                        Stretch_column = "Stretch_ID"
-                        if Stretch_column in gdf.columns:
+    # -----------------------------
+    # WQI calculation
+    # -----------------------------
+    if not gdf.empty:
+        df_for_wqi = gdf.copy()
+        
+        # Create field mapping dictionary for consistent naming
+        field_mapping = {
+            "S_No_": "s_no",
+            "Sub_Distri": "Sub_District",
+            "Sub_Dist_1": "Sub_District_Code",
+            "District_C": "District_Code",
+            "Sampling": "sampling",
+            "Location": "location",
+            "STATUS": "status",
+            "LATITUDE": "latitude",
+            "LONGITUDE": "longitude",
+            "pH": "ph",
+            "Temperatur": "temperature",
+            "TDS_mg_L_": "tds",
+            "EC__S_cm_": "ec",
+            "TSS_mg_L_": "tss",
+            "TS_mg_L_": "ts",
+            "DO_mg_L_": "do",
+            "Turbidity_": "turbidity",
+            "ORP": "orp",
+            "COD_mg_L_": "cod",
+            "BOD_mg_L_": "bod",
+            "Chloride_m": "chloride",
+            "Nitrate_mg": "nitrate",
+            "Hardness_m": "hardness",
+            "Faecal_Col": "faecal_coliform",
+            "Total_Coli": "total_coliform",
+            "Stretch_ID": "Stretch_ID",
+        }
+        
+        
+        # Rename columns that exist in the dataframe
+        existing_mappings = {
+            old: new
+            for old, new in field_mapping.items()
+            if old in df_for_wqi.columns
+        }
+        df_for_wqi = df_for_wqi.rename(columns=existing_mappings)
 
-                            gdf[Stretch_column] = gdf[Stretch_column].astype(str)
-                            Stretch_IDs = [str(code).strip() for code in Stretch_IDs]
-
-                            gdf = gdf[gdf[Stretch_column].isin(Stretch_IDs)]
-                            # print(
-                            #     f"STRETCH Filtered shapefile to {len(gdf)} features for subdistricts: {Stretch_IDs}"
-                            # )
-                        
-
-            except json.JSONDecodeError:
-                pass  # Continue h unfiltered data if JSON is invalid
-        # Check if geodataframe has data before WQI calculation
-        if not gdf.empty:
-            # Convert GeoDataFrame to regular DataFrame for WQI calculation
-            df_for_wqi = gdf.copy()
-
-            # Create field mapping dictionary for consistent naming
-            field_mapping = {
-                "S_No_": "s_no",
-                "Sub_Distri": "Sub_District",
-                "Sub_Dist_1": "Sub_District_Code",
-                "District_C": "District_Code",
-                "Sampling": "sampling",
-                "Location": "location",
-                "STATUS": "status",
-                "LATITUDE": "latitude",
-                "LONGITUDE": "longitude",
-                "pH": "ph",
-                "Temperatur": "temperature",
-                "TDS_mg_L_": "tds",
-                "EC__S_cm_": "ec",
-                "TSS_mg_L_": "tss",
-                "TS_mg_L_": "ts",
-                "DO_mg_L_": "do",
-                "Turbidity_": "turbidity",
-                "ORP": "orp",
-                "COD_mg_L_": "cod",
-                "BOD_mg_L_": "bod",
-                "Chloride_m": "chloride",
-                "Nitrate_mg": "nitrate",
-                "Hardness_m": "hardness",
-                "Faecal_Col": "faecal_coliform",
-                "Total_Coli": "total_coliform",
-                "Stretch_ID": "Stretch_ID",
-            }
-
-            # Rename columns that exist in the dataframe
-            existing_mappings = {
-                old: new
-                for old, new in field_mapping.items()
-                if old in df_for_wqi.columns
-            }
-            df_for_wqi = df_for_wqi.rename(columns=existing_mappings)
-
-            # Ensure numeric columns are properly typed for WQI calculation
-            numeric_columns = [
+        numeric_columns = [
                 "ph",
                 "temperature",
                 "tds",
@@ -834,53 +808,243 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
                 "total_coliform",
             ]
 
-            for col in numeric_columns:
-                if col in df_for_wqi.columns:
-                    df_for_wqi[col] = pd.to_numeric(df_for_wqi[col], errors="coerce")
+        for col in numeric_columns:
+            if col in df_for_wqi.columns:
+                df_for_wqi[col] = pd.to_numeric(df_for_wqi[col], errors="coerce")
 
-            # print(f"Starting WQI calculation for {len(df_for_wqi)} features...")
+        df_with_wqi = WQI(df_for_wqi, pcm, labels)
 
-            # Apply WQI calculation using your existing function
-            df_with_wqi = WQI(df_for_wqi, pcm, labels)
+        if "WQI" in df_with_wqi.columns:
+            gdf["WQI"] = df_with_wqi["WQI"].round(2)
 
-            # Add WQI results back to the original GeoDataFrame
-            if "WQI" in df_with_wqi.columns:
-                gdf["WQI"] = df_with_wqi["WQI"].round(2)
+            def classify(wqi):
+                if pd.isna(wqi):
+                    return "Not Available"
+                elif wqi <= 25:
+                    return "Excellent"
+                elif wqi <= 50:
+                    return "Good"
+                elif wqi <= 75:
+                    return "Poor"
+                elif wqi <= 100:
+                    return "Very Poor"
+                else:
+                    return "Unfit for Drinking"
 
-                # Add WQI classification
-                def get_wqi_class(wqi_value):
-                    if pd.isna(wqi_value):
-                        return "Not Available"
-                    elif wqi_value <= 25:
-                        return "Excellent"
-                    elif wqi_value <= 50:
-                        return "Good"
-                    elif wqi_value <= 75:
-                        return "Poor"
-                    elif wqi_value <= 100:
-                        return "Very Poor"
-                    else:
-                        return "Unfit for Drinking"
+            gdf["WQI_Class"] = gdf["WQI"].apply(classify)
 
-                gdf["WQI_Class"] = gdf["WQI"].apply(get_wqi_class)
+    return gdf
 
 
-        geojson_str = gdf.to_json()
-        geojson_dict = json.loads(geojson_str)
 
-        response = JsonResponse(geojson_dict, safe=False)
+
+@csrf_exempt
+def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
+    # """
+    # API endpoint to return shapefile data as GeoJSON, optionally filtered by subdistricts
+    # """
+    # try:
+    #     if season == "premonsoon":
+    #         shp_path = os.path.join(
+    #             settings.MEDIA_ROOT,
+    #             "rwm_data",
+    #             "DRAINS_Final_point",
+    #             "DRAINS_Final_point.shp",
+    #         )
+    #     elif season == "monsoon":
+    #         shp_path = os.path.join(
+    #             settings.MEDIA_ROOT, "rwm_data", "monsoon", "monsoon.shp"
+    #         )
+        
+
+    #     # shp_path = os.path.join(settings.MEDIA_ROOT, 'rwm_data', 'DRAINS_Final_point', 'DRAINS_Final_point.shp')
+    #     if not os.path.exists(shp_path):
+    #         # logger.error(f"Shapefile not found at: {shp_path}")
+    #         return JsonResponse({"error": "Shapefile not found"}, status=404)
+
+    #     gdf = gpd.read_file(shp_path)
+
+    #     # Handle POST request with subdistrict filtering
+    #     if request.method == "POST":
+    #         try:
+    #             body = json.loads(request.body)
+    #             sub_district_codes = body.get("Sub_District_Code", [])
+    #             Stretch_IDs = body.get("Stretch_ID", [])
+    #             # Convert sub_district_codes to a set for efficient lookup
+    #             if data_type == "subdistbased":
+    #                 if sub_district_codes:
+    #                     # Filter by subdistrict codes if provided
+    #                     # Assuming your shapefile has a column for subdistrict codes
+    #                     # Adjust the column name based on your actual shapefile structure
+
+    #                     subdistrict_column = (
+    #                         "Sub_Dist_1"  # or whatever column name you use
+    #                     )
+    #                     Stretch_column = "Stretch_ID"
+    #                     if subdistrict_column in gdf.columns:
+
+    #                         # Convert both sides to strings for consistent comparison
+    #                         gdf[subdistrict_column] = gdf[subdistrict_column].astype(
+    #                             str
+    #                         )
+    #                         sub_district_codes = [
+    #                             str(code).strip() for code in sub_district_codes
+    #                         ]
+
+    #                         gdf = gdf[gdf[subdistrict_column].isin(sub_district_codes)]
+    #                         # print(
+    #                         #     f"SUBDISTRICT Filtered shapefile to {len(gdf)} features for subdistricts: {sub_district_codes}"
+    #                         # )
+                        
+    #             elif data_type == "stretchbased":
+    #                 if Stretch_IDs:
+    #                     # Filter by subdistrict codes if provided
+    #                     # Assuming your shapefile has a column for subdistrict codes
+    #                     # Adjust the column name based on your actual shapefile structure
+    #                     Stretch_column = "Stretch_ID"
+    #                     if Stretch_column in gdf.columns:
+
+    #                         gdf[Stretch_column] = gdf[Stretch_column].astype(str)
+    #                         Stretch_IDs = [str(code).strip() for code in Stretch_IDs]
+
+    #                         gdf = gdf[gdf[Stretch_column].isin(Stretch_IDs)]
+    #                         # print(
+    #                         #     f"STRETCH Filtered shapefile to {len(gdf)} features for subdistricts: {Stretch_IDs}"
+    #                         # )
+                        
+
+    #         except json.JSONDecodeError:
+    #             pass  # Continue h unfiltered data if JSON is invalid
+    #     # Check if geodataframe has data before WQI calculation
+    #     if not gdf.empty:
+    #         # Convert GeoDataFrame to regular DataFrame for WQI calculation
+    #         df_for_wqi = gdf.copy()
+
+    #         # Create field mapping dictionary for consistent naming
+    #         field_mapping = {
+    #             "S_No_": "s_no",
+    #             "Sub_Distri": "Sub_District",
+    #             "Sub_Dist_1": "Sub_District_Code",
+    #             "District_C": "District_Code",
+    #             "Sampling": "sampling",
+    #             "Location": "location",
+    #             "STATUS": "status",
+    #             "LATITUDE": "latitude",
+    #             "LONGITUDE": "longitude",
+    #             "pH": "ph",
+    #             "Temperatur": "temperature",
+    #             "TDS_mg_L_": "tds",
+    #             "EC__S_cm_": "ec",
+    #             "TSS_mg_L_": "tss",
+    #             "TS_mg_L_": "ts",
+    #             "DO_mg_L_": "do",
+    #             "Turbidity_": "turbidity",
+    #             "ORP": "orp",
+    #             "COD_mg_L_": "cod",
+    #             "BOD_mg_L_": "bod",
+    #             "Chloride_m": "chloride",
+    #             "Nitrate_mg": "nitrate",
+    #             "Hardness_m": "hardness",
+    #             "Faecal_Col": "faecal_coliform",
+    #             "Total_Coli": "total_coliform",
+    #             "Stretch_ID": "Stretch_ID",
+    #         }
+
+    #         # Rename columns that exist in the dataframe
+    #         existing_mappings = {
+    #             old: new
+    #             for old, new in field_mapping.items()
+    #             if old in df_for_wqi.columns
+    #         }
+    #         df_for_wqi = df_for_wqi.rename(columns=existing_mappings)
+
+    #         # Ensure numeric columns are properly typed for WQI calculation
+    #         numeric_columns = [
+    #             "ph",
+    #             "temperature",
+    #             "tds",
+    #             "ec",
+    #             "tss",
+    #             "ts",
+    #             "do",
+    #             "turbidity",
+    #             "orp",
+    #             "cod",
+    #             "bod",
+    #             "chloride",
+    #             "nitrate",
+    #             "hardness",
+    #             "faecal_coliform",
+    #             "total_coliform",
+    #         ]
+
+    #         for col in numeric_columns:
+    #             if col in df_for_wqi.columns:
+    #                 df_for_wqi[col] = pd.to_numeric(df_for_wqi[col], errors="coerce")
+
+    #         # print(f"Starting WQI calculation for {len(df_for_wqi)} features...")
+
+    #         # Apply WQI calculation using your existing function
+    #         df_with_wqi = WQI(df_for_wqi, pcm, labels)
+
+    #         # Add WQI results back to the original GeoDataFrame
+    #         if "WQI" in df_with_wqi.columns:
+    #             gdf["WQI"] = df_with_wqi["WQI"].round(2)
+
+    #             # Add WQI classification
+    #             def get_wqi_class(wqi_value):
+    #                 if pd.isna(wqi_value):
+    #                     return "Not Available"
+    #                 elif wqi_value <= 25:
+    #                     return "Excellent"
+    #                 elif wqi_value <= 50:
+    #                     return "Good"
+    #                 elif wqi_value <= 75:
+    #                     return "Poor"
+    #                 elif wqi_value <= 100:
+    #                     return "Very Poor"
+    #                 else:
+    #                     return "Unfit for Drinking"
+
+    #             gdf["WQI_Class"] = gdf["WQI"].apply(get_wqi_class)
+
+
+    #     geojson_str = gdf.to_json()
+    #     geojson_dict = json.loads(geojson_str)
+
+    #     response = JsonResponse(geojson_dict, safe=False)
+    #     response["Access-Control-Allow-Origin"] = "*"
+    #     response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    #     response["Access-Control-Allow-Headers"] = "Content-Type"
+    #     return response
+
+    # except Exception as e:
+    #     # logger.error(f"Error processing shapefile: {str(e)}")
+    #     response = JsonResponse(
+    #         {"error": "Failed to process shapefile data"}, status=500
+    #     )
+    #     response["Access-Control-Allow-Origin"] = "*"
+    #     return response
+    
+    
+    try:
+        body = json.loads(request.body) if request.method == "POST" else {}
+
+        gdf = get_points_shapefile_gdf(
+            data_type=data_type,
+            season=season,
+            sub_district_codes=body.get("Sub_District_Code"),
+            stretch_ids=body.get("Stretch_ID"),
+        )
+
+        response = JsonResponse(json.loads(gdf.to_json()), safe=False)
         response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Content-Type"
         return response
 
     except Exception as e:
-        # logger.error(f"Error processing shapefile: {str(e)}")
-        response = JsonResponse(
-            {"error": "Failed to process shapefile data"}, status=500
-        )
-        response["Access-Control-Allow-Origin"] = "*"
-        return response
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @csrf_exempt
@@ -4273,269 +4437,6 @@ def get_river_buffer_service(stretch_ids):
         return None
 
 
-@api_view(["POST"])
-@permission_classes([AllowAny])
-@csrf_exempt
-def generate_pdf_report_data(request):
-    """
-    PDF REPORT DATA GENERATOR
-    - Subdist-based: Shows subdistrict boundaries
-    - Stretch-based: Shows basin boundary
-    """
-    try:
-        # Parse request
-        data = json.loads(request.body)
-
-        # Common fields
-        attributes = data.get("attributes", [])
-        points_data = data.get("points_data")
-        season = data.get("season", "premonsoon")
-        data_type = data.get("data_type", "subdistbased")
-
-        # Validation
-        if not attributes:
-            return JsonResponse(
-                {"status": "error", "message": "No attributes selected"}, status=400
-            )
-
-        if not points_data:
-            return JsonResponse(
-                {"status": "error", "message": "No water quality points data provided"},
-                status=400,
-            )
-        # ====================
-        # BRANCHING BASED ON DATA TYPE
-        # ====================
-
-        if data_type == "subdistbased":
-
-            # Get subdistrict codes
-            subdistrict_codes = data.get("subdistrict_codes", [])
-
-            if not subdistrict_codes:
-                return JsonResponse(
-                    {"status": "error", "message": "No subdistrict codes provided"},
-                    status=400,
-                )
-            # STEP 1: Load river data
-            river_gdf = load_and_clip_rivers(subdistrict_codes)
-
-            if river_gdf.empty:
-                return JsonResponse(
-                    {"status": "error", "message": "No river data found"}, status=500
-                )
-
-            river_geojson = json.loads(river_gdf.to_json())
-
-            # STEP 2: Load buffer data
-            buffer_gdf = load_and_clip_river_buffer(subdistrict_codes, True)
-
-            if buffer_gdf.empty:
-                return JsonResponse(
-                    {"status": "error", "message": "No buffer data found"}, status=500
-                )
-
-            buffer_geojson = json.loads(buffer_gdf.to_json())
-            
-            # STEP 3: Load subdistrict boundaries from GeoServer
-
-            geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
-            codes_str = ",".join(f"'{code}'" for code in subdistrict_codes)
-
-            params = {
-                "service": "WFS",
-                "version": "1.0.0",
-                "request": "GetFeature",
-                "typeName": f"{WORKSPACE}:B_subdistrict",
-                "outputFormat": "application/json",
-                "CQL_FILTER": f"SUBDIS_COD IN ({codes_str})",
-            }
-
-            auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
-            boundary_response = requests.get(
-                geoserver_wfs_url, params=params, auth=auth, timeout=30
-            )
-
-            if boundary_response.status_code != 200:
-                return JsonResponse(
-                    {
-                        "status": "error",
-                        "message": f"GeoServer error: {boundary_response.status_code}",
-                    },
-                    status=500,
-                )
-
-            boundary_geojson = boundary_response.json()
-
-            if not boundary_geojson.get("features"):
-                return JsonResponse(
-                    {"status": "error", "message": "No subdistricts found"}, status=404
-                )
-
-            boundary_gdf = gpd.GeoDataFrame.from_features(
-                boundary_geojson["features"], crs="EPSG:4326"
-            )
-
-            # Fix CRS if needed
-            bounds_check = boundary_gdf.total_bounds
-            if abs(bounds_check[0]) > 180 or abs(bounds_check[2]) > 180:
-                boundary_gdf = boundary_gdf.set_crs(
-                    "EPSG:32644", allow_override=True
-                ).to_crs("EPSG:4326")
-            # Set identifier for batch processing
-            identifier_codes = subdistrict_codes
-
-        elif data_type == "stretchbased":
-            # Get stretch IDs
-            stretch_ids = data.get("stretch_ids", [])
-
-            if not stretch_ids:
-                return JsonResponse(
-                    {"status": "error", "message": "No stretch IDs provided"},
-                    status=400,
-                )
-
-            # STEP 1: Fetch stretch line geometries
-            river_geojson = get_stretch_lines_service(stretch_ids)
-
-            if not river_geojson:
-                return JsonResponse(
-                    {
-                        "status": "error",
-                        "message": "Failed to fetch stretch line geometries",
-                    },
-                    status=500,
-                )
-
-            river_gdf = gpd.GeoDataFrame.from_features(
-                river_geojson["features"], crs="EPSG:4326"
-            )
-
-            # STEP 2: Fetch river buffer data
-            buffer_geojson = get_river_buffer_service(stretch_ids)
-
-            if not buffer_geojson:
-                return JsonResponse(
-                    {"status": "error", "message": "Failed to fetch river buffer data"},
-                    status=500,
-                )
-
-            buffer_gdf = gpd.GeoDataFrame.from_features(
-                buffer_geojson["features"], crs="EPSG:4326"
-            )
-
-            # STEP 3: Fetch BASIN BOUNDARY from GeoServer
-
-            geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
-
-            params = {
-                "service": "WFS",
-                "version": "1.0.0",
-                "request": "GetFeature",
-                "typeName": f"{WORKSPACE}:basin_boundary",  # ← Basin layer
-                "outputFormat": "application/json",
-            }
-
-            auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
-            boundary_response = requests.get(
-                geoserver_wfs_url, params=params, auth=auth, timeout=30
-            )
-
-            if boundary_response.status_code != 200:
-               
-                # Fallback: use buffer as boundary
-                boundary_gdf = buffer_gdf.copy()
-                boundary_geojson = buffer_geojson
-                
-            else:
-                boundary_geojson = boundary_response.json()
-
-                if not boundary_geojson.get("features"):
-                    # Fallback: use buffer
-                    boundary_gdf = buffer_gdf.copy()
-                    boundary_geojson = buffer_geojson
-                    
-                else:
-                    boundary_gdf = gpd.GeoDataFrame.from_features(
-                        boundary_geojson["features"], crs="EPSG:4326"
-                    )
-
-                    # Fix CRS if needed
-                    bounds_check = boundary_gdf.total_bounds
-                    if abs(bounds_check[0]) > 180 or abs(bounds_check[2]) > 180:
-                        boundary_gdf = boundary_gdf.set_crs(
-                            "EPSG:32644", allow_override=True
-                        ).to_crs("EPSG:4326")
-
-
-            # Set identifier for batch processing
-            identifier_codes = stretch_ids
-
-        else:
-            return JsonResponse(
-                {"status": "error", "message": f"Invalid data_type: {data_type}"},
-                status=400,
-            )
-
-        # ====================
-        # STEP 4: CALL BATCH INTERPOLATION (COMMON FOR BOTH)
-        # ====================
-
-        interpolation_results = batch_interpolation_internal(
-            river_data=river_geojson,
-            river_buffer_data=buffer_geojson,
-            subdist_data=boundary_geojson,  # ← Now uses basin for stretches!
-            points_data=points_data,
-            attributes=attributes,
-            season=season,
-            subdistrict_codes=identifier_codes,
-        )
-
-        if interpolation_results["status"] != "success":
-            return JsonResponse(interpolation_results, status=500)
-
-        # ====================
-        # STEP 5: RETURN COMPLETE RESPONSE
-        # ====================
-
-        return JsonResponse(
-            {
-                "status": "success",
-                "message": "PDF report data generated successfully",
-                "data": {
-                    "data_type": data_type,
-                    "identifier_codes": identifier_codes,
-                    "season": season,
-                    "attributes": attributes,
-                    "interpolation_results": interpolation_results["results"],
-                    "summary": interpolation_results["summary"],
-                    "metadata": {
-                        "timestamp": time.time(),
-                        "boundary_type": (
-                            "subdistrict" if data_type == "subdistbased" else "basin"
-                        ),
-                        "total_features": {
-                            "rivers": len(river_gdf),
-                            "buffers": len(buffer_gdf),
-                            "boundaries": len(boundary_gdf),
-                            "points": len(points_data.get("features", [])),
-                        },
-                    },
-                },
-            }
-        )
-
-    except Exception as e:
-        # print(f"\n❌ PDF REPORT DATA GENERATION FAILED: {str(e)}")
-        import traceback
-
-        traceback.print_exc()
-        return JsonResponse(
-            {"status": "error", "message": str(e), "traceback": traceback.format_exc()},
-            status=500,
-        )
-
-
 def batch_interpolation_internal(
     river_data,
     river_buffer_data,
@@ -4993,48 +4894,16 @@ def start_pdf_report_job(request):
     Response: 202 Accepted with job_id
     """
     
-    # logger.warning(f"[DJANGO BEFORE] pdf_job_lock = {cache.get('pdf_job_lock')}")
-
-    # job_lock_key = f"pdf_job_lock"
-
-    # if cache.get(job_lock_key):
-    #     return Response(
-    #         {"status": "error", "message": "A report is already running"},
-    #         status=429
-    #     )
-
-    # Set lock for 10 minutes (remove earlier on success)
-    # cache.set(job_lock_key, True, timeout=600)
-    # logger.warning(f"[DJANGO AFTER SET] pdf_job_lock = {cache.get('pdf_job_lock')}")
-
-
     try:
         data = json.loads(request.body)
 
         # Extract parameters
         attributes = data.get("attributes", [])
-        points_data = data.get("points_data")
+        # points_data = data.get("points_data")
         season = data.get("season", "premonsoon")
         data_type = data.get("data_type", "subdistbased")
-
-        # Validation
-        if not attributes:
-            return Response(
-                {"status": "error", "message": "No attributes selected"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not points_data:
-            return Response(
-                {"status": "error", "message": "No water quality points provided"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # logger.info(f"\n🚀 NEW ASYNC JOB SUBMITTED")
-        # logger.info(f"   Attributes: {len(attributes)}")
-        # logger.info(f"   Season: {season}")
-        # logger.info(f"   Data Type: {data_type}\n")
-
+            
+            
         # Load river data based on data_type
         if data_type == "subdistbased":
             subdistrict_codes = data.get("subdistrict_codes", [])
@@ -5097,7 +4966,17 @@ def start_pdf_report_job(request):
             )
 
             identifier_codes = stretch_ids
-
+            
+            
+        points_gdf = get_points_shapefile_gdf(
+        data_type=data_type,
+        season=season,
+        sub_district_codes=subdistrict_codes if data_type == "subdistbased" else None,
+        stretch_ids=stretch_ids if data_type == "stretchbased" else None,
+        )
+        
+        points_data = json.loads(points_gdf.to_json())
+            
         # SUBMIT CELERY JOB (non-blocking, returns immediately)
         celery_result = submit_batch_interpolation_job.delay(
             attributes=attributes,

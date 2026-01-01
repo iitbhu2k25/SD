@@ -388,7 +388,6 @@ const wqiInfo = getWQIInfo(wqiMean);
         body: JSON.stringify({
           subdistrict_codes: selectedSubDistricts, // ✅ Changed from stretch_ids
           attributes: backendAttributes,
-          points_data: waterQualityData,
           season: selectedSeason,
           data_type: "subdistbased", // ✅ Changed from stretchbased
         }),

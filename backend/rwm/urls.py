@@ -17,9 +17,6 @@ urlpatterns = [
     path('stretch_lines', views.load_stretch_linesAPI, name='stretch-lines'),
     path('test_geoserver', views.test_geoserver_connection, name='test_geoserver'),
     path('health/geoserver', views.geoserver_health_check, name='geoserver_health'),
-    
-    # PDF
-    path('generate-pdf-report-data', views.generate_pdf_report_data, name='generate_pdf_report_data'),
 
 
 # NEW ASYNC ROUTES
