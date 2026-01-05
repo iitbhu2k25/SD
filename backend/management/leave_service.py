@@ -41,7 +41,7 @@ def apply_leave_service(data):
             leave_type=data['leave_type'],
         )
 
-        admin_emails = [leave.supervisor_email, "hr@company.com", "admin@company.com"]
+        admin_emails = [leave.supervisor_email, "vivek.pa.civ25@itbhu.ac.in"]
 
         # URL SAFE EMAIL
         encoded_email = quote(employee.email)
@@ -53,7 +53,7 @@ def apply_leave_service(data):
         frontend_base_url = getattr(settings, "FRONTEND_BASE_URL", "https://lems-two.vercel.app")
         approval_link = f"{frontend_base_url}/dss/management/approve/{encoded_email}?token={approval_token}"
 
-        subject = "✅ New Leave Request Approval"
+        subject = "SLCR-DSS Leave Request "
 
         html_message = f"""
         <div style="font-family:Arial;background:#f4f6f8;padding:30px;">

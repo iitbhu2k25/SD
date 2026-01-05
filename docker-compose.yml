@@ -45,7 +45,7 @@ services:
       - .env
     restart: always
     volumes:
-      - redis_data:/data 
+      - redis_django_data:/data 
 
   celery_django:
     build:
@@ -268,5 +268,6 @@ volumes:
   postgres_cloud_data:
   geoserver_data:
   redis_data:
+  redis_django_data:
   grafana_data:
   postgres_fastm_data:

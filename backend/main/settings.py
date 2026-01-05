@@ -147,6 +147,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://slcrdss.in",
     "https://*.slcrdss.in",
+    "https://lems-two.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -166,6 +167,7 @@ CORS_ALLOWED_HEADERS = [
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'management.middleware.auth_middleware.JWTAuthentication',
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],

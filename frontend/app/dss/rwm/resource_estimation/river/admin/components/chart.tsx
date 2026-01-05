@@ -405,7 +405,7 @@ const wqiInfo = getWQIInfo(wqiMean);
       console.log("Response data:", responseData);
 
       // ==================== WEBSOCKET CONNECTION ====================
-      const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DJANGO_URL}/task/${jobId}/`;
+      const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DJANGO_URL}/task/${jobId}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
