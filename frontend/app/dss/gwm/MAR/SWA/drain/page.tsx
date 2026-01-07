@@ -1,7 +1,7 @@
 // frontend/app/dss/gwm/MAR/SWA/drain/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { LocationProvider, useLocationContext } from '@/contexts/surfacewater_assessment/drain/LocationContext';
 import { StreamFlowProvider, useStreamFlowContext } from '@/contexts/surfacewater_assessment/drain/StreamFlowContext';
 import { MapProvider } from '@/contexts/surfacewater_assessment/drain/MapContext';
@@ -15,7 +15,7 @@ import MapPage from './components/Map';
 import EFlow from './components/EFlow';
 import Climate from './components/climate';
 import ResizablePanels from './components/resizable-panels';
-import { BarChart3, Droplets, Leaf, CloudRain } from 'lucide-react';
+import { BarChart3, Droplets, Leaf, CloudRain, ChevronUp, ChevronDown } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import ExportPDF from './components/Export/ExportPDF';
 import { usePdf, PdfProvider } from './components/pdfprovider';
@@ -32,12 +32,62 @@ const tabs = [
 const MainContent: React.FC = () => {
   const { selectionConfirmed, selectedSubbasins } = useLocationContext();
   const [activeTab, setActiveTab] = useState<TabType>('streamflow');
-  const { series, hasData } = useStreamFlowContext();
+  const [isLocationVisible, setIsLocationVisible] = useState(true);
+  const { series, hasData, fetchData: fetchStreamFlow } = useStreamFlowContext();
+  const { run: runSurfaceWater, results: surfaceWaterResults } = useSurfaceWater();
+  const { run: runEflow, results: eflowResults } = useEflow();
+  const { run: runClimate, results: climateResults, selectedScenario, selectedStartYear, selectedEndYear } = useClimate();
 
   const { isPdfReady, isPreparingPdf, pdfError, pdfData, handlePreparePDF, resetPdf } = usePdf();
 
+  // Track which tabs have been fetched
+  const fetchedTabs = useRef<Set<TabType>>(new Set());
+
+  // Reset fetched tabs when selection changes
+  useEffect(() => {
+    if (!selectionConfirmed) {
+      fetchedTabs.current.clear();
+    }
+  }, [selectionConfirmed, selectedSubbasins]);
+
+  // Hide location section after confirmation
+  useEffect(() => {
+    if (selectionConfirmed) {
+      setIsLocationVisible(false);
+    }
+  }, [selectionConfirmed]);
+
   const handleTabClick = (tabId: TabType) => {
     setActiveTab(tabId);
+    
+    // Only run API if this tab hasn't been fetched yet
+    if (fetchedTabs.current.has(tabId)) {
+      console.log(`Tab "${tabId}" already fetched, using cached data`);
+      return;
+    }
+
+    // Mark this tab as fetched and run its API
+    fetchedTabs.current.add(tabId);
+    console.log(`Fetching data for tab "${tabId}"...`);
+    
+    switch (tabId) {
+      case 'streamflow':
+        fetchStreamFlow(selectedSubbasins.map(s => s.sub));
+        break;
+      case 'surfacewater':
+        runSurfaceWater();
+        break;
+      case 'eflow':
+        runEflow();
+        break;
+      case 'climate':
+        runClimate({ 
+          scenario: selectedScenario, 
+          start_year: selectedStartYear, 
+          end_year: selectedEndYear 
+        });
+        break;
+    }
   };
 
   const ActiveComponent = tabs.find(t => t.id === activeTab)?.component || StreamFlow;
@@ -51,7 +101,41 @@ const MainContent: React.FC = () => {
 
               {/* Location Section */}
               <div className="sticky top-0 bg-white z-10 pb-4 border-b border-gray-200">
-                <LocationPage />
+                {/* Toggle Button - Only show after confirmation */}
+                {selectionConfirmed && (
+                  <div className="flex justify-end mb-3">
+                    <button
+                      onClick={() => setIsLocationVisible(!isLocationVisible)}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 
+                               bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200
+                               border border-gray-300 shadow-sm"
+                    >
+                      {isLocationVisible ? (
+                        <>
+                          <ChevronUp className="w-4 h-4" />
+                          Hide Location
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          Show Location
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Location Component with smooth collapse animation */}
+                <div
+                  className={`
+                    transition-all duration-300 ease-in-out overflow-visible
+                    ${isLocationVisible ? 'max-h-[2000px] opacity-100 pointer-events-auto' : 'max-h-0 opacity-0 pointer-events-none'}
+                  `}
+                >
+                  <div className="relative z-50">
+                    <LocationPage />
+                  </div>
+                </div>
               </div>
 
               {/* Download PDF Button */}
@@ -145,6 +229,8 @@ const MainContent: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {tabs.map((tab) => {
                       const isActive = activeTab === tab.id;
+                      const isFetched = fetchedTabs.current.has(tab.id as TabType);
+                      
                       return (
                         <button
                           key={tab.id}
@@ -161,6 +247,9 @@ const MainContent: React.FC = () => {
                           <span className="text-sm font-semibold text-center leading-tight">
                             {tab.label}
                           </span>
+                          {isFetched && (
+                            <span className={`absolute top-1 right-1 w-2 h-2 rounded-full ${isActive ? 'bg-green-300' : 'bg-green-500'}`} title="Data loaded" />
+                          )}
                           {isActive && (
                             <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-800 rounded-full" />
                           )}

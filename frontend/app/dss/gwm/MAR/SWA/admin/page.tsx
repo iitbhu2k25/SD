@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 import { LocationProvider, useLocationContext } from "@/contexts/surfacewater_assessment/admin/LocationContext";
 import { StreamFlowProvider, useStreamFlowContext } from "@/contexts/surfacewater_assessment/admin/StreamFlowContext";
 import { VillageSurplusProvider } from "@/contexts/surfacewater_assessment/admin/VillageSurplusContext";
-import { EflowProvider } from "@/contexts/surfacewater_assessment/admin/EflowContext";
+import { EflowProvider, useEflowContext } from "@/contexts/surfacewater_assessment/admin/EflowContext";
 import { MapProvider } from "@/contexts/surfacewater_assessment/admin/MapContext";
-import { ClimateAdminProvider } from "@/contexts/surfacewater_assessment/admin/ClimateContext";
+import { ClimateAdminProvider, useClimateAdmin } from "@/contexts/surfacewater_assessment/admin/ClimateContext";
 import LocationPage from './components/Location';
 import MapPage from './components/Map';
 import StreamFlow from './components/StreamFlow';
@@ -21,6 +22,15 @@ type TabType = 'fdc' | 'surplus' | 'eflow' | 'climate';
 const MainContent: React.FC = () => {
   const { selectionConfirmed, getConfirmedSubdistrictIds } = useLocationContext();
   const { fetchData: fetchStreamFlowData, hasData: hasStreamFlowData } = useStreamFlowContext();
+  const { fetchData: fetchEflowData, hasData: hasEflowData } = useEflowContext();
+  const { 
+    run: runClimate, 
+    results: climateResults,
+    selectedSourceId,
+    selectedStartYear,
+    selectedEndYear 
+  } = useClimateAdmin();
+  
   const [activeTab, setActiveTab] = useState<TabType>('fdc');
   const [isLocationVisible, setIsLocationVisible] = useState(true);
 
@@ -34,16 +44,36 @@ const MainContent: React.FC = () => {
   const handleTabClick = (tabId: TabType) => {
     setActiveTab(tabId);
 
-    // Trigger data fetch when clicking FDC tab if data not loaded
-    if (tabId === 'fdc' && !hasStreamFlowData && selectionConfirmed) {
-      const ids = getConfirmedSubdistrictIds();
-      if (ids.length > 0) {
-        fetchStreamFlowData(ids);
-      }
-    }
-    // Add similar logic for other tabs as needed
-  };
+    if (!selectionConfirmed) return;
+    
+    const ids = getConfirmedSubdistrictIds();
+    if (ids.length === 0) return;
 
+    // Trigger data fetch for FDC tab
+    if (tabId === 'fdc' && !hasStreamFlowData) {
+      fetchStreamFlowData(ids);
+    }
+    
+    // Trigger data fetch for Eflow tab
+    if (tabId === 'eflow' && !hasEflowData) {
+      fetchEflowData(ids);
+    }
+    
+    // Trigger data fetch for Climate tab
+    // Check if climate results exist instead of hasData
+    if (tabId === 'climate' && (!climateResults || Object.keys(climateResults).length === 0)) {
+      runClimate({
+        source_id: Number(selectedSourceId) || 126,
+        start_year: selectedStartYear || 2000,
+        end_year: selectedEndYear || 2100
+      });
+    }
+  };
+  useEffect(() => {
+    if (selectionConfirmed) {
+      setIsLocationVisible(false);
+    }
+  }, [selectionConfirmed]);
   const ActiveComponent = tabs.find(t => t.id === activeTab)?.component || StreamFlow;
 
   return (

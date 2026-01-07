@@ -1,47 +1,55 @@
-// frontend/app/dss/gwm/MAR/SWA/drain/components/surfacewater.tsx
 'use client';
 
-import React from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
-} from 'recharts';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import type Plotly from 'plotly.js-dist-min';
 import { useSurfaceWater } from '@/contexts/surfacewater_assessment/drain/SurfaceWater';
+
+const Plot = dynamic(() => import('react-plotly.js'), {
+  ssr: false,
+});
+
+const BLUE = '#2563eb';
+const RED = '#dc2626';
 
 type SubbasinResult = {
   subbasin: number;
   years: number[];
   timeseries: { day: number; flow: number }[];
   Q25_cms?: number;
-  image_base64?: string; // NEW
+  image_base64?: string;
 };
 
 function getFullscreenElement(): Element | null {
   // @ts-ignore
-  return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+  return (
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  );
 }
 
 async function requestElFullscreen(el: HTMLElement) {
-  // @ts-ignore
-  const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-  if (req) {
-    await req.call(el);
-  } else {
-    throw new Error('Fullscreen API not supported');
-  }
+  const req =
+    el.requestFullscreen ||
+    (el as any).webkitRequestFullscreen ||
+    (el as any).mozRequestFullScreen ||
+    (el as any).msRequestFullscreen;
+  if (req) await req.call(el);
+  else throw new Error('Fullscreen API not supported');
 }
 
 async function exitDocFullscreen() {
-  // @ts-ignore
-  const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-  if (exit) {
-    await exit.call(document);
-  }
+  const exit =
+    document.exitFullscreen ||
+    (document as any).webkitExitFullscreen ||
+    (document as any).mozCancelFullScreen ||
+    (document as any).msExitFullscreen;
+  if (exit) await exit.call(document);
 }
 
-// Removed: client SVG-to-PNG exporter
-
 export function buildMergedSeries(results: Record<number, any> | null) {
-
   if (!results) return { merged: [], q25: null, yearsUnion: [], issues: [] as string[] };
 
   const perDay: Record<number, number[]> = {};
@@ -139,7 +147,16 @@ export default function SurfaceWaterCard() {
       }));
   }, [results]);
 
-  const [selectedSub, setSelectedSub] = React.useState<number | null>(null);
+  const [selectedSub, setSelectedSub] = useState<number | null>(null);
+  const [subbasinSearchTerm, setSubbasinSearchTerm] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const chartWrapRef = useRef<HTMLDivElement | null>(null);
+  const plotRef = useRef<any>(null);
+  
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [xRange, setXRange] = useState<[number, number] | null>(null);
+  const [yRange, setYRange] = useState<[number, number] | null>(null);
 
   React.useEffect(() => {
     if (!results) {
@@ -158,10 +175,13 @@ export default function SurfaceWaterCard() {
     return isOk(r) ? r : null;
   }, [results, selectedSub]);
 
-  const tableRows = React.useMemo(() => {
-    if (!selectedResult) return [];
-    return [...selectedResult.timeseries].sort((a, b) => a.day - b.day);
-  }, [selectedResult]);
+  const filteredSubOptions = useMemo(
+    () =>
+      subOptions.filter((opt) =>
+        opt.label.toLowerCase().includes(subbasinSearchTerm.toLowerCase())
+      ),
+    [subOptions, subbasinSearchTerm]
+  );
 
   const selectedQ25 = React.useMemo(() => {
     if (!selectedResult || !Array.isArray(selectedResult.timeseries)) return null;
@@ -180,7 +200,7 @@ export default function SurfaceWaterCard() {
     const xp = exceedPct;
     const fp = sorted;
 
-    const t = Math.min(Math.max(target, xp[0]), xp[xp.length - 1]); // clamp
+    const t = Math.min(Math.max(target, xp[0]), xp[xp.length - 1]);
     let y = fp[fp.length - 1];
     for (let i = 0; i < xp.length - 1; i++) {
       if (t >= xp[i] && t <= xp[i + 1]) {
@@ -195,21 +215,19 @@ export default function SurfaceWaterCard() {
   }, [selectedResult]);
 
   const selectedChartData = React.useMemo(() => {
-    if (!selectedResult) return [];
-    return [...selectedResult.timeseries]
+    if (!selectedResult) return { x: [], y: [] };
+    const sorted = [...selectedResult.timeseries]
       .filter(p => Number.isFinite(p.day))
-      .sort((a, b) => a.day - b.day)
-      .map(p => ({ day: Number(p.day), flow: Number(p.flow) }));
+      .sort((a, b) => a.day - b.day);
+    
+    return {
+      x: sorted.map(p => Number(p.day)),
+      y: sorted.map(p => Number(p.flow))
+    };
   }, [selectedResult]);
 
-  const chartWrapRef = React.useRef<HTMLDivElement | null>(null);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-
   React.useEffect(() => {
-    const handler = () => {
-      const active = !!getFullscreenElement();
-      setIsFullscreen(active);
-    };
+    const handler = () => setIsFullscreen(!!getFullscreenElement());
     document.addEventListener('fullscreenchange', handler);
     document.addEventListener('webkitfullscreenchange', handler as any);
     document.addEventListener('mozfullscreenchange', handler as any);
@@ -222,20 +240,16 @@ export default function SurfaceWaterCard() {
     };
   }, []);
 
-  const toggleFullscreen = React.useCallback(async () => {
+  const toggleFullscreen = useCallback(async () => {
     try {
-      if (isFullscreen) {
-        await exitDocFullscreen();
-      } else if (chartWrapRef.current) {
-        await requestElFullscreen(chartWrapRef.current);
-      }
+      if (isFullscreen) await exitDocFullscreen();
+      else if (chartWrapRef.current) await requestElFullscreen(chartWrapRef.current);
     } catch (e) {
       console.error('Fullscreen error:', e);
     }
   }, [isFullscreen]);
 
-  // NEW: download the server-rendered PNG for selected subbasin
-  const downloadServerPng = React.useCallback(() => {
+  const downloadServerPng = useCallback(() => {
     if (!selectedSub || !results) return;
     const r = (results as any)[selectedSub];
     if (!r || 'error' in r || !r.image_base64) {
@@ -249,6 +263,111 @@ export default function SurfaceWaterCard() {
     a.click();
     a.remove();
   }, [selectedSub, results]);
+
+  const downloadClientPng = useCallback(async () => {
+    try {
+      if (!plotRef.current) return;
+      const gd = plotRef.current.getPlotly ? plotRef.current : plotRef.current.container;
+      // @ts-ignore
+      const imgData = await (window as any).Plotly.toImage(gd, {
+        format: 'png',
+        height: 800,
+        width: 1200,
+      });
+      const a = document.createElement('a');
+      a.href = imgData;
+      a.download = `Subbasin-${selectedSub}_SurfaceWater_plot.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error('Plotly export error', err);
+    }
+  }, [plotRef, selectedSub]);
+
+  const resetAxes = useCallback(() => {
+    setXRange(null);
+    setYRange(null);
+    if (plotRef.current && plotRef.current.relayout) {
+      plotRef.current
+        .relayout({
+          'xaxis.autorange': true,
+          'yaxis.autorange': true,
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const defaultLayout: Partial<Plotly.Layout> = useMemo(
+    () => ({
+      autosize: true,
+      margin: { l: 70, r: 30, t: 40, b: 80 },
+      hovermode: 'x unified',
+      xaxis: {
+        title: { text: 'Day of Year', standoff: 10 },
+        range: xRange ?? undefined,
+        autorange: xRange === null,
+        zeroline: false,
+      },
+      yaxis: {
+        title: { text: 'Flow (cms)' },
+        autorange: yRange === null,
+        range: yRange ?? undefined,
+        zeroline: false,
+        tickformat: '.2f',
+      },
+      shapes:
+        selectedQ25 !== null
+          ? [
+              {
+                type: 'line',
+                x0: 0,
+                x1: 1,
+                xref: 'paper',
+                y0: selectedQ25,
+                y1: selectedQ25,
+                line: { color: RED, dash: 'dash', width: 2 },
+              },
+            ]
+          : [],
+      annotations:
+        selectedQ25 !== null
+          ? [
+              {
+                x: 0.5,
+                y: selectedQ25,
+                xref: 'paper',
+                yref: 'y',
+                text: 'Q25 Threshold',
+                showarrow: false,
+                yshift: 10,
+                font: { color: RED, size: 12, family: 'Inter, Arial' },
+              },
+            ]
+          : [],
+    }),
+    [xRange, yRange, selectedQ25]
+  );
+
+  const traces: Plotly.Data[] = useMemo(() => {
+    if (selectedChartData.x.length === 0) return [];
+    return [
+      {
+        x: selectedChartData.x,
+        y: selectedChartData.y,
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Avg Flow',
+        line: { color: BLUE, width: 2 },
+        hovertemplate: 'Day %{x}<br>%{y:.2f} cms<extra></extra>',
+      },
+    ];
+  }, [selectedChartData]);
+
+  const tableRows = React.useMemo(() => {
+    if (!selectedResult) return [];
+    return [...selectedResult.timeseries].sort((a, b) => a.day - b.day);
+  }, [selectedResult]);
 
   const FullscreenIcon = (
     <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -347,26 +466,72 @@ export default function SurfaceWaterCard() {
               <h4 className="text-lg font-semibold text-gray-900">Selected Subbasin Flow</h4>
 
               {isFullscreen && (
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-700">Subbasin:</label>
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                    value={selectedSub ?? ''}
-                    onChange={(e) => setSelectedSub(e.target.value ? Number(e.target.value) : null)}
-                    disabled={!subOptions.length}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50 min-w-[200px] text-left flex items-center justify-between"
+                    disabled={subOptions.length === 0}
+                    title="Select subbasin"
                   >
-                    <option value="">Select...</option>
-                    {subOptions.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                    <span className="truncate">
+                      {selectedSub !== null
+                        ? subOptions.find((opt) => opt.value === selectedSub)?.label
+                        : 'Select...'}
+                    </span>
+                    <svg
+                      className="w-4 h-4 ml-2 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                      <div className="p-2 border-b border-gray-200">
+                        <input
+                          type="text"
+                          placeholder="Search subbasins..."
+                          value={subbasinSearchTerm}
+                          onChange={(e) => setSubbasinSearchTerm(e.target.value)}
+                          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      </div>
+                      <div className="overflow-y-auto max-h-60">
+                        {filteredSubOptions.length > 0 ? (
+                          filteredSubOptions.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => {
+                                setSelectedSub(opt.value);
+                                setIsDropdownOpen(false);
+                                setSubbasinSearchTerm('');
+                              }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                                selectedSub === opt.value
+                                  ? 'bg-blue-50 text-blue-700 font-medium'
+                                  : 'text-gray-700'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-2 text-sm text-gray-500 text-center">No subbasins found</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
               <div className="text-sm text-gray-600">
-                {selectedChartData.length} data points
+                {selectedChartData.x.length} data points
               </div>
 
               <button
@@ -382,11 +547,18 @@ export default function SurfaceWaterCard() {
                 <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
               </button>
 
-              {/* NEW: Download server PNG for selected subbasin */}
               <button
-                onClick={downloadServerPng}
+                onClick={resetAxes}
                 className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                title="Download PNG (server-rendered)"
+                title="Reset axes / autoscale"
+              >
+                Reset axes
+              </button>
+
+              <button
+                onClick={downloadClientPng}
+                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                title="Download PNG (client-rendered)"
               >
                 <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
@@ -394,59 +566,74 @@ export default function SurfaceWaterCard() {
                 </svg>
                 <span>Download PNG</span>
               </button>
+
+              {selectedSub !== null && (
+                <button
+                  onClick={downloadServerPng}
+                  className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  title="Download PNG (server-rendered)"
+                >
+                  Server PNG
+                </button>
+              )}
             </div>
           </div>
 
-          {selectedChartData.length > 0 ? (
+          {selectedChartData.x.length > 0 ? (
             <div className={isFullscreen ? 'h-[calc(100vh-120px)]' : 'h-120'}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={selectedChartData} margin={{ top: 7, right: 30, left: 20, bottom: 9 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis
-                    dataKey="day"
-                    stroke="#6b7280"
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Day of Year', position: 'insideBottom', offset: -5 }}
-                  />
-                  <YAxis
-                    stroke="#6b7280"
-                    tick={{ fontSize: 12 }}
-                    label={{ value: 'Flow (cms)', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'white',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                    }}
-                    formatter={(value: number, name: string) => [
-                      `${Number(value).toFixed(2)} cms`,
-                      name === 'flow' ? 'Avg Flow' : 'Value',
-                    ]}
-                    labelFormatter={(day: any) => `Day ${day}`}
-                  />
-                  {typeof selectedQ25 === 'number' && (
-                    <ReferenceLine
-                      y={selectedQ25}
-                      stroke="#dc2626"
-                      strokeDasharray="5 5"
-                      label={{ value: 'Q25 Threshold', position: 'top' }}
-                    />
-                  )}
-                  <Line
-                    type="monotone"
-                    dataKey="flow"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={false}
-                    name="flow"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Plot
+                data={traces}
+                layout={defaultLayout}
+                config={{
+                  responsive: true,
+                  displayModeBar: true,
+                  modeBarButtonsToRemove: ['toggleSpikelines', 'sendDataToCloud'],
+                  toImageButtonOptions: {
+                    format: 'png',
+                    filename: `Subbasin_${selectedSub}_surface_water`,
+                    height: 800,
+                    width: 1200,
+                  },
+                }}
+                useResizeHandler
+                style={{ width: '100%', height: '100%' }}
+                onInitialized={(figure, gd) => {
+                  plotRef.current = gd;
+                }}
+                onUpdate={(figure, gd) => {
+                  plotRef.current = gd;
+                }}
+                onRelayout={(event) => {
+                  if (
+                    event['xaxis.range[0]'] ||
+                    event['xaxis.range[1]'] ||
+                    (event['xaxis.range'] && Array.isArray(event['xaxis.range']))
+                  ) {
+                    try {
+                      const x0 = event['xaxis.range[0]'] ?? (event['xaxis.range'] ? event['xaxis.range'][0] : undefined);
+                      const x1 = event['xaxis.range[1]'] ?? (event['xaxis.range'] ? event['xaxis.range'][1] : undefined);
+                      if (typeof x0 === 'number' && typeof x1 === 'number') setXRange([x0, x1]);
+                    } catch {}
+                  }
+                  if (
+                    event['yaxis.range[0]'] ||
+                    event['yaxis.range[1]'] ||
+                    (event['yaxis.range'] && Array.isArray(event['yaxis.range']))
+                  ) {
+                    try {
+                      const y0 = event['yaxis.range[0]'] ?? (event['yaxis.range'] ? event['yaxis.range'][0] : undefined);
+                      const y1 = event['yaxis.range[1]'] ?? (event['yaxis.range'] ? event['yaxis.range'][1] : undefined);
+                      if (typeof y0 === 'number' && typeof y1 === 'number') setYRange([y0, y1]);
+                    } catch {}
+                  }
+                  if (event['xaxis.autorange'] === true) setXRange(null);
+                  if (event['yaxis.autorange'] === true) setYRange(null);
+                }}
+              />
             </div>
           ) : (
-            <div className={`flex items-center justify-center text-gray-500 ${isFullscreen }`}>
+            <div className={`flex items-center justify-center text-gray-500 ${isFullscreen ? 'h-[calc(100vh-120px)]' : 'h-96'}`}>
+              <p>No data available for the selected subbasin</p>
             </div>
           )}
 
@@ -469,19 +656,65 @@ export default function SurfaceWaterCard() {
                 <h4 className="text-lg font-semibold text-gray-900">Subbasin Daily Data</h4>
                 <p className="text-sm text-gray-600 mt-1">Select a subbasin to view its averaged day-wise flow series</p>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-700">Subbasin</label>
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                  value={selectedSub ?? ''}
-                  onChange={(e) => setSelectedSub(e.target.value ? Number(e.target.value) : null)}
-                  disabled={!subOptions.length}
+              <div className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="border rounded-md px-3 py-1.5 text-sm bg-white hover:bg-gray-50 min-w-[200px] text-left flex items-center justify-between"
+                  disabled={subOptions.length === 0}
+                  title="Select subbasin"
                 >
-                  <option value="">Select...</option>
-                  {subOptions.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  <span className="truncate">
+                    {selectedSub !== null
+                      ? subOptions.find((opt) => opt.value === selectedSub)?.label
+                      : 'Select...'}
+                  </span>
+                  <svg
+                    className="w-4 h-4 ml-2 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-1 w-64 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                    <div className="p-2 border-b border-gray-200">
+                      <input
+                        type="text"
+                        placeholder="Search subbasins..."
+                        value={subbasinSearchTerm}
+                        onChange={(e) => setSubbasinSearchTerm(e.target.value)}
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="overflow-y-auto max-h-60">
+                      {filteredSubOptions.length > 0 ? (
+                        filteredSubOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setSelectedSub(opt.value);
+                              setIsDropdownOpen(false);
+                              setSubbasinSearchTerm('');
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
+                              selectedSub === opt.value
+                                ? 'bg-blue-50 text-blue-700 font-medium'
+                                : 'text-gray-700'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-3 py-2 text-sm text-gray-500 text-center">No subbasins found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

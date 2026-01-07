@@ -245,18 +245,18 @@ export default function Eflow() {
     );
   }
 
-  if (!hasData) {
-    return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-        <button
-          onClick={handleFetch}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          Fetch E-flow
-        </button>
-      </div>
-    );
-  }
+  // if (!hasData) {
+  //   return (
+  //     <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+  //       <button
+  //         onClick={handleFetch}
+  //         className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+  //       >
+  //         Fetch E-flow
+  //       </button>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="space-y-6">

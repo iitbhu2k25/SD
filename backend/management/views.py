@@ -399,3 +399,32 @@ class ResetPasswordView(APIView):
                 "success": False,
                 "message": message
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class EmployeeLeaveSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        email = request.data.get("email")
+
+        if not email:
+            return Response(
+                {"success": False, "message": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from .service import get_employee_leave_summary
+
+        success, result = get_employee_leave_summary(email)
+
+        if success:
+            return Response(
+                {"success": True, "data": result},
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"success": False, "message": result},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+

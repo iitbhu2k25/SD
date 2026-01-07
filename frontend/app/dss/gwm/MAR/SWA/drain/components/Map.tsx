@@ -158,6 +158,11 @@ const MapComponent: React.FC = () => {
           </div>
         )}
       </div>
+{/* Info Button */}
+<div className="absolute top-3 left-24 z-20 bg-white border border-gray-600 rounded-full px-3 py-1 shadow-lg text-sm text-red-700">
+  ℹ️ Make single click on polygon to select polygon
+</div>
+
 
       {/* Controls */}
       <div className="absolute top-3 left-10 z-20 flex gap-2">

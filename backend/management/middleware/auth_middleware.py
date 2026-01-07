@@ -65,6 +65,7 @@ class TokenAuthenticationMiddleware:
         '/django/management/send-otp',
         '/django/management/verify-otp',
         '/django/management/reset-password',
+        '/django/management/leavebalance',
         # ⚠️ remove this, it will never match because of <path:email>:
         # '/django/management/leave-employee-email-get/<path:email>'
     }

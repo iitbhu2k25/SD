@@ -2,15 +2,16 @@
 # backend/management/service.py
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
-from django.db.models import Q
+from django.db.models import Q, Sum
 from .models import PersonalAdmin, PersonalEmployee
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from .serializers import EmployeeRegisterSerializer, EmployeeLoginSerializer
 import random
 from django.utils import timezone
 from datetime import timedelta
 from django.core.mail import send_mail
+from .models import PersonalEmployee, LeaveEmployee
 
 from .models import OTPVerification
 
@@ -363,3 +364,148 @@ def reset_password_service(email, user_type, new_password, otp):
         
     except Exception as e:
         return False, f"Error: {str(e)}"
+    
+
+
+
+POSITION_OPTIONS = [
+    'Project Attendant',
+    'Scientific Assistant/Field Worker',
+    'Project Asst (Tech)',
+    'JRF',
+    'SRF',
+    'YP (Young Professional)',
+    'RA-I',
+    'RA-II',
+    'RA-III',
+    'Senior Project Manager',
+    'Senior Project Scientific',
+    'Consultant',
+    'Lab Technician',
+]
+
+def get_employee_leave_summary(email):
+    try:
+        employee = PersonalEmployee.objects.get(email=email)
+
+        leaves = LeaveEmployee.objects.filter(
+            employee_email=employee,
+            approval_status='approved'
+        )
+
+        # ---------------------------
+        # BASIC EMPLOYEE INFO
+        # ---------------------------
+        position = employee.position or ""
+        joining_date = employee.joining_date
+
+        is_jrf = 'jrf' in position.lower()
+        is_yp = 'yp' in position.lower()
+
+        # ---------------------------
+        # LEAVE TAKEN (TYPE-WISE)
+        # ---------------------------
+        leave_totals = leaves.values('leave_type').annotate(
+            total=Sum('total_days')
+        )
+
+        taken = {
+            'CL': 0,
+            'EL': 0,
+            'NormalLeave': 0,
+            'HalfDay': 0,
+            'LWP': 0,
+        }
+
+        for row in leave_totals:
+            lt = row['leave_type']
+            if lt in taken:
+                taken[lt] += row['total'] or 0
+
+        # Half day always counts as 0.5
+        taken['HalfDay'] = taken['HalfDay'] * 0.5
+
+        total_taken_days = (
+            taken['CL'] +
+            taken['EL'] +
+            taken['NormalLeave'] +
+            taken['HalfDay'] +
+            taken['LWP']
+        )
+
+        # ---------------------------
+        # ENTITLEMENT RULES
+        # ---------------------------
+        today = date.today()
+
+        years_completed = max(0, today.year - joining_date.year)
+
+        CL_PER_YEAR = 8
+        EL_PER_MONTH = 2.5
+        NL_PER_MONTH = 1.5  # only YP (from Jan 2026)
+
+        # ---- CL ----
+        total_cl_allowed = CL_PER_YEAR
+        remaining_cl = max(0, total_cl_allowed - taken['CL'] - taken['HalfDay'])
+
+        # ---- EL ----
+        if is_jrf or is_yp:
+            total_el_allowed = 0
+            remaining_el = 0
+        else:
+            months_since_joining = years_completed * 12
+            total_el_allowed = months_since_joining * EL_PER_MONTH
+            remaining_el = max(0, total_el_allowed - taken['EL'])
+
+        # ---- Normal Leave (YP only) ----
+        if is_yp and today >= date(2026, 1, 1):
+            months_since_2026 = (today.year - 2026) * 12 + today.month
+            total_nl_allowed = months_since_2026 * NL_PER_MONTH
+            remaining_nl = max(0, total_nl_allowed - taken['NormalLeave'] - taken['HalfDay'])
+        else:
+            total_nl_allowed = 0
+            remaining_nl = 0
+
+        # ---------------------------
+        # WHAT EMPLOYEE CAN TAKE
+        # ---------------------------
+        allowed_leave_types = []
+
+        if is_yp:
+            allowed_leave_types = ['NormalLeave', 'HalfDay', 'LWP']
+        else:
+            allowed_leave_types = ['CL', 'HalfDay', 'LWP']
+            if not is_jrf:
+                allowed_leave_types.append('EL')
+
+        # ---------------------------
+        # RESPONSE
+        # ---------------------------
+        return True, {
+            "employee": {
+                "name": employee.name,
+                "email": employee.email,
+                "position": employee.position,
+                "joining_date": employee.joining_date,
+                "department": employee.department,
+            },
+            "leave_taken": taken,
+            "total_leave_taken_days": total_taken_days,
+            "remaining_leave": {
+                "CL": remaining_cl,
+                "EL": remaining_el,
+                "NormalLeave": remaining_nl,
+                "LWP": "Unlimited (Unpaid)",
+            },
+            "future_leave_allowed": allowed_leave_types,
+            "flags": {
+                "isJRF": is_jrf,
+                "isYP": is_yp,
+            }
+        }
+
+    except PersonalEmployee.DoesNotExist:
+        return False, "Employee not found"
+
+    except Exception as e:
+        return False, str(e)
