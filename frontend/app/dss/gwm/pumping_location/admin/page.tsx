@@ -85,43 +85,9 @@ const MainContent = () => {
           {displayRaster.find((item) => item.file_name === "Pumping_location") &&
             tableData.length === 0 && (
               <section className="p-5 bg-white rounded-2xl border border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-semibold text-gray-800">
-                    Input Method
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-sm ${!uploadCsv ? "text-blue-600" : "text-gray-400"
-                        }`}
-                    >
-                      Manual
-                    </span>
-                    <button
-                      onClick={() => setUploadCsv(!uploadCsv)}
-                      className={`relative inline-flex h-6 w-12 rounded-full transition-colors duration-300 focus:outline-none ${uploadCsv ? "bg-blue-600" : "bg-gray-300"
-                        }`}
-                    >
-                      <span
-                        className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transform transition-transform ${uploadCsv ? "translate-x-6" : ""
-                          }`}
-                      />
-                    </button>
-                    <span
-                      className={`text-sm ${uploadCsv ? "text-blue-600" : "text-gray-400"
-                        }`}
-                    >
-                      CSV
-                    </span>
-                  </div>
-                </div>
+               
 
-                {uploadCsv ? (
-                  <CsvUploader />
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Click on the map to mark pumping locations manually.
-                  </p>
-                )}
+                <CsvUploader />
 
                 {well_points?.length > 0 && (
                   <div className="mt-4 flex justify-end">

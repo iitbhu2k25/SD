@@ -66,7 +66,7 @@ class GWPL_Table_input(BaseModel):
         from_attributes = True
 
 class GWPL_Table_output(BaseModel):
-    well_id: int = Field(..., alias="Well_id")
+    well_id: str = Field(..., alias="Well_id")
     groundwater_table: float = Field(..., alias="Groundwater table")
     groundwater_trends: float = Field(..., alias="Groundwater trends")
     slope: float = Field(..., alias="Slope")
@@ -82,14 +82,6 @@ class GWPL_output(BaseModel):
     table : List[GWPL_Table_output]
     well_points : list
 
-# "Well_id": "7",
-#         "Groundwater table": 10.375,
-#         "Groundwater trends": -0.0869717076420784,
-#         "Slope": 3.199601411819458,
-#         "Specific yield": 0.09668262302875519,
-#         "slope per year": -0.0869717076420784,
-#         "Merit Score": 0.6592300534248352,
-#         "Rank": 1
 class STPsuitabilityInput(BaseModel):
     data: List[Raster_operation_input] = None
     clip: List[int] = None

@@ -11,7 +11,7 @@ import GeoJSON from "ol/format/GeoJSON";
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import Image from "next/image";
 import { doubleClick, pointerMove } from "ol/events/condition";
-import { fromLonLat } from "ol/proj";
+import { fromLonLat, toLonLat } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import Select from "ol/interaction/Select";
@@ -43,6 +43,7 @@ const Mapping: React.FC = () => {
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
+
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
   const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0, result: 0, wells: 0 });
@@ -62,9 +63,14 @@ const Mapping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
-  const [selectedRadioLayer, setSelectedRadioLayer] = useState("");
+  // New states for adding well points
+  const [isAddingWellPoint, setIsAddingWellPoint] = useState(false);
+  const [showWellDialog, setShowWellDialog] = useState(false);
+  const [pendingWellCoordinates, setPendingWellCoordinates] = useState<[number, number] | null>(null);
+  const mapWellIdRef = useRef<number>(0);
 
-  const { displayRaster, selectedvillages, setdisplay_raster, well_points } = useLocation();
+
+  const { displayRaster, selectedvillages, setdisplay_raster, well_points, setwell_points } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -74,9 +80,8 @@ const Mapping: React.FC = () => {
     handleLayerSelection,
     resultLayer,
     selectedradioLayer,
-
   } = useMap();
-  const { selectedCategory, setTableData, setRasterLayerInfo, rasterLayerInfo } = useCategory();
+  const { setRasterLayerInfo, rasterLayerInfo } = useCategory();
 
   // Helper functions
   const toggleFullScreen = () => {
@@ -113,7 +118,132 @@ const Mapping: React.FC = () => {
     });
   };
 
+  // Toggle adding well point mode
+  const toggleAddingWellPoint = () => {
+    const newState = !isAddingWellPoint;
+    setIsAddingWellPoint(newState);
 
+    if (newState) {
+      // Entering add mode - disable interactions and set cursor
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(false);
+      }
+      if (hoverInteractionRef.current) {
+        hoverInteractionRef.current.setActive(false);
+      }
+      if (mapRef.current) {
+        mapRef.current.style.cursor = 'crosshair';
+      }
+      console.log("Add well point mode: ENABLED");
+    } else {
+      // Exiting add mode - re-enable interactions and reset cursor
+      if (selectInteractionRef.current) {
+        selectInteractionRef.current.setActive(true);
+      }
+      if (hoverInteractionRef.current) {
+        hoverInteractionRef.current.setActive(true);
+      }
+      if (mapRef.current) {
+        mapRef.current.style.cursor = 'default';
+      }
+      console.log("Add well point mode: DISABLED");
+    }
+  };
+
+  // Add well point after confirmation
+  const confirmAddWellPoint = () => {
+    if (!pendingWellCoordinates) {
+      console.log("No pending well coordinates");
+      return;
+    }
+
+    if (!wellPointsLayerRef.current) {
+      alert("Well points layer not initialized. Please wait for the map to load completely.");
+    
+      return;
+    }
+
+    const [lon, lat] = pendingWellCoordinates;
+
+    mapWellIdRef.current += 1;
+    const wellId = `M${mapWellIdRef.current}`;
+    const newWellPoint: CsvRow = {
+      Well_id: wellId,
+      Distance: 'N/A',
+      Longitude: lon.toString(),
+      Latitude: lat.toString(),
+    };
+
+    // Create new well point feature
+    const newFeature = new Feature({
+      geometry: new Point(fromLonLat([lon, lat])),
+      Distance: 'N/A',
+      Longitude: lon,
+      Latitude: lat,
+      featureType: 'well_point'
+    });
+
+    const source = wellPointsLayerRef.current.getSource();
+
+    if (source) {
+      source.addFeature(newFeature);
+      // Force layer refresh
+      wellPointsLayerRef.current.changed();
+      mapInstanceRef.current?.render();
+
+      // Update feature count
+      const newCount = source.getFeatures().length;
+      setFeatureCounts(prev => ({ ...prev, wells: newCount }));
+      const currentWellPoints = well_points || [];
+      const updatedWellPoints = [...currentWellPoints, newWellPoint];
+      setwell_points(updatedWellPoints);
+
+      // Zoom to the new well point
+      if (mapInstanceRef.current) {
+        const view = mapInstanceRef.current.getView();
+        view.animate({
+          center: fromLonLat([lon, lat]),
+          duration: 500,
+          zoom: Math.max(view.getZoom() || 10, 12)
+        });
+      }
+    } else {
+      console.error("Well points source is null");
+      alert("Failed to add well point - source not available");
+    }
+
+    // Reset state
+    setShowWellDialog(false);
+    setPendingWellCoordinates(null);
+
+    // Re-enable interactions
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(true);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(true);
+    }
+  
+  };
+
+  // Cancel adding well point
+  const cancelAddWellPoint = () => {
+    setShowWellDialog(false);
+    setPendingWellCoordinates(null);
+    setIsAddingWellPoint(false);
+
+    // Re-enable interactions
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.setActive(true);
+    }
+    if (hoverInteractionRef.current) {
+      hoverInteractionRef.current.setActive(true);
+    }
+    if (mapRef.current) {
+      mapRef.current.style.cursor = 'default';
+    }
+    console.log("Add well point cancelled");
+  };
 
   const createVectorStyle = (isSecondary = false, isResult = false) => (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
@@ -197,6 +327,7 @@ const Mapping: React.FC = () => {
 
     return styles;
   };
+
   useEffect(() => {
     if (primaryLayerRef.current && featureCounts.secondary > 0) {
       primaryLayerRef.current.setVisible(!showSecondaryLayer);
@@ -204,6 +335,7 @@ const Mapping: React.FC = () => {
       primaryLayerRef.current.setVisible(true);
     }
   }, [showSecondaryLayer, featureCounts.secondary]);
+
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -293,54 +425,48 @@ const Mapping: React.FC = () => {
     };
   }, []);
 
-
-
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     // Remove existing well points layer
     if (wellPointsLayerRef.current) {
+   
       mapInstanceRef.current.removeLayer(wellPointsLayerRef.current);
       wellPointsLayerRef.current = null;
     }
 
-    // If no well points data, reset and return
-    if (!well_points || well_points.length === 0) {
-      setFeatureCounts(prev => ({ ...prev, wells: 0 }));
-      return;
+    // Create features from well_points data (if any)
+    let features: Feature[] = [];
+
+    if (well_points && well_points.length > 0) {
+   
+
+      features = well_points.map((well: CsvRow) => {
+        const lon = parseFloat(well.Longitude);
+        const lat = parseFloat(well.Latitude);
+        if (isNaN(lon) || isNaN(lat)) {
+          console.warn(`Invalid coordinates for well ${well.Well_id}:`, well);
+          return null;
+        }
+
+      
+
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([lon, lat])),
+          Well_id: well.Well_id,
+          Distance: well.Distance || 'N/A',
+
+          Longitude: lon,
+          Latitude: lat,
+          featureType: 'well_point'
+        });
+        return feature;
+      }).filter(f => f !== null) as Feature[];
     }
 
-    console.log("Creating well points layer with data:", well_points);
 
-    // Create features from well_points data
-    const features = well_points.map((well: CsvRow) => {
-      const lon = parseFloat(well.Longitude);
-      const lat = parseFloat(well.Latitude);
-      if (isNaN(lon) || isNaN(lat)) {
-        console.warn(`Invalid coordinates for well ${well.Well_id}:`, well);
-        return null;
-      }
 
-      console.log(`Creating feature for well ${well.Well_id} at [${lon}, ${lat}]`);
-
-      const feature = new Feature({
-        geometry: new Point(fromLonLat([lon, lat])),
-        Well_id: well.Well_id,
-        Distance: well.Distance || 'N/A',
-        Longitude: lon,
-        Latitude: lat,
-        featureType: 'well_point' 
-      });
-      return feature;
-    }).filter(f => f !== null);
-
-    if (features.length === 0) {
-      console.warn("No valid well point features created");
-      setFeatureCounts(prev => ({ ...prev, wells: 0 }));
-      return;
-    }
-
-    // Create vector source and layer
+    // Create vector source and layer (always, even if empty)
     const wellSource = new VectorSource({
       features: features,
     });
@@ -356,23 +482,23 @@ const Mapping: React.FC = () => {
     wellPointsLayerRef.current = wellLayer;
     setFeatureCounts(prev => ({ ...prev, wells: features.length }));
 
-    console.log(`Successfully added ${features.length} well points to map`);
-
-    // Fit map to well points
-    setTimeout(() => {
-      if (features.length > 0 && mapInstanceRef.current) {
-        const extent = wellSource.getExtent();
-        console.log("Well points extent:", extent);
-        if (extent && extent.every(val => isFinite(val))) {
-          mapInstanceRef.current.getView().fit(extent, {
-            padding: [100, 100, 100, 100],
-            duration: 1000,
-            maxZoom: 12,
-          });
+    // Fit map to well points if any exist
+    if (features.length > 0) {
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          const extent = wellSource.getExtent();
+        
+          if (extent && extent.every(val => isFinite(val))) {
+            mapInstanceRef.current.getView().fit(extent, {
+              padding: [100, 100, 100, 100],
+              duration: 1000,
+              maxZoom: 12,
+            });
+          }
         }
-      }
-    }, 100);
-  }, [well_points]); // Only depend on well_points data
+      }, 100);
+    }
+  }, [well_points]);
 
   // Separate useEffect for visibility toggle
   useEffect(() => {
@@ -385,9 +511,38 @@ const Mapping: React.FC = () => {
   useEffect(() => {
     if (wellPointsLayerRef.current) {
       wellPointsLayerRef.current.setStyle(createWellPointStyle);
-      mapInstanceRef.current?.render(); // Force re-render
+      mapInstanceRef.current?.render();
     }
   }, [showTitles]);
+
+  // Handle map clicks for adding well points
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+
+    const clickHandler = (event: any) => {
+
+      if (!isAddingWellPoint) {
+        console.log("Not in add mode, ignoring click");
+        return;
+      }
+
+      const coordinate = event.coordinate;
+      const lonLat = toLonLat(coordinate);
+
+
+      setPendingWellCoordinates([lonLat[0], lonLat[1]]);
+      setShowWellDialog(true);
+    };
+
+    map.on('click', clickHandler);
+
+    return () => {
+      console.log("Removing click handler");
+      map.un('click', clickHandler);
+    };
+  }, [isAddingWellPoint]); // Re-attach handler when isAddingWellPoint changes
 
   // Handle vector layers with unified logic
   const handleVectorLayer = (layer: string | null, type: 'primary' | 'secondary' | 'result') => {
@@ -458,7 +613,6 @@ const Mapping: React.FC = () => {
 
     const map = mapInstanceRef.current;
 
-
     // Clear existing raster layers
     Object.entries(layersRef.current).forEach(([id, layer]) => {
       map.removeLayer(layer);
@@ -516,6 +670,7 @@ const Mapping: React.FC = () => {
       }
     });
   }, [selectedradioLayer, displayRaster]);
+
   useEffect(() => {
     const handleFullScreenChange = () => {
       setIsFullScreen(!!document.fullscreenElement);
@@ -532,10 +687,10 @@ const Mapping: React.FC = () => {
         <div className="hidden md:block">
           <GISCompass />
         </div>
-        
-        {/* Well Points Tooltip - Only for well points */}
+
+      
         {hoveredFeature && hoveredFeature.get('featureType') === 'well_point' && (
-          <div 
+          <div
             className="absolute z-50 pointer-events-none"
             style={{
               left: `${mousePosition.x + 15}px`,
@@ -548,7 +703,7 @@ const Mapping: React.FC = () => {
                   <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                   <span className="font-bold text-orange-800 text-sm">Well Point</span>
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600 font-medium">Well ID:</span>
@@ -556,21 +711,21 @@ const Mapping: React.FC = () => {
                       {hoveredFeature.get('Well_id') || 'N/A'}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600 font-medium">Name:</span>
                     <span className="text-xs font-semibold text-gray-800">
                       {hoveredFeature.get('Name') || 'N/A'}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-600 font-medium">Distance:</span>
                     <span className="text-xs font-semibold text-gray-800">
                       {hoveredFeature.get('Distance') || 'N/A'}
                     </span>
                   </div>
-                  
+
                   <div className="pt-1 border-t border-gray-200">
                     <div className="text-xs text-gray-500">
                       <div>Lat: {hoveredFeature.get('Latitude')?.toFixed(6) || 'N/A'}</div>
@@ -582,6 +737,52 @@ const Mapping: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Add Well Point Dialog */}
+        {showWellDialog && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-96 max-w-[90%]">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Add New Well Point
+              </h3>
+
+              <div className="space-y-4">
+
+                {pendingWellCoordinates && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs font-medium text-gray-600 mb-1">Coordinates:</p>
+                    <p className="text-sm text-gray-800">
+                      Lat: {pendingWellCoordinates[1].toFixed(6)}°N
+                    </p>
+                    <p className="text-sm text-gray-800">
+                      Lon: {pendingWellCoordinates[0].toFixed(6)}°E
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={cancelAddWellPoint}
+                  className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAddWellPoint}
+                  className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Add Well
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      
 
         {/* Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-3 sm:px-6 py-3 flex items-center space-x-2 sm:space-x-4">
@@ -910,6 +1111,25 @@ const Mapping: React.FC = () => {
                 <span className="text-sm font-medium">Display Labels</span>
               </button>
 
+              {displayRaster.some((layer) => layer.file_name === ("Pumping_location")) && (
+                 <button
+                onClick={toggleAddingWellPoint}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${isAddingWellPoint
+                  ? "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 text-orange-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
+                  }`}
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="text-sm font-medium">{isAddingWellPoint ? "Click Map" : "Add Well"}</span>
+              </button>
+
+                
+              )}
+             
+            
+
               <button
                 onClick={() => {
                   setHoveredFeature(null);
@@ -966,7 +1186,7 @@ const Mapping: React.FC = () => {
             <Image
               src={legendUrl}
               alt="Layer Legend"
-              width={200}     // max expected size
+              width={200}
               height={300}
               className="w-full h-auto object-contain rounded-lg border border-gray-200"
               onErrorCapture={() => setError("Failed to load legend")}
@@ -974,6 +1194,7 @@ const Mapping: React.FC = () => {
             />
           </div>
         )}
+
         {/* Coordinates */}
         <div className="absolute right-6 bottom-6 z-10 bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-lg border border-slate-600 shadow-lg">
           <div className="flex items-center space-x-2">
@@ -982,6 +1203,7 @@ const Mapping: React.FC = () => {
             <div className="text-xs font-mono text-slate-100 " id="mouse-position"></div>
           </div>
         </div>
+
         {/* Error Message */}
         {error && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 bg-red-50/95 backdrop-blur-md border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-2xl flex items-center max-w-sm mx-2">
