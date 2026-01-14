@@ -1,8 +1,18 @@
 
 services:
-
-
-
+  database:
+    image: postgres:16
+    ports:
+      - "5450:5432"
+    env_file:
+      - ./database/.db.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    restart: always
+    depends_on:
+      - redis
+      - geoserver
   backend:
     build:
       context: ./backend/
@@ -19,20 +29,7 @@ services:
              daphne -b 0.0.0.0 -p 9000 --proxy-headers main.asgi:application"
     restart: always
     depends_on:
-      - db
-      - geoserver
-
-  db:
-    image: postgres:16
-    ports:
-      - "5440:5432"
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis_django
+      - database
       - geoserver
     
   redis_django:
@@ -80,19 +77,8 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
     restart: always
     depends_on:
-      - fast_m_db
-      - geoserver    
-  fast_m_db:
-    image: postgres:16
-    ports:
-      - "5460:5432"
-    env_file:
-      - .fastmdb.env
-    volumes:
-      - postgres_fastm_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - geoserver    
+      - database
+      - geoserver     
     
 
 
@@ -112,24 +98,8 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload 
     restart: always
     depends_on:
-      - fast_db
+      - database
       - geoserver
-
-
-  fast_db:
-    image: postgres:16
-    ports:
-      - "5450:5432"
-    env_file:
-      - ./fast_backend/.fastdb.env
-    volumes:
-      - postgres_cloud_data:/var/lib/postgresql/data
-    restart: always
-    depends_on:
-      - redis
-      - geoserver
-
-
 
 
   redis:
@@ -265,9 +235,7 @@ services:
 
 volumes:
   postgres_data:
-  postgres_cloud_data:
   geoserver_data:
   redis_data:
   redis_django_data:
   grafana_data:
-  postgres_fastm_data:
