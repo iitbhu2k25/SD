@@ -591,7 +591,7 @@ const Navbar = (): JSX.Element => {
 
                         {/* Satellite Based Assessment */}
                         <li>
-                          <Link href="/default" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                          <Link href="https://dssiitbhu.users.earthengine.app/view/water-budget" className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                           onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Satellite Based Assessment", href: "/default" }])}
                           >
                             Satellite Based Assessment
@@ -1139,9 +1139,9 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/dss/visualizations/"
+                    href="/dss/visualizations/seawage_infrastructure"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }])}>
+                   onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "seawage_infrastructure", href: "/dss/visualizations/seawage_infrastructure" }])}>
                     NMCG
                   </Link>
                 </li>

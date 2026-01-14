@@ -1,8 +1,9 @@
+// frontend/app/dss/rsq/drain/components/rsq.tsx
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useRSQ } from "@/contexts/rsq/admin/RsqContext";
-import { useLocation } from "@/contexts/rsq/admin/LocationContext";
+import { useRSQ } from "@/contexts/rsq/drain/RsqContext";
+import { useLocation } from "@/contexts/rsq/drain/LocationContext";
 
 /* ================= YEAR OPTIONS ================= */
 
@@ -23,7 +24,7 @@ const PRIORITY_FIELDS = ['village', 'blockname', 'village_co', 'block_code'];
 export default function RSQAnalysis() {
   const { selectedYear, setSelectedYear, groundWaterData, isLoading, error, fetchGroundWaterData, clearData } =
     useRSQ();
-  const { selectedVillages } = useLocation();
+  const { selectedVillages, areaConfirmed } = useLocation();
 
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -238,7 +239,8 @@ export default function RSQAnalysis() {
     }
   };
 
-  if (selectedVillages.length === 0) {
+  // Check for areaConfirmed instead of just selectedVillages.length
+  if (!areaConfirmed) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg border border-blue-100">
@@ -246,8 +248,8 @@ export default function RSQAnalysis() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Villages Selected</h3>
-          <p className="text-sm text-gray-600">Please select villages to view RSQ analysis</p>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">No Area Confirmed</h3>
+          <p className="text-sm text-gray-600">Please confirm area selection to view RSQ analysis</p>
         </div>
       </div>
     );
@@ -263,7 +265,10 @@ export default function RSQAnalysis() {
           <div>
             <h3 className="text-base font-semibold text-gray-800 mb-1">Select Assessment Year</h3>
             <p className="text-xs text-gray-600">
-              Selected {selectedVillages.length} villages for assessment
+              {selectedVillages.length > 0 
+                ? `Selected ${selectedVillages.length} villages for assessment`
+                : `Area confirmed for assessment`
+              }
             </p>
           </div>
 

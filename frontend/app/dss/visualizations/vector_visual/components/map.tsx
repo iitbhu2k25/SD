@@ -4,7 +4,6 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import Image from 'next/image';
 
 declare global {
   interface Window {
@@ -41,14 +40,20 @@ function parseTranslateFromTransform(transform: string) {
 }
 
 // Collect GeoJSON from active overlay + drawn features
-function collectMapGeoJSON(map: any, geoJsonLayer: any, drawnItems: any) {
+function collectMapGeoJSON(map: any, managedLayers: any[], drawnItems: any) {
   require('leaflet');
   const fc: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] as GeoJSON.Feature[] };
-  if (geoJsonLayer?.toGeoJSON) {
-    const gj = geoJsonLayer.toGeoJSON();
-    if (gj?.type === 'FeatureCollection') fc.features.push(...(gj.features as any));
-    else if (gj?.type === 'Feature') fc.features.push(gj as any);
-  }
+  
+  // Collect from managed layers
+  managedLayers.forEach(ml => {
+    if (ml.layer && ml.visible && ml.layer.toGeoJSON) {
+      const gj = ml.layer.toGeoJSON();
+      if (gj?.type === 'FeatureCollection') fc.features.push(...(gj.features as any));
+      else if (gj?.type === 'Feature') fc.features.push(gj as any);
+    }
+  });
+  
+  // Collect from drawn items
   if (drawnItems && typeof drawnItems.eachLayer === 'function') {
     drawnItems.eachLayer((layer: any) => {
       if (layer?.toGeoJSON) {
@@ -361,6 +366,14 @@ export default function Map(props: MapProps) {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [currentBasemap, setCurrentBasemap] = useState('traffic');
   const [mapReady, setMapReady] = useState(false);
+  const [layersDropdownOpen, setLayersDropdownOpen] = useState(false);
+  const [managedLayers, setManagedLayers] = useState<Array<{
+    id: string;
+    name: string;
+    layer: any;
+    visible: boolean;
+    type: 'geojson' | 'uploaded' | 'drawn';
+  }>>([]);
 
   // Export modal form state
   const [pdfHeading, setPdfHeading] = useState('Map Export');
@@ -373,6 +386,7 @@ export default function Map(props: MapProps) {
   const drawnItemsRef = useRef<any>(null);
   const baseLayersRef = useRef<{ [key: string]: any }>({});
   const currentBaseLayerRef = useRef<any>(null);
+  const layerIdCounterRef = useRef(0);
 
   const initializeLeaflet = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -422,6 +436,46 @@ export default function Map(props: MapProps) {
       none: L.tileLayer('', { attribution: 'No basemap' }),
     };
   }, []);
+
+  const addManagedLayer = useCallback((name: string, layer: any, type: 'geojson' | 'uploaded' | 'drawn') => {
+    const id = `layer_${layerIdCounterRef.current++}`;
+    setManagedLayers(prev => [...prev, { id, name, layer, visible: true, type }]);
+    return id;
+  }, []);
+
+  const toggleLayerVisibility = useCallback((id: string) => {
+    setManagedLayers(prev => prev.map(ml => {
+      if (ml.id === id) {
+        const newVisible = !ml.visible;
+        if (mapInstanceRef.current && ml.layer) {
+          if (newVisible) {
+            if (!mapInstanceRef.current.hasLayer(ml.layer)) {
+              mapInstanceRef.current.addLayer(ml.layer);
+            }
+          } else {
+            if (mapInstanceRef.current.hasLayer(ml.layer)) {
+              mapInstanceRef.current.removeLayer(ml.layer);
+            }
+          }
+        }
+        return { ...ml, visible: newVisible };
+      }
+      return ml;
+    }));
+  }, []);
+
+  const removeLayer = useCallback((id: string) => {
+    setManagedLayers(prev => {
+      const layerToRemove = prev.find(ml => ml.id === id);
+      if (layerToRemove && layerToRemove.layer && mapInstanceRef.current) {
+        if (mapInstanceRef.current.hasLayer(layerToRemove.layer)) {
+          mapInstanceRef.current.removeLayer(layerToRemove.layer);
+        }
+      }
+      return prev.filter(ml => ml.id !== id);
+    });
+    showNotification('Layer Removed', 'Layer has been removed from map', 'info');
+  }, [showNotification]);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -505,6 +559,10 @@ export default function Map(props: MapProps) {
           drawnItems.eachLayer((l: any) => { l._selected = false; });
           layer._selected = true;
 
+          // Add drawn feature to managed layers
+          const layerType = event.layerType;
+          addManagedLayer(`Drawn ${layerType}`, layer, 'drawn');
+
           if (layer instanceof L.Polygon) {
             const latlngs: any[] = (layer.getLatLngs() as any[]).flat(2);
             let area = 0;
@@ -545,7 +603,7 @@ export default function Map(props: MapProps) {
     };
 
     return () => clearTimeout(initTimer);
-  }, [initializeLeaflet, createBaseLayers, currentBasemap, showNotification]);
+  }, [initializeLeaflet, createBaseLayers, currentBasemap, showNotification, addManagedLayer]);
 
   const changeBasemap = useCallback((basemapId: string) => {
     if (!mapInstanceRef.current || !baseLayersRef.current) return;
@@ -657,6 +715,11 @@ export default function Map(props: MapProps) {
       }
 
       setGeoJsonLayer(newLayer);
+      
+      // Add to managed layers
+      const layerName = `${category} - ${subcategory}`;
+      addManagedLayer(layerName, newLayer, 'geojson');
+      
       showNotification('Success', 'Vector data loaded successfully', 'success');
       return newLayer;
     } catch (error) {
@@ -666,7 +729,7 @@ export default function Map(props: MapProps) {
     } finally {
       setLoading(false);
     }
-  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification]);
+  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification, addManagedLayer]);
 
   const updateLayerStyles = useCallback(() => {
     if (!geoJsonLayer && !uploadedLayer) return;
@@ -778,12 +841,17 @@ export default function Map(props: MapProps) {
       } catch { /* noop */ }
 
       setUploadedLayer(layer);
+      
+      // Add to managed layers
+      const fileName = Array.from(files).find(f => f.name.endsWith('.shp') || f.name.endsWith('.zip'))?.name || 'Uploaded Shapefile';
+      addManagedLayer(fileName, layer, 'uploaded');
+      
       return geojson;
     } catch (e: any) {
       showNotification('Error', e?.message || 'Upload failed', 'error');
       return null;
     }
-  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification]);
+  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification, addManagedLayer]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -922,6 +990,9 @@ export default function Map(props: MapProps) {
         });
         circle.addTo(drawnItemsRef.current);
         circle.bindPopup(`Buffer: ${bufferDistance}m`);
+        
+        // Add buffer to managed layers
+        addManagedLayer(`Buffer ${bufferDistance}m`, circle, 'drawn');
       }
       showNotification('Buffer Created', `${bufferDistance}m buffer created`, 'success');
     } catch {
@@ -1006,7 +1077,7 @@ export default function Map(props: MapProps) {
         showNotification('Error', 'Map not initialized', 'error');
         return;
       }
-      const fc = collectMapGeoJSON(mapInstanceRef.current, geoJsonLayer || uploadedLayer, drawnItemsRef.current);
+      const fc = collectMapGeoJSON(mapInstanceRef.current, managedLayers, drawnItemsRef.current);
       if (!fc.features.length) {
         showNotification('Info', 'No features to export', 'info');
         return;
@@ -1035,11 +1106,70 @@ export default function Map(props: MapProps) {
 
         {compassVisible && (
           <div id="compass" className="absolute top-10 left-10 w-24 h-24 pointer-events-auto">
-            <Image src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" 
-              width={96} height={96}/>
+            <img src="/compas.png" alt="Compass" className="w-full h-full object-contain drop-shadow-md" />
           </div>
         )}
 
+        {/* Layers Dropdown */}
+        <div className="absolute top-4 right-15 pointer-events-auto">
+          <button
+            onClick={() => setLayersDropdownOpen(!layersDropdownOpen)}
+            className="bg-white rounded-lg shadow-md px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2"
+            title="Layers"
+          >
+            <i className="fas fa-layer-group"></i>
+            <span className="font-medium">Layers ({managedLayers.length})</span>
+            <i className={`fas fa-chevron-${layersDropdownOpen ? 'up' : 'down'} text-sm`}></i>
+          </button>
+
+          {layersDropdownOpen && (
+            <div className="absolute top-12 right-0 bg-white rounded-lg shadow-xl w-80 max-h-96 overflow-y-auto">
+              <div className="p-3 border-b border-gray-200">
+                <h3 className="font-semibold text-gray-800">Map Layers</h3>
+              </div>
+              {managedLayers.length === 0 ? (
+                <div className="p-4 text-center text-gray-500 text-sm">
+                  No layers added yet
+                </div>
+              ) : (
+                <div className="p-2">
+                  {managedLayers.map((ml) => (
+                    <div
+                      key={ml.id}
+                      className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg group"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={ml.visible}
+                        onChange={() => toggleLayerVisibility(ml.id)}
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">
+                          {ml.name}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {ml.type === 'geojson' && 'GeoJSON Layer'}
+                          {ml.type === 'uploaded' && 'Uploaded Shapefile'}
+                          {ml.type === 'drawn' && 'Drawn Feature'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeLayer(ml.id)}
+                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-all p-1"
+                        title="Remove layer"
+                      >
+                        <i className="fas fa-trash text-sm"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        
         {/* Right tool strip */}
         <div className="absolute bottom-8 right-4 bg-white rounded-xl shadow-md flex flex-col p-1 pointer-events-auto">
           <button onClick={() => mapInstanceRef.current?.zoomIn()} className="w-10 h-10 hover:bg-blue-500 hover:text-white rounded-lg flex items-center justify-center transition-colors" title="Zoom In">
