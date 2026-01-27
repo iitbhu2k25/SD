@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/geoserver/api/:path*',
-        destination: 'http://localhost:9090/geoserver/:path*'
+        destination: 'http://localhost:9080/geoserver/:path*'
       },
       {
         source: '/api/:path*',

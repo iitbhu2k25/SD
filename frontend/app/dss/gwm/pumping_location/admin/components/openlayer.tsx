@@ -159,7 +159,7 @@ const Mapping: React.FC = () => {
 
     if (!wellPointsLayerRef.current) {
       alert("Well points layer not initialized. Please wait for the map to load completely.");
-    
+
       return;
     }
 
@@ -223,7 +223,7 @@ const Mapping: React.FC = () => {
     if (hoverInteractionRef.current) {
       hoverInteractionRef.current.setActive(true);
     }
-  
+
   };
 
   // Cancel adding well point
@@ -430,7 +430,7 @@ const Mapping: React.FC = () => {
 
     // Remove existing well points layer
     if (wellPointsLayerRef.current) {
-   
+
       mapInstanceRef.current.removeLayer(wellPointsLayerRef.current);
       wellPointsLayerRef.current = null;
     }
@@ -439,7 +439,7 @@ const Mapping: React.FC = () => {
     let features: Feature[] = [];
 
     if (well_points && well_points.length > 0) {
-   
+
 
       features = well_points.map((well: CsvRow) => {
         const lon = parseFloat(well.Longitude);
@@ -449,7 +449,7 @@ const Mapping: React.FC = () => {
           return null;
         }
 
-      
+
 
         const feature = new Feature({
           geometry: new Point(fromLonLat([lon, lat])),
@@ -487,7 +487,7 @@ const Mapping: React.FC = () => {
       setTimeout(() => {
         if (mapInstanceRef.current) {
           const extent = wellSource.getExtent();
-        
+
           if (extent && extent.every(val => isFinite(val))) {
             mapInstanceRef.current.getView().fit(extent, {
               padding: [100, 100, 100, 100],
@@ -688,7 +688,7 @@ const Mapping: React.FC = () => {
           <GISCompass />
         </div>
 
-      
+
         {hoveredFeature && hoveredFeature.get('featureType') === 'well_point' && (
           <div
             className="absolute z-50 pointer-events-none"
@@ -782,7 +782,7 @@ const Mapping: React.FC = () => {
             </div>
           </div>
         )}
-      
+
 
         {/* Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-3 sm:px-6 py-3 flex items-center space-x-2 sm:space-x-4">
@@ -799,19 +799,47 @@ const Mapping: React.FC = () => {
               <button
                 key={panel}
                 onClick={() => togglePanel(panel)}
-                className={`p-2 sm:p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel ? "bg-blue-100 text-blue-600 shadow-inner" : "hover:bg-gray-100 text-gray-700"
+                className={`relative group p-2.5 rounded-full transition-all duration-200 hover:scale-110
+    ${activePanel === panel
+                    ? "bg-blue-100 text-blue-600 shadow-inner"
+                    : "hover:bg-gray-100 text-gray-700"
                   }`}
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                {/* Icon */}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
                     d={panel === "layers" ? "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" :
                       panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
                         "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
                 </svg>
+
+                {/* Tooltip */}
+                <span
+                  className="absolute -bottom-9 left-1/2 -translate-x-1/2
+      whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white
+      opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                >
+                  {panel.charAt(0).toUpperCase() + panel.slice(1)}
+                </span>
               </button>
+
+
             ))}
-            <button onClick={toggleFullScreen} className="p-2 sm:p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition-all duration-200 hover:scale-110">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+            <button
+              onClick={toggleFullScreen}
+              className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700 transition-all duration-200 hover:scale-110"
+              title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d={!isFullScreen ? "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" : "M6 18L18 6M6 6l12 12"} />
               </svg>
@@ -820,9 +848,16 @@ const Mapping: React.FC = () => {
         </div>
 
         {/* Layer Selection Button */}
-        <div className="absolute right-2 sm:right-4 top-3">
-          <button onClick={() => setIsPanelOpen(!isPanelOpen)} className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
+        <div className="absolute right-4 top-3 group">
+          <button
+            onClick={() => setIsPanelOpen(!isPanelOpen)}
+            className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20 relative"
+          >
             <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
+            {/* Tooltip */}
+            <span className="absolute  -bottom-10 -left-1 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Raster Layers
+            </span>
           </button>
         </div>
 
@@ -1112,23 +1147,23 @@ const Mapping: React.FC = () => {
               </button>
 
               {displayRaster.some((layer) => layer.file_name === ("Pumping_location")) && (
-                 <button
-                onClick={toggleAddingWellPoint}
-                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${isAddingWellPoint
-                  ? "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 text-orange-700"
-                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
-                  }`}
-              >
-                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="text-sm font-medium">{isAddingWellPoint ? "Click Map" : "Add Well"}</span>
-              </button>
+                <button
+                  onClick={toggleAddingWellPoint}
+                  className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${isAddingWellPoint
+                    ? "bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 text-orange-700"
+                    : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
+                    }`}
+                >
+                  <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="text-sm font-medium">{isAddingWellPoint ? "Click Map" : "Add Well"}</span>
+                </button>
 
-                
+
               )}
-             
-            
+
+
 
               <button
                 onClick={() => {

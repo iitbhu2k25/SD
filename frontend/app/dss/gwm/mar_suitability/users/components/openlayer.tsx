@@ -28,39 +28,39 @@ import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer'
 
 const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
-    const geometry = feature.getGeometry();
-    const geometryType = geometry.getType();
-    const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
-    const colorConfig = LAYER_COLORS[layerType] || LAYER_COLORS.primary;
-    const styles = [];
+  const geometry = feature.getGeometry();
+  const geometryType = geometry.getType();
+  const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
+  const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
+  const colorConfig = LAYER_COLORS[layerType] || LAYER_COLORS.primary;
+  const styles = [];
 
-    if (geometryType.includes("Polygon")) {
-      styles.push(new Style({
-        stroke: new Stroke({ color: colorConfig.color, width: 2 }),
-        fill: new Fill({ color: 'transparent' })
-      }));
-    }
+  if (geometryType.includes("Polygon")) {
+    styles.push(new Style({
+      stroke: new Stroke({ color: colorConfig.color, width: 2 }),
+      fill: new Fill({ color: 'transparent' })
+    }));
+  }
 
-    if (geometryType.includes("LineString")) {
-      styles.push(new Style({
-        stroke: new Stroke({ color: colorConfig.color, width: 3 })
-      }));
-    }
+  if (geometryType.includes("LineString")) {
+    styles.push(new Style({
+      stroke: new Stroke({ color: colorConfig.color, width: 3 })
+    }));
+  }
 
-    if (geometryType.includes("Point")) {
-      styles.push(new Style({
-        image: new Circle({
-          radius: 6,
-          fill: new Fill({ color: colorConfig.color + "80" }),
-          stroke: new Stroke({ color: colorConfig.color, width: 2 })
-        })
-      }));
-    }
+  if (geometryType.includes("Point")) {
+    styles.push(new Style({
+      image: new Circle({
+        radius: 6,
+        fill: new Fill({ color: colorConfig.color + "80" }),
+        stroke: new Stroke({ color: colorConfig.color, width: 2 })
+      })
+    }));
+  }
 
-    if (showLabels && featureName) {
+  if (showLabels && featureName) {
     let minZoomForLabel = 10; // Default
-    
+
     // Catchment villages: show at zoom >= 12 (appears when zoomed in)
     if (layerType === 'catchment') {
       minZoomForLabel = 12;
@@ -88,7 +88,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
           text: featureName.toString(),
           font: '12px Arial, sans-serif',
           fill: new Fill({ color: colorConfig.color }),
-        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
           offsetY: geometryType.includes('Point') ? -20 : 0,
           textAlign: 'center',
           textBaseline: 'middle'
@@ -97,8 +97,8 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
     }
   }
 
-    return styles;
-  };
+  return styles;
+};
 
 
 const Maping: React.FC = () => {
@@ -222,7 +222,7 @@ const Maping: React.FC = () => {
     }
   };
 
-  
+
   // Initialize map
   useEffect(() => {
     if (!mapRef.current) return;
@@ -416,7 +416,7 @@ const Maping: React.FC = () => {
     });
     const vectorLayer = new VectorLayer({
       source: vectorSource,
-      style: createVectorStyle(layerType,showTitles),
+      style: createVectorStyle(layerType, showTitles),
       zIndex: zIndex,
       visible: isVisible,
     });
@@ -540,7 +540,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      
+
       const layerUrl = "/geoserver/api/wms";
       const workspace = rasterLayerInfo.workspace;
       const layerName = rasterLayerInfo.layer_name;
@@ -578,7 +578,7 @@ const Maping: React.FC = () => {
       setError(`Error setting up raster layer: ${error.message}`);
     }
   }, [rasterLayerInfo, layerOpacity]);
-  
+
   useEffect(() => {
 
     displayRaster.forEach((item: any) => {
@@ -621,23 +621,49 @@ const Maping: React.FC = () => {
             <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            River System GIS
+            GIS Viewer
           </span>
 
-          <div className="flex space-x-2">
+          <div className="flex space-x-1 sm:space-x-2">
+
+
             {["layers", "basemap", "tools"].map((panel) => (
               <button
                 key={panel}
                 onClick={() => togglePanel(panel)}
-                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel ? "bg-blue-100 text-blue-600" : "hover:bg-gray-100 text-gray-700"}`}
+                className={`relative group p-2.5 rounded-full transition-all duration-200 hover:scale-110
+    ${activePanel === panel
+                    ? "bg-blue-100 text-blue-600 shadow-inner"
+                    : "hover:bg-gray-100 text-gray-700"
+                  }`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                {/* Icon */}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
                     d={panel === "layers" ? "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" :
                       panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
                         "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
                 </svg>
+
+                {/* Tooltip */}
+                <span
+                  className="absolute -bottom-9 left-1/2 -translate-x-1/2
+      whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white
+      opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                >
+                  {panel.charAt(0).toUpperCase() + panel.slice(1)}
+                </span>
               </button>
+
+
             ))}
             <button onClick={toggleFullScreen} className="p-2.5 rounded-full hover:bg-gray-100 text-gray-700">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -649,9 +675,16 @@ const Maping: React.FC = () => {
         </div>
 
         {/* Layer Selection Button */}
-        <div className="absolute right-4 top-3">
-          <button onClick={() => setIsPanelOpen(!isPanelOpen)} className="bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg">
+        <div className="absolute right-4 top-3 group">
+          <button
+            onClick={() => setIsPanelOpen(!isPanelOpen)}
+            className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20 relative"
+          >
             <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
+            {/* Tooltip */}
+            <span className="absolute  -bottom-10 -left-1 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Raster Layers
+            </span>
           </button>
         </div>
 
@@ -687,7 +720,7 @@ const Maping: React.FC = () => {
         )}
 
         {/* Layer Panel */}
-         {isPanelOpen && displayRaster.length > 0 && (
+        {isPanelOpen && displayRaster.length > 0 && (
           <div className="absolute right-4 top-20 bg-white/95 backdrop-blur-md border border-gray-200 rounded-xl shadow-2xl p-6 w-80 z-50">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800">Select Layer</h3>
@@ -858,7 +891,7 @@ const Maping: React.FC = () => {
         )}
 
         {/* Tools Panel */}
-       {activePanel === "tools" && (
+        {activePanel === "tools" && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-800 text-lg">Map Tools</h3>

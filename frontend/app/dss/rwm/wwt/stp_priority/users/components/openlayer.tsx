@@ -60,7 +60,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
   }
   if (showLabels && featureName) {
     let minZoomForLabel = 10; // Default
-    
+
     // Catchment villages: show at zoom >= 12 (appears when zoomed in)
     if (layerType === 'catchment') {
       minZoomForLabel = 12;
@@ -88,7 +88,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
           text: featureName.toString(),
           font: '12px Arial, sans-serif',
           fill: new Fill({ color: colorConfig.color }),
-        stroke: new Stroke({ color: "#ffffff", width: 3 }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
           offsetY: geometryType.includes('Point') ? -20 : 0,
           textAlign: 'center',
           textBaseline: 'middle'
@@ -700,27 +700,47 @@ const Maping: React.FC = () => {
             <svg className="w-6 h-6 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            River System GIS
+            GIS Viewer
           </span>
 
-          <div className="flex space-x-2">
+          <div className="flex space-x-1 sm:space-x-2">
             {["layers", "basemap", "tools"].map((panel) => (
               <button
                 key={panel}
                 onClick={() => togglePanel(panel)}
-                className={`p-2.5 rounded-full transition-all duration-200 hover:scale-110 ${activePanel === panel
-                  ? "bg-blue-100 text-blue-600 shadow-inner"
-                  : "hover:bg-gray-100 text-gray-700"
+                className={`relative group p-2.5 rounded-full transition-all duration-200 hover:scale-110
+    ${activePanel === panel
+                    ? "bg-blue-100 text-blue-600 shadow-inner"
+                    : "hover:bg-gray-100 text-gray-700"
                   }`}
-                title={panel.charAt(0).toUpperCase() + panel.slice(1)}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                {/* Icon */}
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
                     d={panel === "layers" ? "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" :
                       panel === "basemap" ? "M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h2a2 2 0 002-2v-1a2 2 0 012-2h1.945M5.05 9h13.9c.976 0 1.31-1.293.455-1.832L12 2 4.595 7.168C3.74 7.707 4.075 9 5.05 9z" :
                         "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"} />
                 </svg>
+
+                {/* Tooltip */}
+                <span
+                  className="absolute -bottom-9 left-1/2 -translate-x-1/2
+      whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white
+      opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                >
+                  {panel.charAt(0).toUpperCase() + panel.slice(1)}
+                </span>
               </button>
+
+
             ))}
 
             <button
@@ -737,15 +757,18 @@ const Maping: React.FC = () => {
         </div>
 
         {/* Layer Selection Button */}
-        <div className="absolute right-4 top-3">
+        <div className="absolute right-4 top-3 group">
           <button
             onClick={() => setIsPanelOpen(!isPanelOpen)}
-            className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20"
+            className="hover:opacity-80 transition-all duration-200 hover:scale-110 bg-white/90 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/20 relative"
           >
             <Image src="/openlayerslogo.svg" alt="Logo" width={32} height={32} />
+            {/* Tooltip */}
+            <span className="absolute  -bottom-10 -left-1 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+              Raster Layers
+            </span>
           </button>
         </div>
-
         {/* Catchment Analysis Button */}
         {selectedDrains.length > 0 && !buttonClicked && (
           <button
@@ -914,56 +937,56 @@ const Maping: React.FC = () => {
           </div>
         )}
 
-         {activePanel === "tools" && (
-                 <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
-                   <div className="flex justify-between items-center mb-4">
-                     <h3 className="font-bold text-gray-800 text-lg">Map Tools</h3>
-                     <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
-                   </div>
-                   <div className="grid grid-cols-2 gap-3">
-                     <button
-                       onClick={() => setShowTitles(!showTitles)}
-                       className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
-                         ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
-                         : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
-                         }`}
-                     >
-                       <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
-                       <span className="text-sm font-medium">Display Labels</span>
-                     </button>
-       
-                     <button
-                       onClick={() => {
-                         setHoveredFeature(null);
-                         selectInteractionRef.current?.getFeatures().clear();
-                         hoverInteractionRef.current?.getFeatures().clear();
-                       }}
-                       className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
-                     >
-                       <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                       </svg>
-                       <span className="text-sm font-medium">Clear Selection</span>
-                     </button>
-       
-                     <button
-                       onClick={() => {
-                         if (mapInstanceRef.current) {
-                           const view = mapInstanceRef.current.getView();
-                           view.setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]));
-                           view.setZoom(INITIAL_ZOOM);
-                         }
-                       }}
-                       className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
-                     >
-                       <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                       </svg>
-                       <span className="text-sm font-medium">Home View</span>
-                     </button>
-                   </div>
-                 </div>
-               )}
+        {activePanel === "tools" && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-6 max-w-md w-full mx-2">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-gray-800 text-lg">Map Tools</h3>
+              <button onClick={() => setActivePanel(null)} className="text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowTitles(!showTitles)}
+                className={`flex flex-col items-center p-4 rounded-xl transition-all duration-200 border ${showTitles
+                  ? "bg-gradient-to-br from-green-50 to-green-100 border-green-200 text-green-700"
+                  : "bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 text-gray-700"
+                  }`}
+              >
+                <span className="text-lg font-semibold mb-2">{showTitles ? "ON" : "OFF"}</span>
+                <span className="text-sm font-medium">Display Labels</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setHoveredFeature(null);
+                  selectInteractionRef.current?.getFeatures().clear();
+                  hoverInteractionRef.current?.getFeatures().clear();
+                }}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span className="text-sm font-medium">Clear Selection</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (mapInstanceRef.current) {
+                    const view = mapInstanceRef.current.getView();
+                    view.setCenter(fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]));
+                    view.setZoom(INITIAL_ZOOM);
+                  }
+                }}
+                className="flex flex-col items-center p-4 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-200"
+              >
+                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a2 2 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span className="text-sm font-medium">Home View</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {legendUrl && rasterLayerInfo && (
           <div
