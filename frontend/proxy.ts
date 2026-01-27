@@ -7,7 +7,7 @@ import { jwtVerify } from 'jose';
 const SECRET = process.env.NEXT_PUBLIC_SECRET;
 const protectedRoutes = [ "/dss","/dashboard"]; 
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip static/image/API routes

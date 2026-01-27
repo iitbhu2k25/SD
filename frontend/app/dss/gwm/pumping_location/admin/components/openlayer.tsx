@@ -43,6 +43,7 @@ const Mapping: React.FC = () => {
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
+  const [wellName, setWellName] = useState("");
 
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +60,7 @@ const Mapping: React.FC = () => {
   const [showPrimaryLayer, setShowPrimaryLayer] = useState(true);
   const [showResultLayer, setShowResultLayer] = useState(true);
   const [showWellPoints, setShowWellPoints] = useState(true);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
@@ -70,7 +71,7 @@ const Mapping: React.FC = () => {
   const mapWellIdRef = useRef<number>(0);
 
 
-  const { displayRaster, selectedvillages, setdisplay_raster, well_points, setwell_points } = useLocation();
+  const { displayRaster, well_points, setwell_points } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
@@ -159,17 +160,15 @@ const Mapping: React.FC = () => {
 
     if (!wellPointsLayerRef.current) {
       alert("Well points layer not initialized. Please wait for the map to load completely.");
-
       return;
     }
-
     const [lon, lat] = pendingWellCoordinates;
-
     mapWellIdRef.current += 1;
     const wellId = `M${mapWellIdRef.current}`;
     const newWellPoint: CsvRow = {
       Well_id: wellId,
       Distance: 'N/A',
+      Name: wellName,
       Longitude: lon.toString(),
       Latitude: lat.toString(),
     };
@@ -179,6 +178,7 @@ const Mapping: React.FC = () => {
       geometry: new Point(fromLonLat([lon, lat])),
       Distance: 'N/A',
       Longitude: lon,
+      Name: wellName,
       Latitude: lat,
       featureType: 'well_point'
     });
@@ -249,7 +249,7 @@ const Mapping: React.FC = () => {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
     const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const featureName = feature.get("name") || feature.get("Name");
+    const featureName = feature.get("name") || feature.get("Name") ;
     const styles = [];
 
     const color = isSecondary ? "#5E1520" : "#3b82f6";
@@ -454,8 +454,8 @@ const Mapping: React.FC = () => {
         const feature = new Feature({
           geometry: new Point(fromLonLat([lon, lat])),
           Well_id: well.Well_id,
+          Name: well.Name,
           Distance: well.Distance || 'N/A',
-
           Longitude: lon,
           Latitude: lat,
           featureType: 'well_point'
@@ -464,7 +464,7 @@ const Mapping: React.FC = () => {
       }).filter(f => f !== null) as Feature[];
     }
 
-
+    setWellName("");
 
     // Create vector source and layer (always, even if empty)
     const wellSource = new VectorSource({
@@ -753,16 +753,37 @@ const Mapping: React.FC = () => {
               <div className="space-y-4">
 
                 {pendingWellCoordinates && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs font-medium text-gray-600 mb-1">Coordinates:</p>
-                    <p className="text-sm text-gray-800">
-                      Lat: {pendingWellCoordinates[1].toFixed(6)}°N
-                    </p>
-                    <p className="text-sm text-gray-800">
-                      Lon: {pendingWellCoordinates[0].toFixed(6)}°E
-                    </p>
+                  <div className="bg-gray-50 p-3 rounded-lg space-y-2">
+                    {/* Name input */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600">
+                        Well Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter well name"
+                        value={wellName}
+                        onChange={(e) => setWellName(e.target.value)}
+                        className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm
+                   focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Coordinates */}
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-1">
+                        Coordinates:
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        Lat: {pendingWellCoordinates[1].toFixed(6)}°N
+                      </p>
+                      <p className="text-sm text-gray-800">
+                        Lon: {pendingWellCoordinates[0].toFixed(6)}°E
+                      </p>
+                    </div>
                   </div>
                 )}
+
               </div>
 
               <div className="flex space-x-3 mt-6">
@@ -774,10 +795,16 @@ const Mapping: React.FC = () => {
                 </button>
                 <button
                   onClick={confirmAddWellPoint}
-                  className="flex-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                  disabled={!wellName.trim()}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors
+    ${wellName.trim()
+                      ? "bg-orange-500 hover:bg-orange-600 text-white"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                 >
                   Add Well
                 </button>
+
               </div>
             </div>
           </div>

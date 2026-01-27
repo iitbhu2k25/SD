@@ -73,6 +73,7 @@ class GWPL_Table_output(BaseModel):
     specific_yield: float = Field(..., alias="Specific yield")
     slope_per_year: float = Field(..., alias="slope per year")
     rank: int = Field(..., alias="Rank")
+    name:str = Field(..., alias="Name")
 
     class Config:
         from_attributes = True

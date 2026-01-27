@@ -1,5 +1,6 @@
 import DataTable, { TableColumn } from 'react-data-table-component';
 export interface CsvRow {
+  Name?: string;
   Well_id: string;
   Longitude: string;
   Latitude: string;
@@ -17,6 +18,7 @@ export interface DataRow {
 export interface Gwpl_Table{
   Well_id:number;
   Rank:number;
+  Name:string;
   "Groundwater table":number;
   "Groundwater trends": number;
   "Slope": number;
@@ -32,6 +34,13 @@ export const Gwpl_columns: TableColumn<Gwpl_Table>[] = [
     width: '100px',
     wrap: true,
     format: row => row.Well_id,
+  },
+  {
+    name: 'Name',
+    selector: row => row.Name,
+    sortable: true,
+    format: row => row.Name,
+    width: '120px',
   },
   {
     name: 'Rank',

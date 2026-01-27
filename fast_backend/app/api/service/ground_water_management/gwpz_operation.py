@@ -791,6 +791,7 @@ class GWPumpingMapper:
         return wells_gdf
     def _get_validate_points(self,well_point:list,village_list:list):
         df = pd.DataFrame(well_point)
+        print(df)
         df["Latitude"] = df["Latitude"].astype(float)
         df["Longitude"] = df["Longitude"].astype(float)
         wells_gdf = gpd.GeoDataFrame(
@@ -806,8 +807,14 @@ class GWPumpingMapper:
             predicate="within",
             how="inner"
         )
-
-        result = wells_inside_village[["Well_id", "Latitude", "Longitude", "Distance"]]
+        print(wells_inside_village.columns)
+        result = (
+            wells_inside_village[
+                ["Well_id", "Latitude", "Longitude", "Distance", "Name_left"]
+            ]
+            .rename(columns={"Name_left": "Name"})
+            .assign(Name=lambda x: x["Name"].fillna("---"))
+        )
         output = result.to_dict(orient="records")
         return output
     
@@ -819,8 +826,10 @@ class GWPumpingMapper:
         well_point=self._get_validate_points(well_point,village_list)      
 
         for well_geom in well_point:
-            well_id,lat ,lon = well_geom["Well_id"],well_geom["Latitude"],well_geom["Longitude"]
-            well_data = {"Well_id": well_id}
+            well_id,lat,lon,well_name = well_geom["Well_id"],well_geom["Latitude"],well_geom["Longitude"],well_geom["Name"]
+            well_data = {"Well_id": well_id,
+                         "Name": well_name
+                         }
             for col_name, raster_path in Relevance:
                 with rasterio.open(raster_path) as src:
                     try:
@@ -838,6 +847,8 @@ class GWPumpingMapper:
                         val = None
 
                     well_data[col_name] = val
+            print(well_name)
+            well_data["Name"]=well_name
             records.append(well_data)
         return {
             "table": self._find_rank(records),

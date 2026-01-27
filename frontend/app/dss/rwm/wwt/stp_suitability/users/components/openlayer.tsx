@@ -69,7 +69,7 @@ const Maping: React.FC = () => {
   const [showTitles, setShowTitles] = useState(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);

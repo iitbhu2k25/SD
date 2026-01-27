@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -30,12 +30,15 @@
   },
   "include": [
     "next-env.d.ts",
+    ".next/dev/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "middleware.ts",
-    "app/dss/rwm/wwt/stp_priority/admin/page.tsx"
-, "app/dss/rwm/wwt/stp_priority/users/page.tsx"  ],
+    "proxy.ts",
+    "app/dss/rwm/wwt/stp_priority/admin/page.tsx",
+    "app/dss/rwm/wwt/stp_priority/users/page.tsx",
+    ".next/dev/types/**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "public/videos/**/*",

@@ -26,10 +26,7 @@ const CsvUploader: React.FC = () => {
 
   // Automatically save selected rows whenever selection changes
   useEffect(() => {
-    const selectedData = csvData.filter((_, idx) => selectedRows.has(idx));
-    
-    console.log("Auto-saving well points:", selectedData.length, "points from CSV");
-    
+    const selectedData = csvData.filter((_, idx) => selectedRows.has(idx));    
     // Verify data structure
     selectedData.forEach((point, idx) => {
       console.log(`Point ${idx}:`, {
@@ -239,6 +236,9 @@ const CsvUploader: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <span className="text-sm font-semibold text-orange-700">
                             {point.Well_id}
+                          </span>
+                          <span className="text-sm font-semibold text-orange-700 px-14">
+                            {point?.Name}
                           </span>
                           
                         </div>
