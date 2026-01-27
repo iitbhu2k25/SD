@@ -40,6 +40,12 @@ class STP_visualization_crud(CrudBase):
     def get_visual_path(self):
         query=self.db.query(self.Model).filter().all()
         return query
+    def get_raster(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.layer_name==name
+        ).first()
+        return query
+
 
 class STP_suitability_visualization_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_suitability_visual_raster):
@@ -49,7 +55,12 @@ class STP_suitability_visualization_crud(CrudBase):
     def get_visual_path(self):
         query=self.db.query(self.Model).filter().all()
         return query
-
+    def get_raster(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.layer_name==name
+        ).first().file_path
+        return query
+    
 class Stp_area_crud(CrudBase):
     def __init__(self,db:Session,Model=Stp_suitability_Area):
         super().__init__(db,Model)

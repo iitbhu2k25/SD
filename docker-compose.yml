@@ -9,7 +9,7 @@ services:
       - ./database/.db.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+      - ./database/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:z
     restart: always
     depends_on:
       - redis

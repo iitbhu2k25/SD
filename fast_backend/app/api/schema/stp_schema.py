@@ -265,3 +265,10 @@ class StpsuitabilityDrainReport(BaseModel):
 class Mardetails(BaseModel):
     lat:float
     lon:float
+
+class RasterVisual(BaseModel):
+    moduleName:str
+    rasterName:str
+    category:str =None
+    class Config:
+        from_attributes = True

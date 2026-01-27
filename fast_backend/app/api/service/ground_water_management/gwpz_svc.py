@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 from app.database.crud.gwpz_crud import GWZ_crud,MARSuitability_crud,MARSuitability_visualization_crud,GWZ_visualization_crud,GWPL_crud,GWPL_visualization_crud
-from app.api.schema.stp_schema import STPCategory
+from app.api.schema.stp_schema import STPCategory,RasterVisual
+from app.database.crud.stp_crud import STP_priority_crud,Stp_area_crud,STP_suitability_crud,STP_visualization_crud,STP_suitability_visualization_crud
 import os
 from  app.api.service.river_water_management.spt_service import Stp_service
 from app.conf.settings import Settings
-
+from app.api.exception.exceptions import CustomException
+from fastapi.responses import FileResponse
 class Gwzp_service:
     def get_raster(db:Session,payload:STPCategory):
         raster_path=[]
@@ -60,6 +62,26 @@ class MARSuitability_svc:
         return MARSuitability_visualization_crud(db).get_all_visual()
     
 class Raster_visual:
+
+    @staticmethod
+    def raster_down(db,payload:RasterVisual):
+        path =None
+        if payload.moduleName=="Stp priority":
+            path = STP_visualization_crud(db).get_raster(payload.rasterName)
+        elif payload.moduleName=="Stp priority":
+            pass
+        elif payload.moduleName=="Stp priority":
+            pass
+        elif payload.moduleName=="Stp priority":
+            pass
+        elif payload.moduleName=="Stp priority":
+            pass
+        else:
+            pass
+        if path:
+            path="/home/app/"+path.file_path
+            return FileResponse(path)
+        raise CustomException(status_code=401,detail="File not found")
     @staticmethod
     def visual_raster(db):
         temp = Stp_service.get_priority_visual(db)
