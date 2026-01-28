@@ -70,8 +70,12 @@ class Stp_service:
     
     def get_priority_visual(db:Session,all_data:bool=False):
         return STP_visualization_crud(db).get_visual_path()
+    def get_priority_raster_path(db:Session,name:str):
+        return STP_visualization_crud(db).get_raster(name)
+    def get_suitability_raster_path(db:Session,name:str):
+        return STP_suitability_visualization_crud(db).get_raster(name)
     
-    def get_suitability_category(db:Session,all_data:bool=False):
+    def get_suitability_visual(db:Session,all_data:bool=False):
         return STP_suitability_visualization_crud(db).get_visual_path()
     
     def get_suitability_area(db:Session):

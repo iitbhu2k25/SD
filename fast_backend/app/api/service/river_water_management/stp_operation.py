@@ -1025,7 +1025,7 @@ class STPsuitabilityMapper:
 
     def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
-            raster_path=spt_service.Stp_service.get_suitability_category(db,all_data=True)
+            raster_path=spt_service.Stp_service.get_suitability_visual(db,all_data=True)
             raster_path = [{"file_name": i.file_name,
                             "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
                             "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            

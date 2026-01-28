@@ -1,12 +1,12 @@
-from fastapi import APIRouter,status
+from fastapi import APIRouter,status,Depends
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_location
 from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,RasterVisual,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
-from fastapi import Depends
-from typing import Annotated
+from fastapi.responses import FileResponse
+from typing import Annotated,Optional
 from app.dependency.token_dependency import validate_user
 router=APIRouter()
 
@@ -75,18 +75,17 @@ async def get_stretch(db:db_dependency,payload:STPCatchmentInput,user: Annotated
 async def get_visual(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Raster_visual.visual_raster(db)
 
-@router.get("/get_raster",status_code=status.HTTP_201_CREATED)
+@router.get("/raster_download",status_code=status.HTTP_201_CREATED,response_class=FileResponse)
 @validate
-async def get_raster(db:db_dependency,payload:RasterVisual,user: Annotated[bool, Depends(validate_user)]):
-    return Raster_visual.raster_down(db,payload)
+async def get_raster(db:db_dependency, moduleName:str,rasterName:str):
+    return Raster_visual.raster_down(db,RasterVisual(moduleName=moduleName,rasterName=rasterName))
 
 
 
-
-@router.get("/raster_visual_pdf",status_code=status.HTTP_201_CREATED)
-@validate
-async def raster_visual_pdf(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
-    pass
+# @router.post("/raster_visual_pdf",status_code=status.HTTP_201_CREATED)
+# @validate
+# async def raster_visual_pdf(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
+#     pass
 
 
 

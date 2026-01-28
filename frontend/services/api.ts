@@ -88,7 +88,6 @@ async function parseResponse<T>(
   responseType?: RequestOptions["responseType"]
 ): Promise<T | null> {
   if (res.status === 204) return null;
-
   if (responseType === "blob") return (await res.blob()) as T;
   if (responseType === "text") return (await res.text()) as T;
 

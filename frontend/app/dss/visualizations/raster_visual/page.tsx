@@ -121,7 +121,7 @@ const PriorityPage: React.FC = () => {
 
       <div className="transition-all duration-500 ease-in-out">
         {activeView === "Visualization" && <Visualization />}
-        {activeView === "Analytics" && <Analytics />}
+        {activeView === "Analytics" }
       </div>
     </div>
   );

@@ -24,6 +24,9 @@ class Gwzp_service:
 
     def get_GWA_Priority_visual(db:Session,all_data:bool=True):
         return GWZ_visualization_crud(db).get_all_visual()
+    
+    def get_raster_path(db:Session,name:str):
+        return GWZ_visualization_crud(db).get_raster(name)
 
 class GWPL_service:
     # def get_raster(db:Session,payload:STPCategory):
@@ -42,6 +45,8 @@ class GWPL_service:
 
     def get_GWPL_visual(db:Session,all_data:bool=True):
         return GWPL_visualization_crud(db).get_all_visual()
+    def get_raster_path(db:Session,name:str):
+        return GWPL_visualization_crud(db).get_raster(name)
 
 class MARSuitability_svc:
     # def get_raster(db:Session,payload:STPCategory):
@@ -60,37 +65,42 @@ class MARSuitability_svc:
 
     def get_MAR_visual(db:Session,all_data:bool=True):
         return MARSuitability_visualization_crud(db).get_all_visual()
+    def get_raster_path(db:Session,name:str):
+        return MARSuitability_visualization_crud(db).get_raster(name)
     
 class Raster_visual:
 
     @staticmethod
-    def raster_down(db,payload:RasterVisual):
+    def _raster_path(db,payload:RasterVisual):
         path =None
         if payload.moduleName=="Stp priority":
-            path = STP_visualization_crud(db).get_raster(payload.rasterName)
-        elif payload.moduleName=="Stp priority":
-            pass
-        elif payload.moduleName=="Stp priority":
-            pass
-        elif payload.moduleName=="Stp priority":
-            pass
-        elif payload.moduleName=="Stp priority":
-            pass
+            path=Stp_service.get_priority_raster_path(db,payload.rasterName)
+        elif payload.moduleName=="Stp suitability":
+            path=Stp_service.get_suitability_raster_path(db,payload.rasterName)
+        elif payload.moduleName=="Groundwater Potential Zone":
+            path=Gwzp_service.get_raster_path(db,payload.rasterName)
+        elif payload.moduleName=="Groundwater Pumping Location":
+            path=GWPL_service.get_raster_path(db,payload.rasterName)
+        elif payload.moduleName=="MAR Site Suitability":
+            path=MARSuitability_svc.get_raster_path(db,payload.rasterName)
         else:
-            pass
+            return path
+        return path
+    @staticmethod
+    def raster_down(db,payload:RasterVisual):
+        path = Raster_visual._raster_path(db,payload)
         if path:
             path="/home/app/"+path.file_path
-            return FileResponse(path)
+            return FileResponse(path=path, status_code=201, media_type="image/tiff")
         raise CustomException(status_code=401,detail="File not found")
+
     @staticmethod
     def visual_raster(db):
         temp = Stp_service.get_priority_visual(db)
-        temp2 = Stp_service.get_suitability_category(db)
+        temp2 = Stp_service.get_suitability_visual(db)
         temp3= Gwzp_service.get_GWA_Priority_visual(db)
         temp4 = GWPL_service.get_GWPL_visual(db)
         temp5=MARSuitability_svc.get_MAR_visual(db)
-
-        
         resp = [
             {
                 "module": "Stp priority",

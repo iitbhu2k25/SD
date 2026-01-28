@@ -58,7 +58,7 @@ class STP_suitability_visualization_crud(CrudBase):
     def get_raster(self,name:str):
         query=self.db.query(self.Model).filter(
             self.Model.layer_name==name
-        ).first().file_path
+        ).first()
         return query
     
 class Stp_area_crud(CrudBase):

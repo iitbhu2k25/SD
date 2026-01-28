@@ -269,6 +269,3 @@ class Mardetails(BaseModel):
 class RasterVisual(BaseModel):
     moduleName:str
     rasterName:str
-    category:str =None
-    class Config:
-        from_attributes = True

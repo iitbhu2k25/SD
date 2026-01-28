@@ -34,7 +34,7 @@ interface Module {
   raster: RasterLayer[];
 }
 
- const Visualization: React.FC = () => {
+const Visualization: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const rasterLayerRef = useRef<ImageLayer<ImageWMS> | null>(null);
@@ -52,6 +52,7 @@ interface Module {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedModule, setSelectedModule] = useState<string>("");
   const [rasterFileName, setRasterFileName] = useState<string>("");
+  const [layerName,setLayerName] = useState<string>("");
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [Displaydata, setDisplayData] = useState<Module[]>([]);
@@ -83,7 +84,6 @@ interface Module {
   const Vector_workspace = "vector_work";
   const Raster_workspace = "raster_visualization";
   const FIXED_VECTOR_LAYER = "STP_State";
-  // Filter rasters
   const filteredRasters: (RasterLayer & { module: string })[] = [];
 
   if (selectedModule) {
@@ -99,8 +99,49 @@ interface Module {
         });
     }
   }
-  
 
+  const handleRasterTiff = async () => {
+    try {
+      setLoading(true);
+      const resp = await api.get<Blob>("/location/raster_download", {
+        params: {
+          moduleName: selectedModule,
+          rasterName: layerName,
+        },
+        responseType: "blob",
+      })
+
+      if (resp.status > 201) {
+        toast.error("Failed to fetch modules", {
+          position: "top-center",
+        })
+        return
+      }
+      const blob = resp.message;
+      if (!blob) {
+        throw new Error("No blob data received");
+      }
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedModule}_${rasterFileName}.tiff`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.log("Failed to fetch modules", err);
+      toast.error("Failed to download raster file ", {
+        position: "top-center",
+      })
+    } finally {
+      setLoading(false);
+    }
+  }
+  const handleRasterpdf = () => {
+    console.log("pdf")
+  }
   // Initialize map and vector layer together
   useEffect(() => {
     if (!mapRef.current) return;
@@ -285,12 +326,13 @@ interface Module {
           : transformExtent(extent4326, 'EPSG:4326', viewProj);
 
         view.fit(extent, {
-          padding: [20, 20, 20, 20],
-          duration: 500,
-          maxZoom: 14
+          padding: [160,160,160,160],
+          duration: 300,
+          maxZoom: 10
         });
       });
       setRasterFileName(file_name);
+      setLayerName(layerName);
       setLoading(false);
     } catch (error) {
       console.log("Error loading raster layer:", error);
@@ -333,6 +375,7 @@ interface Module {
       setLegendUrl(null);
       setShowLegend(false);
       setRasterFileName("");
+      setLayerName("");
     }
   };
 
@@ -372,8 +415,8 @@ interface Module {
               </svg>
             </div>
             <div>
-
-              <p className="text-blue-100 text-sm">Raster Layers Visualization</p>
+              <h1 className="text-xl font-bold text-white">Raster Layers Visualization</h1>
+              <p className="text-blue-100 text-sm">Visualization tool</p>
             </div>
           </div>
         </div>
@@ -443,59 +486,115 @@ interface Module {
 
               {/* 👉 Fixed Current Layer Config (always visible) */}
               {rasterLayerRef.current && (
-                <div className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 flex-shrink-0">
-                  <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-2 text-purple-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2
-              l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6
-              20h12a2 2 0 002-2V6a2 2 0
-              00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    Current Layer
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div className="p-3 bg-slate-600/50 rounded border border-slate-500">
-                      <p className="text-sm text-slate-300 font-mono">{rasterFileName}</p>
+                <div className=" bg-slate-800/70 backdrop-blur rounded-xl border border-slate-700 shadow-lg p-4 space-y-5">
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-white flex items-center">
+                      <svg
+                        className="w-5 h-5 mr-2 text-purple-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2
+             l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6
+             20h12a2 2 0 002-2V6a2 2 0
+             00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      Current Layer
+                    </h3>
+                  </div>
+
+                  {/* File name */}
+                  <div className="rounded-lg bg-slate-700/50 border border-slate-600 px-3 py-2">
+                    <p className="text-xs text-slate-300 truncate font-mono">
+                      {rasterFileName}
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sm text-slate-200 py-2"
+                      onClick={handleRasterTiff}>
+                      <svg
+                        className="w-4 h-4 text-purple-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"
+                        />
+                      </svg>
+                      Tiff
+                    </button>
+
+                    <button className="flex items-center justify-center gap-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition text-sm text-slate-200 py-2"
+                      onClick={handleRasterpdf}>
+                      <svg
+                        className="w-4 h-4 text-red-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v12m0 0l-4-4m4 4l4-4M6 20h12"
+                        />
+                      </svg>
+                      PDF
+                    </button>
+                  </div>
+
+                  {/* Opacity */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>Opacity</span>
+                      <span className="text-purple-400 font-medium">
+                        {layerOpacity}%
+                      </span>
                     </div>
 
-                    <div>
-                      <div className="flex justify-between text-sm text-slate-300 mb-2">
-                        <span className="font-medium">Opacity</span>
-                        <span className="font-semibold text-purple-400">{layerOpacity}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={layerOpacity}
-                        onChange={handleOpacityChange}
-                        className="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
-                      />
-                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={layerOpacity}
+                      onChange={handleOpacityChange}
+                      className="w-full h-1.5 rounded-lg appearance-none cursor-pointer
+                 bg-slate-600 accent-purple-500"
+                    />
+                  </div>
+
+                  {/* Legend Toggle */}
+                  <div className="flex items-center justify-between rounded-lg bg-slate-700/50 border border-slate-600 px-3 py-2">
+                    <span className="text-sm text-slate-300">Legend</span>
 
                     <button
                       onClick={() => setShowLegend(!showLegend)}
-                      className={`w-full px-4 py-2 rounded-lg transition-all duration-200 text-sm font-medium flex items-center justify-center space-x-2 ${showLegend
-                        ? "bg-green-600 hover:bg-green-700 text-white"
-                        : "bg-slate-600 hover:bg-slate-500 text-slate-200"
-                        }`}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition
+        ${showLegend ? "bg-green-500" : "bg-slate-500"}`}
                     >
-                      <span>{showLegend ? "Hide Legend" : "Show Legend"}</span>
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition
+          ${showLegend ? "translate-x-4" : "translate-x-1"}`}
+                      />
                     </button>
                   </div>
                 </div>
+
               )}
 
               {/* Raster Layers List - scroll only this */}
@@ -684,7 +783,7 @@ interface Module {
           </div>
         </div>
 
-        {legendUrl && (
+        {legendUrl && showLegend && (
           <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
             <div className="flex justify-between items-center ">
               <span className="text-sm font-bold text-gray-700">Legend</span>

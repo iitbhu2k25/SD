@@ -24,6 +24,11 @@ class GWZ_visualization_crud(CrudBase):
     def get_all_visual(self):
         query=self.db.query(self.Model).filter().all()
         return query
+    def get_raster(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.layer_name==name
+        ).first()
+        return query
 
 class GWPL_crud(CrudBase):
     def __init__(self,db:Session,Model=Groundwater_Identification):
@@ -45,6 +50,11 @@ class GWPL_visualization_crud(CrudBase):
     
     def get_all_visual(self):
         query=self.db.query(self.Model).filter().all()
+        return query
+    def get_raster(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.layer_name==name
+        ).first()
         return query
     
 
@@ -68,6 +78,11 @@ class MARSuitability_visualization_crud(CrudBase):
     
     def get_all_visual(self):
         query=self.db.query(self.Model).filter().all()
+        return query
+    def get_raster(self,name:str):
+        query=self.db.query(self.Model).filter(
+            self.Model.layer_name==name
+        ).first()
         return query
     
 class MAR_Details(CrudBase):

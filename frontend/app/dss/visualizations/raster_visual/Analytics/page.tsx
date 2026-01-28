@@ -391,8 +391,8 @@ const Analytics: React.FC = () => {
                 </svg>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">ISRO RAC</h1>
-                <p className="text-blue-100 text-sm">Analysis hyperspectral imager</p>
+                <h1 className="text-xl font-bold text-white">Raster Layers Analytics</h1>
+                <p className="text-blue-100 text-sm">Analyzing tool </p>
               </div>
             </div>
             {/* Close button for mobile */}
