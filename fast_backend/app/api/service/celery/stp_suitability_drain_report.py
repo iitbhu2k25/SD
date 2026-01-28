@@ -14,7 +14,7 @@ from rasterio.mask import mask
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from celery import chord
@@ -35,7 +35,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm, mm
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, 
     PageBreak, Image
