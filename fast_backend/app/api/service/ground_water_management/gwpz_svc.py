@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.database.crud.gwpz_crud import GWZ_crud,MARSuitability_crud,MARSuitability_visualization_crud,GWZ_visualization_crud,GWPL_crud,GWPL_visualization_crud
 from app.api.schema.stp_schema import STPCategory,RasterVisual
-from app.database.crud.stp_crud import STP_priority_crud,Stp_area_crud,STP_suitability_crud,STP_visualization_crud,STP_suitability_visualization_crud
 import os
 from  app.api.service.river_water_management.spt_service import Stp_service
 from app.conf.settings import Settings
@@ -19,6 +18,9 @@ import math
 import numpy as np
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
+from app.api.service.geoserver import Geoserver
+from pathlib import Path
+from app.utils.name import Unique_name
 
 class Gwzp_service:
     def get_raster(db:Session,payload:STPCategory):
@@ -65,9 +67,9 @@ class MARSuitability_svc:
 class MapConfig:
     page_width: float
     page_height: float
-    dpi: int = 150
+    dpi: int = 250
     map_margin_left: int = 200
-    map_margin_right: int = 60
+    map_margin_right: int = 20
     map_margin_top: int = 100
     map_margin_bottom: int = 80
     
@@ -99,6 +101,15 @@ class LegendItem:
     color: str
     label: str
     quantity: float
+
+@dataclass
+class LogoConfig:
+    left_logo_path: Optional[str] = None
+    right_logo_path: Optional[str] = None
+    logo_height: float = 60  # Height of logo in points
+    logo_margin_top: float = 20  # Margin from top
+    logo_margin_side: float = 30  # Margin from sides
+
 
 
 class SLDParser:
@@ -212,6 +223,72 @@ class RasterRenderer:
             img_width_px = int(img_height_px * aspect_ratio)
         
         return img_width_px, img_height_px
+
+class LogoDrawer:
+
+    
+    def __init__(self, logo_config: LogoConfig, page_width: float, page_height: float):
+        self.logo_config = logo_config
+        self.page_width = page_width
+        self.page_height = page_height
+    
+    def draw(self, canvas_obj: canvas.Canvas):
+
+        if self.logo_config.left_logo_path:
+            self._draw_left_logo(canvas_obj)
+        
+        if self.logo_config.right_logo_path:
+            self._draw_right_logo(canvas_obj)
+    
+    def _draw_left_logo(self, c: canvas.Canvas):
+
+        if not os.path.exists(self.logo_config.left_logo_path):
+            print(f"Warning: Left logo not found at {self.logo_config.left_logo_path}")
+            return
+        
+        try:
+            # Open image to get dimensions
+            img = Image.open(self.logo_config.left_logo_path)
+            img_width, img_height = img.size
+            
+            # Calculate width maintaining aspect ratio
+            aspect_ratio = img_width / img_height
+            logo_width = self.logo_config.logo_height * aspect_ratio
+            
+            # Position in top-left
+            x = self.logo_config.logo_margin_side
+            y = self.page_height - self.logo_config.logo_margin_top - self.logo_config.logo_height
+            
+            c.drawImage(self.logo_config.left_logo_path, x, y, 
+                       width=logo_width, height=self.logo_config.logo_height,
+                       preserveAspectRatio=True, mask='auto')
+        except Exception as e:
+            print(f"Error drawing left logo: {e}")
+    
+    def _draw_right_logo(self, c: canvas.Canvas):
+
+        if not os.path.exists(self.logo_config.right_logo_path):
+            print(f"Warning: Right logo not found at {self.logo_config.right_logo_path}")
+            return
+        
+        try:
+            # Open image to get dimensions
+            img = Image.open(self.logo_config.right_logo_path)
+            img_width, img_height = img.size
+            
+            # Calculate width maintaining aspect ratio
+            aspect_ratio = img_width / img_height
+            logo_width = self.logo_config.logo_height * aspect_ratio
+            
+            # Position in top-right
+            x = self.page_width - self.logo_config.logo_margin_side - logo_width
+            y = self.page_height - self.logo_config.logo_margin_top - self.logo_config.logo_height
+            
+            c.drawImage(self.logo_config.right_logo_path, x, y,
+                       width=logo_width, height=self.logo_config.logo_height,
+                       preserveAspectRatio=True, mask='auto')
+        except Exception as e:
+            print(f"Error drawing right logo: {e}")
 
 
 class CompassRose:
@@ -404,8 +481,11 @@ class LegendDrawer:
 
 class PDFMapComposer:
     
-    def __init__(self, config: MapConfig):
+    def __init__(self, config: MapConfig,raster_name:str,ModuleName:str=None,logo_config: Optional[LogoConfig] = None):
         self.config = config
+        self.title=ModuleName
+        self.header=raster_name
+        self.logo_config = logo_config  or LogoConfig()
     
     def compose(self, output_path: str, img: Image.Image, img_width: float, 
                 img_height: float, raster_data: RasterData, 
@@ -419,7 +499,7 @@ class PDFMapComposer:
         # Draw raster image
         img_x, img_y = self._calculate_image_position(img_width, img_height)
         c.drawInlineImage(img, img_x, img_y, width=img_width, height=img_height)
-        
+        self._draw_logos(c)
         # Draw map elements
         self._draw_title(c)
         self._draw_compass(c)
@@ -429,7 +509,11 @@ class PDFMapComposer:
         
         c.showPage()
         c.save()
-    
+    def _draw_logos(self, c: canvas.Canvas):
+        logo_drawer = LogoDrawer(self.logo_config, self.config.page_width, 
+                                 self.config.page_height)
+        logo_drawer.draw(c)
+
     def _draw_background(self, c: canvas.Canvas):
         c.setFillColorRGB(0.98, 0.98, 0.98)
         c.rect(0, 0, self.config.page_width, self.config.page_height, fill=1)
@@ -451,17 +535,17 @@ class PDFMapComposer:
         c.setFont("Helvetica-Bold", 18)
         c.drawCentredString(self.config.page_width / 2, 
                            self.config.page_height - 50, 
-                           "MAR Water Body Map")
+                           self.title)
         
         c.setFont("Helvetica", 10)
         c.drawCentredString(self.config.page_width / 2,
                            self.config.page_height - 70,
-                           "Land Use Land Cover Classification")
+                           self.header)
     
     def _draw_compass(self, c: canvas.Canvas):
         compass_x = 85
         compass_y = self.config.page_height - 160
-        compass = CompassRose(compass_x, compass_y, radius=45)
+        compass = CompassRose(compass_x, compass_y, radius=25)
         compass.draw(c)
     
     def _draw_legend(self, c: canvas.Canvas, legend_items: List[LegendItem]):
@@ -492,15 +576,22 @@ class PDFMapComposer:
 
 class GISMapGenerator:
     
-    def __init__(self, raster_path: str, sld_path: str, output_path: str):
+    def __init__(self, raster_path: str, sld_path: str, output_path: str,raster_name:str,ModuleName:str =None,
+                left_logo_path: Optional[str] = None, 
+                right_logo_path: Optional[str] = None):
        
         self.raster_path = raster_path
         self.sld_path = sld_path
         self.output_path = output_path
-        
+        self.title=ModuleName
+        self.header=raster_name
         # Initialize configuration
         page_width, page_height = landscape(A4)
         self.config = MapConfig(page_width, page_height)
+        self.logo_config = LogoConfig(
+            left_logo_path=left_logo_path,
+            right_logo_path=right_logo_path
+        )
     
     def generate(self):
 
@@ -514,7 +605,7 @@ class GISMapGenerator:
         renderer = RasterRenderer(self.config)
         img, img_width, img_height = renderer.render(raster_data, cmap, norm)
         
-        composer = PDFMapComposer(self.config)
+        composer = PDFMapComposer(self.config,self.title,self.header,self.logo_config)
         composer.compose(self.output_path, img, img_width, img_height, 
                         raster_data, legend_items)
         
@@ -545,13 +636,21 @@ class Raster_visual:
             path="/home/app/"+path.file_path
             return FileResponse(path=path, status_code=201, media_type="image/tiff")
         raise CustomException(status_code=401,detail="File not found")
-
+    
+    @staticmethod
     def raster_pdf(db,payload:RasterVisual):
-        raster_file = "/home/app/media/Rajat_data/shape_stp/MAR_Suitability/Visual/Condition/LULC.tif"
-        sld_file = "/home/app/media/Rajat_data/shape_stp/MAR_Suitability/Visual/SLD/condition/LULC.sld"
-        output_pdf = "final_map.pdf"
-        generator = GISMapGenerator(raster_file, sld_file, output_pdf)
+        output_pdf = Path(Settings().TEMP_DIR,Unique_name.unique_name_with_ext("raster","pdf"))
+        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
+        generator = GISMapGenerator(resp["raster_path"], 
+                                    resp["sld_path"], 
+                                    str(output_pdf),
+                                    payload.fileName,
+                                    payload.moduleName,
+                                    left_logo_path=f"{Settings().BASE_DIR}/media/images/iitbhu.png",
+                                    right_logo_path=f"{Settings().BASE_DIR}/media/images/slcr.png",
+                        )
         generator.generate()
+        return FileResponse(path=output_pdf, status_code=201, media_type="application/pdf")
 
     @staticmethod
     def visual_raster(db):

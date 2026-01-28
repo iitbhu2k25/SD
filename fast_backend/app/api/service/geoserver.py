@@ -29,12 +29,13 @@ class Geoserver:
         self.wfs_url = f"{self.geoserver_url}/wfs"
         self.temp_dir = config.output_path
 
-    def raster_download(self,temp_path,layer_name):
+    def raster_download(self,temp_path,layer_name,workspace:str="raster_work"):
+        sld_file_path=None
         geoserver_wcs_url = (f"{self.wcs_url}"
                     f"?service=WCS"
                     f"&version=2.0.1"
                     f"&request=GetCoverage"
-                    f"&coverageId=raster_work:{layer_name}"
+                    f"&coverageId={workspace}:{layer_name}"
                     f"&format=image/geotiff"
                 )
 
@@ -47,15 +48,23 @@ class Geoserver:
         if r.status_code == 200:
             with open(file_path, "wb") as f:
                 f.write(r.content)
+        layer_info_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/layers/{layer_name}.json"
+        resp = requests.get(layer_info_url
+                    , auth=HTTPBasicAuth(self.username, self.password),cookies={})
+        resp.raise_for_status()
+        layer_json = resp.json()
 
-        sld_url = f"{self.geoserver_url}/rest/workspaces/raster_work/styles/{layer_name}"
-        sld_response = requests.get(sld_url, auth=HTTPBasicAuth(self.username, self.password),headers={"Accept": "application/vnd.ogc.sld+xml"})
-        if sld_response.status_code == 200:
-            name_part = "_".join(layer_name.split("_")[:-1])
-            sld_file_path = os.path.join(temp_path, name_part + ".sld")
-            with open(sld_file_path, "wb") as f:
-                f.write(sld_response.content)
+        style_href = layer_json["layer"]["defaultStyle"]["href"]
+        style_json = requests.get(style_href, auth=HTTPBasicAuth(self.username, self.password),cookies={}).json()
+        sld_filename = style_json["style"]["filename"]
 
+        # Step 3: download the SLD
+        sld_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/styles/{sld_filename}"
+        sld_resp = requests.get(sld_url,  auth=HTTPBasicAuth(self.username, self.password),cookies={})
+        sld_resp.raise_for_status()
+        sld_file_path = os.path.join(temp_path, sld_filename)
+        with open(sld_file_path, "wb") as f:
+            f.write(sld_resp.content)
         return {
             "raster_path": file_path,
             "sld_path": sld_file_path

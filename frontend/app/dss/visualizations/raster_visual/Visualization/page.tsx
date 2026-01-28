@@ -52,7 +52,7 @@ const Visualization: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedModule, setSelectedModule] = useState<string>("");
   const [rasterFileName, setRasterFileName] = useState<string>("");
-  const [layerName,setLayerName] = useState<string>("");
+  const [layerName, setLayerName] = useState<string>("");
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [Displaydata, setDisplayData] = useState<Module[]>([]);
@@ -139,8 +139,45 @@ const Visualization: React.FC = () => {
       setLoading(false);
     }
   }
-  const handleRasterpdf = () => {
-    console.log("pdf")
+  const handleRasterpdf = async () => {
+    try {
+      setLoading(true);
+      const resp = await api.get<Blob>("/location/raster_visual_pdf", {
+        params: {
+          moduleName: selectedModule,
+          rasterName: layerName,
+          fileName: rasterFileName
+        },
+        responseType: "blob",
+      })
+
+      if (resp.status > 201) {
+        toast.error("Failed to fetch modules", {
+          position: "top-center",
+        })
+        return
+      }
+      const blob = resp.message;
+      if (!blob) {
+        throw new Error("No blob data received");
+      }
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${selectedModule}_${rasterFileName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.log("Failed to fetch modules", err);
+      toast.error("Failed to download file ", {
+        position: "top-center",
+      })
+    } finally {
+      setLoading(false);
+    }
   }
   // Initialize map and vector layer together
   useEffect(() => {
@@ -326,7 +363,7 @@ const Visualization: React.FC = () => {
           : transformExtent(extent4326, 'EPSG:4326', viewProj);
 
         view.fit(extent, {
-          padding: [160,160,160,160],
+          padding: [160, 160, 160, 160],
           duration: 300,
           maxZoom: 10
         });

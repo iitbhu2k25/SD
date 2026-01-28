@@ -269,3 +269,4 @@ class Mardetails(BaseModel):
 class RasterVisual(BaseModel):
     moduleName:str
     rasterName:str
+    fileName:Optional[str]=None

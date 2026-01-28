@@ -80,10 +80,10 @@ async def get_visual(db:db_dependency,user: Annotated[bool, Depends(validate_use
 async def get_raster(db:db_dependency, moduleName:str,rasterName:str):
     return Raster_visual.raster_down(db,RasterVisual(moduleName=moduleName,rasterName=rasterName))
 
-@router.get("/raster_visual_pdf",status_code=status.HTTP_201_CREATED)
+@router.get("/raster_visual_pdf",status_code=status.HTTP_201_CREATED,response_class=FileResponse)
 @validate
-async def raster_visual_pdf(db:db_dependency, moduleName:str,rasterName:str):
-    return Raster_visual.raster_pdf(db,RasterVisual(moduleName=moduleName,rasterName=rasterName))
+async def raster_visual_pdf(db:db_dependency, moduleName:str,rasterName:str,fileName:str):
+    return Raster_visual.raster_pdf(db,RasterVisual(moduleName=moduleName,rasterName=rasterName,fileName=fileName))
 
 
 
