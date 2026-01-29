@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from typing import Annotated,List,Optional
+from typing import Annotated,List,Optional,Text
 
 
 class Stp_response(BaseModel):
@@ -110,6 +110,7 @@ class STPPriorityOutput(BaseModel):
     weight: float
     file_name: str
     id: int 
+    details:Text
 
     class Config:
         from_attributes = True
@@ -121,6 +122,12 @@ class Stp_Area(BaseModel):
 
 class STPsuitabilityOutput(STPPriorityOutput):
     raster_category: str  
+
+    class Config:
+        from_attributes = True
+    
+class MARsuitabilityOutput(STPsuitabilityOutput):
+    needed:str 
 
     class Config:
         from_attributes = True

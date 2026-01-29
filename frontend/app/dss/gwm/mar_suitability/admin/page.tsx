@@ -18,6 +18,8 @@ import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { downloadCSV } from "@/components/utils/downloadCsv";
 import AnalysisList from '@/app/dss/gwm/mar_suitability/component/AnalysisItem'
+import { FaLock, FaUnlock } from "react-icons/fa";
+
 
 const MainContent = () => {
   const [submitting, setSubmitting] = useState(false);
@@ -93,13 +95,21 @@ const MainContent = () => {
                   </h3>
                   <button
                     onClick={() => setCategoriesEditable(!categoriesEditable)}
-                    className={`px-4 py-1 rounded-lg text-sm font-medium shadow-sm transition duration-200 ${categoriesEditable
-                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
-                      }`}
+                    className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
                   >
-                    {categoriesEditable ? "Editing Enabled" : "Change"}
+                    {categoriesEditable ? <FaUnlock /> : <FaLock />}
+
+                    {/* Tooltip */}
+                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                   whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
+                   text-xs text-white opacity-0 
+                   group-hover:opacity-100 transition
+                  ">
+                    Weight changer
+                    </span>
                   </button>
+
+
                 </div>
                 <CategorySelector />
               </section>

@@ -2,12 +2,12 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
 import { api } from '@/services/api';
-import { Category, SelectRasterLayer, Stp_area, RasterLayer } from '@/interface/raster_context';
+import { MARCategory, SelectRasterLayer, Stp_area, RasterLayer } from '@/interface/raster_context';
 
 
 interface CategoryContextType {
-  condition_categories: Category[];
-  constraint_categories: Category[];
+  condition_categories: MARCategory[];
+  constraint_categories: MARCategory[];
   selectedCondition: SelectRasterLayer[];
   selectedConstraint: SelectRasterLayer[];
   toggleConditionCategory: (id: number, file_name: string) => void;
@@ -47,10 +47,10 @@ interface CategoryProviderProps {
 // Create context with default undefined value
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
-// Category provider component
+// MARCategory provider component
 export const CategoryProvider = ({ children }: CategoryProviderProps) => {
-  const [conditionCategories, setConditionCategories] = useState<Category[]>([]);
-  const [constraintCategories, setConstraintCategories] = useState<Category[]>([]);
+  const [conditionCategories, setConditionCategories] = useState<MARCategory[]>([]);
+  const [constraintCategories, setConstraintCategories] = useState<MARCategory[]>([]);
   const [selectedCondition, setSelectedCondition] = useState<SelectRasterLayer[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<SelectRasterLayer[]>([]);
   const [selectedConstraint, setSelectedConstraint] = useState<SelectRasterLayer[]>([]);
@@ -73,8 +73,8 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
-        const data = await response.message as Category[];
-        const enhancedCategories = data.map((category: Category) => ({
+        const data = await response.message as MARCategory[];
+        const enhancedCategories = data.map((category: MARCategory) => ({
           ...category,
         }));
 
@@ -94,8 +94,8 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
         if (response.status != 201) {
           throw new Error('Failed to fetch condition categories');
         }
-        const data = await response.message as Category[];
-        const enhancedCategories = data.map((category: Category) => ({
+        const data = await response.message as MARCategory[];
+        const enhancedCategories = data.map((category: MARCategory) => ({
           ...category,
         }));
 

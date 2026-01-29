@@ -7,7 +7,7 @@ from app.api.service.ground_water_management.gwpz_svc import MARSuitability_svc,
 from app.utils.exception import validate
 from app.api.service.celery.gwz_admin_document import document_gen4
 from app.api.service.celery.gwz_drain_document import document_gen5
-from app.api.schema.stp_schema import  STPCategory,STPsuitabilityOutput,GWPL_output,Mardetails,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
+from app.api.schema.stp_schema import  MARsuitabilityOutput,STPCategory,STPsuitabilityOutput,GWPL_output,Mardetails,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)
 @validate
@@ -57,12 +57,12 @@ async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput,us
 
 @router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED,response_model=GWPL_output)
 @validate
-async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input):
+async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input,user: Annotated[bool, Depends(validate_user)]):
     return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location,payload.village_list)
 
 
 # MAR suitability 
-@router.get("/get_mar_suitability_category",status_code=status.HTTP_201_CREATED,response_model=list[STPsuitabilityOutput])
+@router.get("/get_mar_suitability_category",status_code=status.HTTP_201_CREATED,response_model=list[MARsuitabilityOutput])
 @validate
 async def get_raster_mar_suitability(db:db_dependency,category:str,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return MARSuitability_svc.get_raster_MAR(db,category,all_data)
@@ -81,5 +81,5 @@ async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annota
 
 @router.post("/mar_raster_details",status_code=status.HTTP_201_CREATED)
 @validate
-async def mar_raster_details(db:db_dependency,payload:Mardetails):
+async def mar_raster_details(db:db_dependency,payload:Mardetails,user: Annotated[bool, Depends(validate_user)]):
     return  MARRasterDetails().get_value(db,payload.lat,payload.lon)

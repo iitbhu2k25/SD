@@ -120,6 +120,16 @@ export interface Category {
   file_name: string;
   weight: number;
   raster_category: string;
+  details:string;
+}
+
+export interface MARCategory {
+  id: number;
+  file_name: string;
+  weight: number;
+  raster_category: string;
+  details:string;
+  needed :string;
 }
 
 // Interface for raster layer selection with added weight field
