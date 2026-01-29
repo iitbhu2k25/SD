@@ -1143,7 +1143,6 @@ const Mapping: React.FC = () => {
                     data={boreholeData}
                     width={240}
                     height={260}
-                    radius={0.7}
                     depthStep={0.3}
                   />
                 </div>
