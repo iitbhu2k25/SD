@@ -8,6 +8,7 @@ export interface Category {
   id: number;
   file_name: string;
   weight: number;
+  details:string;
 }
 
 export interface SelectRasterLayer {
@@ -139,7 +140,7 @@ export const CategoryProvider = ({
         typeof item.weight === 'number' && 
         item.weight >= 0
       );
-      
+      console.log("")
       setCategories(validatedData);
       
     } catch (err) {

@@ -1,7 +1,7 @@
 
 from app.database.models.base import Base
-from sqlalchemy.orm import Mapped,mapped_column, relationship
-from sqlalchemy import Integer, String, Float,ForeignKey
+from sqlalchemy.orm import Mapped,mapped_column
+from sqlalchemy import Integer, String, Float,Text
 from typing import List
 
 class Groundwater_Zone_Visual_raster(Base):
@@ -17,6 +17,7 @@ class Groundwater_Zone_raster(Base):
     layer_name:Mapped[str]=mapped_column(String,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     weight:Mapped[float]=mapped_column(Float,nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=True)
 
 class Groundwater_Identification(Base):
     __tablename__='groundwater_identification_raster'
@@ -25,6 +26,7 @@ class Groundwater_Identification(Base):
     weight:Mapped[float]=mapped_column(Float,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=True)
 
 class Groundwater_Identification_visual_raster(Base):
     __tablename__='groundwater_Identification_visual'
@@ -41,6 +43,8 @@ class MAR_suitability_raster(Base):
     weight:Mapped[float]=mapped_column(Float,nullable=False)
     file_path:Mapped[str]=mapped_column(String,nullable=False)
     raster_category:Mapped[str]=mapped_column(String,nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=True)
+    needed:Mapped[str]=mapped_column(String,nullable=False)
 
 
 class MAR_suitability_visual_raster(Base):

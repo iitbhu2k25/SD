@@ -1,8 +1,8 @@
-"""new update 
+"""update model
 
-Revision ID: ebd649b31f30
+Revision ID: 6081a6809cf5
 Revises: 
-Create Date: 2025-12-31 09:34:18.828613
+Create Date: 2026-01-29 10:39:05.045847
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'ebd649b31f30'
+revision: str = '6081a6809cf5'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -47,6 +47,7 @@ def upgrade() -> None:
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
     sa.Column('raster_category', sa.String(), nullable=False),
+    sa.Column('details', sa.Text(), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -58,6 +59,7 @@ def upgrade() -> None:
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
     sa.Column('weight', sa.Float(), nullable=False),
+    sa.Column('details', sa.Text(), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -91,6 +93,8 @@ def upgrade() -> None:
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
     sa.Column('raster_category', sa.String(), nullable=False),
+    sa.Column('details', sa.Text(), nullable=True),
+    sa.Column('needed', sa.String(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -126,6 +130,7 @@ def upgrade() -> None:
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('details', sa.Text(), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -178,6 +183,7 @@ def upgrade() -> None:
     sa.Column('weight', sa.Float(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
     sa.Column('raster_category', sa.String(), nullable=False),
+    sa.Column('details', sa.Text(), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
