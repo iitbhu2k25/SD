@@ -28,6 +28,27 @@ class Geoserver:
         self.wms_url = f"{self.geoserver_url}/wms"
         self.wfs_url = f"{self.geoserver_url}/wfs"
         self.temp_dir = config.output_path
+    def update_raster_min_max(self,tif_path):
+        with rasterio.open(tif_path, "r+") as ds:
+            band = ds.read(1, masked=True)
+
+            min_val = float(band.min())
+            max_val = float(band.max())
+
+            ds.update_tags(
+                1,
+                STATISTICS_MINIMUM=min_val,
+                STATISTICS_MAXIMUM=max_val,
+                STATISTICS_MEAN=float(band.mean()),
+                STATISTICS_STDDEV=float(band.std())
+            )
+
+            # THIS is the key part for QGIS
+            ds.update_tags(
+                STATISTICS_APPROXIMATE="FALSE"
+            )
+
+        print("Stats written — QGIS compatible")
 
     def raster_download(self,temp_path,layer_name,workspace:str="raster_work"):
         sld_file_path=None
@@ -36,7 +57,9 @@ class Geoserver:
                     f"&version=2.0.1"
                     f"&request=GetCoverage"
                     f"&coverageId={workspace}:{layer_name}"
-                    f"&format=image/geotiff"
+                    f"&format=image/tiff"
+                    f"&resample=nearest" 
+                    f"&ScaleFactor=1" 
                 )
 
         r = requests.get(geoserver_wcs_url
@@ -48,6 +71,8 @@ class Geoserver:
         if r.status_code == 200:
             with open(file_path, "wb") as f:
                 f.write(r.content)
+            self.update_raster_min_max(file_path)
+        # Step 2: get the SLD
         layer_info_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/layers/{layer_name}.json"
         resp = requests.get(layer_info_url
                     , auth=HTTPBasicAuth(self.username, self.password),cookies={})
