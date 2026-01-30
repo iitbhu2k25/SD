@@ -1548,7 +1548,6 @@ def final_step(self,results: List[dict],table_data:list,location_data:list,weigh
         
         pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
         redis_client.delete(f"pdf_generation:{parent_task_id}")
-        
         return pdf_path
     except Exception as e:
         logger.error(f"PDF generation failed: {e}")

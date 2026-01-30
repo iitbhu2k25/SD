@@ -134,7 +134,6 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
         case "STARTED":
           setStatus("started");
           setDescription("Starting PDF generation...");
-          toast.info("PDF generation started");
           break;
         case "PROGRESS":
           setStatus("progress");

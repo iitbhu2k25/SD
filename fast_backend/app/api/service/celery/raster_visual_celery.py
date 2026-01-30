@@ -22,6 +22,8 @@ from PIL import Image
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
 from app.conf.settings import Settings
+from matplotlib.colors import ListedColormap, NoNorm
+import uuid
 
 
 @dataclass(frozen=True)
@@ -88,7 +90,7 @@ class MapConfig:
     """Configuration for map layout."""
     page_width: float
     page_height: float
-    dpi: int = 250
+    dpi: int = 150
     map_margin_left: int = 200
     map_margin_right: int = 20
     map_margin_top: int = 100
@@ -162,6 +164,19 @@ class IRenderer(Protocol):
         """Render raster data to image."""
         ...
 
+def is_classified_raster(path, max_classes=50):
+    with rasterio.open(path) as ds:
+        # Read a small sample (center window) for speed
+        data = ds.read(1, out_shape=(500, 500), masked=True)
+
+        # Must be integer-like
+        if not np.issubdtype(data.dtype, np.integer):
+            return False
+
+        # Count unique valid values
+        unique_vals = np.unique(data.compressed())
+
+        return len(unique_vals) <= max_classes
 
 class IMapElementDrawer(Protocol):
     """Interface for drawing map elements."""
@@ -268,6 +283,35 @@ class ColormapFactory:
         # Set appearance for no-data values
         cmap.set_bad(color="white", alpha=0)
         
+        return cmap, norm
+    
+    @staticmethod
+    def create_colormap_classfied(legend_items):
+
+        # Sort by class ID
+        legend_items = sorted(legend_items, key=lambda x: x.quantity)
+
+        # Extract class IDs and colors
+        class_values = [int(item.quantity) for item in legend_items]
+        colors = [item.color for item in legend_items]
+
+        # Build lookup table
+        max_class = max(class_values)
+        lut = np.zeros((max_class + 1, 4))  # RGBA
+
+        # Fill with transparent (for undefined classes)
+        lut[:] = [0, 0, 0, 0]
+
+        # Assign colors by exact class value
+        for cls, color in zip(class_values, colors):
+            lut[cls] = ListedColormap([color])(0)
+
+        cmap = ListedColormap(lut)
+        cmap.set_bad(color="white", alpha=0)
+
+        # No normalization – direct value lookup
+        norm = NoNorm()
+
         return cmap, norm
 
 
@@ -949,17 +993,6 @@ class MapGenerationService:
         style_path: Path,
         document: MapDocument
     ) -> None:
-        """
-        Generate complete PDF map.
-        
-        Args:
-            raster_path: Path to raster file
-            style_path: Path to SLD style file
-            document: Map document configuration
-            
-        Raises:
-            GISMapGeneratorError: If generation fails
-        """
         # Parse style
         legend_items = self.style_parser.parse(style_path)
         cmap, norm = ColormapFactory.create_colormap(legend_items)
@@ -1049,7 +1082,9 @@ class GISMapGenerator:
 @app.task(bind=True,pydantic=True,name="raster_visual")
 def raster_visual(self,payload:RasterVisual):
     try:
-        output_pdf = Path(Settings().TEMP_DIR,Unique_name.unique_name_with_ext("raster","pdf"))
+        temp_folder = Settings().TEMP_DIR+"/"+uuid.uuid4().hex
+        Path(temp_folder).mkdir(parents=True, exist_ok=True)
+        output_pdf = Path(temp_folder,Unique_name.unique_name_with_ext("raster","pdf"))
         resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
         generator = GISMapGenerator(resp["raster_path"], 
                                     resp["sld_path"], 
@@ -1060,5 +1095,7 @@ def raster_visual(self,payload:RasterVisual):
                                     right_logo_path=f"{Settings().BASE_DIR}/media/images/slcr.png",
                         )
         generator.generate()
+        return str(output_pdf)
+
     except Exception as e:
         print("error occue is ",e)

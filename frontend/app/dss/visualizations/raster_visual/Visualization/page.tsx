@@ -21,7 +21,7 @@ import { baseMaps } from "@/components/MapComponents";
 import Image from "next/image";
 import { INDIA_CENTER, INITIAL_ZOOM } from "@/interface/openlayer";
 import { transformExtent } from 'ol/proj';
-
+import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 interface RasterLayer {
   file_name: string;
   layer_name: string;
@@ -56,7 +56,9 @@ const Visualization: React.FC = () => {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [Displaydata, setDisplayData] = useState<Module[]>([]);
-
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [showPdfStatus, setShowPdfStatus] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   useEffect(() => {
     const fetchModules = async () => {
       try {
@@ -141,14 +143,14 @@ const Visualization: React.FC = () => {
   }
   const handleRasterpdf = async () => {
     try {
+      setTaskId(null);
       setLoading(true);
-      const resp = await api.get<Blob>("/location/raster_visual_pdf", {
+      const resp = await api.get("/location/celery_pdf", {
         params: {
           moduleName: selectedModule,
           rasterName: layerName,
           fileName: rasterFileName
         },
-        responseType: "blob",
       })
 
       if (resp.status > 201) {
@@ -157,26 +159,19 @@ const Visualization: React.FC = () => {
         })
         return
       }
+      toast.success("Pdf generation started");
+      const task = resp.message as Record<string, string>;
+      setTaskId(task["task_id"]);
+      setShowPdfStatus(true);
       const blob = resp.message;
-      if (!blob) {
-        throw new Error("No blob data received");
-      }
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${selectedModule}_${rasterFileName}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
 
     } catch (err) {
-      console.log("Failed to fetch modules", err);
       toast.error("Failed to download file ", {
         position: "top-center",
       })
     } finally {
       setLoading(false);
+      setIsPdfGenerating(false);
     }
   }
   // Initialize map and vector layer together
@@ -212,7 +207,7 @@ const Visualization: React.FC = () => {
         projection: "EPSG:4326",
         target: document.getElementById("mouse-position") || undefined,
       }),
-     
+
       new FullScreen({
         tipLabel: "Toggle fullscreen",
       }),
@@ -421,6 +416,14 @@ const Visualization: React.FC = () => {
   // Toggle sidebar for mobile
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
+  };
+  const handlePdfComplete = () => {
+    setIsPdfGenerating(false);
+    setShowPdfStatus(false);
+  };
+
+  const handlePdfFailure = () => {
+    setIsPdfGenerating(false);
   };
 
   return (
@@ -866,6 +869,17 @@ const Visualization: React.FC = () => {
           </div>
         )}
       </div>
+      {showPdfStatus && taskId && (
+        <PDFGenerationStatus
+          taskId={taskId}
+          className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
+          autoClose={true}
+          closeDelay={3000}
+          enableAutoDownload={true}
+          onComplete={handlePdfComplete}
+          onFailure={handlePdfFailure}
+        />
+      )}
 
     </div>
   );

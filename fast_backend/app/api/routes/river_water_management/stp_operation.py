@@ -17,6 +17,10 @@ import asyncio
 from app.conf.celery import app 
 from app.utils.exception import validate
 from pathlib import Path
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 connection_manager=ConnectionManager()
 router=APIRouter()
@@ -145,12 +149,15 @@ async def report_download(websocket: WebSocket, task_id: str):
                 break
             
             elif result.state == 'SUCCESS':
+                result_id = task_id
+                if isinstance(result.result, dict):
+                    result_id = result.result.get('chord_id', task_id)
                 progress_data = {
                     'state': 'SUCCESS',
                     'progress': 100,
                     'total': 100,
                     'description': 'Complete',
-                    'result': result.result['chord_id']
+                    'result': result_id
                 }
                 await websocket.send_json(progress_data)
                 break
@@ -164,7 +171,7 @@ async def report_download(websocket: WebSocket, task_id: str):
                         'description': result.info.get('description', 'Processing...')
                     }
                 else:
-
+                    logger.info(f"Unknown result info: {result.info}")
                     progress_data = {
                         'state': result.state,
                         'progress': 50,
