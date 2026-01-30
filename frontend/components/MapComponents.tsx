@@ -42,7 +42,7 @@ export const baseMaps: Record<string, BaseMapDefinition> = {
       new XYZ({
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         maxZoom: 19,
-        attributions: "Tiles © Esri",
+        attributions: "©  SLCR - IITBHU",
         crossOrigin: "anonymous",
       }),
     icon: "M17.66 8L12 2.35 6.34 8C4.78 9.56 4 11.64 4 13.64s.78 4.11 2.34 5.67 3.61 2.35 5.66 2.35 4.1-.79 5.66-2.35S20 15.64 20 13.64 19.22 9.56 17.66 8z",
@@ -53,7 +53,7 @@ export const baseMaps: Record<string, BaseMapDefinition> = {
       new XYZ({
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
         maxZoom: 19,
-        attributions: "Tiles © Esri",
+        attributions: "©  SLCR - IITBHU",
         crossOrigin: "anonymous",
       }),
     icon: "M14 11l4-8H6l4 8H6l6 10 6-10h-4z",

@@ -134,7 +134,6 @@ class SLDParser:
         if not legend_items:
             raise ValueError("No valid ColorMapEntry found in SLD")
 
-        # IMPORTANT: sort by quantity
         legend_items.sort(key=lambda x: x.quantity)
         return legend_items
 
@@ -145,15 +144,11 @@ class SLDParser:
 
         quantities = [item.quantity for item in legend_items]
         colors = [item.color for item in legend_items]
-
         quantities = sorted(quantities)
         boundaries = [-float("inf")] + quantities
-
         cmap = ListedColormap(colors)
         norm = BoundaryNorm(boundaries, ncolors=len(colors), clip=True)
-
         cmap.set_bad(color="white", alpha=0)
-
         return cmap, norm
 
 
@@ -182,7 +177,6 @@ class RasterReader:
         if nodata is not None:
             data = np.ma.masked_equal(data, nodata)
         else:
-            # Mask invalid values if no nodata value is defined
             data = np.ma.masked_invalid(data)
             data = np.ma.masked_where((data < -9999) | (data > 1e10), data)
         
@@ -197,8 +191,6 @@ class RasterRenderer:
     def render(self, raster_data: RasterData, cmap: ListedColormap, 
                norm: BoundaryNorm) -> Tuple[Image.Image, float, float]:
         img_width_px, img_height_px = self._calculate_dimensions(raster_data)
-        
-
         fig, ax = plt.subplots(figsize=(img_width_px/self.config.dpi, 
                                         img_height_px/self.config.dpi), 
                                dpi=self.config.dpi)
@@ -230,11 +222,9 @@ class RasterRenderer:
         map_aspect = self.config.map_width / self.config.map_height
         
         if aspect_ratio > map_aspect:
-            # Width is the limiting factor
             img_width_px = int(self.config.map_width / 72 * self.config.dpi)
             img_height_px = int(img_width_px / aspect_ratio)
         else:
-            # Height is the limiting factor
             img_height_px = int(self.config.map_height / 72 * self.config.dpi)
             img_width_px = int(img_height_px * aspect_ratio)
         
@@ -263,15 +253,11 @@ class LogoDrawer:
             return
         
         try:
-            # Open image to get dimensions
             img = Image.open(self.logo_config.left_logo_path)
             img_width, img_height = img.size
-            
-            # Calculate width maintaining aspect ratio
             aspect_ratio = img_width / img_height
             logo_width = self.logo_config.logo_height * aspect_ratio
             
-            # Position in top-left
             x = self.logo_config.logo_margin_side
             y = self.page_height - self.logo_config.logo_margin_top - self.logo_config.logo_height
             
@@ -288,15 +274,11 @@ class LogoDrawer:
             return
         
         try:
-            # Open image to get dimensions
             img = Image.open(self.logo_config.right_logo_path)
             img_width, img_height = img.size
             
-            # Calculate width maintaining aspect ratio
             aspect_ratio = img_width / img_height
             logo_width = self.logo_config.logo_height * aspect_ratio
-            
-            # Position in top-right
             x = self.page_width - self.logo_config.logo_margin_side - logo_width
             y = self.page_height - self.logo_config.logo_margin_top - self.logo_config.logo_height
             

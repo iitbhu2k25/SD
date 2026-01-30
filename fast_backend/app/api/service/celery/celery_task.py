@@ -4,6 +4,7 @@ from app.api.service.celery.stp_suitability_admin_report import document_gen2
 from app.api.service.celery.stp_suitability_drain_report import document_gen3
 from app.api.service.celery.gwz_admin_document  import document_gen4
 from app.api.service.celery.gwz_drain_document  import document_gen5
+from app.api.service.celery.raster_visual_celery import raster_visual
 from app.api.service.wqi.water_quality import (
     start_Concentration_Index,
     start_Interpolation,
@@ -12,5 +13,6 @@ from app.api.service.wqi.water_quality import (
     start_rank_raster,
     celery_rank_raster,
     start_weight_raster,
+
     
 )

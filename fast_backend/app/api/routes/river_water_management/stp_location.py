@@ -1,13 +1,14 @@
 from fastapi import APIRouter,status,Depends
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_location
-from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,RasterVisual,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
+from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,celery_id,RasterVisual,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
 from fastapi.responses import FileResponse
 from typing import Annotated,Optional
 from app.dependency.token_dependency import validate_user
+from app.api.service.celery.raster_visual_celery import raster_visual
 router=APIRouter()
 
 @router.get("/get_states",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
@@ -84,6 +85,14 @@ async def get_raster(db:db_dependency, moduleName:str,rasterName:str):
 @validate
 async def raster_visual_pdf(db:db_dependency, moduleName:str,rasterName:str,fileName:str):
     return Raster_visual.raster_pdf(db,RasterVisual(moduleName=moduleName,rasterName=rasterName,fileName=fileName))
+
+@router.post("/celery_pdf",status_code=status.HTTP_201_CREATED)
+@validate
+async def celery_visual(db:db_dependency, moduleName:str,rasterName:str,fileName:str):
+    payload=RasterVisual(moduleName=moduleName,rasterName=rasterName,fileName=fileName)
+    task_id= raster_visual.delay(payload=payload.model_dump())
+    return celery_id(task_id=task_id.id)
+
 
 
 

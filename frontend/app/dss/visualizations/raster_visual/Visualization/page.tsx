@@ -212,10 +212,7 @@ const Visualization: React.FC = () => {
         projection: "EPSG:4326",
         target: document.getElementById("mouse-position") || undefined,
       }),
-      new ZoomToExtent({
-        tipLabel: "Zoom to extent",
-        extent: fromLonLat([68, 6]).concat(fromLonLat([97, 37])),
-      }),
+     
       new FullScreen({
         tipLabel: "Toggle fullscreen",
       }),
@@ -440,7 +437,7 @@ const Visualization: React.FC = () => {
 
       {/* Sidebar */}
       <div
-        className={`fixed md:static inset-y-0 left-0 z-40 w-80 md:w-96 bg-slate-800 border-r border-slate-700 flex flex-col shadow-2xl transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed md:static inset-y-0 left-0 z-40 w-80 md:w-120 bg-slate-800 border-r border-slate-700 flex flex-col shadow-2xl transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
       >
         {/* Header */}
@@ -757,13 +754,11 @@ const Visualization: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 p-1 relative  bg-slate-950">
+      <div className="flex-1 p-0.5 relative  bg-slate-950">
         <div
           ref={mapRef}
           className="w-full h-full rounded-2xl shadow-2xl border border-slate-700 bg-slate-900"
         />
-        {/* Floating Toolbar */}
-        {/* Floating Toolbar */}
         <div className="absolute top-6 left-6 z-20 flex flex-col space-y-3">
           {/* Zoom In */}
           <button
