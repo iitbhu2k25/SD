@@ -67,7 +67,7 @@ class MARSuitability_svc:
 class MapConfig:
     page_width: float
     page_height: float
-    dpi: int = 250
+    dpi: int = 150
     map_margin_left: int = 200
     map_margin_right: int = 20
     map_margin_top: int = 100
@@ -113,33 +113,49 @@ class LogoConfig:
 
 
 class SLDParser:
-    
+
     def __init__(self, sld_path: str):
         self.sld_path = sld_path
         self.namespace = {'sld': 'http://www.opengis.net/sld'}
-    
+
     def parse(self) -> List[LegendItem]:
         tree = ET.parse(self.sld_path)
         legend_items = []
-        
+
         for entry in tree.findall('.//sld:ColorMapEntry', self.namespace):
-            color = entry.attrib.get('color')
-            label = entry.attrib.get('label')
-            quantity = float(entry.attrib.get('quantity'))
-            legend_items.append(LegendItem(color, label, quantity))
-        
+            try:
+                color = entry.attrib.get('color')
+                label = entry.attrib.get('label', '')
+                quantity = float(entry.attrib.get('quantity'))
+                legend_items.append(LegendItem(color, label, quantity))
+            except (TypeError, ValueError):
+                continue
+
+        if not legend_items:
+            raise ValueError("No valid ColorMapEntry found in SLD")
+
+        # IMPORTANT: sort by quantity
+        legend_items.sort(key=lambda x: x.quantity)
         return legend_items
-    
+
     @staticmethod
-    def create_colormap(legend_items: List[LegendItem]) -> Tuple[ListedColormap, BoundaryNorm]:
-        colors = [item.color for item in legend_items]
+    def create_colormap(
+        legend_items: List[LegendItem]
+    ) -> Tuple[ListedColormap, BoundaryNorm]:
+
         quantities = [item.quantity for item in legend_items]
-        
+        colors = [item.color for item in legend_items]
+
+        quantities = sorted(quantities)
+        boundaries = [-float("inf")] + quantities
+
         cmap = ListedColormap(colors)
-        norm = BoundaryNorm(quantities, ncolors=len(colors))
-        cmap.set_bad(color='white', alpha=0)
-        
+        norm = BoundaryNorm(boundaries, ncolors=len(colors), clip=True)
+
+        cmap.set_bad(color="white", alpha=0)
+
         return cmap, norm
+
 
 
 class RasterReader:
