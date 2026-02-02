@@ -15,14 +15,15 @@ import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Gwpl_columns } from "@/interface/table";
 import "react-toastify/dist/ReactToastify.css";
+import { FaLock, FaUnlock } from "react-icons/fa";
 
 const MainContent = () => {
-  const [uploadCsv, setUploadCsv] = useState(false);
   const [submitting, setSubmitting] = useState(false);
     const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
   const { selectedCondition, selectedConstraint, setSelectedCategory } = useCategory();
   const { selectionsLocked, displayRaster, setValidateTable, well_points, tableData } = useLocation();
   const { setstpOperation, loading, isMapLoading, stpOperation } = useMap();
+      const [categoriesEditable, setCategoriesEditable] = useState(false);
 
   const [showCategories, setShowCategories] = useState(false);
 
@@ -123,13 +124,40 @@ const MainContent = () => {
 
           {/* Category Selection */}
           {showCategories && (
-            <section className="animate-fadeIn">
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-2">
-                  Analysis Categories
-                </h3>
+            <div className="animate-fadeIn">
+            <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Analysis Categories
+                  </h3>
+                  <button
+                    onClick={() => setCategoriesEditable(!categoriesEditable)}
+                    className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
+                  >
+                    {categoriesEditable ? <FaUnlock /> : <FaLock />}
+
+                    {/* Tooltip */}
+                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                                   whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
+                                   text-xs text-white opacity-0 
+                                   group-hover:opacity-100 transition
+                                  ">
+                      Weight changer
+                    </span>
+                  </button>
+                </div>
                 <CategorySelector />
-              </div>
+                <div className="mt-3 text-sm text-red-600 font-medium flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  At least one condition category must be selected
+                </div>
+              </section>
 
               <div className="flex justify-start mt-4">
                 <button
@@ -143,7 +171,8 @@ const MainContent = () => {
                   {submitting ? "Processing..." : "Analyze Zones"}
                 </button>
               </div>
-            </section>
+              </div>
+
           )}
         </div>
 
@@ -183,7 +212,7 @@ const MainContent = () => {
               {activeTab === "condition" ? (
                 selectedCondition.length > 0 ? (
                   <div className="p-5">
-                    <CategorySlider activeTab="condition" />
+                                         <CategorySlider activeTab="condition" editable={categoriesEditable}/>
                   </div>
                 ) : (
                   <div className="p-8 text-center text-gray-500">

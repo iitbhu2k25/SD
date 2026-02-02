@@ -4,7 +4,9 @@ import { useCategory } from '@/contexts/pumping_location/admin/CategoryContext';
 
 interface CategorySliderProps {
   activeTab: 'condition' | 'constraint';
+  editable?: boolean;
 }
+
 
 // Constants for better maintainability
 const SLIDER_CONFIG = {
@@ -13,7 +15,7 @@ const SLIDER_CONFIG = {
   STEP: 0.1,
 } as const;
 
-export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => {
+export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, editable = false }) => {
 
   const {
     condition_categories,
@@ -25,7 +27,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
     isConditionSelected,
     isConstraintSelected,
     getConditionCategoryWeight,
-    getConstraintCategoryInfluence
+
   } = useCategory();
 
   // Format file name for display - actually implement formatting logic
@@ -49,24 +51,24 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
 
     return (
       <div className="w-full p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-         <div className="grid grid-cols-3 w-full mb-4">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">
-          Selected Constraint Categories
-        </h3>
-         <h2 className="text-lg font-semibold text-gray-800 text-center">
-          Influences
-        </h2>
-        <h2 className="text-lg font-semibold text-gray-800 text-right">
-          Weight
-        </h2>
-      </div>
-        
+        <div className="grid grid-cols-3 w-full mb-4">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">
+            Selected Constraint Categories
+          </h3>
+          <h2 className="text-lg font-semibold text-gray-800 text-center">
+            Influences
+          </h2>
+          <h2 className="text-lg font-semibold text-gray-800 text-right">
+            Weight
+          </h2>
+        </div>
+
         <div className="space-y-5">
           {condition_categories
             .filter(category => isConditionSelected(category.id))
             .map((category) => (
-              <div key={category.id} className="mb-4">
-               <div className="grid grid-cols-3 gap-2 items-center mb-2">
+              <div key={category.id} className={`mb-4 ${!editable ? 'opacity-50' : ''}`}>
+                <div className="grid grid-cols-3 gap-2 items-center mb-2">
                   <span title={category.file_name}>{category.file_name}</span>
                   <span className="text-sm font-bold text-center">
                     {Math.max(
@@ -74,55 +76,58 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
                       Math.round(getConditionCategoryInfluence(category.id))
                     )}
                   </span>
-                   <span className="text-sm font-bold text-right">
+                  <span className="text-sm font-bold text-right">
                     {getConditionCategoryWeight(category.id)}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <div className="text-xs text-gray-500 w-24 text-left">
                     <span className="font-medium">{SLIDER_CONFIG.MIN}</span> (Least Important)
                   </div>
-                  
+
                   <div className="relative flex-1">
                     {/* Custom slider track with gradient */}
                     <div className="absolute h-2 w-full rounded-lg bg-gradient-to-r from-blue-100 to-blue-600"></div>
-                    
+
                     {/* Tick marks for reference points */}
                     <div className="absolute w-full flex justify-between px-1 -mt-1">
                       {[...Array(10)].map((_, i) => (
                         <div key={i} className="h-4 w-0.5 bg-gray-300"></div>
                       ))}
                     </div>
-                    
+
                     <input
                       type="range"
                       min={SLIDER_CONFIG.MIN}
                       max={SLIDER_CONFIG.MAX}
-                     
+
                       value={getConditionCategoryInfluence(category.id)}
-                      onChange={(e) => updateConditionCategoryInfluence(
-                        category.id, 
-                        category.file_name,
-                        parseFloat(e.target.value)
-                      )}
-                      className="relative w-full h-2 bg-transparent appearance-none cursor-pointer z-10"
-                       style={{
+                      onChange={(e) => editable &&
+                        updateConditionCategoryInfluence(
+                          category.id,
+                          category.file_name,
+                          parseFloat(e.target.value)
+                        )}
+                      className={`relative w-full h-2 bg-transparent appearance-none z-10 ${!editable ? 'cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                      style={{
                         // Custom thumb styling for better visibility
                         WebkitAppearance: "none",
                         appearance: "none",
                       }}
                       aria-label={`Adjust importance of ${formatName(category.file_name)} from ${SLIDER_CONFIG.MIN} (least important) to ${SLIDER_CONFIG.MAX} (most important)`}
+                      disabled={!editable}
                     />
                   </div>
-                  
+
                   <div className="text-xs text-gray-500 w-24 text-right">
                     <span className="font-medium">{SLIDER_CONFIG.MAX}</span> (Most Important)
                   </div>
                 </div>
-                
+
                 {/* Visual scale indicators */}
-               <div className="flex justify-between mt-1 px-24">
+                <div className="flex justify-between mt-1 px-24">
                   <div className="flex gap-1 items-center">
                     <div className="w-2 h-2 rounded-full bg-blue-100"></div>
                     <span className="text-xs text-gray-400">Low</span>
@@ -139,22 +144,22 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
               </div>
             ))}
         </div>
-        
-         <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
-        <p className="font-medium mb-1 text-gray-700">How to use:</p>
-        <ul className="list-disc pl-5 space-y-1 marker:text-purple-500 marker:text-[1.25rem]">
-          <li>
-            Initially, all actual preassigned weights will be displayed, which
-            can be changed by dragging the sliders.
-          </li>
-          <li>Drag the sliders to adjust the importance of each category.</li>
-          <li>
-            Higher values (closer to 10) give more weight to that factor in the
-            analysis.
-          </li>
-        </ul>
+
+        <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
+          <p className="font-medium mb-1 text-gray-700">How to use:</p>
+          <ul className="list-disc pl-5 space-y-1 marker:text-purple-500 marker:text-[1.25rem]">
+            <li>
+              Initially, all actual preassigned weights will be displayed, which
+              can be changed by dragging the sliders.
+            </li>
+            <li>Drag the sliders to adjust the importance of each category.</li>
+            <li>
+              Higher values (closer to 10) give more weight to that factor in the
+              analysis.
+            </li>
+          </ul>
+        </div>
       </div>
-    </div>
     );
   };
 
@@ -173,8 +178,8 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
         <h3 className="text-lg font-semibold mb-4 text-gray-800">
           Selected Constraint Categories
         </h3>
-        
-        
+
+
         <div className="space-y-2">
           {constraint_categories
             .filter(category => isConstraintSelected(category.id))
@@ -191,7 +196,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab }) => 
               </div>
             ))}
         </div>
-        
+
         <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-red-400">
           <p>Constraint categories define areas that are excluded from the analysis.</p>
         </div>

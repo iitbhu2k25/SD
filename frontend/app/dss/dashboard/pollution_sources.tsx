@@ -629,10 +629,10 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                   <XAxis 
                     dataKey="name" 
                     tick={{ fontSize: 11 }} 
-                    label={{ value: 'Priority Level', position: 'bottom-19', fill: '#4B5563', dy: 25 }} 
+                    label={{ value: 'Priority Level', position: 'bottom', fill: '#4B5563', dy: 25 }} 
                   />
                   <YAxis 
-                    label={{ value: 'No. of Observations',position: 'bottom-5', angle: -90,  dx: -19 }} 
+                    label={{ value: 'No. of Observations', position: 'bottom', angle: -90, dx: -19 }}
                   />
                   <Tooltip
                     contentStyle={{ backgroundColor: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: '8px' }}

@@ -19,6 +19,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";
+import { FaLock, FaUnlock } from "react-icons/fa";
 
 const MainContent = () => {
   const { selectedCategories, stpProcess } = useCategory();
@@ -26,6 +27,7 @@ const MainContent = () => {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [showPdfStatus, setShowPdfStatus] = useState(false);
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+    const [categoriesEditable, setCategoriesEditable] = useState(false);
 
   const {
     selectedCatchments,
@@ -155,49 +157,42 @@ const MainContent = () => {
             <RiverSelector onConfirm={handleConfirm} onReset={handleReset} />
           </section>
 
-          {showCategories && (
+           {showCategories && (
             <div className="animate-fadeIn">
               <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-2">
-                  Analysis Categories
-                </h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  Select the categories to analyze for the selected river
-                  catchments
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Analysis Categories
+                  </h3>
+                  <button
+                    onClick={() => setCategoriesEditable(!categoriesEditable)}
+                    className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
+                  >
+                    {categoriesEditable ? <FaUnlock /> : <FaLock />}
+
+                    {/* Tooltip */}
+                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                                   whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
+                                   text-xs text-white opacity-0 
+                                   group-hover:opacity-100 transition
+                                  ">
+                      Weight changer
+                    </span>
+                  </button>
+                </div>
                 <CategorySelector />
               </section>
 
               <div className="flex justify-start mt-4">
                 <button
-                  type="button"
                   onClick={handleSubmit}
                   disabled={stpProcess}
-                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${
-                    stpProcess
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                  }`}
+                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${stpProcess
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                    }`}
                 >
-                  {!stpProcess && (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Analyze River System
-                    </>
-                  )}
+                  Analyze System
                 </button>
               </div>
             </div>
@@ -279,7 +274,7 @@ const MainContent = () => {
                   Adjust the influence of each category on the analysis
                 </p>
               </div>
-              <CategorySlider />
+             <CategorySlider editable={categoriesEditable} />
             </section>
           )}
         </div>

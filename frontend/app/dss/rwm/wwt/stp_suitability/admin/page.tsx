@@ -20,7 +20,7 @@ import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";
 import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_suitability/admin/components/Stp_area";
-
+import { FaLock, FaUnlock } from "react-icons/fa";
 const MainContent: React.FC = () => {
   // Category context (suitability)
   const {
@@ -53,7 +53,7 @@ const MainContent: React.FC = () => {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
-
+    const [categoriesEditable, setCategoriesEditable] = useState(false);
   useEffect(() => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
@@ -168,9 +168,28 @@ const MainContent: React.FC = () => {
           </section>
 
           {showCategories && (
-            <>
+            <div className="animate-fadeIn">
               <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-2">Analysis Categories</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-800 mb-2">
+                    Analysis Categories
+                  </h3>
+                  <button
+                    onClick={() => setCategoriesEditable(!categoriesEditable)}
+                    className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
+                  >
+                    {categoriesEditable ? <FaUnlock /> : <FaLock />}
+
+                    {/* Tooltip */}
+                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                                   whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
+                                   text-xs text-white opacity-0 
+                                   group-hover:opacity-100 transition
+                                  ">
+                      Weight changer
+                    </span>
+                  </button>
+                </div>
                 <CategorySelector />
                 <div className="mt-3 text-sm text-red-600 font-medium flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -197,7 +216,7 @@ const MainContent: React.FC = () => {
                   {stpOperation || submitting ? "Processing..." : "Analyze Suitability"}
                 </button>
               </div>
-            </>
+            </div>
           )}
 
           {/* Table / CSV / Treatment */}
@@ -295,7 +314,7 @@ const MainContent: React.FC = () => {
                     {selectedCondition.length === 0 ? (
                       <div className="p-6 text-center text-gray-500">No condition categories selected.</div>
                     ) : (
-                      <CategorySlider activeTab="condition" />
+                      <CategorySlider activeTab="condition" editable={categoriesEditable}/>
                     )}
                   </>
                 )}

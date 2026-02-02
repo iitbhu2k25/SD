@@ -92,13 +92,10 @@ class STPsuitabilityInput(BaseModel):
     class Config:
         from_attributes = True
 
-class STPPriorityInput(BaseModel):
-    file_name: str
-    weight: float
 
 
 class STPCategory(BaseModel):
-    data: List[STPPriorityInput] = None
+    data: List[Raster_operation_input] = None
     clip: List[int] = None
     all_data: bool = True
     place: str = None

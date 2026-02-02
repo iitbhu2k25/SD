@@ -194,7 +194,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
       const isSelected = prev.some(item => item.id === id);
       
        if (isSelected) {
-        // Remove it if already selected
+
         return prev.filter(item => item.id !== id);
       } else {
         // Add it with default weight from the categories

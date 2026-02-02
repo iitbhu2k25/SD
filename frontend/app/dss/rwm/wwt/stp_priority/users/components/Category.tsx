@@ -22,7 +22,7 @@ const CategorySelector: React.FC = () => {
   const secondHalf = categories.slice(Math.ceil(categories.length / 2));
 
   const CategoryItem = ({ category }: { category: any }) => {
-    const selected = isSelected(category.file_name);
+    const selected = isSelected(category.id);
 
     return (
       <div
@@ -34,7 +34,7 @@ const CategorySelector: React.FC = () => {
           type="checkbox"
           id={`category-${category.id}`}
           checked={selected}
-          onChange={() => toggleCategory(category.file_name)}
+          onChange={() => toggleCategory(category.id, category.file_name)}
           className="h-5 w-5 text-blue-600 border-gray-300 rounded mt-3 ml-3"
         />
 

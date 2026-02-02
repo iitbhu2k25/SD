@@ -4,7 +4,6 @@ import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 
 interface CategorySliderProps {
   editable?: boolean;
-
 }
 export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => {
   const {
@@ -14,13 +13,14 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
     updateCategoryInfluence,
     getCategoryInfluence,
     getCategoryWeight,
+    toggleCategory
   } = useCategory();
   useEffect(() => {
     const checkInfluence = () => {
       if (selectedCategories.length > 0) {
         let InfluenceSum = 0;
         selectedCategories.forEach((category) => {
-          InfluenceSum += getCategoryInfluence(category.file_name);
+          InfluenceSum += getCategoryInfluence(category.id);
         });
       }
     };
@@ -52,7 +52,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
         {categories.map(
           (category) =>
             // Only render sliders for selected categories
-            isSelected(category.file_name) && (
+            isSelected(category.id) && (
               <div key={category.id} className={`mb-4 ${!editable ? 'opacity-50' : ''}`}>
                 <div className="grid grid-cols-3 gap-2 items-center mb-2">
                   <span
@@ -61,10 +61,10 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
                     {category.file_name}
                   </span>
                   <span className="text-sm font-bold text-center">
-                    {Math.max(1, Math.round(getCategoryInfluence(category.file_name)))}
+                    {Math.max(1, Math.round(getCategoryInfluence(category.id)))}
                   </span>
                   <span className="text-sm font-bold text-right">
-                    {getCategoryWeight(category.file_name)}
+                    {getCategoryWeight(category.id)}
                   </span>
                 </div>
 
@@ -88,10 +88,11 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
                       type="range"
                       min="1"
                       max="10"
-                      value={getCategoryInfluence(category.file_name)}
+                      value={getCategoryInfluence(category.id)}
                       onChange={(e) =>
                         editable &&
                         updateCategoryInfluence(
+                          category.id,
                           category.file_name,
                           parseFloat(e.target.value)
                         )

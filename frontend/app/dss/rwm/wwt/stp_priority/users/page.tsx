@@ -280,7 +280,7 @@ const MainContent = () => {
                   Adjust the influence of each category on the analysis
                 </p>
               </div>
-              <CategorySlider />
+             <CategorySlider editable={categoriesEditable} />
             </section>
           )}
         </div>
