@@ -2,7 +2,11 @@
 import React, { useEffect, useState } from "react";
 import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 
-export const CategorySlider = () => {
+interface CategorySliderProps {
+  editable?: boolean;
+
+}
+export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => {
   const {
     categories,
     selectedCategories,
@@ -49,7 +53,7 @@ export const CategorySlider = () => {
           (category) =>
             // Only render sliders for selected categories
             isSelected(category.file_name) && (
-              <div key={category.id} className="mb-4">
+              <div key={category.id} className={`mb-4 ${!editable ? 'opacity-50' : ''}`}>
                 <div className="grid grid-cols-3 gap-2 items-center mb-2">
                   <span
                     title={category.file_name}
@@ -86,18 +90,21 @@ export const CategorySlider = () => {
                       max="10"
                       value={getCategoryInfluence(category.file_name)}
                       onChange={(e) =>
+                        editable &&
                         updateCategoryInfluence(
                           category.file_name,
                           parseFloat(e.target.value)
                         )
                       }
-                      className="relative w-full h-2 bg-transparent appearance-none cursor-pointer z-10"
+                      className={`relative w-full h-2 bg-transparent appearance-none z-10 ${!editable ? 'cursor-not-allowed' : 'cursor-pointer'
+                        }`}
                       style={{
                         // Custom thumb styling for better visibility
                         WebkitAppearance: "none",
                         appearance: "none",
                       }}
                       aria-label={`Adjust importance of ${category.file_name} from 1 (least important) to 10 (most important)`}
+                      disabled={!editable}
                     />
                   </div>
 
@@ -126,7 +133,7 @@ export const CategorySlider = () => {
         )}
       </div>
 
-       <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
+      <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
         <p className="font-medium mb-1 text-gray-700">How to use:</p>
         <ul className="list-disc pl-5 space-y-1 marker:text-purple-500 marker:text-[1.25rem]">
           <li>

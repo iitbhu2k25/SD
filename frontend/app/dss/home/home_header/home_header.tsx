@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ChevronRight, ChevronLeft, Megaphone, Calendar } from "lucide-react"; 
+import { ChevronRight, ChevronLeft, Megaphone, Calendar, FileText } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- START: CUSTOM EFFECT COMPONENTS ---
@@ -89,13 +89,10 @@ const PixelTransitionImage = ({ src, alt }: { src: string; alt: string }) => {
           key={src}
           src={src}
           alt={alt}
-          // CHANGE 1: Set scale to 1 in 'initial' to prevent the zoom-in animation effect
           initial={{ opacity: 0, scale: 1, filter: "blur(10px)" }} 
           animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          // CHANGE 2: Set scale to 1 in 'exit'
           exit={{ opacity: 0, scale: 1 }} 
           transition={{ duration: 0.8, ease: "easeOut" }}
-          // CHANGE 3: Changed 'object-cover' to 'object-contain'
           className="absolute inset-0 w-full h-full object-contain" 
         />
       </AnimatePresence>
@@ -221,7 +218,7 @@ const PlasmaBackground = () => {
   );
 };
 
-// 5. Silk Background Component
+// 5. Silk Background Component (Kept exactly as requested)
 const SilkBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -276,7 +273,7 @@ const SilkBackground = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-0" />;
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full z-0 pointer-events-none" />;
 };
 
 // --- END: CUSTOM EFFECT COMPONENTS ---
@@ -292,12 +289,17 @@ const HomeHeader = () => {
     "/Images/navbar/pictures/DSS5.jpeg",
   ];
 
-  // Dignitaries Data
+  // Dignitaries Data (Exactly 8 items now fit perfectly in 4 columns)
   const dignitaries = [
     {
       name: "Shri C R Patil",
       title: "Hon'ble Union Minister ,Ministry of Jal Shakti",
       image: "/Images/navbar/persons/CR_patil.jpg",
+    },
+    {
+      name: "Shri V.L. Kantha Rao",
+      title: "Secretary (DoWR,RD & GR)",
+      image: "/Images/navbar/persons/secretary1.jpg",
     },
     {
       name: "Shri Rajeev Mittal",
@@ -311,23 +313,23 @@ const HomeHeader = () => {
     },
     {
       name: "Shri Dheeraj Joshi",
-      title: "Director(Urban) ,National Mission For Clean Ganga",
+      title: "Director (Urban) , NMCG",
       image: "/Images/navbar/persons/dheeraj_joshi.jpeg",
     },
     {
       name: "Prof. Anurag Ohri",
-      title: "Principal Investigator ,IIT BHU Varanasi",
+      title: "Principal Investigator , IIT BHU Varanasi",
       image: "/Images/navbar/persons/Anurag_Ohri_Sir.jpg",
     },
     {
       name: "Prof. Pramod Soni",
-      title: "Co-Principal Investigator ,IIT BHU Varanasi",
+      title: "Principal Investigator , IIT BHU Varanasi",
       image: "/Images/navbar/persons/Pramod_Sir.jpg",
     },
     {
       name: "Prof. Shishir Gaur",
-      title: "Coordinator,IIT BHU Varanasi",
-      image: "/Images/navbar/persons/Shashir_Gaur_Sir.jpeg",
+      title: "Coordinator , IIT BHU Varanasi",
+      image: "/Images/navbar/persons/sgsir.png",
     },
   ];
 
@@ -336,8 +338,8 @@ const HomeHeader = () => {
     {
       type: "MISSION",
       title: "Our Mission",
-      colorClass: "text-red-500", 
-      text: "To provide a single window solution for comprehensive assessment , consolidated information of India's water resources and allied themes; to develop a standard national GIS framework for planning, development and management of water resources of the country.",
+      colorClass: "text-red-600", 
+      text: "To provide a single window solution for comprehensive assessment, consolidated information of India's water resources and allied themes; to develop a standard national GIS framework for planning, development and management of water resources of the country.",
       image: "/Images/navbar/mission/mission-v1.png",
     },
     {
@@ -349,12 +351,10 @@ const HomeHeader = () => {
     }
   ];
 
-  
   const highlights = [
-    
     { 
       title: "Training on New Modules including Water Data Online", 
-      date: "2023-2024", 
+      date: "2025-2026", 
       documentUrl: "/highlights/varuna_doc.pdf" 
     },
     { 
@@ -364,7 +364,7 @@ const HomeHeader = () => {
     },
     { 
       title: "Varuna Report ", 
-      date: "2023-2024", 
+      date: "2024-2025", 
       documentUrl: "/highlights/varuna_doc.pdf" 
     },
     { 
@@ -498,19 +498,15 @@ const HomeHeader = () => {
         </div>
       </div>
 
-      {/* Photos and Highlights Section */}
+      {/* Dignitaries Grid Only */}
       <div className="bg-slate-50 py-10 border-t border-slate-200">
         <div className="container mx-auto px-4">
           
-          {/* UNIFIED GRID: 1 Column Mobile, 2 Columns Tablet, 4 Columns Desktop */}
-          <div className="relative p-4 rounded-xl overflow-hidden mb-10">
-            
-            {/* Background Effect covers the whole section now */}
+          <div className="relative p-6 rounded-xl overflow-hidden mb-10">
+            {/* Plasma Background for Dignitaries */}
             <PlasmaBackground />
 
             <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              
-              {/* 1. Map the 7 Dignitaries */}
               {dignitaries.map((person, index) => (
                 <div key={index} className="bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-slate-100 flex flex-col group h-full">
                   <div className="h-56 overflow-hidden relative flex-shrink-0">
@@ -527,84 +523,91 @@ const HomeHeader = () => {
                   </div>
                 </div>
               ))}
-
-              {/* 2. Place Highlights as the 8th Item (Row 2, Col 4) */}
-              <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-md border border-slate-200 overflow-hidden flex flex-col h-full">
-                <div className="bg-gradient-to-r from-blue-700 to-blue-900 px-4 py-3 border-b border-blue-800 flex justify-between items-center flex-shrink-0">
-                  <h3 className="text-white font-bold text-lg flex items-center">
-                    <Megaphone className="w-5 h-5 mr-2" />
-                    Highlights
-                  </h3>
-                </div>
-                
-                {/* Scrollable Area - height auto to fill remaining space */}
-                <div className="flex-grow relative overflow-hidden p-2 min-h-[200px]">
-                  <div className="absolute w-full animate-scroll-vertical">
-                    
-                    {/* List 1 */}
-                    <ul className="space-y-4 pb-4">
-                      {highlights.map((item, i) => (
-                        <li key={`a-${i}`} className="flex items-start p-2 border-b border-gray-100 hover:bg-blue-50 transition-colors cursor-pointer group">
-                          <span className="text-blue-600 mr-2 mt-1">•</span>
-                          <a 
-                             href={item.documentUrl} 
-                             target="_blank" 
-                             rel="noopener noreferrer"
-                             className="block w-full"
-                          >
-                            <span className="text-sm text-gray-700 group-hover:text-blue-700 leading-snug font-medium block">
-                              {item.title}
-                              <span className="block text-[10px] text-gray-400 mt-1 flex items-center">
-                                <Calendar className="w-3 h-3 mr-1"/> {item.date}
-                              </span>
-                            </span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
 
-          {/* Vision & Mission Section (Unchanged) */}
-          <div className="bg-white/80 rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-             {/* ... (Existing Vision Mission code) ... */}
+          {/* Unified Vision, Mission & Highlights Section */}
+          <div className="bg-white/80 rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+             
+            {/* Silk Background covers both sections now */}
             <SilkBackground />
             
-            <div className="md:w-1/3 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-6 z-10">
-              <div className="relative w-48 h-48 mb-4">
-                <img 
-                  key={vmIndex} 
-                  src={visionMissionData[vmIndex].image} 
-                  onError={(e) => {
-                    e.currentTarget.style.display='none';
-                  }}
-                  alt={visionMissionData[vmIndex].title}
-                  className="w-full h-full object-contain fade-in"
-                />
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Left Column: Vision & Mission (Takes up 8 columns) */}
+              <div className="lg:col-span-8 flex flex-col md:flex-row items-center gap-8 border-b lg:border-b-0 lg:border-r border-slate-200 pb-6 lg:pb-0 lg:pr-6">
                 
-                <div className="absolute inset-0 flex items-center justify-center -z-10">
-                  <div className="text-center">
-                    <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-blue-500 to-blue-800">
-                      {visionMissionData[vmIndex].type}
-                    </h2>
+                {/* Image Area */}
+                <div className="md:w-1/3 flex flex-col items-center justify-center">
+                  <div className="relative w-40 h-40 md:w-48 md:h-48 mb-4">
+                    <img 
+                      key={vmIndex} 
+                      src={visionMissionData[vmIndex].image} 
+                      onError={(e) => { e.currentTarget.style.display='none'; }}
+                      alt={visionMissionData[vmIndex].title}
+                      className="w-full h-full object-contain fade-in"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center -z-10">
+                      <div className="text-center">
+                        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-blue-500 to-blue-800 opacity-20">
+                          {visionMissionData[vmIndex].type}
+                        </h2>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="md:w-2/3 space-y-6 fade-in z-10" key={`content-${vmIndex}`}>
-              <div>
-                <h3 className={`text-xl font-bold ${visionMissionData[vmIndex].colorClass} mb-2`}>
-                  {visionMissionData[vmIndex].title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed text-sm md:text-base font-medium">
-                  {visionMissionData[vmIndex].text}
-                </p>
+                {/* Text Area */}
+                <div className="md:w-2/3 space-y-4 fade-in" key={`content-${vmIndex}`}>
+                   <h3 className={`text-2xl font-bold ${visionMissionData[vmIndex].colorClass} border-b border-gray-100 pb-2`}>
+                      {visionMissionData[vmIndex].title}
+                   </h3>
+                   <p className="text-gray-700 leading-relaxed text-sm md:text-base font-medium">
+                      {visionMissionData[vmIndex].text}
+                   </p>
+                </div>
               </div>
+
+              {/* Right Column: Highlights (Takes up 4 columns) */}
+              <div className="lg:col-span-4 flex flex-col h-full pl-0 lg:pl-2">
+                <div className="flex items-center justify-between mb-4 border-b border-gray-200 pb-2">
+                   <h3 className="text-xl font-bold text-slate-800 flex items-center">
+                     <Megaphone className="w-5 h-5 mr-2 text-blue-600" />
+                     Highlights
+                   </h3>
+                </div>
+
+                {/* Highlights Scrolling List */}
+                <div className="flex-grow relative overflow-hidden h-[250px] bg-white/50 rounded-lg border border-slate-100 p-2">
+                   <div className="absolute w-full animate-scroll-vertical hover:pause">
+                      <ul className="space-y-3 pb-4">
+                        {highlights.map((item, i) => (
+                          <li key={`h-${i}`} className="group bg-white p-3 rounded shadow-sm hover:shadow-md transition-all border border-transparent hover:border-blue-100 cursor-pointer">
+                             <a 
+                               href={item.documentUrl} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="block w-full"
+                             >
+                                <div className="flex items-start">
+                                   <FileText className="w-4 h-4 text-blue-500 mt-1 mr-2 flex-shrink-0" />
+                                   <div>
+                                      <span className="text-sm font-semibold text-gray-800 group-hover:text-blue-700 leading-snug block mb-1">
+                                        {item.title}
+                                      </span>
+                                      <span className="text-[10px] text-gray-500 flex items-center bg-gray-50 inline-block px-2 py-0.5 rounded">
+                                        <Calendar className="w-3 h-3 mr-1"/> {item.date}
+                                      </span>
+                                   </div>
+                                </div>
+                             </a>
+                          </li>
+                        ))}
+                      </ul>
+                   </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
