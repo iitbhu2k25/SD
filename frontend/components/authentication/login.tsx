@@ -82,7 +82,7 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
           router.replace("/dss"); // or whatever your home route is
         } else {
           console.log("not verified");
-          router.replace("/authentication/send-otp");
+          router.replace("/authentication/admin-approval");
         }
         setFormValues({ email: "", password: "" });
         setSubmitted(false);
@@ -176,13 +176,13 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
           
           {/* Submit */}
           <div className="text-xs sm:text-sm text-neutral-900 mt-4 lg:mt-6">
-            {/* Don&apos;t have an account?{" "}
+            Don&apos;t have an account?{" "}
             <span
               className="text-blue-600 hover:text-blue-700 hover:underline hover:underline-offset-2 cursor-pointer"
               onClick={onSwitch}
             >
               Create Account
-            </span> */}
+            </span>
             <button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 cursor-pointer mt-3"

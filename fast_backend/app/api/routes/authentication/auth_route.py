@@ -7,6 +7,9 @@ from typing import Annotated
 from app.api.schema.auth_schema import Token,Useroutput
 from app.dependency.token_dependency import get_current_user,get_current_user_cookie,validate_user
 from app.utils.exception import validate
+from app.api.service.authentication_svc.email_otp import EmailService
+from app.utils.exception import CustomException
+from fastapi.responses import JSONResponse
 app = APIRouter()
 
 @app.get("/me",response_model=Useroutput)
@@ -30,8 +33,8 @@ async def login(response:Response,db:db_dependency,payload:login_input):
 
 @app.post("/signup",status_code=status.HTTP_201_CREATED)
 @validate
-async def signup(db:db_dependency,payload:signup_input)->bool:
-   return AuthService().registration(db,payload)
+async def signup(db:db_dependency,bg:BackgroundTasks,payload:signup_input)->bool:
+   return AuthService().registration(db,bg,payload)
 
 
 @app.post("/logout",status_code=status.HTTP_201_CREATED)
@@ -40,17 +43,55 @@ async def logout(db:db_dependency,request:Request,response:Response):
     return AuthService().logout(db,request,response)
 
 
-@app.post("/email_otp",status_code=status.HTTP_201_CREATED)
-@validate
-async def generate_email_opt(backgroud:BackgroundTasks,user: Annotated[str, Depends(get_current_user)])->bool:
-    return AuthService().send_email_otp(backgroud=backgroud,email=user.email)
+# @app.post("/email_otp",status_code=status.HTTP_201_CREATED)
+# @validate
+# async def generate_email_opt(backgroud:BackgroundTasks,user: Annotated[str, Depends(get_current_user)])->bool:
+#     return AuthService().send_email_otp(backgroud=backgroud,email=user.email)
 
-@app.post("/email_verify",status_code=status.HTTP_201_CREATED)
-@validate
-async def verify_email_opt(db:db_dependency,user: Annotated[str, Depends(get_current_user)],otp:OTPVerify):
-    return AuthService().verify_otp(db,user,otp.otp)
+# @app.post("/email_verify",status_code=status.HTTP_201_CREATED)
+# @validate
+# async def verify_email_opt(db:db_dependency,user: Annotated[str, Depends(get_current_user)],otp:OTPVerify):
+#     return AuthService().verify_otp(db,user,otp.otp)
    
 @app.delete("/delete_account",status_code=status.HTTP_201_CREATED)
 @validate
 async  def delete_account(db:db_dependency,user: Annotated[str, Depends(get_current_user)])->bool:
     return AuthService().delete_account(db,user.email)
+
+@app.get("/admin/approve")
+@validate
+async def approve_user(db:db_dependency,token: str):
+    email_service = EmailService()
+    data = email_service.verify_approval_token(token)
+
+    if data == "expired":
+        raise CustomException(400, "Approval link expired")
+
+    if data == "invalid":
+        raise CustomException(400, "Invalid approval link")
+
+    if data["action"] != "approve":
+        raise CustomException(403, "Invalid action")
+
+    email = data["email"]
+    AuthService().verify_by_admin(db,email=email,status="approved")
+    return JSONResponse({"message": f"User with email {email} has been approved."})
+
+@app.get("/admin/reject")
+@validate
+async def reject_user(db:db_dependency,token: str):
+    email_service = EmailService()
+    data = email_service.verify_approval_token(token)
+
+    if data == "expired":
+        raise CustomException(400, "Rejection link expired")
+
+    if data == "invalid":
+        raise CustomException(400, "Invalid rejection link")
+
+    if data["action"] != "reject":
+        raise CustomException(403, "Invalid action")
+
+    email = "saxenarajat499@gmail.com"
+    AuthService().verify_by_admin(db,email=email,status="rejected")
+    return JSONResponse({"message": f"User with email {email} has been rejected."})

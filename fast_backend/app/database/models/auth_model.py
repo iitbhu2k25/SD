@@ -11,7 +11,7 @@ class User(Base):
     fullname: Mapped[str] = mapped_column(String(50), nullable=False)
     email: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
     password: Mapped[str] = mapped_column(String(200), nullable=False)
-    is_active: Mapped[bool] = mapped_column(default=False, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False,default="pending")
     is_verified: Mapped[bool] = mapped_column(default=False,nullable=False)
     report: Mapped[List["Report"]] = relationship(back_populates="User")
     details: Mapped["UserDetails"] = relationship(

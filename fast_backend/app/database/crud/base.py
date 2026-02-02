@@ -57,7 +57,11 @@ class CrudBase:
         obj = self.db.query(self.Model).filter(self.Model.id == data.get('id')).first()
         return self.__update_obj(obj,data)
     
+    def update_email(self,data:dict):
+        obj = self.db.query(self.Model).filter(self.Model.email == data.get('email')).first()
+        return self.__update_obj(obj,data)
     
+
     def __delete_obj(self,obj):
         self._missing_obj(obj)
         if obj:

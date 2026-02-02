@@ -1,8 +1,8 @@
-"""update model
+"""fix the code 
 
-Revision ID: 6081a6809cf5
+Revision ID: 732bebd466af
 Revises: 
-Create Date: 2026-01-29 10:39:05.045847
+Create Date: 2026-02-02 22:57:42.161736
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '6081a6809cf5'
+revision: str = '732bebd466af'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -207,7 +207,7 @@ def upgrade() -> None:
     sa.Column('fullname', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=50), nullable=False),
     sa.Column('password', sa.String(length=200), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('status', sa.String(length=50), nullable=False),
     sa.Column('is_verified', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
