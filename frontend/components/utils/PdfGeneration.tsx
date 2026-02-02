@@ -68,8 +68,6 @@ const PDFGenerationStatus: React.FC<PDFGenerationStatusProps> = ({
 
   // Only connect when we have a valid URL and not in terminal state
   const shouldConnect = Boolean(wsUrl && !["complete", "failure"].includes(status));
-
-  // Use empty string when not connecting - your hook should handle this
   const { messages, isConnected, disconnect } = useWebSocket(
     shouldConnect && wsUrl ? wsUrl : "",
     { reconnect: false }
