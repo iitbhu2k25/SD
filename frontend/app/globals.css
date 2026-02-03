@@ -1,5 +1,13 @@
 @import "tailwindcss";
-
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply antialiased;
+  }
+}
 @keyframes slideUp {
   from {
     transform: translateY(12px);
