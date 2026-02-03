@@ -1,55 +1,52 @@
-'use server';
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { api } from "@/services/api";
-import { jwtVerify } from 'jose';
 
-const SECRET = process.env.NEXT_PUBLIC_SECRET;
-const protectedRoutes = [ "/dss"]; 
+// All /dss pages are protected
+const PROTECTED_NAMESPACE = "/dss";
 
-export async function proxy(request: NextRequest) {
+// Explicit public pages under /dss
+const PUBLIC_DSS_ROUTES = [
+  "/dss/about",
+  "/dss/help",
+  "/dss/dashboard",
+  "/dss/activities/gallery",
+];
+
+export  async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static/image/API routes
+  // Skip next internals & assets
   if (
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
   }
-  const isProtected = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
 
-  if (!isProtected) {
+  // Not under /dss → public
+  if (!pathname.startsWith(PROTECTED_NAMESPACE)) {
     return NextResponse.next();
   }
-  const token = request.cookies.get("refresh_token")?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-  try {
-    await jwtVerify(token, new TextEncoder().encode(SECRET));
+
+  // Public exceptions inside /dss
+  if (PUBLIC_DSS_ROUTES.includes(pathname)) {
     return NextResponse.next();
-  } catch (err) {
-    console.log("Error verifying token:", err);
-
-    try {
-      const backendRes = await api.get("/authentication/authentic");
-
-      if (backendRes.status === 201) {
-        console.log("Token is valid on backend, proceeding...");
-        return NextResponse.next();
-      } else {
-        console.log("Token is invalid on backend, redirecting...");
-        return NextResponse.redirect(new URL("/", request.url));
-      }
-    } catch (backendErr) {
-      console.log("Backend check failed:", backendErr);
-      return NextResponse.redirect(new URL("/", request.url));
-    }
   }
+
+  // 🔐 Protected page logic
+  // We ONLY check presence of refresh token
+  const refreshToken = request.cookies.get("refresh_token")?.value;
+
+  if (!refreshToken) {
+    const loginUrl = new URL("/", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Token exists → allow page render
+  // Real validation happens in backend APIs
+  return NextResponse.next();
 }
 
 export const config = {

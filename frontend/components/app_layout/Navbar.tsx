@@ -105,9 +105,9 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
   ],
 
   // Activities
-  "/dss/components/gallery": [
+  "/dss/activities/gallery": [
     { label: "Activities", href: "#" }, 
-    { label: "Gallery", href: "/dss/components/gallery" }
+    { label: "Gallery", href: "/dss/activities/gallery" }
   ],
 };
 
@@ -116,16 +116,14 @@ const Navbar = (): JSX.Element => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [openDropdowns, setOpenDropdowns] = useState<DropdownState>({});
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
-    { label: "Home", href: "/dss" }
+    { label: "Home", href: "/" }
   ]);
   const pathname = usePathname();
   
   // CHECK: Is the current page the Home page OR a sub-route of the Home Grid?
   // This ensures breadcrumbs don't show on home sub-pages
   const isHomePage = 
-    pathname === "/dss" || 
-    pathname === "/dss/" || 
-    pathname?.startsWith("/dss/home");
+    pathname === "/"
 
   const navRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -153,11 +151,11 @@ const Navbar = (): JSX.Element => {
         const parsed = JSON.parse(storedBreadcrumbs);
         setBreadcrumbs(parsed);
       } catch (e) {
-        setBreadcrumbs([{ label: "Home", href: "/dss" }]);
+        setBreadcrumbs([{ label: "Home", href: "/" }]);
       }
     } else {
       // 3. Default
-      setBreadcrumbs([{ label: "Home", href: "/dss" }]);
+      setBreadcrumbs([{ label: "Home", href: "/" }]);
     }
   }, [pathname]);
 
@@ -277,8 +275,8 @@ const Navbar = (): JSX.Element => {
 
             {/* Home */}
             <li className="relative group flex-shrink-0">
-              <Link href="/dss" className={navLinkClasses}
-                        onClick={() => handleMenuClick([{ label: "Home", href: "/dss" }])}>
+              <Link href="/" className={navLinkClasses}
+                        onClick={() => handleMenuClick([{ label: "Home", href: "/" }])}>
                 Home
               </Link>
             </li>
@@ -1038,10 +1036,10 @@ const Navbar = (): JSX.Element => {
                 </li>
                 <li>
                   <Link
-                    href="/dss/components/gallery"
+                    href="/dss/activities/gallery"
                     className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
                   
-                        onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/components/gallery" }])}>
+                        onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/activities/gallery" }])}>
                     Gallery
                   </Link>
                 </li>

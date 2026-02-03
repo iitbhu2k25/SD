@@ -13,7 +13,7 @@ export const AUTH_ROUTES = {
 } as const;
 
 export const PROTECTED_ROUTES = {
-  HOME: "/dss",
+  HOME: "/",
   DASHBOARD: "/dashboard",
   PROFILE: "/profile",
 } as const;
