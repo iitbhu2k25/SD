@@ -12,7 +12,7 @@ SECRET_KEY = Settings().SECRET_KEY
 
 from fastapi import BackgroundTasks
 
-BASE_URL="https://slcrdss.in/api/authentication"
+BASE_URL=Settings().VERIFY_URL
 ADMIN_EMAIL="saxenarajat499@gmail.com"
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 class EmailService:
