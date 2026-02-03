@@ -175,21 +175,21 @@ class AuthService(AuthServiceInterface):
             return False
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
-    def verify_by_admin(self,db:Session,email:str,status:str):
+    def verify_by_admin(self,db:Session,bg:BackgroundTasks,email:str,status:str):
         if status=="approved":
             new_data={
                 "is_verified":True,
                 "email":email,
                 "status":"approved"
                 }
-            return UserCrud(db).update_email(new_data)
         else:
             new_data={
                 "is_verified":False,
                 "email":email,
                 "status":"rejected"
                 }
-            return UserCrud(db).update_email(new_data)
+        self.email.approval_status(background=bg,email=email,status=status)
+        return UserCrud(db).update_email(new_data)
        
     def verify_otp(self,db:Session,user:UserOut,otp:str)->UserOut:
         try:

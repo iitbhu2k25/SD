@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     villages_path :str
     MODELED_WATER:str
     VERIFY_URL:str
+    ADMIN_EMAIL:str
     DATABSE_URL:AnyHttpUrl = Field(get_db_url(
         drivername="postgresql+psycopg2",
         username=config("POSTGRES_USER"),

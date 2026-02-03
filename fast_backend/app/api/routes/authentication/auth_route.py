@@ -60,7 +60,7 @@ async  def delete_account(db:db_dependency,user: Annotated[str, Depends(get_curr
 
 @app.get("/admin/approve")
 @validate
-async def approve_user(db:db_dependency,token: str):
+async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
     data = email_service.verify_approval_token(token)
 
@@ -74,12 +74,12 @@ async def approve_user(db:db_dependency,token: str):
         raise CustomException(403, "Invalid action")
 
     email = data["email"]
-    AuthService().verify_by_admin(db,email=email,status="approved")
+    AuthService().verify_by_admin(db,bg,email=email,status="approved")
     return JSONResponse({"message": f"User with email {email} has been approved."})
 
 @app.get("/admin/reject")
 @validate
-async def reject_user(db:db_dependency,token: str):
+async def reject_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
     data = email_service.verify_approval_token(token)
 
@@ -93,5 +93,5 @@ async def reject_user(db:db_dependency,token: str):
         raise CustomException(403, "Invalid action")
 
     email = "saxenarajat499@gmail.com"
-    AuthService().verify_by_admin(db,email=email,status="rejected")
+    AuthService().verify_by_admin(db,bg,email=email,status="rejected")
     return JSONResponse({"message": f"User with email {email} has been rejected."})
