@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const stepItems = [
   {
-    href: '/step1',
+    href: '',
     number: '01',
     icon: 'globe',
     title: 'Data Management and Analysis',
@@ -17,7 +17,7 @@ const stepItems = [
     ]
   },
   {
-    href: '/step2',
+    href: '',
     number: '02',
     icon: 'location',
     title: 'Decision Support System Interface',
@@ -29,7 +29,7 @@ const stepItems = [
     ]
   },
   {
-    href: '/step3',
+    href: '',
     number: '03',
     icon: 'settings',
     title: 'Intervention Strategies',
@@ -41,7 +41,7 @@ const stepItems = [
     ]
   },
   {
-    href: '/step4',
+    href: '',
     number: '04',
     icon: 'chart',
     title: 'Monitoring and Documentation',

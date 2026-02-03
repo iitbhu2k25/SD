@@ -1080,7 +1080,7 @@ class ReportGenerator:
             ]
             factors_data = []
             for idx, (key, value) in enumerate(factors):
-                prefix = f"({string.ascii_lowercase[idx]})"
+                prefix = f"({string.ascii_lowercase[len(factors_data)]})"
                 name = f"{prefix} {key.replace('_', ' ')}"
 
                 match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)
@@ -1110,7 +1110,7 @@ class ReportGenerator:
             ]
             factors_data = []
             for idx, (key, value) in enumerate(constraint_factors):
-                prefix = f"({string.ascii_lowercase[idx]})" 
+                prefix = f"({string.ascii_lowercase[len(factors_data)]})" 
                 name = f"{prefix} {key.replace('_', ' ')}"
 
                 match = next(filter(lambda d: d.get("file_name") == key, layer_names), None)

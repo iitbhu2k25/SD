@@ -1,15 +1,15 @@
 
 services:
-  frontend:
-    build:
-      context: ./frontend/
-      dockerfile: dockerfile.frontend 
-    image: frontend:latest
-    ports:
-      - "3100:3000"
-    volumes:
-      - ./frontend:/home/app:z
-    command: npm start
+  # frontend:
+  #   build:
+  #     context: ./frontend/
+  #     dockerfile: dockerfile.frontend 
+  #   image: frontend:latest
+  #   ports:
+  #     - "3100:3000"
+  #   volumes:
+  #     - ./frontend:/home/app:z
+  #   command: npm start
 
   database:
     image: postgres:16

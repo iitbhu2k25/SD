@@ -87,9 +87,13 @@ const MainContent = () => {
         Drain: selectedDrainsNames,
         Catchment: selectedCatchmentsNames,
       };
+      const commonLayers = displayRaster.filter(d =>
+        selectedCategories.some(s => s.file_name === d.file_name) ||
+        d.file_name === "STP_Priority"
+      );
       const data = {
         table: tableData,
-        raster: displayRaster,
+        raster: commonLayers,
         place: "Drain",
         clip: selectedCatchments,
         location: locationData,

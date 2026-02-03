@@ -24,7 +24,7 @@ import { Style, Fill, Stroke, Circle, Text } from "ol/style";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
 import "ol/ol.css";
-import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
+import { GISCompass, baseMaps, HoverTooltip, getColorFromStretchId } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer'
 
 
@@ -44,9 +44,18 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
   }
 
   if (geometryType.includes("LineString")) {
-    styles.push(new Style({
-      stroke: new Stroke({ color: colorConfig.color, width: 3 })
-    }));
+    if (layerType === 'stretch') {
+      const stretchId = feature.get('Stretch_ID');
+      const Color = getColorFromStretchId(stretchId);
+      styles.push(new Style({
+        stroke: new Stroke({ color: Color, width: 2 })
+      }));
+    }
+    else {
+      styles.push(new Style({
+        stroke: new Stroke({ color: colorConfig.color, width: 3 })
+      }));
+    }
   }
 
   if (geometryType.includes("Point")) {
@@ -195,6 +204,7 @@ const Maping: React.FC = () => {
       setShowCatchment(true);
     }
   };
+
 
   const changeBaseMap = (baseMapKey: string) => {
     if (!mapInstanceRef.current || !baseLayerRef.current) return;

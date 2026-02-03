@@ -109,3 +109,20 @@ export const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature
     </div>
   );
 };
+
+
+  export const getColorFromStretchId = (stretchId: number): string => {
+    const min = 0;
+    const max = 320;
+
+    const ratio = Math.min(
+      Math.max((stretchId - min) / (max - min), 0),
+      1
+    );
+
+    const r = Math.round(255 * ratio);
+    const g = Math.round(255 * (1 - ratio));
+    const b = 0;
+
+    return `rgb(${r}, ${g}, ${b})`;
+  };

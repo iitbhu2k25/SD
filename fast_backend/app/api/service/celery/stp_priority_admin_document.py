@@ -1115,7 +1115,7 @@ class ReportGenerator:
 
             factors_data = []
             for idx, (key, value) in enumerate(asdict(self.static_data).items()):
-                prefix = f"({string.ascii_lowercase[idx]})"   # (a), (b), (c)...
+                prefix = f"({string.ascii_lowercase[len(factors_data)]})"   # (a), (b), (c)...
                 name = f"{prefix} {key.replace('_', ' ')}"
 
                 match = next(

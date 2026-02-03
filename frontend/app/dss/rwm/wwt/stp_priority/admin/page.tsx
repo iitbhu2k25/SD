@@ -66,10 +66,16 @@ const MainContent = () => {
         districts: selectedDistrictsNames,
         subDistricts: selectedSubDistrictsNames,
       };
+      const commonLayers = displayRaster.filter(d =>
+        selectedCategories.some(s => s.file_name === d.file_name) ||
+        d.file_name === "STP_Priority"
+      );
+
+
 
       const data = {
         table: tableData,
-        raster: displayRaster,
+        raster: commonLayers,
         place: "Admin",
         clip: selectedSubDistricts,
         location: locationData,
@@ -258,7 +264,7 @@ const MainContent = () => {
                   Adjust the influence of each category on the analysis
                 </p>
               </div>
-               <CategorySlider editable={categoriesEditable} />
+              <CategorySlider editable={categoriesEditable} />
             </section>
           )}
         </div>

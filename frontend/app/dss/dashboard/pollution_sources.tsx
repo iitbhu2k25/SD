@@ -404,7 +404,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                   borderRadius: '12px',
                   boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
                 }}
-                //formatter={(value: number) => [`${value.toFixed(1)} mg/L`, 'BOD']}
+                // formatter={(value: number) => [`${value.toFixed(1)} mg/L`, 'BOD']}
                 labelFormatter={(label) => `Location: ${label}`}
               />
               <Bar dataKey="bod" fill="url(#bodGradient)" radius={[4, 4, 0, 0]} />
