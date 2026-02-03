@@ -63,7 +63,7 @@ export default function VerifyOtp() {
         toast.success("Email verified successfully!");
         setOtp(Array(6).fill(""));
         setError("");
-        router.push("/dss");
+        router.push("/");
       } else {
         setError("Invalid OTP. Please try again.");
       }

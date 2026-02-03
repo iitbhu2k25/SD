@@ -1,7 +1,6 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import Link from "next/link";
 import { api } from "@/services/api";
 import { useRouter } from "next/navigation";
 import { isErrorWithMessage } from "@/components/authentication/error";
@@ -11,16 +10,21 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuthStore } from "@/store/authStore";
 
-
 interface respData {
   is_verified: boolean;
   user_id: string;
   fullname: string;
-  email:string
+  email: string;
   access_token: string;
 }
 
-export default function Login({ onSwitch }: { onSwitch: () => void }) {
+interface LoginProps {
+  onSwitch: () => void;
+  onForgotPassword: () => void;
+  onSuccess?: () => void;
+}
+
+export default function Login({ onSwitch, onForgotPassword, onSuccess }: LoginProps) {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const [formValues, setFormValues] = useState({
@@ -70,24 +74,26 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
       });
       const data: respData = response.message as respData;
       if (response.status === 201) {
-        toast.success("login success")
-        const User={
-          'fullname':data.fullname,
-          'email':data.email,
-        }
+        toast.success("Login successful!");
+        const User = {
+          'fullname': data.fullname,
+          'email': data.email,
+        };
         setUser(User);
         setAccessToken(data.access_token);
+        
+        // Close dialog
+        onSuccess?.();
+        
         if (data.is_verified) {
-          console.log("verified");  
-          router.replace("/dss"); // or whatever your home route is
+          router.push("/");
         } else {
-          console.log("not verified");
-          router.replace("/authentication/admin-approval");
+          router.push("/authentication/admin-approval");
         }
         setFormValues({ email: "", password: "" });
         setSubmitted(false);
       } else {
-        toast.error("Unexpected response structure")
+        toast.error("Unexpected response structure");
       }
     } catch (err: unknown) {
       if (isErrorWithMessage(err)) {
@@ -99,21 +105,21 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
   };
 
   return (
-    <div className="flex items-center justify-center h-full w-full bg-white p-4 sm:p-6 lg:p-8">
+    <div className="flex items-center justify-center h-full w-full bg-white p-6 sm:p-8">
       <div className="w-full max-w-md">
-        <h1 className="text-2xl min-[450px]:text-3xl sm:text-4xl font-bold mb-4 text-neutral-800">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-neutral-800">
           Login
         </h1>
-        <p className="text-xs sm:text-sm text-neutral-900 mb-6 lg:mb-8">
+        <p className="text-sm text-neutral-600 mb-6">
           Welcome back! Please login to continue
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 lg:gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Email */}
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200">
             <label
               htmlFor="email"
-              className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
               Email
             </label>
@@ -124,11 +130,11 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
               name="email"
               value={formValues.email}
               onChange={handleChange}
-              className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900"
+              className="bg-transparent outline-none border-none text-base text-neutral-900"
             />
           </div>
           {submitted && errors.email && (
-            <span className="text-red-600 text-xs sm:text-sm -mt-2">
+            <span className="text-red-600 text-sm -mt-2">
               {errors.email}
             </span>
           )}
@@ -137,7 +143,7 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200 relative">
             <label
               htmlFor="password"
-              className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
               Password
             </label>
@@ -148,12 +154,12 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
               name="password"
               value={formValues.password}
               onChange={handleChange}
-              className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900 pr-8"
+              className="bg-transparent outline-none border-none text-base text-neutral-900 pr-8"
             />
             <button
               type="button"
               onClick={toggleVisibility}
-              className="absolute right-4 bottom-3 text-neutral-900 cursor-pointer"
+              className="absolute right-4 bottom-3 text-neutral-600"
             >
               {isVisible ? (
                 <EyeOff className="w-5 h-5" />
@@ -163,32 +169,35 @@ export default function Login({ onSwitch }: { onSwitch: () => void }) {
             </button>
           </div>
           {submitted && errors.password && (
-            <span className="text-red-600 text-xs sm:text-sm -mt-2">
+            <span className="text-red-600 text-sm -mt-2">
               {errors.password}
             </span>
           )}
           
-          <Link href="../authentication/forgot-password">
-            <span className="text-gray-500 hover:text-gray-900 hover:underline hover:underline-offset-2 font-semibold text-sm mt-2 cursor-pointer">
-              Forgot Password?
-            </span>
-          </Link>
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="text-gray-600 hover:text-gray-900 hover:underline font-medium text-sm text-right"
+          >
+            Forgot Password?
+          </button>
           
           {/* Submit */}
-          <div className="text-xs sm:text-sm text-neutral-900 mt-4 lg:mt-6">
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 mt-2"
+          >
+            Log In
+          </button>
+          
+          <div className="text-sm text-neutral-700 text-center mt-2">
             Don&apos;t have an account?{" "}
             <span
-              className="text-blue-600 hover:text-blue-700 hover:underline hover:underline-offset-2 cursor-pointer"
+              className="text-blue-600 hover:text-blue-700 hover:underline font-medium cursor-pointer"
               onClick={onSwitch}
             >
               Create Account
             </span>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 cursor-pointer mt-3"
-            >
-              Log In
-            </button>
           </div>
         </form>
       </div>

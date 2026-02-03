@@ -6,6 +6,8 @@ import { ChevronRight, Menu, X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/components/authentication/logout";
 import { startCase } from "lodash";
+import AuthDialog from "@/components/authentication/AuthDialog";
+
 
 type BreadcrumbItem = {
   label: string;
@@ -115,13 +117,19 @@ const Navbar = (): JSX.Element => {
   const [isSticky, setIsSticky] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [openDropdowns, setOpenDropdowns] = useState<DropdownState>({});
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authView, setAuthView] = useState<"login" | "signup">("login");
+  const user = useAuthStore((s) => s.user);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const isLoggedIn = !!accessToken && !!user;
+
+
+
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
     { label: "Home", href: "/" }
   ]);
   const pathname = usePathname();
-
-  // CHECK: Is the current page the Home page OR a sub-route of the Home Grid?
-  // This ensures breadcrumbs don't show on home sub-pages
   const isHomePage =
     pathname === "/"
 
@@ -242,6 +250,11 @@ const Navbar = (): JSX.Element => {
 
   // Common navbar link classes
   const navLinkClasses = "text-white font-semibold text-lg lg:text-base xl:text-lg px-3 lg:px-4 xl:px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300 whitespace-nowrap";
+
+   const handleOpenAuth = (view: "login" | "signup") => {
+    setAuthView(view);
+    setIsAuthOpen(true);
+  };
 
   return (
     <>
@@ -1211,27 +1224,41 @@ const Navbar = (): JSX.Element => {
 
 
               {/* User */}
-              <li
-                className="relative group flex-shrink-0"
-                onMouseEnter={() => toggleDropdown("user", true)}
-                onMouseLeave={() => toggleDropdown("user", false)}
+                <li
+              className="relative group flex-shrink-0"
+              onMouseEnter={() => isLoggedIn && toggleDropdown("user", true)}
+              onMouseLeave={() => isLoggedIn && toggleDropdown("user", false)}
+            >
+              <button
+                onClick={() => {
+                  if (isLoggedIn) {
+                    toggleDropdown("user", !openDropdowns.user);
+                  } else {
+                    handleOpenAuth("login");
+                  }
+                }}
+                className={navLinkClasses}
               >
-                <button
-                  onClick={() => toggleDropdown("user", !openDropdowns.user)}
-                  className={navLinkClasses}
-                >
-                  Profile
-                </button>
+                Profile
+              </button>
+              
+              {/* Dropdown - Only shows when logged in */}
+              {isLoggedIn && (
                 <ul
-                  className={`${openDropdowns.user ? "block" : "hidden"
-                    } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
+                  className={`${
+                    openDropdowns.user ? "block" : "hidden"
+                  } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-[200]`}
                 >
                   <li>
                     <Link
                       href="/UserManagement/UserProfile"
                       className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-
-                      onClick={() => handleMenuClick([{ label: "Profile", href: "/UserManagement/UserProfile" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Profile", href: "/UserManagement/UserProfile" },
+                        ])
+                      }
+                    >
                       {user_name}
                     </Link>
                   </li>
@@ -1244,11 +1271,17 @@ const Navbar = (): JSX.Element => {
                     </button>
                   </li>
                 </ul>
-              </li>
-            </ul>
+              )}
+            </li>
+          </ul>
           </div>
         </div>
       </nav>
+         <AuthDialog
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialView={authView}
+      />
 
 
       {!isHomePage && (

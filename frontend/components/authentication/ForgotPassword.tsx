@@ -1,12 +1,14 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
-import Link from 'next/link';
-export default function ForgotPassword() {
+
+interface ForgotPasswordProps {
+  onBack: () => void;
+}
+
+export default function ForgotPassword({ onBack }: ForgotPasswordProps) {
   const [email, setEmail] = React.useState("");
   const [error, setError] = React.useState("");
-  const router = useRouter();
 
   const validateEmail = (value: string) => {
     if (!value) return "Email is required.";
@@ -31,27 +33,24 @@ export default function ForgotPassword() {
     console.log("Send reset link to:", email);
     setEmail("");
     setError("");
-    // Simulate success, then navigate
-    setTimeout(() => {
-      router.push("verify-otp"); // ✅ Navigate only after success
-    }, 500);
+    // Add your API call here
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-blue-700 to-blue-200 px-4 py-10 sm:px-6">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 sm:p-8">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-800 mb-2">
+    <div className="flex items-center justify-center h-full w-full bg-white p-6 sm:p-8">
+      <div className="w-full max-w-md">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-neutral-800">
           Forgot Password
         </h1>
         <p className="text-sm text-neutral-600 mb-6">
           Enter your email address and we'll send you a verification code.
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex flex-col">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200">
             <label
               htmlFor="email"
-              className="text-sm font-medium text-gray-700 mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
               Email Address
             </label>
@@ -61,27 +60,30 @@ export default function ForgotPassword() {
               name="email"
               value={email}
               onChange={handleChange}
-              className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base text-neutral-900 transition"
+              className="bg-transparent outline-none border-none text-base text-neutral-900"
               placeholder="you@example.com"
               autoComplete="email"
               required
             />
-            {error && (
-              <span className="text-red-600 text-sm mt-1">{error}</span>
-            )}
           </div>
+          {error && (
+            <span className="text-red-600 text-sm -mt-2">{error}</span>
+          )}
 
           <button
             type="submit"
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 mt-2"
           >
             Send Verification Code
           </button>
-          <Link href="/">
-            <h1 className="text-xl font-semibold text-red-600 hover:underline transition duration-200">
-              Click here to login
-            </h1>
-          </Link>
+          
+          <button
+            type="button"
+            onClick={onBack}
+            className="text-blue-600 hover:text-blue-700 hover:underline font-medium text-sm text-center"
+          >
+            Back to Login
+          </button>
         </form>
       </div>
     </div>

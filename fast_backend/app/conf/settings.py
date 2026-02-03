@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     POSTGRES_PORT:int
     BASE_DIR : str="/home/app"
     SECRET_KEY :str
+    VERIFY_KEY :str
     ALGORITHM :str
     ACCESS_TOKEN_EXPIRE_MINUTES :int
     REFRESH_TOKEN_EXPIRE_DAYS:int

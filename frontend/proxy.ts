@@ -30,7 +30,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const refreshToken = request.cookies.get("refresh_token")?.value;
+  const refreshToken = request.cookies.get("verified_token")?.value;
 
  if (!refreshToken) {
   const url = new URL("/", request.url);

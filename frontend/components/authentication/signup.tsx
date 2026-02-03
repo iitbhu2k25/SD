@@ -8,7 +8,12 @@ import { validateField } from "@/components/authentication/validation";
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function Signup({ onSwitch }: { onSwitch: () => void }) {
+interface SignupProps {
+  onSwitch: () => void;
+  onSuccess?: () => void;
+}
+
+export default function Signup({ onSwitch, onSuccess }: SignupProps) {
   const [isVisible, setIsVisible] = React.useState(false);
   const [formValues, setFormValues] = React.useState({
     fullname: "",
@@ -59,41 +64,40 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
           },
         });
         if (response.status === 201) {
-          toast.success("sign up success")
+          toast.success("Account created successfully!");
           setFormValues({ fullname: "", email: "", password: "" });
           setSubmitted(false);
           onSwitch();
+          onSuccess?.();
         }
       } catch (error: unknown) {
         if (isErrorWithMessage(error)) {
-          console.log("Error while signing up:", error.message.detail);
           toast.error(error.message.detail);
         } else {
-          console.log("Error while signing up");
-          console.log(error);
+          toast.error("Error while signing up");
         }
       }
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-full w-full bg-white p-4 sm:p-6 lg:p-8">
+    <div className="flex items-center justify-center h-full w-full bg-white p-6 sm:p-8">
       <div className="w-full max-w-md">
-        <h1 className="text-2xl min-[450px]:text-3xl sm:text-4xl font-bold mb-4 text-neutral-800">
+        <h1 className="text-3xl sm:text-4xl font-bold mb-3 text-neutral-800">
           Sign Up
         </h1>
-        <p className="text-xs sm:text-sm text-neutral-900">
-          Create your account to begin analysing the rivers
+        <p className="text-sm text-neutral-600 mb-6">
+          Create your account to begin analyzing the rivers
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 mt-5">
-          {/* fullname */}
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {/* Fullname */}
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200">
             <label
               htmlFor="fullname"
-              className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
-              fullname
+              Full Name
             </label>
             <input
               required
@@ -102,11 +106,11 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
               name="fullname"
               value={formValues.fullname}
               onChange={handleChange}
-              className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900"
+              className="bg-transparent outline-none border-none text-base text-neutral-900"
             />
           </div>
           {submitted && errors.fullname && (
-            <span className="text-red-600 text-xs sm:text-sm -mt-3">
+            <span className="text-red-600 text-sm -mt-2">
               {errors.fullname}
             </span>
           )}
@@ -115,7 +119,7 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200">
             <label
               htmlFor="email"
-              className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
               Email Address
             </label>
@@ -126,11 +130,11 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
               name="email"
               value={formValues.email}
               onChange={handleChange}
-              className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900"
+              className="bg-transparent outline-none border-none text-base text-neutral-900"
             />
           </div>
           {submitted && errors.email && (
-            <span className="text-red-600 text-xs sm:text-sm -mt-3">
+            <span className="text-red-600 text-sm -mt-2">
               {errors.email}
             </span>
           )}
@@ -139,7 +143,7 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
           <div className="flex flex-col border-2 border-neutral-300 focus-within:border-blue-600 rounded-lg px-4 py-2 transition-all duration-200 relative">
             <label
               htmlFor="password"
-              className="text-xs sm:text-sm text-gray-400 font-medium mb-1"
+              className="text-xs text-gray-500 font-medium mb-1"
             >
               Password
             </label>
@@ -150,12 +154,12 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
               name="password"
               value={formValues.password}
               onChange={handleChange}
-              className="bg-transparent outline-none border-none text-sm sm:text-base text-neutral-900 pr-8"
+              className="bg-transparent outline-none border-none text-base text-neutral-900 pr-8"
             />
             <button
               type="button"
               onClick={toggleVisibility}
-              className="absolute right-4 bottom-3 text-neutral-900 cursor-pointer"
+              className="absolute right-4 bottom-3 text-neutral-600"
             >
               {isVisible ? (
                 <EyeOff className="w-5 h-5" />
@@ -165,26 +169,27 @@ export default function Signup({ onSwitch }: { onSwitch: () => void }) {
             </button>
           </div>
           {submitted && errors.password && (
-            <span className="text-red-600 text-xs sm:text-sm -mt-3">
+            <span className="text-red-600 text-sm -mt-2">
               {errors.password}
             </span>
           )}
 
           {/* Submit */}
-          <div className="text-xs sm:text-sm text-neutral-900 mt-6">
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 mt-2"
+          >
+            Create Account
+          </button>
+          
+          <div className="text-sm text-neutral-700 text-center mt-2">
             Already have an account?{" "}
             <span 
-              className="text-blue-600 hover:text-blue-700 hover:underline hover:underline-offset-2 cursor-pointer" 
+              className="text-blue-600 hover:text-blue-700 hover:underline font-medium cursor-pointer" 
               onClick={onSwitch}
             >
               Login Here
             </span>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 cursor-pointer mt-3"
-            >
-              Create Account
-            </button>
           </div>
         </form>
       </div>

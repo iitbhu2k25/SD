@@ -76,6 +76,8 @@ class AuthService(AuthServiceInterface):
     
     def _generate_token_response(self,user:UserOut,response:Response):
         access_token,refresh_token=self._generate_token(user=user)
+        if user["is_verified"]:
+            response.set_cookie(key="verified_token",value=Settings().VERIFY_KEY,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
         response.set_cookie(key="refresh_token",value=refresh_token,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
         return access_token
     
