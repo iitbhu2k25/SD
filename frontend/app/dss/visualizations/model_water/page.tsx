@@ -78,31 +78,30 @@ const WaterLevelDashboard: React.FC = () => {
             month: 'short',
           })
           : '',
-        fullDateTime: date.toLocaleString(), // 👈 ADD THIS
+        fullDateTime: date.toLocaleString(),
       };
     });
   }, [data]);
 
 
-  // Custom tooltip - FIXED
+  // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const point = payload[0].payload;
+    if (active && payload && payload.length) {
+      const point = payload[0].payload;
 
-    return (
-      <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-       
-        <p className="text-sm font-semibold text-blue-600">
-          {point.Water_Level_m.toFixed(2)} m
-        </p>
-         <p className="text-xs text-gray-600 mb-1">
-          {point.fullDateTime}
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
+      return (
+        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+          <p className="text-sm font-semibold text-blue-600">
+            {point.Water_Level_m.toFixed(2)} m
+          </p>
+          <p className="text-xs text-gray-600 mb-1">
+            {point.fullDateTime}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
 
   // CSV Download Function
@@ -164,8 +163,10 @@ const WaterLevelDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="min-h-screen  bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
+      <div className=" m-8">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
               Water Level Monitoring
@@ -178,7 +179,6 @@ const WaterLevelDashboard: React.FC = () => {
             </h1>
             <p className="text-gray-600">Varanasi</p>
           </div>
-
 
           {/* Download CSV Button */}
           <button
@@ -202,240 +202,245 @@ const WaterLevelDashboard: React.FC = () => {
             Download CSV
           </button>
         </div>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500">
-            <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Current Level</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.latest.toFixed(2)} m</p>
-            <p className={`text-xs mt-1 ${stats.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {stats.change >= 0 ? '↑' : '↓'} {Math.abs(stats.change).toFixed(2)} m
-            </p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500">
-            <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Maximum</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.max.toFixed(2)} m</p>
-            <p className="text-xs text-gray-500 mt-1">Peak level</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-orange-500">
-            <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Minimum</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.min.toFixed(2)} m</p>
-            <p className="text-xs text-gray-500 mt-1">Lowest level</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500">
-            <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Average</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.avg.toFixed(2)} m</p>
-            <p className="text-xs text-gray-500 mt-1">Mean level</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-cyan-500">
-            <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Data Points</p>
-            <p className="text-2xl font-bold text-gray-800">{data.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Total readings</p>
-          </div>
-        </div>
-
-        {/* Main Content Card */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          {/* Controls */}
-          <div className="flex flex-wrap gap-3 mb-6 items-center justify-between">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setViewMode('chart')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'chart'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                Chart View
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'table'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                Table View
-              </button>
-            </div>
-
-            {viewMode === 'chart' && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setChartType('area')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'area'
-                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                    }`}
-                >
-                  Area Chart
-                </button>
-                <button
-                  onClick={() => setChartType('line')}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'line'
-                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                    }`}
-                >
-                  Line Chart
-                </button>
+        {/* Main Grid Layout: 3/4 left for data, 1/4 right for map */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left side - Data section (3/4 width) */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-blue-500">
+                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Current Level</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.latest.toFixed(2)} m</p>
+                <p className={`text-xs mt-1 ${stats.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {stats.change >= 0 ? '↑' : '↓'} {Math.abs(stats.change).toFixed(2)} m
+                </p>
               </div>
-            )}
-          </div>
 
-          {/* Chart View */}
-          {viewMode === 'chart' && (
-            <div className="w-full">
-              <ResponsiveContainer width="100%" height={400}>
-                {chartType === 'area' ? (
-                  <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="xLabel"
-                      interval={0}
-                      tick={{ fontSize: 10 }}
-                      tickLine={false}
-                    />
+              <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-green-500">
+                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Maximum</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.max.toFixed(2)} m</p>
+                <p className="text-xs text-gray-500 mt-1">Peak level</p>
+              </div>
 
-                    <YAxis
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
-                      domain={['dataMin - 0.05', 'dataMax + 0.05']}
-                      label={{ value: 'Water Level (m)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area
-                      type="monotone"
-                      dataKey="Water_Level_m"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      fill="url(#colorLevel)"
-                    />
-                  </AreaChart>
-                ) : (
-                  <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis
-                      dataKey="xLabel"
-                      interval={0}
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
-                      domain={['dataMin - 0.05', 'dataMax + 0.05']}
-                      label={{ value: 'Water Level (m)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Line
-                      type="monotone"
-                      dataKey="Water_Level_m"
-                      stroke="#3b82f6"
-                      strokeWidth={3}
-                      dot={{ fill: '#3b82f6', r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
+              <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-orange-500">
+                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Minimum</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.min.toFixed(2)} m</p>
+                <p className="text-xs text-gray-500 mt-1">Lowest level</p>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-purple-500">
+                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Average</p>
+                <p className="text-2xl font-bold text-gray-800">{stats.avg.toFixed(2)} m</p>
+                <p className="text-xs text-gray-500 mt-1">Mean level</p>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-md p-4 border-l-4 border-cyan-500">
+                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Data Points</p>
+                <p className="text-2xl font-bold text-gray-800">{data.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Total readings</p>
+              </div>
+            </div>
+
+            {/* Main Content Card */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              {/* Controls */}
+              <div className="flex flex-wrap gap-3 mb-6 items-center justify-between">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode('chart')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'chart'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                  >
+                    Chart View
+                  </button>
+                  <button
+                    onClick={() => setViewMode('table')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'table'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                  >
+                    Table View
+                  </button>
+                </div>
+
+                {viewMode === 'chart' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setChartType('area')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'area'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                      Area Chart
+                    </button>
+                    <button
+                      onClick={() => setChartType('line')}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'line'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                      Line Chart
+                    </button>
+                  </div>
                 )}
-              </ResponsiveContainer>
-            </div>
-          )}
+              </div>
 
-          {/* Table View */}
-          {viewMode === 'table' && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Date & Time</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Water Level (m)</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((item, index) => {
-                    const prevLevel = index > 0 ? data[index - 1].Water_Level_m : item.Water_Level_m;
-                    const change = item.Water_Level_m - prevLevel;
+              {/* Chart View */}
+              {viewMode === 'chart' && (
+                <div className="w-full">
+                  <ResponsiveContainer width="100%" height={400}>
+                    {chartType === 'area' ? (
+                      <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="xLabel"
+                          interval={0}
+                          tick={{ fontSize: 10 }}
+                          tickLine={false}
+                        />
 
-                    return (
-                      <tr
-                        key={index}
-                        className="border-b border-gray-100 hover:bg-blue-50 transition-colors"
-                      >
-                        <td className="py-3 px-4 text-gray-800">{item.DateTime}</td>
-                        <td className="py-3 px-4 text-right font-semibold text-gray-800">
-                          {item.Water_Level_m.toFixed(2)}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          {index > 0 && (
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${change > 0
-                              ? 'bg-green-100 text-green-700'
-                              : change < 0
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-gray-100 text-gray-700'
-                              }`}>
-                              {change > 0 ? '↑' : change < 0 ? '↓' : '→'} {Math.abs(change).toFixed(3)} m
-                            </span>
-                          )}
-                        </td>
+                        <YAxis
+                          stroke="#6b7280"
+                          style={{ fontSize: '12px' }}
+                          domain={['dataMin - 0.05', 'dataMax + 0.05']}
+                          label={{ value: 'Water Level (m)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area
+                          type="monotone"
+                          dataKey="Water_Level_m"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          fill="url(#colorLevel)"
+                        />
+                      </AreaChart>
+                    ) : (
+                      <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="xLabel"
+                          interval={0}
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          stroke="#6b7280"
+                          style={{ fontSize: '12px' }}
+                          domain={['dataMin - 0.05', 'dataMax + 0.05']}
+                          label={{ value: 'Water Level (m)', angle: -90, position: 'insideLeft', style: { fontSize: '12px' } }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line
+                          type="monotone"
+                          dataKey="Water_Level_m"
+                          stroke="#3b82f6"
+                          strokeWidth={3}
+                          dot={{ fill: '#3b82f6', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    )}
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Table View */}
+              {viewMode === 'table' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 border-gray-200">
+                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Date & Time</th>
+                        <th className="text-right py-3 px-4 font-semibold text-gray-700">Water Level (m)</th>
+                        <th className="text-right py-3 px-4 font-semibold text-gray-700">Change</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {data.map((item, index) => {
+                        const prevLevel = index > 0 ? data[index - 1].Water_Level_m : item.Water_Level_m;
+                        const change = item.Water_Level_m - prevLevel;
+
+                        return (
+                          <tr
+                            key={index}
+                            className="border-b border-gray-100 hover:bg-blue-50 transition-colors"
+                          >
+                            <td className="py-3 px-4 text-gray-800">{item.DateTime}</td>
+                            <td className="py-3 px-4 text-right font-semibold text-gray-800">
+                              {item.Water_Level_m.toFixed(2)}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {index > 0 && (
+                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${change > 0
+                                  ? 'bg-green-100 text-green-700'
+                                  : change < 0
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 text-gray-700'
+                                  }`}>
+                                  {change > 0 ? '↑' : change < 0 ? '↓' : '→'} {Math.abs(change).toFixed(3)} m
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Footer Info with Live Indicator */}
-        <div className="mt-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm">
-            {/* Blinking Live Dot */}
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
+            {/* Footer Info with Live Indicator */}
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm">
+                {/* Blinking Live Dot */}
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
 
-            {/* Last Updated Text */}
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold text-gray-700">Last updated:</span>{' '}
-              {data[data.length - 1]?.DateTime}
-            </p>
+                {/* Last Updated Text */}
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-700">Last updated:</span>{' '}
+                  {data[data.length - 1]?.DateTime}
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-        
-      </div>
-       <div className="lg:col-span-1">
-            <div className="rounded-2xl overflow-hidden shadow-lg border h-[400px] lg:h-[500px] lg:sticky lg:top-6 bg-white">
+
+          {/* Right side - Map section (1/4 width) */}
+          <div className="lg:col-span-1">
+            <div className="rounded-2xl overflow-hidden shadow-lg border bg-white sticky top-6">
               <iframe
-                className="w-full h-full border-0"
+                className="w-full h-[600px] border-0"
                 loading="lazy"
                 allowFullScreen
                 referrerPolicy="no-referrer-when-downgrade"
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3608.218529759872!2d82.99154878507075!3d25.26323320476016!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x398e322a6031e99d%3A0x962763bc1a36226!2sDepartment%20of%20Civil%20Engineering%2C%20IIT%20(BHU)!5e0!3m2!1sen!2sin!4v1739171130935!5m2!1sen!2sin"
               />
+              
+              {/* Map Label */}
+              <div className="p-3 bg-white border-t">
+                <p className="text-center text-sm text-gray-600">
+                  📍 Station Location – Varanasi
+                </p>
+              </div>
             </div>
-
-            {/* Optional Map Label */}
-            <p className="text-center text-sm text-gray-600 mt-2">
-              📍 Station Location – Varanasi
-            </p>
           </div>
-      
+        </div>
+      </div>
     </div>
   );
 };
