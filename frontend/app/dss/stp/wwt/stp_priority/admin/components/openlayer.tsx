@@ -48,8 +48,7 @@ const Maping: React.FC = () => {
   const [showTitles, setShowTitles] = useState(false);
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
-  const [showPrimaryLayer, setShowPrimaryLayer] = useState(true);
+
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -72,7 +71,11 @@ const Maping: React.FC = () => {
     setLoading,
     rasterLayerInfo,
     setRasterLayerInfo,
-    showLegend
+    showLegend,
+    showPrimaryLayer, 
+    showSecondaryLayer,
+    setShowSecondaryLayer,
+    setShowPrimaryLayer
   } = useMap();
 
   // Helper functions
@@ -701,7 +704,10 @@ const Maping: React.FC = () => {
 
                       <button
                         onClick={() => {
+                          console.log("Toggling primary layer");
+                          console.log("primary state:", showPrimaryLayer);
                           const newPrimaryState = !showPrimaryLayer;
+                          console.log("New primary state:", newPrimaryState);
                           setShowPrimaryLayer(newPrimaryState);
 
                           // If turning primary ON, turn secondary OFF

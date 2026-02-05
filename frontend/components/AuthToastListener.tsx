@@ -15,9 +15,6 @@ export default function AuthToastListener() {
 
   useEffect(() => {
     const reason = searchParams.get("auth_error");
-    
-    console.log("🟢 Checking auth_error:", reason);
-    console.log("🟢 All params:", Array.from(searchParams.entries()));
 
     if (!reason) {
       console.log("❌ No auth_error found");
