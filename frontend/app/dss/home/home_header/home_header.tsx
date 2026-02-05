@@ -280,60 +280,16 @@ const SilkBackground = () => {
 
 const HomeHeader = () => {
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [vmIndex, setVmIndex] = useState(0);
 
   // Hero carousel images
   const carouselImages = [
-    "/Images/navbar/pictures/DSS1.jpeg",
-    "/Images/navbar/pictures/DSS2.jpg",
-    "/Images/navbar/pictures/DSS5.jpeg",
+    "/Images/home/DSS1.jpeg",
+    "/Images/home/DSS2.jpg",
+    "/Images/home/DSS5.jpeg",
   ];
 
-  // Dignitaries Data (Exactly 8 items now fit perfectly in 4 columns)
-  const dignitaries = [
-    {
-      name: "Shri C R Patil",
-      title: "Hon'ble Union Minister ,Ministry of Jal Shakti",
-      image: "/Images/navbar/persons/CR_patil.jpg",
-    },
-    {
-      name: "Shri V.L. Kantha Rao",
-      title: "Secretary (DoWR,RD & GR)",
-      image: "/Images/navbar/persons/secretary1.jpg",
-    },
-    {
-      name: "Shri Rajeev Mittal",
-      title: "DG , National Mission For Clean Ganga",
-      image: "/Images/navbar/persons/Rajeev_Mital1.jpg",
-    },
-    {
-      name: "Shri Nalin Kumar Srivastava",
-      title: "DDG ,National Mission For Clean Ganga",
-      image: "/Images/navbar/persons/nalin_sir.png",
-    },
-    {
-      name: "Shri Dheeraj Joshi",
-      title: "Director (Urban) , NMCG",
-      image: "/Images/navbar/persons/dheeraj_joshi.jpeg",
-    },
-    {
-      name: "Prof. Anurag Ohri",
-      title: "Principal Investigator , IIT BHU Varanasi",
-      image: "/Images/navbar/persons/Anurag_Ohri_Sir.jpg",
-    },
-    {
-      name: "Prof. Pramod Soni",
-      title: "Principal Investigator , IIT BHU Varanasi",
-      image: "/Images/navbar/persons/Pramod_Sir.jpg",
-    },
-    {
-      name: "Prof. Shishir Gaur",
-      title: "Coordinator , IIT BHU Varanasi",
-      image: "/Images/navbar/persons/sgsir.png",
-    },
-  ];
 
-  // Vision and Mission Data
+
   const visionMissionData = [
     {
       type: "MISSION",
@@ -382,13 +338,6 @@ const HomeHeader = () => {
     return () => clearInterval(interval);
   }, [carouselImages.length]);
 
-  // Auto-rotate Vision/Mission (4 seconds)
-  useEffect(() => {
-    const vmInterval = setInterval(() => {
-      setVmIndex((prev) => (prev + 1) % visionMissionData.length);
-    }, 4000);
-    return () => clearInterval(vmInterval);
-  }, [visionMissionData.length]);
 
   return (
     <>
@@ -487,7 +436,7 @@ const HomeHeader = () => {
                 Leveraging advanced analytics and real-time data integration, the DSS provides actionable insights for groundwater management, river water management, water resource allocation, sewage management and system dynamics modeling.
               </p>
               
-              <Link href="/dss/about">
+              <Link href="/dss/about/product">
                 <button className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full transition-colors duration-200 flex items-center space-x-2 shadow-lg">
                   <span>Learn More</span>
                   <ChevronRight className="w-5 h-5" />
@@ -498,121 +447,6 @@ const HomeHeader = () => {
         </div>
       </div>
 
-      {/* Dignitaries Grid Only */}
-      <div className="bg-slate-50 py-10 border-t border-slate-200">
-        <div className="container mx-auto px-4">
-          
-          <div className="relative p-6 rounded-xl overflow-hidden mb-10">
-            {/* Plasma Background for Dignitaries */}
-            <PlasmaBackground />
-
-            <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {dignitaries.map((person, index) => (
-                <div key={index} className="bg-white/90 backdrop-blur-sm rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-slate-100 flex flex-col group h-full">
-                  <div className="h-56 overflow-hidden relative flex-shrink-0">
-                    <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300 z-10"></div>
-                    <img 
-                      src={person.image} 
-                      alt={person.name} 
-                      className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-4 text-center flex-grow flex flex-col justify-center">
-                    <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight">{person.name}</h3>
-                    <p className="text-sm text-blue-600 font-medium leading-tight">{person.title}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Unified Vision, Mission & Highlights Section */}
-          <div className="bg-white/80 rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
-             
-            {/* Silk Background covers both sections now */}
-            <SilkBackground />
-            
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
-              {/* Left Column: Vision & Mission (Takes up 8 columns) */}
-              <div className="lg:col-span-8 flex flex-col md:flex-row items-center gap-8 border-b lg:border-b-0 lg:border-r border-slate-200 pb-6 lg:pb-0 lg:pr-6">
-                
-                {/* Image Area */}
-                <div className="md:w-1/3 flex flex-col items-center justify-center">
-                  <div className="relative w-40 h-40 md:w-48 md:h-48 mb-4">
-                    <img 
-                      key={vmIndex} 
-                      src={visionMissionData[vmIndex].image} 
-                      onError={(e) => { e.currentTarget.style.display='none'; }}
-                      alt={visionMissionData[vmIndex].title}
-                      className="w-full h-full object-contain fade-in"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center -z-10">
-                      <div className="text-center">
-                        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-blue-500 to-blue-800 opacity-20">
-                          {visionMissionData[vmIndex].type}
-                        </h2>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Text Area */}
-                <div className="md:w-2/3 space-y-4 fade-in" key={`content-${vmIndex}`}>
-                   <h3 className={`text-2xl font-bold ${visionMissionData[vmIndex].colorClass} border-b border-gray-100 pb-2`}>
-                      {visionMissionData[vmIndex].title}
-                   </h3>
-                   <p className="text-gray-700 leading-relaxed text-sm md:text-base font-medium">
-                      {visionMissionData[vmIndex].text}
-                   </p>
-                </div>
-              </div>
-
-              {/* Right Column: Highlights (Takes up 4 columns) */}
-              <div className="lg:col-span-4 flex flex-col h-full pl-0 lg:pl-2">
-                <div className="flex items-center justify-between mb-4 border-b border-gray-200 pb-2">
-                   <h3 className="text-xl font-bold text-slate-800 flex items-center">
-                     <Megaphone className="w-5 h-5 mr-2 text-blue-600" />
-                     Highlights
-                   </h3>
-                </div>
-
-                {/* Highlights Scrolling List */}
-                <div className="flex-grow relative overflow-hidden h-[250px] bg-white/50 rounded-lg border border-slate-100 p-2">
-                   <div className="absolute w-full animate-scroll-vertical hover:pause">
-                      <ul className="space-y-3 pb-4">
-                        {highlights.map((item, i) => (
-                          <li key={`h-${i}`} className="group bg-white p-3 rounded shadow-sm hover:shadow-md transition-all border border-transparent hover:border-blue-100 cursor-pointer">
-                             <a 
-                               href={item.documentUrl} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="block w-full"
-                             >
-                                <div className="flex items-start">
-                                   <FileText className="w-4 h-4 text-blue-500 mt-1 mr-2 flex-shrink-0" />
-                                   <div>
-                                      <span className="text-sm font-semibold text-gray-800 group-hover:text-blue-700 leading-snug block mb-1">
-                                        {item.title}
-                                      </span>
-                                      <span className="text-[10px] text-gray-500 flex items-center bg-gray-50 inline-block px-2 py-0.5 rounded">
-                                        <Calendar className="w-3 h-3 mr-1"/> {item.date}
-                                      </span>
-                                   </div>
-                                </div>
-                             </a>
-                          </li>
-                        ))}
-                      </ul>
-                   </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-        </div>
-      </div>
     </>
   );
 };

@@ -23,7 +23,6 @@ tqdm
 rasterio
 matplotlib
 contextily
-fastapi
 sqlalchemy
 uvicorn[standard]
 sqlalchemy

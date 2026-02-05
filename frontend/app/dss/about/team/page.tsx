@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef } from "react";
+import Link from 'next/link';
 
 interface TeamMember {
   image: string;
@@ -536,9 +537,12 @@ export default function TeamPage() {
             <p className="text-slate-700 text-lg max-w-2xl mx-auto mb-8">
               We're always looking for talented individuals passionate about sustainable water management
             </p>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700">
-              Get in Touch
+            <Link href="/dss/contact">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700
+            ">
+              Contact Us
             </button>
+            </Link>
           </div>
         </div>
       </section>

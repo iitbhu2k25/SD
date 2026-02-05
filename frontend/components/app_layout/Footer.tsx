@@ -66,8 +66,8 @@ export default function Footer() {
                 <a href="#" className="text-white/70 hover:text-white transition-colors duration-200">
                   Terms of Use
                 </a>
-                <a href="#" className="text-white/70 hover:text-white transition-colors duration-200">
-                  Accessibility
+                <a href="/dss/contact" className="text-white/70 hover:text-white transition-colors duration-200">
+                  Contact
                 </a>
               </div>
             </div>
