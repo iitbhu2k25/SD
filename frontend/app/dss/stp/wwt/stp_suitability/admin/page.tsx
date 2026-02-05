@@ -4,9 +4,9 @@ import React, { useEffect, useState } from "react";
 import { LocationProvider } from "@/contexts/stp_suitability/admin/LocationContext";
 import { CategoryProvider } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_suitability/admin/MapContext";
-import LocationSelector from "@/app/dss/rwm/wwt/stp_suitability/admin/components/locations";
-import CategorySelector from "@/app/dss/rwm/wwt/stp_suitability/admin/components/Category";
-import MapView from "@/app/dss/rwm/wwt/stp_suitability/admin/components/openlayer";
+import LocationSelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/locations";
+import CategorySelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/Category";
+import MapView from "@/app/dss/stp/wwt/stp_suitability/admin/components/openlayer";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
@@ -19,7 +19,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";
-import { TreatmentForm } from "@/app/dss/rwm/wwt/stp_suitability/admin/components/Stp_area";
+import { TreatmentForm } from "@/app/dss/stp/wwt/stp_suitability/admin/components/Stp_area";
 import { FaLock, FaUnlock } from "react-icons/fa";
 const MainContent: React.FC = () => {
   // Category context (suitability)
@@ -181,12 +181,12 @@ const MainContent: React.FC = () => {
                     {categoriesEditable ? <FaUnlock /> : <FaLock />}
 
                     {/* Tooltip */}
-                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                    <span className="absolute -top-9 left-1/4 -translate-x-1/2 
                                    whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
                                    text-xs text-white opacity-0 
                                    group-hover:opacity-100 transition
                                   ">
-                      Weight changer
+                      Weight Lock/Unlock
                     </span>
                   </button>
                 </div>

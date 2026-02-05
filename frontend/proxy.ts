@@ -4,7 +4,10 @@ import type { NextRequest } from "next/server";
 const PROTECTED_NAMESPACE = "/dss";
 
 const PUBLIC_DSS_ROUTES = [
-  "/dss/about/product",
+  "/dss/about/objective",
+  "/dss/about/vission",
+  "/dss/about/corevalue",
+  "/dss/about/message",
   "/dss/about/team",
   "/dss/help",
   "/dss/dashboard",

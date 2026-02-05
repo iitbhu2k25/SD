@@ -436,7 +436,7 @@ const HomeHeader = () => {
                 Leveraging advanced analytics and real-time data integration, the DSS provides actionable insights for groundwater management, river water management, water resource allocation, sewage management and system dynamics modeling.
               </p>
               
-              <Link href="/dss/about/product">
+              <Link href="/dss/about/objective">
                 <button className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full transition-colors duration-200 flex items-center space-x-2 shadow-lg">
                   <span>Learn More</span>
                   <ChevronRight className="w-5 h-5" />

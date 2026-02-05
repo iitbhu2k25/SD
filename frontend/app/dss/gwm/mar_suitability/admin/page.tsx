@@ -100,12 +100,12 @@ const MainContent = () => {
                     {categoriesEditable ? <FaUnlock /> : <FaLock />}
 
                     {/* Tooltip */}
-                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                    <span className="absolute -top-9 left-1/4 -translate-x-1/2 
                    whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
                    text-xs text-white opacity-0 
                    group-hover:opacity-100 transition
                   ">
-                    Weight changer
+                    Weight Lock/Unlock
                     </span>
                   </button>
 

@@ -23,8 +23,21 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
   // Main Pages
   "/dss/about": [{ label: "About", href: "/dss/about" }],
   "/dss/dashboard": [{ label: "Dashboard", href: "/dss/dashboard" }],
-  "/dss/basic": [{ label: "Basic Module", href: "/dss/basic" }],
   "/UserManagement/UserProfile": [{ label: "Profile", href: "/UserManagement/UserProfile" }],
+
+  // STP Routes
+  "/dss/basic": [
+    { label: "STP", href: "#" },
+    { label: "Basic Module", href: "/dss/basic" }
+  ],
+  "/dss/stp/wwt/stp_priority": [
+    { label: "STP", href: "#" },
+    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority" }
+  ],
+  "/dss/stp/wwt/stp_suitability": [
+    { label: "STP", href: "#" },
+    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" }
+  ],
 
   // GWM Routes
   "/dss/gwm/pumping_location": [
@@ -64,16 +77,6 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "Resource Estimation", href: "#" },
     { label: "Water Quality Assessment", href: "#" },
     { label: "Ground Based Assessment", href: "/dss/river" }
-  ],
-  "/dss/rwm/wwt/stp_priority": [
-    { label: "RWM", href: "#" },
-    { label: "Waste Water Treatment", href: "#" },
-    { label: "STP Priority", href: "/dss/rwm/wwt/stp_priority" }
-  ],
-  "/dss/rwm/wwt/stp_suitability": [
-    { label: "RWM", href: "#" },
-    { label: "Waste Water Treatment", href: "#" },
-    { label: "STP Suitability", href: "/dss/rwm/wwt/stp_suitability" }
   ],
   "/dss/rwm/rainwater": [
     { label: "RWM", href: "#" },
@@ -301,15 +304,59 @@ const Navbar = (): JSX.Element => {
                   Dashboard
                 </Link>
               </li>
+              
+              {/* STP Module */}
+              <li
+                className="relative group flex-shrink-0"
+                onMouseEnter={() => toggleDropdown("stp", true)}
+                onMouseLeave={() => toggleDropdown("stp", false)}
+              >
+                <button
+                  onClick={() => toggleDropdown("stp", !openDropdowns.stp)}
+                  className={navLinkClasses}
+                >
+                  STP
+                </button>
 
-              {/* Basic Modules */}
-              <li className="relative group flex-shrink-0">
-                <Link href="/dss/basic" className={navLinkClasses}
-                  onClick={() => handleMenuClick([{ label: "Basic Module", href: "/dss/basic" }])}>
-                  Basic module
-                </Link>
+                <ul
+                  className={`${openDropdowns.stp ? "block" : "hidden"}
+                    lg:group-hover:block absolute left-0 top-[calc(100%+2px)]
+                    bg-white bg-opacity-95 border border-gray-200 border-opacity-10
+                    rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
+                >
+                  <li>
+                    <Link
+                      href="/dss/stp/basic"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
+                    >
+                      Basic Module
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/stp/wwt/stp_priority"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
+                    >
+                      STP Priority
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/stp/wwt/stp_suitability"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
+                    >
+                      STP Suitability
+                    </Link>
+                  </li>
+                </ul>
               </li>
-
+              
               {/* gwm */}
               <li
                 className="relative group flex-shrink-0"
@@ -770,7 +817,7 @@ const Navbar = (): JSX.Element => {
                           Water Pollution and Inventory
                         </Link>
                       </li>
-                      <li>
+                      {/* <li>
                         <Link
                           href="/dss/rwm/wwt/stp_priority"
                           className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
@@ -787,7 +834,7 @@ const Navbar = (): JSX.Element => {
                           onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "STP Suitability", href: "/dss/rwm/wwt/stp_suitability" }])}>
                           STP Suitability
                         </Link>
-                      </li>
+                      </li> */}
                       <li>
                         <Link
                           href="/dss/default"
@@ -1182,15 +1229,16 @@ const Navbar = (): JSX.Element => {
 
                 <ul
                   className={`${openDropdowns.about ? "block" : "hidden"}
-      lg:group-hover:block absolute left-0 top-[calc(100%+2px)]
-      bg-white bg-opacity-95 border border-gray-200 border-opacity-10
-      rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
-                > <li>
+                    lg:group-hover:block absolute left-0 top-[calc(100%+2px)]
+                    bg-white bg-opacity-95 border border-gray-200 border-opacity-10
+                    rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
+                >
+                  <li>
                     <Link
                       href="/dss/about/objective"
                       className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
@@ -1205,8 +1253,8 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/about/vission"
                       className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
@@ -1221,8 +1269,8 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/about/corevalue"
                       className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
@@ -1237,8 +1285,8 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/about/message"
                       className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
@@ -1253,8 +1301,8 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/about/team"
                       className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
+                        hover:bg-blue-50 hover:bg-opacity-10
+                        rounded-md transition duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },

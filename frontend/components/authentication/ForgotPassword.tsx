@@ -1,5 +1,6 @@
 "use client";
 
+import { Link } from "lucide-react";
 import React from "react";
 
 interface ForgotPasswordProps {
@@ -79,7 +80,9 @@ export default function ForgotPassword({ onBack }: ForgotPasswordProps) {
           
           <button
             type="button"
-            onClick={onBack}
+            onClick={
+              onBack
+            }
             className="text-blue-600 hover:text-blue-700 hover:underline font-medium text-sm text-center"
           >
             Back to Login

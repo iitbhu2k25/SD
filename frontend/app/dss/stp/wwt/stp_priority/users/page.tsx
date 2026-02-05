@@ -4,12 +4,11 @@ import React, { useState, useEffect } from "react";
 import { RiverSystemProvider } from "@/contexts/stp_priority/users/DrainContext";
 import { CategoryProvider } from "@/contexts/stp_priority/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_priority/users/DrainMapContext";
-import RiverSelector from "@/app/dss/rwm/wwt/stp_priority/users/components/locations";
+import RiverSelector from "@/app/dss/stp/wwt/stp_priority/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
-import CategorySelector from "@/app/dss/rwm/wwt/stp_priority/admin/components/Category";
 import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
 import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
-import MapView from "@/app/dss/rwm/wwt/stp_priority/users/components/openlayer";
+import MapView from "@/app/dss/stp/wwt/stp_priority/users/components/openlayer";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 import CategorySlider from "./components/weight_slider";
 import { toast } from "react-toastify";
@@ -183,12 +182,12 @@ const MainContent = () => {
                     {categoriesEditable ? <FaUnlock /> : <FaLock />}
 
                     {/* Tooltip */}
-                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 
+                    <span className="absolute -top-9 left-1/4 -translate-x-1/2 
                                    whitespace-nowrap rounded-md bg-gray-600 px-2 py-1 
                                    text-xs text-white opacity-0 
                                    group-hover:opacity-100 transition
                                   ">
-                      Weight changer
+                      Weight Lock/Unlock
                     </span>
                   </button>
                 </div>

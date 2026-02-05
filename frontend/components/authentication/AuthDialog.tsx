@@ -50,7 +50,7 @@ export default function AuthDialog({
           <div className="relative h-full flex flex-col items-center justify-center p-8 text-white">
             <h2 className="text-4xl font-bold mb-4">Welcome Back!</h2>
             <p className="text-center text-lg opacity-90">
-              Sign in to access Decision Support System
+              Sign in to access 
             </p>
           </div>
         </div>

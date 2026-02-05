@@ -1,5 +1,9 @@
+'use client';
 import ForgotPassword from '@/components/authentication/ForgotPassword';
 
 export default function ForgotPasswordPage() {
-  return <ForgotPassword />;
+  const handleSwitchToLogin = () => {
+    window.location.href = "/";
+  };
+  return <ForgotPassword  onBack={handleSwitchToLogin} />;
 }

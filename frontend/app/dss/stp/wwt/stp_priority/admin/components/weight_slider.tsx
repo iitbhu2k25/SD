@@ -15,8 +15,11 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
     getCategoryInfluence,
     getCategoryWeight,
     toggleCategory,
+    selectAllCategories,
+    clearAllCategories
   } = useCategory();
-
+  const allSelected = categories.length === selectedCategories.length && categories.length > 0;
+  const selectedCount = selectedCategories.length;
   useEffect(() => {
     if (selectedCategories.length > 0) {
       let influenceSum = 0;
@@ -28,7 +31,27 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
 
   return (
     <div className="w-full p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-      {/* Header */}
+      <div className="flex gap-6 mb-4 justify-end">
+
+        <button
+          onClick={selectAllCategories}
+          disabled={allSelected}
+          className={`text-xs px-3 py-1 rounded-md ${allSelected
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+        >
+          Select All
+        </button>
+        <button
+          onClick={clearAllCategories}
+          disabled={selectedCount === 0}
+          className={`text-xs px-3 py-1 rounded-md ${selectedCount === 0
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : 'bg-red-500 text-white hover:bg-red-600'}`}
+        >
+          Clear All
+        </button>
+      </div>
       <div className="grid grid-cols-3 w-full mb-4">
         <h2 className="text-lg font-semibold text-gray-800 text-left">
           Category
@@ -49,9 +72,8 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
           return (
             <div
               key={category.id}
-              className={`mb-4 transition ${
-                !selected || !editable ? "opacity-50" : ""
-              }`}
+              className={`mb-4 transition ${!selected || !editable ? "opacity-50" : ""
+                }`}
             >
               {/* Title row */}
               <div className="grid grid-cols-3 gap-2 items-center mb-2">
@@ -120,11 +142,10 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
                       )
                     }
                     disabled={!selected || !editable}
-                    className={`relative w-full h-2 bg-transparent appearance-none z-10 ${
-                      !selected || !editable
+                    className={`relative w-full h-2 bg-transparent appearance-none z-10 ${!selected || !editable
                         ? "cursor-not-allowed"
                         : "cursor-pointer"
-                    }`}
+                      }`}
                     style={{
                       WebkitAppearance: "none",
                       appearance: "none",
