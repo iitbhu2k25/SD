@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect } from "react";
 
 export default function ProductPage() {
@@ -483,12 +484,16 @@ export default function ProductPage() {
               Join us in building a sustainable future through intelligent water resource management powered by GIS and remote sensing
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
+              <Link href="/">
               <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-xl hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700">
                 Get Started
               </button>
+              </Link>
+              <Link href="/dss/about/team">
               <button className="bg-white border-2 border-blue-600 hover:bg-blue-50 text-blue-700 px-8 py-4 rounded-full font-semibold transition-all hover:shadow-xl">
                 Learn More
               </button>
+              </Link>
             </div>
           </div>
         </div>

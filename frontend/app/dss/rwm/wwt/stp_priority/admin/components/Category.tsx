@@ -1,142 +1,170 @@
-'use client'
-import React from 'react';
-import { useCategory } from '@/contexts/stp_priority/admin/CategoryContext';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
+"use client";
+import React, { useEffect } from "react";
+import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 
-const CategorySelector: React.FC = () => {
+interface CategorySliderProps {
+  editable?: boolean;
+}
+
+const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => {
   const {
     categories,
     selectedCategories,
+    isSelected,
+    updateCategoryInfluence,
+    getCategoryInfluence,
+    getCategoryWeight,
     toggleCategory,
-    selectAllCategories,
-    clearAllCategories,
-    isSelected
   } = useCategory();
 
-  const allSelected =
-    categories.length === selectedCategories.length && categories.length > 0;
-
-  const selectedCount = selectedCategories.length;
-
-  const firstHalf = categories.slice(0, Math.ceil(categories.length / 2));
-  const secondHalf = categories.slice(Math.ceil(categories.length / 2));
-
-  const CategoryItem = ({ category }: { category: any }) => {
-    const selected = isSelected(category.id);
-
-    return (
-      <div
-        className={`flex items-start rounded-lg transition-all duration-150
-          ${selected ? 'bg-blue-50' : 'hover:bg-gray-50'}
-        `}
-      >
-        <input
-          type="checkbox"
-          id={`category-${category.id}`}
-          checked={selected}
-          onChange={() => toggleCategory(category.id, category.file_name)}
-          className="h-5 w-5 text-blue-600 border-gray-300 rounded mt-3 ml-3"
-        />
-
-        <label
-          htmlFor={`category-${category.id}`}
-          className="flex-1 cursor-pointer px-3 py-2"
-        >
-          <div className="flex items-center gap-2">
-            {/* Category name */}
-            <span
-              className={`text-sm font-medium ${
-                selected ? 'text-blue-700' : 'text-gray-700'
-              }`}
-            >
-              {category.file_name}
-            </span>
-
-            {/* Info tooltip */}
-            {category.details && (
-              <div className="relative group">
-                <AiOutlineInfoCircle
-                  size={18}
-                  className="text-gray-400 group-hover:text-blue-600 transition-colors"
-                />
-
-                <div
-                  className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64
-                             rounded-xl bg-white border border-gray-200
-                             px-4 py-3 text-xs text-gray-600 shadow-lg
-                             opacity-0 translate-y-1
-                             group-hover:opacity-100 group-hover:translate-y-0
-                             transition-all duration-150
-                             pointer-events-none z-30"
-                >
-                  {category.details}
-                </div>
-              </div>
-            )}
-          </div>
-        </label>
-      </div>
-    );
-  };
+  useEffect(() => {
+    if (selectedCategories.length > 0) {
+      let influenceSum = 0;
+      selectedCategories.forEach((category) => {
+        influenceSum += getCategoryInfluence(category.id);
+      });
+    }
+  }, [selectedCategories, getCategoryInfluence]);
 
   return (
-    <div className="bg-white rounded-lg shadow mb-6">
+    <div className="w-full p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-700">
-          Categories
-        </h3>
-
-        <div className="flex space-x-2">
-          <button
-            onClick={selectAllCategories}
-            disabled={allSelected}
-            className={`text-xs px-3 py-1 rounded-md ${
-              allSelected
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-          >
-            Select All
-          </button>
-
-          <button
-            onClick={clearAllCategories}
-            disabled={selectedCount === 0}
-            className={`text-xs px-3 py-1 rounded-md ${
-              selectedCount === 0
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-red-500 text-white hover:bg-red-600'
-            }`}
-          >
-            Clear All
-          </button>
-        </div>
+      <div className="grid grid-cols-[auto_1fr_100px_100px] gap-4 w-full mb-4">
+        <div></div> {/* Checkbox column */}
+        <h2 className="text-lg font-semibold text-gray-800 text-left">
+          Category
+        </h2>
+        <h2 className="text-lg font-semibold text-gray-800 text-center">
+          Influences
+        </h2>
+        <h2 className="text-lg font-semibold text-gray-800 text-right">
+          Weight
+        </h2>
       </div>
 
-      {/* Category list */}
-      <div className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-3 md:border-r md:pr-3 border-gray-200">
-            {firstHalf.map(category => (
-              <CategoryItem key={category.id} category={category} />
-            ))}
-          </div>
+      {/* Categories */}
+      <div className="space-y-6">
+        {categories.map((category) => {
+          const selected = isSelected(category.id);
 
-          <div className="space-y-3">
-            {secondHalf.map(category => (
-              <CategoryItem key={category.id} category={category} />
-            ))}
-          </div>
-        </div>
+          return (
+            <div
+              key={category.id}
+              className={`transition ${
+                !selected || !editable ? "opacity-50" : ""
+              }`}
+            >
+              {/* Single aligned row */}
+              <div className="grid grid-cols-[auto_1fr_100px_100px] gap-4 items-center">
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() =>
+                    toggleCategory(category.id, category.file_name)
+                  }
+                  className="h-4 w-4 text-blue-600 rounded"
+                />
+
+                {/* Category name and slider */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <span
+                      title={category.file_name}
+                      className="font-medium w-48 truncate shrink-0"
+                    >
+                      {category.file_name}
+                    </span>
+
+                    {/* Slider */}
+                    <div className="relative flex-1 min-w-[220px]">
+                      {/* Track */}
+                      <div className="absolute h-2 w-full rounded-lg bg-gradient-to-r from-blue-100 to-blue-600" />
+
+                      {/* Tick marks */}
+                      <div className="absolute w-full flex justify-between px-1 -mt-1">
+                        {[...Array(10)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-4 w-0.5 bg-gray-300"
+                          />
+                        ))}
+                      </div>
+
+                      <input
+                        type="range"
+                        min="1"
+                        max="10"
+                        value={getCategoryInfluence(category.id)}
+                        onChange={(e) =>
+                          selected &&
+                          editable &&
+                          updateCategoryInfluence(
+                            category.id,
+                            category.file_name,
+                            parseFloat(e.target.value)
+                          )
+                        }
+                        disabled={!selected || !editable}
+                        className={`relative w-full h-2 bg-transparent appearance-none z-10 ${
+                          !selected || !editable
+                            ? "cursor-not-allowed"
+                            : "cursor-pointer"
+                        }`}
+                        style={{
+                          WebkitAppearance: "none",
+                          appearance: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Scale indicators - positioned below slider */}
+                  <div className="flex justify-between pl-[12rem]">
+                    <div className="flex gap-1 items-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-100" />
+                      <span className="text-xs text-gray-400">Low</span>
+                    </div>
+                    <div className="flex gap-1 items-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-300" />
+                      <span className="text-xs text-gray-400">Medium</span>
+                    </div>
+                    <div className="flex gap-1 items-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      <span className="text-xs text-gray-400">High</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Influence */}
+                <span className="text-sm font-bold text-center">
+                  {Math.max(
+                    1,
+                    Math.round(getCategoryInfluence(category.id))
+                  )}
+                </span>
+
+                {/* Weight */}
+                <span className="text-sm font-bold text-right">
+                  {getCategoryWeight(category.id)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-50 p-3 text-sm text-gray-600 rounded-b-lg">
-        {selectedCount} of {categories.length} categories selected
+      <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
+        <p className="font-medium mb-1 text-gray-700">How to use:</p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Select categories using the checkbox.</li>
+          <li>Drag the sliders to adjust their influence.</li>
+          <li>Higher values give more weight in the analysis.</li>
+        </ul>
       </div>
     </div>
   );
 };
 
-export default CategorySelector;
+export default CategorySlider;

@@ -10,6 +10,7 @@ interface TeamMember {
   position?: string;
   body: string;
   title_type?: string;
+  url?: string;
 }
 
 export default function TeamPage() {
@@ -83,18 +84,22 @@ export default function TeamPage() {
       title: "Prof. Anurag Ohri",
       position: "Principal Investigator",
       body: "Department of Civil Engineering, IIT(BHU) Varanasi",
+      url: "https://www.iitbhu.ac.in/dept/civ/people/aohriciv"
+
     },
     {
       image: "/Images/navbar/persons/Pramod_Sir.jpg",
       title: "Prof. Pramod Soni",
       position: "Principal Investigator",
       body: "Department of Civil Engineering, IIT(BHU) Varanasi",
+      url: "https://www.iitbhu.ac.in/dept/civ/people/pramodciv"
     },
     {
       image: "/Images/navbar/persons/sgsir.png",
       title: "Prof. Shishir Gaur",
       position: "Coordinator",
       body: "Department of Civil Engineering, IIT(BHU) Varanasi",
+      url: "https://iitbhu.ac.in/dept/civ/people/shishirgciv"
     },
   ];
 
@@ -186,7 +191,19 @@ export default function TeamPage() {
       title_type: "normal",
     },
   ];
-
+  const CardContent = ({ member }: { member: TeamMember }) => (
+    <div className="aspect-square relative overflow-hidden bg-teal-50 cursor-pointer group">
+      {member.image && (
+        <Image
+          src={member.image}
+          alt={member.title}
+          fill
+          className="object-cover group-hover:scale-110 transition-transform duration-700"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-teal-900/60 via-transparent to-transparent" />
+    </div>
+  );
   return (
     <div ref={containerRef} className="min-h-screen bg-slate-50 text-slate-900">
       {/* Hero Section */}
@@ -209,7 +226,7 @@ export default function TeamPage() {
             backgroundSize: "40px 40px",
           }}
         />
-        
+
         {/* Topographic Lines */}
         <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -221,7 +238,7 @@ export default function TeamPage() {
           </defs>
           <rect width="100%" height="100%" fill="url(#topo)" />
         </svg>
-        
+
         <div className="relative z-10 container mx-auto px-6 h-full flex flex-col justify-center items-center text-center">
           <div className="fade-in-up">
             <div className="inline-block mb-6">
@@ -252,7 +269,7 @@ export default function TeamPage() {
           style={{ backgroundImage: "url('/Images/about/Varanasi_Munshi_Ghat.jpg')" }}
         />
         <div className="absolute inset-0 bg-white/35" />
-        
+
         {/* Satellite Grid Background */}
         <div className="absolute inset-0 opacity-30" style={{
           backgroundImage: `
@@ -260,7 +277,7 @@ export default function TeamPage() {
           `,
           backgroundSize: '32px 32px'
         }} />
-        
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="fade-in-up mb-16">
             <div className="flex items-center gap-4 mb-4">
@@ -320,7 +337,7 @@ export default function TeamPage() {
           style={{ backgroundImage: "url('/Images/about/Doppler_Weather_Radar_Station_Kailasagiri.jpg')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-teal-50/95 via-cyan-50/90 to-blue-50/95" />
-        
+
         {/* Remote Sensing Wave Pattern */}
         <div className="absolute inset-0 opacity-20">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -334,7 +351,7 @@ export default function TeamPage() {
             <rect width="100%" height="100%" fill="url(#waves)" />
           </svg>
         </div>
-        
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="fade-in-up mb-16">
             <div className="flex items-center gap-4 mb-4">
@@ -357,17 +374,18 @@ export default function TeamPage() {
                 style={{ transitionDelay: `${idx * 100}ms` }}
               >
                 <div className="relative overflow-hidden rounded-2xl bg-white border-2 border-teal-200 hover:border-teal-500 transition-all duration-500 hover:shadow-2xl hover:shadow-teal-500/30">
-                  <div className="aspect-square relative overflow-hidden bg-teal-50">
-                    {member.image && (
-                      <Image
-                        src={member.image}
-                        alt={member.title}
-                        fill
-                        className="object-cover group-hover:scale-110 transition-transform duration-700"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-teal-900/60 via-transparent to-transparent" />
-                  </div>
+
+                  {member.url ? (
+                    <Link
+                      href={member.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <CardContent member={member} />
+                    </Link>
+                  ) : (
+                    <CardContent member={member} />
+                  )}
                   <div className="p-7 bg-gradient-to-br from-white to-teal-50/30">
                     <div className="mb-2">
                       <span className="inline-block text-xs font-mono text-teal-700 bg-teal-100 px-3 py-1 rounded-full border border-teal-300">
@@ -394,7 +412,7 @@ export default function TeamPage() {
           style={{ backgroundImage: "url('/Images/about/Kendujhar_Odisha.jpg')" }}
         />
         <div className="absolute inset-0 bg-white/35" />
-        
+
         {/* GIS Coordinate Grid */}
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: `
@@ -403,7 +421,7 @@ export default function TeamPage() {
           `,
           backgroundSize: '60px 60px'
         }} />
-        
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="fade-in-up mb-16">
             <div className="flex items-center gap-4 mb-4">
@@ -464,7 +482,7 @@ export default function TeamPage() {
           style={{ backgroundImage: "url('/Images/about/AWS(Automatic_Weather_station).jpg')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-br from-violet-50/95 via-purple-50/90 to-indigo-50/95" />
-        
+
         {/* Hexagon Pattern */}
         <div className="absolute inset-0 opacity-20" style={{
           backgroundImage: `
@@ -476,7 +494,7 @@ export default function TeamPage() {
           backgroundSize: '80px 140px',
           backgroundPosition: '0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px'
         }} />
-        
+
         <div className="container mx-auto px-6 relative z-10">
           <div className="fade-in-up mb-16">
             <div className="flex items-center gap-4 mb-4">
@@ -528,7 +546,7 @@ export default function TeamPage() {
         {/* Map Pins Decoration */}
         <div className="absolute top-10 left-20 text-blue-600 text-4xl animate-bounce">📍</div>
         <div className="absolute bottom-10 right-20 text-teal-600 text-4xl animate-bounce" style={{ animationDelay: '0.5s' }}>📍</div>
-        
+
         <div className="container mx-auto px-6 text-center relative z-10">
           <div className="fade-in-up">
             <h3 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900">
@@ -538,10 +556,10 @@ export default function TeamPage() {
               We're always looking for talented individuals passionate about sustainable water management
             </p>
             <Link href="/dss/contact">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700
             ">
-              Contact Us
-            </button>
+                Contact Us
+              </button>
             </Link>
           </div>
         </div>

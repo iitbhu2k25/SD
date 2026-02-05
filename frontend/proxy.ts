@@ -9,6 +9,7 @@ const PUBLIC_DSS_ROUTES = [
   "/dss/help",
   "/dss/dashboard",
   "/dss/activities/gallery",
+  "/dss/contact",
 ];
 
 export function proxy(request: NextRequest) {

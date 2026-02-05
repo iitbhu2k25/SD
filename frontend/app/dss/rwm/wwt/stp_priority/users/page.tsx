@@ -11,7 +11,7 @@ import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
 import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 import MapView from "@/app/dss/rwm/wwt/stp_priority/users/components/openlayer";
 import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
-import { CategorySlider } from "./components/weight_slider";
+import CategorySlider from "./components/weight_slider";
 import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
@@ -192,7 +192,7 @@ const MainContent = () => {
                     </span>
                   </button>
                 </div>
-                <CategorySelector />
+                 <CategorySlider editable={categoriesEditable} />
               </section>
 
               <div className="flex justify-start mt-4">
@@ -274,19 +274,7 @@ const MainContent = () => {
             </div>
           </section>
 
-          {showCategories && selectedCategories.length > 0 && (
-            <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
-              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Analysis Weights
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Adjust the influence of each category on the analysis
-                </p>
-              </div>
-             <CategorySlider editable={categoriesEditable} />
-            </section>
-          )}
+  
         </div>
       </main>
 

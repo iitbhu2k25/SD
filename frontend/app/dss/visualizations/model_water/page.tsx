@@ -14,7 +14,7 @@ const WaterLevelDashboard: React.FC = () => {
   const [chartType, setChartType] = useState<'line' | 'area'>('area');
   const [data, setData] = useState<WaterLevelData[]>([]);
   const [loading, setLoading] = useState(true);
-
+  
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -26,7 +26,7 @@ const WaterLevelDashboard: React.FC = () => {
           });
         } else {
           toast.success("Data Fetched Successfully", {
-          
+
           });
           const New_data = resp.message as unknown as { data: WaterLevelData[] };
           setData(New_data.data as WaterLevelData[]);
@@ -62,30 +62,48 @@ const WaterLevelDashboard: React.FC = () => {
 
   // Format data for chart
   const chartData = useMemo(() => {
-    return data.map(item => ({
-      ...item,
-      time: new Date(item.DateTime).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      fullDate: item.DateTime,
-    }));
+    return data.map((item, index) => {
+      const date = new Date(item.DateTime);
+      const prev =
+        index > 0 ? new Date(data[index - 1].DateTime) : null;
+
+      const isFirstOfDay =
+        !prev || date.toDateString() !== prev.toDateString();
+
+      return {
+        ...item,
+        xLabel: isFirstOfDay
+          ? date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+          })
+          : '',
+        fullDateTime: date.toLocaleString(), // 👈 ADD THIS
+      };
+    });
   }, [data]);
+
 
   // Custom tooltip - FIXED
   const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-          <p className="text-xs text-gray-600 mb-1">{payload[0].payload.fullDate}</p>
-          <p className="text-sm font-semibold text-blue-600">
-            {payload[0].value.toFixed(2)} m
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  if (active && payload && payload.length) {
+    const point = payload[0].payload;
+
+    return (
+      <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+       
+        <p className="text-sm font-semibold text-blue-600">
+          {point.Water_Level_m.toFixed(2)} m
+        </p>
+         <p className="text-xs text-gray-600 mb-1">
+          {point.fullDateTime}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 
   // CSV Download Function
   const downloadCSV = () => {
@@ -107,15 +125,15 @@ const WaterLevelDashboard: React.FC = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', `water_level_data_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast.success("CSV Downloaded Successfully", {
       position: "top-center",
     });
@@ -147,38 +165,46 @@ const WaterLevelDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-800 mb-2">
               Water Level Monitoring
             </h1>
             <p className="text-gray-600">Real-time water level time series data</p>
           </div>
-          
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              Station Name:
+            </h1>
+            <p className="text-gray-600">Varanasi</p>
+          </div>
+
+
           {/* Download CSV Button */}
           <button
             onClick={downloadCSV}
             className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-md flex items-center gap-2"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-5 w-5" 
-              fill="none" 
-              viewBox="0 0 24 24" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
               stroke="currentColor"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
             Download CSV
           </button>
         </div>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -223,8 +249,8 @@ const WaterLevelDashboard: React.FC = () => {
               <button
                 onClick={() => setViewMode('chart')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'chart'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 Chart View
@@ -232,8 +258,8 @@ const WaterLevelDashboard: React.FC = () => {
               <button
                 onClick={() => setViewMode('table')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${viewMode === 'table'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 Table View
@@ -245,8 +271,8 @@ const WaterLevelDashboard: React.FC = () => {
                 <button
                   onClick={() => setChartType('area')}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'area'
-                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   Area Chart
@@ -254,8 +280,8 @@ const WaterLevelDashboard: React.FC = () => {
                 <button
                   onClick={() => setChartType('line')}
                   className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${chartType === 'line'
-                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   Line Chart
@@ -278,10 +304,12 @@ const WaterLevelDashboard: React.FC = () => {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis
-                      dataKey="time"
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
+                      dataKey="xLabel"
+                      interval={0}
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
                     />
+
                     <YAxis
                       stroke="#6b7280"
                       style={{ fontSize: '12px' }}
@@ -301,9 +329,10 @@ const WaterLevelDashboard: React.FC = () => {
                   <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis
-                      dataKey="time"
-                      stroke="#6b7280"
-                      style={{ fontSize: '12px' }}
+                      dataKey="xLabel"
+                      interval={0}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
                     />
                     <YAxis
                       stroke="#6b7280"
@@ -354,10 +383,10 @@ const WaterLevelDashboard: React.FC = () => {
                         <td className="py-3 px-4 text-right">
                           {index > 0 && (
                             <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${change > 0
-                                ? 'bg-green-100 text-green-700'
-                                : change < 0
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-gray-100 text-gray-700'
+                              ? 'bg-green-100 text-green-700'
+                              : change < 0
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-gray-100 text-gray-700'
                               }`}>
                               {change > 0 ? '↑' : change < 0 ? '↓' : '→'} {Math.abs(change).toFixed(3)} m
                             </span>
@@ -380,7 +409,7 @@ const WaterLevelDashboard: React.FC = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
             </span>
-            
+
             {/* Last Updated Text */}
             <p className="text-sm text-gray-600">
               <span className="font-semibold text-gray-700">Last updated:</span>{' '}
@@ -388,7 +417,25 @@ const WaterLevelDashboard: React.FC = () => {
             </p>
           </div>
         </div>
+        
       </div>
+       <div className="lg:col-span-1">
+            <div className="rounded-2xl overflow-hidden shadow-lg border h-[400px] lg:h-[500px] lg:sticky lg:top-6 bg-white">
+              <iframe
+                className="w-full h-full border-0"
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3608.218529759872!2d82.99154878507075!3d25.26323320476016!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x398e322a6031e99d%3A0x962763bc1a36226!2sDepartment%20of%20Civil%20Engineering%2C%20IIT%20(BHU)!5e0!3m2!1sen!2sin!4v1739171130935!5m2!1sen!2sin"
+              />
+            </div>
+
+            {/* Optional Map Label */}
+            <p className="text-center text-sm text-gray-600 mt-2">
+              📍 Station Location – Varanasi
+            </p>
+          </div>
+      
     </div>
   );
 };

@@ -1,11 +1,12 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
 
 interface CategorySliderProps {
   editable?: boolean;
 }
-export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => {
+
+const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => {
   const {
     categories,
     selectedCategories,
@@ -13,30 +14,21 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
     updateCategoryInfluence,
     getCategoryInfluence,
     getCategoryWeight,
-    toggleCategory
+    toggleCategory,
   } = useCategory();
+
   useEffect(() => {
-    const checkInfluence = () => {
-      if (selectedCategories.length > 0) {
-        let InfluenceSum = 0;
-        selectedCategories.forEach((category) => {
-          InfluenceSum += getCategoryInfluence(category.id);
-        });
-      }
-    };
-    checkInfluence();
-  }, [selectedCategories, updateCategoryInfluence]);
-  // If no categories are selected, show a message
-  if (selectedCategories.length === 0) {
-    return (
-      <div className="p-4 text-center text-gray-500">
-        Select categories to adjust their Influences
-      </div>
-    );
-  }
+    if (selectedCategories.length > 0) {
+      let influenceSum = 0;
+      selectedCategories.forEach((category) => {
+        influenceSum += getCategoryInfluence(category.id);
+      });
+    }
+  }, [selectedCategories, getCategoryInfluence]);
 
   return (
     <div className="w-full p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+      {/* Header */}
       <div className="grid grid-cols-3 w-full mb-4">
         <h2 className="text-lg font-semibold text-gray-800 text-left">
           Category
@@ -48,104 +40,131 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false
           Weight
         </h2>
       </div>
+
+      {/* Categories */}
       <div className="space-y-5">
-        {categories.map(
-          (category) =>
-            // Only render sliders for selected categories
-            isSelected(category.id) && (
-              <div key={category.id} className={`mb-4 ${!editable ? 'opacity-50' : ''}`}>
-                <div className="grid grid-cols-3 gap-2 items-center mb-2">
+        {categories.map((category) => {
+          const selected = isSelected(category.id);
+
+          return (
+            <div
+              key={category.id}
+              className={`mb-4 transition ${
+                !selected || !editable ? "opacity-50" : ""
+              }`}
+            >
+              {/* Title row */}
+              <div className="grid grid-cols-3 gap-2 items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() =>
+                      toggleCategory(category.id, category.file_name)
+                    }
+                    className="h-4 w-4 text-blue-600 rounded"
+                  />
+
                   <span
                     title={category.file_name}
+                    className="font-medium"
                   >
                     {category.file_name}
                   </span>
-                  <span className="text-sm font-bold text-center">
-                    {Math.max(1, Math.round(getCategoryInfluence(category.id)))}
-                  </span>
-                  <span className="text-sm font-bold text-right">
-                    {getCategoryWeight(category.id)}
-                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="text-xs text-gray-500 w-24 text-left">
-                    <span className="font-medium">1</span> (Least Important)
-                  </div>
+                <span className="text-sm font-bold text-center">
+                  {Math.max(
+                    1,
+                    Math.round(getCategoryInfluence(category.id))
+                  )}
+                </span>
 
-                  <div className="relative flex-1">
-                    {/* Custom slider track with gradient */}
-                    <div className="absolute h-2 w-full rounded-lg bg-gradient-to-r from-blue-100 to-blue-600"></div>
+                <span className="text-sm font-bold text-right">
+                  {getCategoryWeight(category.id)}
+                </span>
+              </div>
 
-                    {/* Tick marks for reference points */}
-                    <div className="absolute w-full flex justify-between px-1 -mt-1">
-                      {[...Array(10)].map((_, i) => (
-                        <div key={i} className="h-4 w-0.5 bg-gray-300"></div>
-                      ))}
-                    </div>
-
-                    <input
-                      type="range"
-                      min="1"
-                      max="10"
-                      value={getCategoryInfluence(category.id)}
-                      onChange={(e) =>
-                        editable &&
-                        updateCategoryInfluence(
-                          category.id,
-                          category.file_name,
-                          parseFloat(e.target.value)
-                        )
-                      }
-                      className={`relative w-full h-2 bg-transparent appearance-none z-10 ${!editable ? 'cursor-not-allowed' : 'cursor-pointer'
-                        }`}
-                      style={{
-                        // Custom thumb styling for better visibility
-                        WebkitAppearance: "none",
-                        appearance: "none",
-                      }}
-                      aria-label={`Adjust importance of ${category.file_name} from 1 (least important) to 10 (most important)`}
-                      disabled={!editable}
-                    />
-                  </div>
-
-                  <div className="text-xs text-gray-500 w-24 text-right">
-                    <span className="font-medium">10</span> (Most Important)
-                  </div>
+              {/* Slider */}
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-gray-500 w-24 text-left">
+                  <span className="font-medium">1</span> (Least Important)
                 </div>
 
-                {/* Visual scale indicators */}
-                <div className="flex justify-between mt-1 px-24">
-                  <div className="flex gap-1 items-center">
-                    <div className="w-2 h-2 rounded-full bg-blue-100"></div>
-                    <span className="text-xs text-gray-400">Low</span>
+                <div className="relative flex-1">
+                  {/* Track */}
+                  <div className="absolute h-2 w-full rounded-lg bg-gradient-to-r from-blue-100 to-blue-600" />
+
+                  {/* Tick marks */}
+                  <div className="absolute w-full flex justify-between px-1 -mt-1">
+                    {[...Array(10)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-4 w-0.5 bg-gray-300"
+                      />
+                    ))}
                   </div>
-                  <div className="flex gap-1 items-center">
-                    <div className="w-2 h-2 rounded-full bg-blue-300"></div>
-                    <span className="text-xs text-gray-400">Medium</span>
-                  </div>
-                  <div className="flex gap-1 items-center">
-                    <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                    <span className="text-xs text-gray-400">High</span>
-                  </div>
+
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={getCategoryInfluence(category.id)}
+                    onChange={(e) =>
+                      selected &&
+                      editable &&
+                      updateCategoryInfluence(
+                        category.id,
+                        category.file_name,
+                        parseFloat(e.target.value)
+                      )
+                    }
+                    disabled={!selected || !editable}
+                    className={`relative w-full h-2 bg-transparent appearance-none z-10 ${
+                      !selected || !editable
+                        ? "cursor-not-allowed"
+                        : "cursor-pointer"
+                    }`}
+                    style={{
+                      WebkitAppearance: "none",
+                      appearance: "none",
+                    }}
+                    aria-label={`Adjust importance of ${category.file_name}`}
+                  />
+                </div>
+
+                <div className="text-xs text-gray-500 w-24 text-right">
+                  <span className="font-medium">10</span> (Most Important)
                 </div>
               </div>
-            )
-        )}
+
+              {/* Scale indicators */}
+              <div className="flex justify-between mt-1 px-24">
+                <div className="flex gap-1 items-center">
+                  <div className="w-2 h-2 rounded-full bg-blue-100" />
+                  <span className="text-xs text-gray-400">Low</span>
+                </div>
+                <div className="flex gap-1 items-center">
+                  <div className="w-2 h-2 rounded-full bg-blue-300" />
+                  <span className="text-xs text-gray-400">Medium</span>
+                </div>
+                <div className="flex gap-1 items-center">
+                  <div className="w-2 h-2 rounded-full bg-blue-600" />
+                  <span className="text-xs text-gray-400">High</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
+      {/* Footer */}
       <div className="mt-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border-l-4 border-blue-400">
         <p className="font-medium mb-1 text-gray-700">How to use:</p>
-        <ul className="list-disc pl-5 space-y-1 marker:text-purple-500 marker:text-[1.25rem]">
-          <li>
-            Initially, all actual preassigned weights will be displayed, which
-            can be changed by dragging the sliders.
-          </li>
-          <li>Drag the sliders to adjust the importance of each category.</li>
-          <li>
-            Higher values (closer to 10) give more weight to that factor in the
-            analysis.
-          </li>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Select categories using the checkbox.</li>
+          <li>Drag the sliders to adjust their influence.</li>
+          <li>Higher values give more weight in the analysis.</li>
         </ul>
       </div>
     </div>

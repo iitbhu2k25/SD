@@ -157,9 +157,14 @@ const MainContent = () => {
             <div className="animate-fadeIn">
               <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
+                  <div>
                   <h3 className="text-lg font-medium text-gray-800 mb-2">
                     Analysis Categories
                   </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Adjust the influence of each category on the analysis
+                  </p>
+                  </div>
                   <button
                     onClick={() => setCategoriesEditable(!categoriesEditable)}
                     className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
@@ -176,7 +181,8 @@ const MainContent = () => {
                     </span>
                   </button>
                 </div>
-                <CategorySelector />
+                
+                <CategorySlider editable={categoriesEditable} />
                 <div className="mt-3 text-sm text-red-600 font-medium flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path
@@ -253,20 +259,6 @@ const MainContent = () => {
               <MapView />
             </div>
           </section>
-
-          {showCategories && selectedCategories.length > 0 && (
-            <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
-              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Analysis Weights
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Adjust the influence of each category on the analysis
-                </p>
-              </div>
-              <CategorySlider editable={categoriesEditable} />
-            </section>
-          )}
         </div>
       </main>
 

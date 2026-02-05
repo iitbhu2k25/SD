@@ -251,7 +251,7 @@ const Navbar = (): JSX.Element => {
   // Common navbar link classes
   const navLinkClasses = "text-white font-semibold text-lg lg:text-base xl:text-lg px-3 lg:px-4 xl:px-5 py-2 inline-block relative hover:translate-y-[-2px] transition-all duration-300 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:bg-blue-600 after:transition-all after:duration-300 whitespace-nowrap";
 
-   const handleOpenAuth = (view: "login" | "signup") => {
+  const handleOpenAuth = (view: "login" | "signup") => {
     setAuthView(view);
     setIsAuthOpen(true);
   };
@@ -1185,7 +1185,70 @@ const Navbar = (): JSX.Element => {
       lg:group-hover:block absolute left-0 top-[calc(100%+2px)]
       bg-white bg-opacity-95 border border-gray-200 border-opacity-10
       rounded-lg shadow-lg min-w-[150px] p-3 z-200`}
-                >
+                > <li>
+                    <Link
+                      href="/dss/about/objective"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                   hover:bg-blue-50 hover:bg-opacity-10
+                   rounded-md transition duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Objective", href: "/dss/about/objective" }
+                        ])
+                      }
+                    >
+                      Objective
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/about/vission"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                   hover:bg-blue-50 hover:bg-opacity-10
+                   rounded-md transition duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Vision and Mission", href: "/dss/about/vission" }
+                        ])
+                      }
+                    >
+                      Vision and Mission
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/about/corevalue"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                   hover:bg-blue-50 hover:bg-opacity-10
+                   rounded-md transition duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Core Values", href: "/dss/about/corevalue" }
+                        ])
+                      }
+                    >
+                      Core Values
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/about/message"
+                      className="block px-4 py-2 text-blue-600 font-semibold
+                   hover:bg-blue-50 hover:bg-opacity-10
+                   rounded-md transition duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Pi Message", href: "/dss/about/message" }
+                        ])
+                      }
+                    >
+                      Pi Message
+                    </Link>
+                  </li>
                   <li>
                     <Link
                       href="/dss/about/team"
@@ -1202,82 +1265,64 @@ const Navbar = (): JSX.Element => {
                       Team
                     </Link>
                   </li>
-
-                  <li>
-                    <Link
-                      href="/dss/about/product"
-                      className="block px-4 py-2 text-blue-600 font-semibold
-                   hover:bg-blue-50 hover:bg-opacity-10
-                   rounded-md transition duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Product", href: "/dss/about/product" }
-                        ])
-                      }
-                    >
-                      Product
-                    </Link>
-                  </li>
                 </ul>
               </li>
 
 
               {/* User */}
-                <li
-              className="relative group flex-shrink-0"
-              onMouseEnter={() => isLoggedIn && toggleDropdown("user", true)}
-              onMouseLeave={() => isLoggedIn && toggleDropdown("user", false)}
-            >
-              <button
-                onClick={() => {
-                  if (isLoggedIn) {
-                    toggleDropdown("user", !openDropdowns.user);
-                  } else {
-                    handleOpenAuth("login");
-                  }
-                }}
-                className={navLinkClasses}
+              <li
+                className="relative group flex-shrink-0"
+                onMouseEnter={() => isLoggedIn && toggleDropdown("user", true)}
+                onMouseLeave={() => isLoggedIn && toggleDropdown("user", false)}
               >
-                Profile
-              </button>
-              
-              {/* Dropdown - Only shows when logged in */}
-              {isLoggedIn && (
-                <ul
-                  className={`${
-                    openDropdowns.user ? "block" : "hidden"
-                  } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-[200]`}
+                <button
+                  onClick={() => {
+                    if (isLoggedIn) {
+                      toggleDropdown("user", !openDropdowns.user);
+                    } else {
+                      handleOpenAuth("login");
+                    }
+                  }}
+                  className={navLinkClasses}
                 >
-                  <li>
-                    <Link
-                      href="/UserManagement/UserProfile"
-                      className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "Profile", href: "/UserManagement/UserProfile" },
-                        ])
-                      }
-                    >
-                      {user_name}
-                    </Link>
-                  </li>
-                  <li>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
-                    >
-                      Logout
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </li>
-          </ul>
+                  Login
+                </button>
+
+                {/* Dropdown - Only shows when logged in */}
+                {isLoggedIn && (
+                  <ul
+                    className={`${openDropdowns.user ? "block" : "hidden"
+                      } lg:group-hover:block absolute right-0 top-[calc(100%+2px)] bg-white bg-opacity-95 border border-gray-200 border-opacity-10 rounded-lg shadow-lg min-w-[150px] p-3 z-[200]`}
+                  >
+                    <li>
+                      <Link
+                        href="/UserManagement/UserProfile"
+                        className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                        onClick={() =>
+                          handleMenuClick([
+                            { label: "Profile", href: "/UserManagement/UserProfile" },
+                          ])
+                        }
+                      >
+                        {user_name}
+                      </Link>
+                    </li>
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+                      >
+                        Logout
+                      </button>
+                    </li>
+                  </ul>
+                )}
+              </li>
+            </ul>
           </div>
         </div>
       </nav>
-         <AuthDialog
+      <AuthDialog
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         initialView={authView}

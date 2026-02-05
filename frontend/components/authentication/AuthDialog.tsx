@@ -26,7 +26,7 @@ export default function AuthDialog({
   const handleSwitchToForgotPassword = () => setCurrentView("forgot-password");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-250 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div 
         className="relative w-full max-w-4xl h-[600px] bg-white rounded-2xl shadow-2xl overflow-hidden flex"
         onClick={(e) => e.stopPropagation()}
@@ -50,7 +50,7 @@ export default function AuthDialog({
           <div className="relative h-full flex flex-col items-center justify-center p-8 text-white">
             <h2 className="text-4xl font-bold mb-4">Welcome Back!</h2>
             <p className="text-center text-lg opacity-90">
-              Sign in to access your river analysis dashboard
+              Sign in to access Decision Support System
             </p>
           </div>
         </div>
