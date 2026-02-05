@@ -23,6 +23,10 @@ class Stp_District_crud(CrudBase):
             self.Model.state_code==state_id).order_by( sq.asc(self.Model.district_name))
         return self._pagination(query,all_data)
 
+    def get_district_all(self):
+        query=self.db.query(self.Model).order_by( sq.asc(self.Model.district_name))
+        return self._pagination(query,True)
+
 class Stp_SubDistrict_crud(CrudBase):
     def __init__(self,db:Session,Model=SubDistrict):
         super().__init__(db,Model)
@@ -31,6 +35,10 @@ class Stp_SubDistrict_crud(CrudBase):
     def get_subdistrict(self,district:list,all_data:bool=False):
         query=self.db.query(self.Model).filter(
             self.Model.district_code.in_(district)).order_by(sq.asc(self.Model.subdistrict_name))
+        return self._pagination(query,all_data)
+    
+    def get_subdistrict_all(self,all_data:bool=True):
+        query=self.db.query(self.Model).order_by( sq.asc(self.Model.subdistrict_name))
         return self._pagination(query,all_data)
 
 class Stp_Villages_crud(CrudBase):

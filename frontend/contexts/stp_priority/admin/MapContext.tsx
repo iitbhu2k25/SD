@@ -128,12 +128,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     useCategory();
 
   const resetMapView = (): void => {
-    setPrimaryLayer(ADMIN_LAYER_NAMES.STATE);
-    setSecondaryLayer(null);
-    setShowPrimaryLayer(true);
-    setShowSecondaryLayer(true);
-    setLayerFilter(null);
-    setLayerFilterValue([]);
+    setRasterLayerInfo(null);
+    setShowTable(false);
+    setTableData([]);
+
+
   };
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
@@ -180,6 +179,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Listen for changes in location selection and update layers accordingly
   useEffect(() => {
+
     syncLayersWithLocation();
   }, [
     selectedState,

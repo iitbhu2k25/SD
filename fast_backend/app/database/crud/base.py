@@ -16,7 +16,7 @@ class CrudBase:
                 detail=f"detail not found for {_id} object"
             )
 
-    def _pagination(self, query,all_data, page=1, page_size=5):
+    def _pagination(self, query,all_data:bool=False, page=1, page_size=5):
         if all_data:
             return query.all()
         if page_size:

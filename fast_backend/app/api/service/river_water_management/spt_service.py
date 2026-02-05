@@ -16,10 +16,20 @@ class Stp_location:
         districts=Stp_District_crud(db).get_district(payload.state,payload.all_data)
         districts=[{'id': district.district_code,'name':district.district_name} for district in districts]
         return districts
+    
+    def get_district_all(db:Session):
+        districts=Stp_District_crud(db).get_district_all()
+        districts=[{'id': district.district_code,'name':district.district_name,'stateId':district.state_code} for district in districts]
+        return districts
 
     def get_sub_district(db:Session,payload:dict):
         SubDistricts=Stp_SubDistrict_crud(db).get_subdistrict(payload.districts,payload.all_data)
         SubDistricts=[{'id': SubDistrict.subdistrict_code,'name':SubDistrict.subdistrict_name} for SubDistrict in SubDistricts]
+        return SubDistricts
+    
+    def get_sub_district_all(db:Session):
+        SubDistricts=Stp_SubDistrict_crud(db).get_subdistrict_all()
+        SubDistricts=[{'id': SubDistrict.subdistrict_code,'name':SubDistrict.subdistrict_name,'districtId':SubDistrict.district_code} for SubDistrict in SubDistricts]
         return SubDistricts
     
     def get_villages(db:Session,payload:dict):

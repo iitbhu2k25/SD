@@ -23,10 +23,20 @@ async def get_districts(db:db_dependency,payload:District_request,user: Annotate
     return Stp_location.get_district(db,payload)
 
 
+@router.get("/get_districtss",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_districtss(db:db_dependency):
+    return Stp_location.get_district_all(db)
+
 @router.post("/get_sub_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_sub_districts(db:db_dependency,payload:Sub_district_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_sub_district(db,payload)
+
+@router.get("/get_sub_districtss",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_sub_districtss(db:db_dependency):
+    return Stp_location.get_sub_district_all(db)
 
 @router.post("/get_villages",status_code=status.HTTP_201_CREATED)
 @validate
