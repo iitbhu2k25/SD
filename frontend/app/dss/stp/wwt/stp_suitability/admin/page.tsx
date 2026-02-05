@@ -53,7 +53,7 @@ const MainContent: React.FC = () => {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"condition" | "constraint">("condition");
-    const [categoriesEditable, setCategoriesEditable] = useState(false);
+  const [categoriesEditable, setCategoriesEditable] = useState(false);
   useEffect(() => {
     setShowCategories(selectionsLocked);
   }, [selectionsLocked]);
@@ -120,7 +120,7 @@ const MainContent: React.FC = () => {
       setReportLoading(false);
     }
   };
-    const handlePdfComplete = () => {
+  const handlePdfComplete = () => {
     setIsPdfGenerating(false);
     setShowPdfStatus(false);
   };
@@ -137,15 +137,15 @@ const MainContent: React.FC = () => {
           stpOperation
             ? "Analyzing STP suitability"
             : reportLoading
-            ? "Generating report for STP suitability"
-            : "Loading Resources"
+              ? "Generating report for STP suitability"
+              : "Loading Resources"
         }
         message={
           stpOperation
             ? "Analyzing site suitability and generating results..."
             : reportLoading
-            ? "Generating report, please wait..."
-            : "Fetching map data and initializing components..."
+              ? "Generating report, please wait..."
+              : "Fetching map data and initializing components..."
         }
       />
 
@@ -171,9 +171,31 @@ const MainContent: React.FC = () => {
             <div className="animate-fadeIn">
               <section className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
+                  <div>
                   <h3 className="text-lg font-medium text-gray-800 mb-2">
                     Analysis Categories
                   </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Adjust influence of each condition & constraint category
+                  </p>
+                  </div>
+                  <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setActiveTab("condition")}
+                          className={`px-3 py-1 rounded ${activeTab === "condition" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"}`}
+                        >
+                          Conditions
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("constraint")}
+                          className={`px-3 py-1 rounded ${activeTab === "constraint" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"}`}
+                        >
+                          Constraints
+                        </button>
+                      </div>
+                  
+                  </div>
                   <button
                     onClick={() => setCategoriesEditable(!categoriesEditable)}
                     className="relative group p-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white transition"
@@ -190,7 +212,11 @@ const MainContent: React.FC = () => {
                     </span>
                   </button>
                 </div>
-                <CategorySelector />
+                {activeTab === "condition" && (
+                  <CategorySlider activeTab="condition" editable={categoriesEditable} />)}
+                {activeTab === "constraint" && (
+                  <CategorySlider activeTab="constraint" editable={categoriesEditable} />
+                )}
                 <div className="mt-3 text-sm text-red-600 font-medium flex items-center">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path
@@ -207,11 +233,10 @@ const MainContent: React.FC = () => {
                 <button
                   onClick={handleAnalyze}
                   disabled={stpOperation || submitting}
-                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${
-                    stpOperation || submitting
+                  className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center transition duration-200 ${stpOperation || submitting
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
-                  }`}
+                    }`}
                 >
                   {stpOperation || submitting ? "Processing..." : "Analyze Suitability"}
                 </button>
@@ -262,8 +287,8 @@ const MainContent: React.FC = () => {
                 onClick={handleReport}
                 disabled={isPdfGenerating} // Use isPdfGenerating state
                 className={`px-8 py-3 rounded-full font-medium shadow-md flex items-center gap-2 transition duration-200 ${isPdfGenerating
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-green-500 hover:bg-green-600 text-white hover:scale-105"
                   }`}
               >
                 {isPdfGenerating ? "Generating PDF..." : "Generate Report"}
@@ -280,71 +305,12 @@ const MainContent: React.FC = () => {
             </div>
           </section>
 
-          {showCategories && (
-            <section className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeIn">
-              <div className="border-b border-gray-200 bg-gray-50 px-6 py-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Analysis Weights</h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Adjust influence of each condition & constraint category
-                    </p>
-                  </div>
 
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setActiveTab("condition")}
-                      className={`px-3 py-1 rounded ${activeTab === "condition" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"}`}
-                    >
-                      Conditions
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("constraint")}
-                      className={`px-3 py-1 rounded ${activeTab === "constraint" ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"}`}
-                    >
-                      Constraints
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4">
-                {activeTab === "condition" && (
-                  <>
-                    {selectedCondition.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500">No condition categories selected.</div>
-                    ) : (
-                      <CategorySlider activeTab="condition" editable={categoriesEditable}/>
-                    )}
-                  </>
-                )}
-
-                {activeTab === "constraint" && (
-                  <>
-                    {selectedConstraint.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500">No constraint categories selected.</div>
-                    ) : (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-4 text-gray-800">Selected Constraints</h3>
-                        <div className="space-y-2">
-                          {selectedConstraint.map((c, idx) => (
-                            <div key={idx} className="p-2 bg-gray-50 rounded-md border border-gray-100">
-                              {formatName((c as any).file_name ?? String(c))}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </section>
-          )}
         </div>
       </main>
 
       {showPdfStatus && taskId && (
-         <PDFGenerationStatus
+        <PDFGenerationStatus
           taskId={taskId}
           className="fixed bottom-8 right-8 w-96 z-50 animate-fadeIn"
           autoClose={true}
