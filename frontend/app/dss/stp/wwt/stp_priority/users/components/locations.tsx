@@ -8,7 +8,7 @@ import   {Stretch,
   Drain,
   Catchment,} from "@/interface/raster_context";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];
@@ -45,6 +45,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
     confirmSelections,
     resetSelections,
   } = useRiverSystem();
+
   const {resetMapView} = useMap();
   // Handle river selection from select input
   const handleRiverSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
@@ -90,13 +91,12 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
   };
 
   // Handle reset button click
-  const handleReset = (): void => {
-    resetSelections();
-    resetMapView();
-    // if (onReset) {
-    //   onReset();
-    // }
-  };
+ const handleReset = (): void => {
+  console.log("reset");
+  console.log("resetMapView function:", resetMapView);
+  console.log("typeof resetMapView:", typeof resetMapView);
+  resetMapView();
+};
 
   // Format stretch display
   const formatStretchDisplay = (stretch: Stretch): string => {

@@ -135,7 +135,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT);
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showLegend, setShowLegend] = useState<boolean>(false);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
     filterField: null,
@@ -175,9 +175,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
+    console.log("Map view reset requested");
     setCatchmentLayer(null);
     setRasterLayerInfo(null);
     setSelectedradioLayer("");
+    setTableData([]);
   };
 
   // Function to zoom to a specific feature
@@ -392,7 +394,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     rasterLayerInfo,
     setShowLayer: () => { },
     showLayer: false,
-    setShowLegend: () => { },
+    setShowLegend,
     showLegend,
     selectedradioLayer,
     setSelectedradioLayer: () => { },

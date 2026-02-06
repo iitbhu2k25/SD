@@ -89,7 +89,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showLegend, setShowLegend] = useState<boolean>(false);
   // Get location context data
   const {
     selectedState,

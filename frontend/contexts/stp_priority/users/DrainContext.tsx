@@ -361,6 +361,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
 
   const resetSelections = (): void => {
+    console.log("Resetting all selections");
     setSelectionsLocked(false);
     setDisplayRaster([]);
     setCatchments([]);

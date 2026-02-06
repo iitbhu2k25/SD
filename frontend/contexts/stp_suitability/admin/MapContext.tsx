@@ -75,7 +75,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   geoServerUrl = "/geoserver/api",
   defaultWorkspace = "vector_work"
 }) => {
-  // State for layer management
+  // State for layer m
   const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_TOWN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
   const [resultLayer, setResultLayer] = useState<string | null>(null);

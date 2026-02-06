@@ -85,7 +85,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm }) => {
   const handleReset = (): void => {
     resetSelections();
     resetMapView();
-    console.log("Selections reset");
   }
 
   const formatSubDistrictDisplay = (subDistrict: SubDistrict): string => {

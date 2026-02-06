@@ -112,6 +112,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   geoServerUrl = "/geoserver/api",
   defaultWorkspace = "vector_work",
 }) => {
+ 
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
   const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
@@ -163,8 +164,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setSelectedradioLayer("")
     setHasSelections(false);
     setCatchmentLayer(null);
-
-
   };
 
   // Function to zoom to a specific feature

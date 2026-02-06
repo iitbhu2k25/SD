@@ -113,7 +113,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [wmsDebugInfo, setWmsDebugInfo] = useState<string | null>(null);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showLegend, setShowLegend] = useState<boolean>(false);
 
   const {
     selectedState,
@@ -131,8 +131,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setRasterLayerInfo(null);
     setShowTable(false);
     setTableData([]);
-
-
   };
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
@@ -290,7 +288,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setSelectedradioLayer: () => { },
     setShowLayer: () => { },
     showLayer: false,
-    setShowLegend: () => { },
+    setShowLegend,
     showLegend,
     handleLayerSelection,
   };

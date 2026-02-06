@@ -496,6 +496,7 @@ const Maping: React.FC = () => {
 
   // Update raster layer info when selection changes
   useEffect(() => {
+    console.log("selectedradioLayer",selectedradioLayer);
     displayRaster.forEach((item: any) => {
       if (item.file_name === selectedradioLayer) {
         setRasterLayerInfo(item);

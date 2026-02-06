@@ -139,7 +139,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT);
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [showLegend, setShowLegend] = useState<boolean>(true);
+  const [showLegend, setShowLegend] = useState<boolean>(false);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
     filterField: null,
