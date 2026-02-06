@@ -84,27 +84,52 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
             return (
               <div
                 key={category.id}
-                className={`mb-4 transition ${!selected || !editable ? "opacity-50" : ""
-                  }`}
+                className="mb-4 transition"
               >
                 {/* Title row */}
                 <div className="grid grid-cols-3 gap-2 items-center mb-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 relative">
                     <input
                       type="checkbox"
                       checked={selected}
                       onChange={() =>
                         toggleConditionCategory(category.id, category.file_name)
                       }
-                      className="h-4 w-4 text-blue-600 rounded"
+                      className="h-4 w-4 text-blue-600 rounded flex-shrink-0"
                     />
 
                     <span
                       title={category.file_name}
-                      className="font-medium"
+                      className="font-medium truncate"
                     >
                       {category.file_name}
                     </span>
+
+                    {category.details && (
+                      <div className="relative group flex-shrink-0">
+                        <span className="text-gray-400 cursor-pointer text-sm">
+                          ℹ️
+                        </span>
+
+                        <div
+                          className="absolute left-full ml-2 top-1/2 -translate-y-1/2
+                   invisible group-hover:visible opacity-0 group-hover:opacity-100
+                   transition-opacity duration-200
+                   w-max max-w-xs
+                   rounded-md bg-gray-900 text-white text-xs
+                   px-3 py-2 shadow-lg z-50
+                   pointer-events-none"
+                        >
+                          <div className="break-words">
+                            {category.details}
+                          </div>
+                          {/* Arrow pointing left */}
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 
+                            border-8 border-transparent border-r-gray-900">
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-sm font-bold text-center">
@@ -120,7 +145,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
                 </div>
 
                 {/* Slider */}
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${!selected || !editable ? "opacity-50" : ""}`}>
                   <div className="text-xs text-gray-500 w-24 text-left">
                     <span className="font-medium">1</span> (Least Important)
                   </div>
@@ -172,7 +197,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
                 </div>
 
                 {/* Scale indicators */}
-                <div className="flex justify-between mt-1 px-24">
+                <div className={`flex justify-between mt-1 px-24 ${!selected || !editable ? "opacity-50" : ""}`}>
                   <div className="flex gap-1 items-center">
                     <div className="w-2 h-2 rounded-full bg-blue-100" />
                     <span className="text-xs text-gray-400">Low</span>
@@ -246,28 +271,52 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
             return (
               <div
                 key={category.id}
-                className={`p-3 bg-gray-50 rounded-md border border-gray-200 transition ${
-                  !selected ? 'opacity-50' : ''
-                }`}
+                className="p-3 bg-gray-50 rounded-md border border-gray-200 transition"
               >
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 relative flex-1">
                     <input
                       type="checkbox"
                       checked={selected}
                       onChange={() =>
                         toggleConstraintCategory(category.id, category.file_name)
                       }
-                      className="h-4 w-4 text-blue-600 rounded"
+                      className="h-4 w-4 text-blue-600 rounded flex-shrink-0"
                     />
                     <span 
                       title={category.file_name}
-                      className="font-medium text-gray-700"
+                      className="font-medium text-gray-700 truncate"
                     >
                       {category.file_name}
                     </span>
+
+                    {category.details && (
+                      <div className="relative group flex-shrink-0">
+                        <span className="text-gray-400 cursor-pointer text-sm">
+                          ℹ️
+                        </span>
+
+                        <div
+                          className="absolute left-full ml-2 top-1/2 -translate-y-1/2
+                   invisible group-hover:visible opacity-0 group-hover:opacity-100
+                   transition-opacity duration-200
+                   w-max max-w-xs
+                   rounded-md bg-gray-900 text-white text-xs
+                   px-3 py-2 shadow-lg z-50
+                   pointer-events-none"
+                        >
+                          <div className="break-words">
+                            {category.details}
+                          </div>
+                          {/* Arrow pointing left */}
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 
+                            border-8 border-transparent border-r-gray-900">
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
+                  <span className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded-full border border-red-100 flex-shrink-0 ml-2">
                     Constraint
                   </span>
                 </div>

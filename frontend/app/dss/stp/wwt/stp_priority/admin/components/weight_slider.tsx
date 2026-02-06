@@ -72,27 +72,51 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
           return (
             <div
               key={category.id}
-              className={`mb-4 transition ${!selected || !editable ? "opacity-50" : ""
-                }`}
+              className="mb-4 transition"
             >
               {/* Title row */}
               <div className="grid grid-cols-3 gap-2 items-center mb-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 relative">
                   <input
                     type="checkbox"
                     checked={selected}
                     onChange={() =>
                       toggleCategory(category.id, category.file_name)
                     }
-                    className="h-4 w-4 text-blue-600 rounded"
+                    className="h-4 w-4 text-blue-600 rounded flex-shrink-0"
                   />
 
                   <span
                     title={category.file_name}
-                    className="font-medium"
+                    className="font-medium truncate"
                   >
                     {category.file_name}
                   </span>
+
+                  <div className="relative group flex-shrink-0">
+                    <span className="text-gray-400 cursor-pointer text-sm">
+                      ℹ️
+                    </span>
+
+                    <div
+                      className="absolute left-full ml-2 top-1/2 -translate-y-1/2
+               invisible group-hover:visible opacity-0 group-hover:opacity-100
+               transition-opacity duration-200
+               w-max max-w-xs
+               rounded-md bg-gray-900 text-white text-xs
+               px-3 py-2 shadow-lg z-50
+               pointer-events-none"
+                    >
+                      <div className="break-words">
+                        {category.details}
+                      </div>
+                      {/* Arrow pointing left */}
+                      <div className="absolute right-full top-1/2 -translate-y-1/2 
+                        border-8 border-transparent border-r-gray-900">
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
                 <span className="text-sm font-bold text-center">
@@ -108,7 +132,7 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
               </div>
 
               {/* Slider */}
-              <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-3 ${!selected || !editable ? "opacity-50" : ""}`}>
                 <div className="text-xs text-gray-500 w-24 text-left">
                   <span className="font-medium">1</span> (Least Important)
                 </div>
@@ -143,8 +167,8 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
                     }
                     disabled={!selected || !editable}
                     className={`relative w-full h-2 bg-transparent appearance-none z-10 ${!selected || !editable
-                        ? "cursor-not-allowed"
-                        : "cursor-pointer"
+                      ? "cursor-not-allowed"
+                      : "cursor-pointer"
                       }`}
                     style={{
                       WebkitAppearance: "none",
@@ -160,7 +184,7 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
               </div>
 
               {/* Scale indicators */}
-              <div className="flex justify-between mt-1 px-24">
+              <div className={`flex justify-between mt-1 px-24 ${!selected || !editable ? "opacity-50" : ""}`}>
                 <div className="flex gap-1 items-center">
                   <div className="w-2 h-2 rounded-full bg-blue-100" />
                   <span className="text-xs text-gray-400">Low</span>
