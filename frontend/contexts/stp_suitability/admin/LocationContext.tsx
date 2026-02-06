@@ -23,7 +23,7 @@ interface LocationContextType {
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
-  setdisplay_raster: (layer: ClipRasters[]) => void;
+  setDisplayRaster: (layer: ClipRasters[]) => void;
   selectedStateName: string;
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
@@ -63,7 +63,7 @@ const LocationContext = createContext<LocationContextType>({
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
   selectedTownsNames: [],
-  setdisplay_raster: () => { },
+  setDisplayRaster: () => { },
   handleStateChange: () => { },
   setSelectedDistricts: () => { },
   setSelectedSubDistricts: () => { },
@@ -92,7 +92,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const [selectedVillages, setSelectedVillages] =useState<number[]>([]);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [displayRaster, setdisplay_raster] = useState<ClipRasters[]>([]);
+  const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
   const [selectedStateName, setSelectedStateName] = useState<string>("");
   const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
   const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
@@ -236,7 +236,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
             },
           })
           const data = await response.message as ClipRasters[];
-          setdisplay_raster(data);
+          setDisplayRaster(data);
         } catch (error) {
           console.log("Error:", error);
         }
@@ -379,7 +379,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     selectedDistrictsNames,
     selectedSubDistrictsNames,
     selectedTownsNames,
-    setdisplay_raster,
+    setDisplayRaster,
     setSelectedVillages,
     selectedVillages
   };

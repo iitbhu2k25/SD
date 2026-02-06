@@ -8,7 +8,7 @@ class Stp_State_crud(CrudBase):
         super().__init__(db,Model)
         self.obj = None
     
-    def get_states(self,all_data:bool=False,page=1, page_size=5):
+    def get_states(self,all_data:bool=True,page=1, page_size=5):
         query= self.db.query(self.Model).filter().order_by(
             sq.asc(self.Model.state_name))
         return self._pagination(query,all_data,page,page_size)
@@ -18,7 +18,7 @@ class Stp_District_crud(CrudBase):
         super().__init__(db,Model)
         self.obj = None
 
-    def get_district(self,state_id:int,all_data:bool=False):
+    def get_district(self,state_id:int,all_data:bool=True):
         query=self.db.query(self.Model).filter(
             self.Model.state_code==state_id).order_by( sq.asc(self.Model.district_name))
         return self._pagination(query,all_data)
@@ -32,7 +32,7 @@ class Stp_SubDistrict_crud(CrudBase):
         super().__init__(db,Model)
         self.obj = None
 
-    def get_subdistrict(self,district:list,all_data:bool=False):
+    def get_subdistrict(self,district:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(
             self.Model.district_code.in_(district)).order_by(sq.asc(self.Model.subdistrict_name))
         return self._pagination(query,all_data)
@@ -46,9 +46,13 @@ class Stp_Villages_crud(CrudBase):
         super().__init__(db,Model)
         self.obj = None
 
-    def get_villages(self,sub_district:list,all_data:bool=False):
+    def get_villages(self,sub_district:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(
             self.Model.subdistrict_code.in_(sub_district)).order_by(sq.asc(self.Model.village_name))
+        return self._pagination(query,all_data)
+    
+    def get_all_villages(self,sub_district:list,all_data:bool=True):
+        query=self.db.query(self.Model).order_by(sq.asc(self.Model.village_name))
         return self._pagination(query,all_data)
 
 class Stp_towns_crud(CrudBase):
@@ -85,6 +89,10 @@ class Stp_stretches_crud(CrudBase):
         query=self.db.query(self.Model).distinct(self.Model.Stretch_ID).filter(River_code==self.Model.river_Code)
         return self._pagination(query,all_data)
     
+    def get_stretches_all(self,all_data:bool=True):
+        query=self.db.query(self.Model).order_by(sq.asc(self.Model.Stretch_ID))
+        return self._pagination(query,all_data)
+    
 class Stp_drain_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_Drain):
         super().__init__(db,Model)
@@ -92,6 +100,10 @@ class Stp_drain_crud(CrudBase):
 
     def get_drains(self,stretch_id:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(self.Model.stretch_id.in_(stretch_id))
+        return self._pagination(query,all_data)
+    
+    def get_drains_all(self,all_data:bool=True):
+        query=self.db.query(self.Model).order_by(sq.asc(self.Model.Drain_No))
         return self._pagination(query,all_data)
 
 class Stp_drain_new_crud(CrudBase):

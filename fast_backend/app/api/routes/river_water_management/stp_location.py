@@ -11,10 +11,23 @@ from app.dependency.token_dependency import validate_user
 from app.api.service.celery.raster_visual_celery import raster_visual
 router=APIRouter()
 
+
+
+# Admin location api
 @router.get("/get_states",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_states(db:db_dependency,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return Stp_location.get_state(db,all_data)
+
+@router.get("/all_districts",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_districtss(db:db_dependency):
+    return Stp_location.get_district_all(db)
+
+@router.get("/all_sub_districts",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_sub_districtss(db:db_dependency):
+    return Stp_location.get_sub_district_all(db)
 
 
 @router.post("/get_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
@@ -23,35 +36,44 @@ async def get_districts(db:db_dependency,payload:District_request,user: Annotate
     return Stp_location.get_district(db,payload)
 
 
-@router.get("/get_districtss",status_code=status.HTTP_201_CREATED)
-@validate
-async def get_districtss(db:db_dependency):
-    return Stp_location.get_district_all(db)
-
 @router.post("/get_sub_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_sub_districts(db:db_dependency,payload:Sub_district_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_sub_district(db,payload)
 
-@router.get("/get_sub_districtss",status_code=status.HTTP_201_CREATED)
-@validate
-async def get_sub_districtss(db:db_dependency):
-    return Stp_location.get_sub_district_all(db)
 
 @router.post("/get_villages",status_code=status.HTTP_201_CREATED)
 @validate
 async def get_villages(db:db_dependency,payload:Village_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_villages(db,payload)
 
+
+# @router.get("/all_villages",status_code=status.HTTP_201_CREATED)
+# @validate
+# async def get_villages(db:db_dependency):
+#     return Stp_location.get_villages(db)
+
 @router.post("/get_towns",response_model=list[Stp_town_respons],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_towns(db:db_dependency,payload:Town_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_town(db,payload)
 
+
+# Drain model api
 @router.get("/get_river",response_model=list[STPRiverOutput],status_code=status.HTTP_201_CREATED)
 @validate
 async def get_river(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_river(db)
+
+@router.get("/all_stretch",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_stretch(db:db_dependency):
+    return Stp_location.get_stretch_all(db)
+
+@router.get("/all_drain",status_code=status.HTTP_201_CREATED)
+@validate
+async def get_stretch(db:db_dependency):
+    return Stp_location.get_drain_all(db)
 
 @router.post("/get_stretch",response_model=list[STPStretchesOutput],status_code=status.HTTP_201_CREATED)
 @validate

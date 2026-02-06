@@ -25,7 +25,7 @@ interface LocationContextType {
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
-  setdisplay_raster: (layer: ClipRasters[]) => void;
+  setDisplayRaster: (layer: ClipRasters[]) => void;
   selectedStateName: string;
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
@@ -56,7 +56,7 @@ const LocationContext = createContext<LocationContextType>({
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
-  setdisplay_raster: () => {},
+  setDisplayRaster: () => {},
   handleStateChange: () => {},
   setSelectedDistricts: () => {},
   setSelectedSubDistricts: () => {},
@@ -82,7 +82,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [displayRaster, setdisplay_raster] = useState<ClipRasters[]>([]);
+  const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
 
   // ✅ Load ALL data once on mount
   useEffect(() => {
@@ -97,14 +97,14 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         }
 
         // Fetch all districts
-        const districtsResponse = await api.get("/location/get_districtss");
+        const districtsResponse = await api.get("/location/all_districts");
         if (districtsResponse.status === 201) {
           const districtsData = districtsResponse.message as District[];
           setAllDistricts(districtsData);
         }
 
         // Fetch all sub-districts
-        const subDistrictsResponse = await api.get("/location/get_sub_districtss");
+        const subDistrictsResponse = await api.get("/location/all_sub_districts");
         if (subDistrictsResponse.status === 201) {
           const subDistrictsData = subDistrictsResponse.message as SubDistrict[];
           setAllSubDistricts(subDistrictsData);
@@ -187,7 +187,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           });
 
           const data = await response.message as ClipRasters[];
-          setdisplay_raster(data);
+          setDisplayRaster(data);
         } catch (error) {
           console.log("Error fetching raster data:", error);
         } finally {
@@ -221,7 +221,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectionsLocked(false);
     setTotalPopulation(0);
     setSelectionsLocked(false);
-    setdisplay_raster([]);
+    setDisplayRaster([]);
   };
 
   const contextValue: LocationContextType = {
@@ -239,7 +239,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedSubDistricts,
     confirmSelections,
     displayRaster,
-    setdisplay_raster,
+    setDisplayRaster,
     selectedStateName,
     selectedDistrictsNames,
     selectedSubDistrictsNames,

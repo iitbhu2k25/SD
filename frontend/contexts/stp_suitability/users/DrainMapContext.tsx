@@ -160,6 +160,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
     console.log("Map view reset requested");
+    setSelectedradioLayer("")
+    setHasSelections(false);
+    setCatchmentLayer(null);
+
+
   };
 
   // Function to zoom to a specific feature

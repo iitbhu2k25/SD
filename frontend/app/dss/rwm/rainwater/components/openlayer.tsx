@@ -280,7 +280,7 @@ const Maping: React.FC<MapingProps> = ({
 
   const [isPanelOpen, setIsPanelOpen] = useState(true); //default raster layer
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-  const { selectedSubDistricts, display_raster, setdisplay_raster } =
+  const { selectedSubDistricts, display_raster, setDisplayRaster } =
     useLocation();
 
   useEffect(() => {
@@ -1032,7 +1032,7 @@ const Maping: React.FC<MapingProps> = ({
             newData = display_raster.concat(append_data);
           }
 
-          setdisplay_raster(newData);
+          setDisplayRaster(newData);
           setRasterLayerInfo(result);
           setShowTable(true);
           handleLayerSelection(append_data.file_name);

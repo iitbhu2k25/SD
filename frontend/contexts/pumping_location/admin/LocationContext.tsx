@@ -29,7 +29,7 @@ interface LocationContextType {
   selectedvillages: number[];
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
-  setdisplay_raster: (layer: ClipRasters[]) => void;
+  setDisplayRaster: (layer: ClipRasters[]) => void;
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number) => void;
@@ -61,7 +61,7 @@ const LocationContext = createContext<LocationContextType>({
   selectionsLocked: false,
   isLoading: false,
   displayRaster: [],
-  setdisplay_raster: () => { },
+  setDisplayRaster: () => { },
   handleStateChange: () => { },
   setSelectedDistricts: () => { },
   setSelectedSubDistricts: () => { },
@@ -91,7 +91,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [displayRaster, setdisplay_raster] = useState<ClipRasters[]>([]);
+  const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
 
   const [well_points, setwell_points] = useState<CsvRow[]>([]);
   const [ValidateTable, setValidateTable] = useState<boolean>(false);
@@ -230,7 +230,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
             },
           })
           const data = await response.message as ClipRasters[];
-          setdisplay_raster(data);
+          setDisplayRaster(data);
         } catch (error) {
           console.log("Error:", error);
         }
@@ -373,7 +373,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     confirmSelections,
     resetSelections,
     displayRaster,
-    setdisplay_raster,
+    setDisplayRaster,
     well_points,
     setwell_points: setwell_points,
     setValidateTable: setValidateTable,

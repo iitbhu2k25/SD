@@ -112,7 +112,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedDistricts,
     selectedSubDistricts,
     displayRaster,
-    setdisplay_raster,
+    setDisplayRaster,
 
   } = useLocation();
 
@@ -139,7 +139,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     const dict_message = JSON.parse(lastMessage);
     if (dict_message["state"] === "completed") {
       const resp: ClipRasters[] = convertToClipRasters(dict_message["result"]);
-      setdisplay_raster(resp);
+      setDisplayRaster(resp);
       setstpOperation(false);
       setSelectedradioLayer("GWI_overlay");
       disconnect();

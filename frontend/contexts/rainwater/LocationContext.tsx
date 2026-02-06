@@ -47,7 +47,7 @@ interface LocationContextType {
   selectedSubDistricts: number[];
   selectionsLocked: boolean;
   display_raster: clip_rasters[];
-  setdisplay_raster: (layer: clip_rasters[]) => void;
+  setDisplayRaster: (layer: clip_rasters[]) => void;
 
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
@@ -73,7 +73,7 @@ const LocationContext = createContext<LocationContextType>({
   selectionsLocked: false,
   isLoading: false,
   display_raster:[],
-  setdisplay_raster: () => {},
+  setDisplayRaster: () => {},
   handleStateChange: () => {},
   setSelectedDistrict: () => {},
   setSelectedSubDistricts: () => {},
@@ -101,7 +101,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [display_raster, setdisplay_raster] = useState<clip_rasters[]>([]);
+  const [display_raster, setDisplayRaster] = useState<clip_rasters[]>([]);
  
   useEffect(() => {
     const fetchStates = async () => {
@@ -240,7 +240,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           );
 
           const data = await response.message as clip_rasters[];
-          setdisplay_raster(data);
+          setDisplayRaster(data);
         } catch (error) {
           console.log("Error:", error);
         }
@@ -281,7 +281,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedDistrict(null);
     setSelectedSubDistricts([]);
     setSelectionsLocked(false);
-    setdisplay_raster([]);
+    setDisplayRaster([]);
   };
 
   // Context value
@@ -300,7 +300,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     confirmSelections,
     resetSelections,
     display_raster,
-    setdisplay_raster,
+    setDisplayRaster,
   };
 
   return (

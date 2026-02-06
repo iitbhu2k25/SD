@@ -108,7 +108,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     selectedDistricts,
     selectedSubDistricts,
     displayRaster,
-    setdisplay_raster,
+    setDisplayRaster,
 
   } = useLocation();
 
@@ -224,7 +224,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
             // Append new entry
             newData = displayRaster.concat(append_data);
           }
-          setdisplay_raster(newData);
+          setDisplayRaster(newData);
           setRasterLayerInfo(append_data);
           setShowTable(true);
           handleLayerSelection(append_data.file_name);

@@ -26,7 +26,7 @@ interface LocationContextType {
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
-  setdisplay_raster: (layer: ClipRasters[]) => void;
+  setDisplayRaster: (layer: ClipRasters[]) => void;
   selectedStateName: string;
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
@@ -59,7 +59,7 @@ const LocationContext = createContext<LocationContextType>({
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
-  setdisplay_raster: () => { },
+  setDisplayRaster: () => { },
   handleStateChange: () => { },
   setSelectedDistricts: () => { },
   setSelectedSubDistricts: () => { },
@@ -91,7 +91,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const [displayRaster, setdisplay_raster] = useState<ClipRasters[]>([]);
+  const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
   const [selectedStateName, setSelectedStateName] = useState<string>("");
   const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
   const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
@@ -226,7 +226,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           }) 
 
           const data = await response.message as ClipRasters[];
-          setdisplay_raster(data);
+          setDisplayRaster(data);
         } catch (error) {
           console.log("Error:", error);
         }
@@ -271,7 +271,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedSubDistricts([]);
     setTotalPopulation(0);
     setSelectionsLocked(false);
-    setdisplay_raster([]);
+    setDisplayRaster([]);
 
   };
 
@@ -292,7 +292,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     confirmSelections,
     resetSelections,
     displayRaster,
-    setdisplay_raster,
+    setDisplayRaster,
     selectedStateName,
     selectedDistrictsNames,
     selectedSubDistrictsNames,

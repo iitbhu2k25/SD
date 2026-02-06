@@ -36,6 +36,11 @@ class Stp_location:
         Villages=Stp_Villages_crud(db).get_villages(payload.subdis_code,payload.all_data)
         Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
         return Villages
+    
+    def get_all_villages(db:Session):
+        Villages=Stp_Villages_crud(db).get_villages(payload.subdis_code,payload.all_data)
+        Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
+        return Villages
         
     def get_town(db:Session,payload:dict):
         towns=Stp_towns_crud(db).get_towns(payload.subdis_code,payload.all_data)
@@ -51,8 +56,15 @@ class Stp_location:
     def get_stretch(db:Session,River_code:int=None):
         return Stp_stretches_crud(db).get_stretches(River_code)
     
+    def get_stretch_all(db:Session):
+        return Stp_stretches_crud(db).get_stretches_all()
+    
     def get_drain(db:Session,stretch_id:list=None):
         return Stp_drain_crud(db).get_drains(stretch_id)
+    
+    def get_drain_all(db:Session):
+        return Stp_drain_crud(db).get_drains_all()
+    
     def get_drain_new(db:Session,stretch_id:list=None):
         return Stp_drain_new_crud(db).get_drains(stretch_id)
 

@@ -48,7 +48,7 @@ const createVectorStyle = (layerType: string, showLabels: boolean = false) => (f
       const stretchId = feature.get('Stretch_ID');
       const Color = getColorFromStretchId(stretchId);
       styles.push(new Style({
-        stroke: new Stroke({ color: Color, width: 2 })
+        stroke: new Stroke({ color: colorConfig.color, width: 2 })
       }));
     }
     else {
@@ -144,15 +144,15 @@ const Maping: React.FC = () => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [buttonClicked, setButtonClicked] = useState(false);
+
 
 
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
   const [showStretchLayer, setShowStretchLayer] = useState<boolean>(true);
   const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
-  const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
 
-  const { selectedDrains, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked } = useRiverSystem();
+
+  const { selectedDrains, setShowCatchmentLayer, showCatchmentLayer, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked, AnalysisCachement, setAnalysisCachement } = useRiverSystem();
 
   const {
     primaryLayer,
@@ -193,13 +193,10 @@ const Maping: React.FC = () => {
     setActivePanel(activePanel === panelName ? null : panelName);
   };
 
-  const handleClick = () => {
-    setButtonClicked(true);
-    opencatchment();
-  };
 
-  const opencatchment = () => {
-    setButtonClicked(true);
+
+  const handleClick = () => {
+    setAnalysisCachement(true);
     if (selectedDrains.length > 0) {
       setShowCatchment(true);
     }
@@ -618,6 +615,7 @@ const Maping: React.FC = () => {
     });
 
     if (!rasterLayerInfo) {
+      console.log("load after the reset",rasterLayerInfo);
       setRasterLoading(false);
       setLegendUrl(null);
       setShowLegend(false);
@@ -780,7 +778,7 @@ const Maping: React.FC = () => {
           </button>
         </div>
         {/* Catchment Analysis Button */}
-        {selectedDrains.length > 0 && !buttonClicked && (
+        {selectedDrains.length > 0 && !AnalysisCachement && (
           <button
             onClick={handleClick}
             className="absolute left-4 bottom-20 flex items-center justify-center gap-2 text-gray-800 text-sm font-medium rounded-full bg-white/90 backdrop-blur-sm px-4 py-3 shadow-lg border border-white/20 hover:scale-105 transition-all duration-200 z-50"
