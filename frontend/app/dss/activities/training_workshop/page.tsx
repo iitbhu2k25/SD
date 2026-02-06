@@ -12,14 +12,14 @@ interface EventSection {
   images?: { title: string; alt: string }[];
 }
 const Img11=[
-    "/Images/activity/Imagess/meeting/img1.jpeg",
-    "/Images/activity/Imagess/meeting/img2.jpeg",
-    "/Images/activity/Imagess/meeting/img3.jpeg"
+    "/Images/activity/training/meeting/img1.jpeg",
+    "/Images/activity/training/meeting/img2.jpeg",
+    "/Images/activity/training/meeting/img3.jpeg"
 ]
 const TrainImg=[
-    "/Images/activity/Imagess/training/img4.jpeg",
-    "/Images/activity/Imagess/training/img5.jpeg",
-    "/Images/activity/Imagess/training/img6.jpeg"
+    "/Images/activity/training/img4.jpeg",
+    "/Images/activity/training/img5.jpeg",
+    "/Images/activity/training/img6.jpeg"
 ]
 const EventsPage: React.FC = () => {
   const dssEvent: EventSection = {
@@ -75,7 +75,7 @@ const EventsPage: React.FC = () => {
       <header className="relative border-b border-cyan-500/20 backdrop-blur-sm">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/50 via-slate-950/80 to-slate-950"></div>
         
-        <div className="relative max-w-7xl mx-auto px-8 py-16">
+        <div className="relative max-w-[1400px] mx-auto px-8 py-16">
           {/* Coordinate Grid Decoration */}
           <div className="absolute top-4 right-8 font-mono text-xs text-cyan-400/40 tracking-wider">
             25.2677° N, 82.9913° E
@@ -104,7 +104,7 @@ const EventsPage: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-8 py-16">
+      <main className="relative max-w-[1400px] mx-auto px-8 py-16">
         {/* DSS-Expert Meeting Section */}
         <section className="mb-24 relative">
           <div className="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 via-cyan-500/50 to-transparent"></div>
