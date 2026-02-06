@@ -1087,11 +1087,29 @@ const Navbar = (): JSX.Element => {
                 >
                   <li>
                     <Link
-                      href="/dss/default"
+                      href="/dss/activities/training_workshop"
                       className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
 
-                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Training and Workshop", href: "/dss/default" }])}>
+                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Training and Workshop", href: "/dss/activities/training_workshop" }])}>
                       Training and Workshop
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/activities/confrence"
+                      className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+
+                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Confrence", href: "/dss/activities/confrence" }])}>
+                      Confrence
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/activities/exposure"
+                      className="block px-4 py-2 text-blue-600 font-semibold hover:bg-blue-50 hover:bg-opacity-10 rounded-md transition duration-200"
+
+                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/activities/exposure" }])}>
+                      Exposure
                     </Link>
                   </li>
                   <li>
