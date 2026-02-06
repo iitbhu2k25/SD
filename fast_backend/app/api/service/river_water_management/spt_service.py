@@ -37,13 +37,17 @@ class Stp_location:
         Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
         return Villages
     
-    def get_all_villages(db:Session):
-        Villages=Stp_Villages_crud(db).get_villages(payload.subdis_code,payload.all_data)
-        Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
-        return Villages
+    # def get_all_villages(db:Session):
+    #     Villages=Stp_Villages_crud(db).get_villages(payload.subdis_code,payload.all_data)
+    #     Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
+    #     return Villages
         
     def get_town(db:Session,payload:dict):
         towns=Stp_towns_crud(db).get_towns(payload.subdis_code,payload.all_data)
+        return towns
+    
+    def get_all_town(db:Session,all_data:bool=True):
+        towns=Stp_towns_crud(db).get_all_towns(all)
         return towns
     
     def get_town_details(db:Session):

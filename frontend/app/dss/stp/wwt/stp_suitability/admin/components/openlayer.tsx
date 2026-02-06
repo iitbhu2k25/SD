@@ -49,7 +49,7 @@ const Mapping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
-  const [showResultLayer, setShowResultLayer] = useState(true);
+
   const [showPrimaryLayer, setShowPrimaryLayer] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
@@ -67,10 +67,12 @@ const Mapping: React.FC = () => {
     resultLayer,
     selectedradioLayer,
     handleLayerSelection,
+    setRasterLayerInfo,
+    rasterLayerInfo,
+    showResultLayer,
+    setShowResultLayer
 
   } = useMap();
-  const { setRasterLayerInfo, rasterLayerInfo } = useCategory();
-
   // Helper functions
   const toggleFullScreen = () => {
     if (!containerRef.current) return;

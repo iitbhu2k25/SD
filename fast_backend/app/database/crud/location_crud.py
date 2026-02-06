@@ -71,6 +71,9 @@ class Stp_towns_crud(CrudBase):
             self.Model.subdistrict_code.in_(subdistrict)).order_by(sq.asc(self.Model.name))
         return self._pagination(query,all_data)
 
+    def get_all_towns(self,all_data:bool=True):
+        query=self.db.query(self.Model).order_by(sq.asc(self.Model.name))
+        return self._pagination(query,all_data)
 class Stp_River_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_River):
         super().__init__(db,Model)

@@ -101,7 +101,7 @@ export interface Towns {
   id: string | number;
   name: string;
   population: number;
-  subdistrictId: string | number;
+  subdistrict_code: string | number;
 }
 
 export interface RiverSelectionsData {

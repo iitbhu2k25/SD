@@ -5,12 +5,13 @@ import React, {
   useState,
   useEffect,
   ReactNode,
+  useMemo,
 } from "react";
-import { DRAIN_LAYER_NAMES,Layer_name } from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES, Layer_name } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
 import { api } from "@/services/api";
 
-import { Drain,River,Stretch,Catchment,ClipRasters,RiverSelectionsData} from "@/interface/raster_context";
+import { Drain, River, Stretch, Catchment, ClipRasters, RiverSelectionsData } from "@/interface/raster_context";
 
 interface RiverSystemContextType {
   rivers: River[];
@@ -18,19 +19,20 @@ interface RiverSystemContextType {
   drains: Drain[];
   catchments: Catchment[];
   selectedRiver: number | null;
+  setSelectedRiver: (riverCode: number | null) => void;
   selectedStretches: number[];
   selectedDrains: number[];
   selectedCatchments: number[];
-  selectedStreachNames: number[]
-  selectedDrainsNames: number[]
-  selectedCatchmentsNames: string[]
-  selectedRiverName: string | null;
+  selectedStreachNames: number[];
+  selectedDrainsNames: number[];
+  selectedCatchmentsNames: string[];
+  selectedRiverName: string;
   totalArea: number;
   totalCatchments: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
-  showCatchment: boolean
-  setShowCatchment: (value: boolean) => void
+  showCatchment: boolean;
+  setShowCatchment: (value: boolean) => void;
   setDisplayRaster: (layer: ClipRasters[]) => void;
   isLoading: boolean;
   handleRiverChange: (riverCode: number) => void;
@@ -43,24 +45,30 @@ interface RiverSystemContextType {
   setShowTable: (value: boolean) => void;
   tableData: DataRow[];
   setTableData: (value: DataRow[]) => void;
+  AnalysisCachement: boolean
+  setAnalysisCachement: (value: boolean) => void
+  setShowCatchmentLayer: (value: boolean) => void
+  showCatchmentLayer: boolean
+
 }
 
-// Props for the RiverSystemProvider component
 interface RiverSystemProviderProps {
   children: ReactNode;
 }
 
-// Create the river system context with default values
 const RiverSystemContext = createContext<RiverSystemContextType>({
   rivers: [],
   stretches: [],
   drains: [],
   catchments: [],
   selectedRiver: null,
+  setSelectedRiver: () => { },
   selectedStretches: [],
+  setSelectedStretches: () => { },
   selectedDrains: [],
+  setSelectedDrains: () => { },
   selectedCatchments: [],
-  selectedRiverName: null,
+  selectedRiverName: "",
   selectedStreachNames: [],
   selectedDrainsNames: [],
   selectedCatchmentsNames: [],
@@ -73,8 +81,6 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   isLoading: false,
   showCatchment: false,
   handleRiverChange: () => { },
-  setSelectedStretches: () => { },
-  setSelectedDrains: () => { },
   setSelectedCatchments: () => { },
   confirmSelections: () => null,
   resetSelections: () => { },
@@ -82,202 +88,214 @@ const RiverSystemContext = createContext<RiverSystemContextType>({
   setShowTable: () => { },
   tableData: [],
   setTableData: () => { },
+  AnalysisCachement: false,
+  setAnalysisCachement: () => { },
+  setShowCatchmentLayer: () => { },
+  showCatchmentLayer: true
 });
 
-// Create the provider component
 export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   children,
 }) => {
-  // State for river system data
-  const [rivers, setRivers] = useState<River[]>([]);
-  const [stretches, setStretches] = useState<Stretch[]>([]);
-  const [drains, setDrains] = useState<Drain[]>([]);
-  const [catchments, setCatchments] = useState<Catchment[]>([]);
+  // All data loaded once
+  const [allRivers, setAllRivers] = useState<River[]>([]);
+  const [allStretches, setAllStretches] = useState<Stretch[]>([]);
+  const [allDrains, setAllDrains] = useState<Drain[]>([]);
 
-  // State for selected items
+  // Selected items
   const [selectedRiver, setSelectedRiver] = useState<number | null>(null);
   const [selectedStretches, setSelectedStretches] = useState<number[]>([]);
   const [selectedDrains, setSelectedDrains] = useState<number[]>([]);
   const [selectedCatchments, setSelectedCatchments] = useState<number[]>([]);
+
+  // Catchments loaded on demand (as per requirement)
+  const [catchments, setCatchments] = useState<Catchment[]>([]);
+  const [AnalysisCachement, setAnalysisCachement] = useState(false);
+  const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
   const [showCatchment, setShowCatchment] = useState<boolean>(false);
 
-  // State for additional information
-  const [totalArea, setTotalArea] = useState<number>(0);
-  const [totalCatchments, setTotalCatchments] = useState<number>(0);
+  // Additional state
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [showTable, setShowTable] = useState<boolean>(false);
 
-  const [selectedRiverName, setSelectedRiverName] = useState<string>("");
-  const [selectedStreachNames, setSelectedStreachNames] = useState<number[]>([]);
-  const [selectedDrainsNames, setSelectedDrainsNames] = useState<number[]>([]);
-  const [selectedCatchmentsNames, setSelectedCatchmentsNames] = useState<string[]>([]);
+  // ✅ Load ALL rivers, stretches, and drains once on mount
   useEffect(() => {
-    setSelectedRiverName(rivers.find((river) => river.River_Code === selectedRiver)?.River_Name || "");
-    setSelectedStreachNames(stretches.filter((stretch) => selectedStretches.includes(stretch.id)).map((stretch) => stretch.id));
-    setSelectedDrainsNames(drains.filter((drain) => selectedDrains.includes(drain.id)).map((drain) => drain.id));
-    setSelectedCatchmentsNames(catchments.filter((catchment) => selectedCatchments.includes(catchment.id)).map((catchment) => catchment.village_name || ""));
-  }, [selectionsLocked])
-  useEffect(() => {
-    const fetchRivers = async () => {
+    const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get("/location/get_river"); 
-       
-        if (response.status>=202) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        // Fetch all rivers
+        const riversResponse = await api.get("/location/get_river");
+        if (riversResponse.status === 201) {
+          const riversData = riversResponse.message as River[];
+          const riverData: River[] = riversData.map((river: any) => ({
+            River_Name: river.River_Name,
+            River_Code: river.River_Code,
+          }));
+          setAllRivers(riverData);
         }
 
-        const data = await response.message as River[];
-        const riverData: River[] = data.map((river: any) => ({
-          River_Name: river.River_Name,
-          River_Code: river.River_Code,
-        }));
+        // Fetch all stretches
+        const stretchesResponse = await api.get("/location/all_stretch");
+        if (stretchesResponse.status === 201) {
+          const stretchesData = stretchesResponse.message as Stretch[];
+          const stretchData: Stretch[] = stretchesData.map((stretch: any) => ({
+            id: stretch.Stretch_ID,
+            Stretch_ID: stretch.Stretch_ID,
+            river_code: stretch.river_Code,
+          }));
+          setAllStretches(stretchData);
+        }
 
-        setRivers(riverData);
+        // Fetch all drains
+        const drainsResponse = await api.get("/location/all_drain");
+        if (drainsResponse.status === 201) {
+          const drainsData = drainsResponse.message as Drain[];
+          const drainData: Drain[] = drainsData.map((drain: any) => ({
+            id: drain.Drain_No,
+            Drain_No: drain.Drain_No,
+            stretch_id: drain.stretch_id,
+            name: drain.name,
+          }));
+          setAllDrains(drainData);
+        }
       } catch (error) {
-        console.log("Error fetching rivers:", error);
+        console.log("Error fetching river system data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRivers();
+    fetchAllData();
   }, []);
 
-  // Load stretches when river is selected
-  useEffect(() => {
-    if (!selectedRiver) {
-      setStretches([]);
-      return;
-    }
+  // ✅ Filter stretches based on selected river (computed, not fetched)
+  const stretches = useMemo(() => {
+    if (!selectedRiver) return [];
+    return allStretches.filter(s => s.river_code === selectedRiver);
+  }, [allStretches, selectedRiver]);
 
-    const fetchStretches = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.post("/location/get_stretch",{
-            body: {
-              river_code: selectedRiver,
-              all_data: true,
-            },
-          }
-        );
+  // ✅ Filter drains based on selected stretches (computed, not fetched)
+  const drains = useMemo(() => {
+    if (selectedStretches.length === 0) return [];
+    return allDrains.filter(d =>
+      selectedStretches.includes(Number(d.stretch_id))
+    );
+  }, [allDrains, selectedStretches]);
 
-        if (response.status>201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+  // ✅ Computed names
+  const selectedRiverName = useMemo(() => {
+    return allRivers.find(r => r.River_Code === selectedRiver)?.River_Name || "";
+  }, [allRivers, selectedRiver]);
 
-        const data = await response.message as Stretch[];
-        const stretchData: Stretch[] = data.map((stretch: any) => ({
-          id: stretch.Stretch_ID,
-          Stretch_ID: stretch.Stretch_ID,
-          river_code: stretch.river_code,
-        }));
+  const selectedStreachNames = useMemo(() => {
+    return allStretches
+      .filter(s => selectedStretches.includes(s.id))
+      .map(s => s.id);
+  }, [allStretches, selectedStretches]);
 
-        setStretches(stretchData);
-      } catch (error) {
-        console.log("Error fetching stretches:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const selectedDrainsNames = useMemo(() => {
+    return allDrains
+      .filter(d => selectedDrains.includes(d.id))
+      .map(d => d.id);
+  }, [allDrains, selectedDrains]);
 
-    fetchStretches();
+  const selectedCatchmentsNames = useMemo(() => {
+    return catchments
+      .filter(c => selectedCatchments.includes(c.id))
+      .map(c => c.village_name || "");
+  }, [catchments, selectedCatchments]);
 
-    // Reset dependent selections
+  // ✅ Calculate total area and count based on selected catchments
+  const totalArea = useMemo(() => {
+    if (selectedCatchments.length === 0) return 0;
+    const selectedCatchmentObjects = catchments.filter(c =>
+      selectedCatchments.includes(Number(c.id))
+    );
+    const totalAreaSum = selectedCatchmentObjects.reduce(
+      (sum, catchment) => sum + (catchment.area || 0),
+      0
+    );
+    return totalAreaSum / 1000000;
+  }, [selectedCatchments, catchments]);
+
+  const totalCatchments = useMemo(() => {
+    return selectedCatchments.length;
+  }, [selectedCatchments]);
+
+  // ✅ Handle river selection
+  const handleRiverChange = (riverCode: number): void => {
+    setSelectedRiver(riverCode);
     setSelectedStretches([]);
     setSelectedDrains([]);
     setSelectedCatchments([]);
-    setTotalArea(0);
-    setTotalCatchments(0);
-    setDisplayRaster([]);
-    setShowTable(false);
-  }, [selectedRiver]);
+    setCatchments([]);
+    setSelectionsLocked(false);
+    setShowCatchment(false);
+  };
 
-  // Load drains when stretches are selected
-  useEffect(() => {
-    if (selectedStretches.length === 0) {
-      setDrains([]);
-      return;
-    }
+  // ✅ Wrapper for setSelectedStretches with auto-cleanup
+  const handleSetSelectedStretches = (stretchIds: number[]): void => {
+    setSelectedStretches(stretchIds);
 
-    setIsLoading(true);
+    // Auto-cleanup: remove drains whose parent stretch is no longer selected
+    setSelectedDrains(prev => {
+      if (stretchIds.length === 0) return [];
 
-    const fetchDrains = async () => {
-      try {
-        const response = await api.post("/location/get_suitability_drain",{
-            body: {
-              stretch_ids: selectedStretches,
-              all_data: true,
-            },
-          }
-        );
+      return prev.filter(drainId => {
+        const drain = allDrains.find(d => d.id === drainId);
+        return drain && stretchIds.includes(Number(drain.stretch_id));
+      });
+    });
 
-        if (response.status>201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as Drain[];
-        const drainData: Drain[] = data.map((drain: any) => ({
-          id: drain.Drain_No,
-          Drain_No: drain.Drain_No,
-          stretch_id: drain.stretch_id,
-          name: drain.Name,
-        }));
-
-        setDrains(drainData);
-      } catch (error) {
-        console.log("Error fetching drains:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchDrains();
-
-
-    setSelectedDrains([]);
+    // Reset catchments when stretches change
     setSelectedCatchments([]);
-    setTotalArea(0);
-    setTotalCatchments(0);
-  }, [selectedStretches]);
+    setCatchments([]);
+    setShowCatchment(false);
+  };
 
+  // ✅ Wrapper for setSelectedDrains with auto-cleanup
+  const handleSetSelectedDrains = (drainIds: number[]): void => {
+    setSelectedDrains(drainIds);
 
+    // Reset catchments when drains change
+    setSelectedCatchments([]);
+    setCatchments([]);
+    setShowCatchment(false);
+  };
+
+  // ✅ Load catchments when showCatchment is triggered (on demand)
   useEffect(() => {
-    if (selectedDrains.length === 0) {
+    if (!showCatchment || selectedDrains.length === 0) {
       setCatchments([]);
       return;
     }
 
-    setIsLoading(true);
-
     const fetchCatchments = async () => {
+      setIsLoading(true);
       try {
-        const response = await api.post("/stp_operation/get_suitability_cachement",{
-            body: {
-              drain_nos: selectedDrains,
-              all_data: true,
-            },
-          }
-        );
+        const response = await api.post("/stp_operation/get_suitability_cachement", {
+          body: {
+            drain_nos: selectedDrains,
+            all_data: true,
+          },
+        });
 
-        if (response.status>201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        if (response.status === 201) {
+          const data = await response.message as Layer_name;
+          const layer_name = data.layer_name;
+          DRAIN_LAYER_NAMES.CATCHMENT = layer_name;
+          const new_data = data.catchments;
+          const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
+            id: catchment.id,
+            village_name: catchment.village_name,
+            area: catchment.area,
+          }));
+          setCatchments(catchmentData);
+          setSelectedCatchments(catchmentData.map((catchment) => catchment.id));
         }
-
-        const data = await response.message as Layer_name;
-        const layer_name = data.layer_name
-        DRAIN_LAYER_NAMES.CATCHMENT = layer_name
-        const new_data = data.catchments
-        const catchmentData: Catchment[] = new_data.map((catchment: any) => ({
-          id: catchment.id,
-          village_name: catchment.village_name,
-          area: catchment.area,
-        }));
-        setCatchments(catchmentData);
-        setSelectedCatchments(catchmentData.map((catchment) => catchment.id));
       } catch (error) {
         console.log("Error fetching catchments:", error);
       } finally {
@@ -285,89 +303,47 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       }
     };
 
-    if (showCatchment === true) {
-      fetchCatchments();
-    }
+    fetchCatchments();
+  }, [showCatchment, selectedDrains]);
 
-    // Reset dependent selections
-    setSelectedCatchments([]);
-    setTotalArea(0);
-    setTotalCatchments(0);
-
-  }, [showCatchment]);
-
-  // Handle display raster when selections are locked
+  // ✅ Fetch raster data when selections are locked
   useEffect(() => {
     const fetchDisplayRaster = async () => {
-      if (selectionsLocked === true && selectedCatchments.length > 0) {
+      if (selectionsLocked && selectedCatchments.length > 0) {
         setIsLoading(true);
         try {
-          const response = await api.post("/stp_operation/stp_suitability_visual_display",
-            {
-              body: {
-                clip: selectedCatchments,
-                place: "Drain",
-              },
-            }
-          );
-
+          const response = await api.post("/stp_operation/stp_suitability_visual_display", {
+            body: {
+              clip: selectedCatchments,
+              place: "Drain",
+            },
+          });
           const data = await response.message as ClipRasters[];
           setDisplayRaster(data);
         } catch (error) {
           console.log("Error fetching display raster:", error);
-        } setIsLoading(false);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchDisplayRaster();
   }, [selectionsLocked, selectedCatchments]);
 
-  // Calculate total area and count based on selected catchments
-  useEffect(() => {
-    if (selectedCatchments.length > 0) {
-      // Filter to get only selected catchments
-      const selectedCatchmentObjects = catchments.filter((catchment) =>
-        selectedCatchments.includes(Number(catchment.id))
-      );
-
-      // Calculate total area
-      const totalAreaSum = selectedCatchmentObjects.reduce(
-        (sum, catchment) => sum + (catchment.area || 0),
-        0
-      );
-
-      setTotalArea(totalAreaSum / 1000000);
-      setTotalCatchments(selectedCatchmentObjects.length);
-    } else {
-      setTotalArea(0);
-      setTotalCatchments(0);
-    }
-  }, [selectedCatchments, catchments]);
-
-
-
-  // Handle river selection
-  const handleRiverChange = (riverCode: number): void => {
-    setSelectedRiver(riverCode);
-    setSelectedStretches([]);
-    setSelectedDrains([]);
-    setSelectedCatchments([]);
-    setSelectionsLocked(false);
-  };
-
-  // Lock selections and return selected data
+  // ✅ Confirm selections
   const confirmSelections = (): RiverSelectionsData | null => {
     if (selectedCatchments.length === 0) {
       return null;
     }
 
-    const selectedRiverObject = rivers.find(
+    const selectedRiverObject = allRivers.find(
       (r) => r.River_Code === selectedRiver
     );
-    const selectedStretchObjects = stretches.filter((stretch) =>
+    const selectedStretchObjects = allStretches.filter((stretch) =>
       selectedStretches.includes(Number(stretch.id))
     );
-    const selectedDrainObjects = drains.filter((drain) =>
+    const selectedDrainObjects = allDrains.filter((drain) =>
       selectedDrains.includes(Number(drain.id))
     );
     const selectedCatchmentObjects = catchments.filter((catchment) =>
@@ -385,32 +361,31 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     };
   };
 
-  // Reset all selections
   const resetSelections = (): void => {
-    setSelectedRiver(null);
-    setSelectedStretches([]);
-    setSelectedDrains([]);
-    setSelectedCatchments([]);
-    setTotalArea(0);
-    setTotalCatchments(0);
     setSelectionsLocked(false);
     setDisplayRaster([]);
+    setCatchments([]);
+    setShowCatchment(false);
+    setShowTable(false);
+    setAnalysisCachement(false);
+    setShowCatchmentLayer(false);
+
   };
 
-  // Context value
   const contextValue: RiverSystemContextType = {
-    rivers,
+    rivers: allRivers,
     stretches,
     drains,
     catchments,
     selectedRiver,
+    setSelectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
     selectedRiverName,
-    selectedCatchmentsNames,
-    selectedDrainsNames,
     selectedStreachNames,
+    selectedDrainsNames,
+    selectedCatchmentsNames,
     totalArea,
     totalCatchments,
     selectionsLocked,
@@ -418,8 +393,8 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     displayRaster,
     setDisplayRaster,
     handleRiverChange,
-    setSelectedStretches,
-    setSelectedDrains,
+    setSelectedStretches: handleSetSelectedStretches,
+    setSelectedDrains: handleSetSelectedDrains,
     setSelectedCatchments,
     confirmSelections,
     resetSelections,
@@ -428,8 +403,11 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     showTable,
     setShowTable,
     tableData,
-    setTableData
-
+    setTableData,
+    AnalysisCachement,
+    setAnalysisCachement,
+    setShowCatchmentLayer,
+    showCatchmentLayer
   };
 
   return (
@@ -439,7 +417,6 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
   );
 };
 
-// Custom hook to use the river system context
 export const useRiverSystem = (): RiverSystemContextType => {
   const context = useContext(RiverSystemContext);
   if (context === undefined) {

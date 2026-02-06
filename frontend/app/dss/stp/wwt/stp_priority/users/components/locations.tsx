@@ -92,10 +92,8 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
 
   // Handle reset button click
  const handleReset = (): void => {
-  console.log("reset");
-  console.log("resetMapView function:", resetMapView);
-  console.log("typeof resetMapView:", typeof resetMapView);
   resetMapView();
+  resetSelections();
 };
 
   // Format stretch display

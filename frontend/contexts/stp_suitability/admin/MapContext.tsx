@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/stp_suitability/admin/LocationContext';
 import { useCategory } from '@/contexts/stp_suitability/admin/CategoryContext';
 import { api } from '@/services/api';
-import {stp_sutability_Output,ADMIN_TOWN_LAYER_NAMES} from "@/interface/raster_context"
+import {stp_sutability_Output,ADMIN_TOWN_LAYER_NAMES, ClipRasters} from "@/interface/raster_context"
 // Define layer name constants to ensure consistency
 
 interface MapContextType {
@@ -31,6 +31,10 @@ interface MapContextType {
   selectedradioLayer: string | null;
   setSelectedradioLayer: (layer: string | null) => void; 
   handleLayerSelection: (layer: string) => void;
+  rasterLayerInfo: ClipRasters | null;
+  setRasterLayerInfo: (layer: null) => void;
+  showResultLayer: boolean
+  setShowResultLayer: (layer: boolean) => void 
 
 }
 
@@ -66,7 +70,11 @@ const MapContext = createContext<MapContextType>({
   setResultLayer: () => { },
   selectedradioLayer: "",
   setSelectedradioLayer: () => {},
-    handleLayerSelection: () => {},
+  handleLayerSelection: () => {},
+  rasterLayerInfo: null,
+  setRasterLayerInfo: () => { },
+  showResultLayer: true,
+  setShowResultLayer: () => { }
 });
 
 // Create the provider component
@@ -83,7 +91,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [LayerFilterValue, setLayerFilterValue] = useState<number[]>([]);
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
   const [stpOperation, setstpOperation] = useState<boolean>(false);
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
+    const [showResultLayer, setShowResultLayer] = useState(true);
+    
   const {
     selectedState,
     selectedDistricts,
@@ -94,10 +105,18 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     displayRaster
 
   } = useLocation();
-  const { selectedCategory, setShowTable, setTableData, setRasterLayerInfo, rasterLayerInfo } =
+  const { selectedCategory, setShowTable, setTableData} =
     useCategory();
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
+    setRasterLayerInfo(null);
+    setShowTable(false);
+    setTableData([]);
+    setResultLayer(null)
+    setSelectedVillages([]);
+    setShowResultLayer(false);
+    
+
   };
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
@@ -201,7 +220,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           setDisplayRaster(newData);
           handleLayerSelection(append_data.file_name);
           setRasterLayerInfo(append_data);
-          setTimeout(() => setRasterLayerInfo(result), 500);
         }
       } catch (error: any) {
         console.log(`STP operation failed: ${error.message}`);
@@ -240,6 +258,10 @@ const contextValue: MapContextType = {
   selectedradioLayer,
   setSelectedradioLayer: () => {},
   handleLayerSelection,
+  rasterLayerInfo,
+  setRasterLayerInfo,
+  showResultLayer,
+  setShowResultLayer
 };
 
 return (

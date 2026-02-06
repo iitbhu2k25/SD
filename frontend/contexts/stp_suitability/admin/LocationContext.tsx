@@ -1,8 +1,20 @@
-'use client'
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '@/services/api';
-import { State,District,SubDistrict, Towns,ClipRasters} from '@/interface/raster_context';
-
+"use client";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useMemo,
+} from "react";
+import { api } from "@/services/api";
+import {
+  State,
+  District,
+  SubDistrict,
+  Towns,
+  ClipRasters,
+} from "@/interface/raster_context";
 
 export interface SelectionsData {
   subDistricts: SubDistrict[];
@@ -28,7 +40,6 @@ interface LocationContextType {
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
   selectedTownsNames: string[];
-
   isLoading: boolean;
   handleStateChange: (stateId: number) => void;
   setSelectedDistricts: (districtIds: number[]) => void;
@@ -36,15 +47,14 @@ interface LocationContextType {
   setSelectedTowns: (townIds: number[]) => void;
   confirmSelections: () => SelectionsData | null;
   resetSelections: () => void;
-  setSelectedVillages: (villageIds: number[]) => void
+  setSelectedVillages: (villageIds: number[]) => void;
+  setSelectedState: (stateId: number | null) => void;
 }
 
-// Props for the LocationProvider component
 interface LocationProviderProps {
   children: ReactNode;
 }
 
-// Create the location context with default values
 const LocationContext = createContext<LocationContextType>({
   states: [],
   districts: [],
@@ -63,242 +73,133 @@ const LocationContext = createContext<LocationContextType>({
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],
   selectedTownsNames: [],
-  setDisplayRaster: () => { },
-  handleStateChange: () => { },
-  setSelectedDistricts: () => { },
-  setSelectedSubDistricts: () => { },
-  setSelectedTowns: () => { },
+  setDisplayRaster: () => {},
+  handleStateChange: () => {},
+  setSelectedDistricts: () => {},
+  setSelectedSubDistricts: () => {},
+  setSelectedTowns: () => {},
   confirmSelections: () => null,
-  resetSelections: () => { },
-  setSelectedVillages: () => { }
+  resetSelections: () => {},
+  setSelectedVillages: () => {},
+  setSelectedState: () => {},
 });
 
-// Create the provider component
-export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) => {
-  // State for location data
-  const [states, setStates] = useState<State[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [subDistricts, setSubDistricts] = useState<SubDistrict[]>([]);
-  const [towns, setTowns] = useState<Towns[]>([]);
+export const LocationProvider: React.FC<LocationProviderProps> = ({
+  children,
+}) => {
+  // ✅ All location data loaded once
+  const [allStates, setAllStates] = useState<State[]>([]);
+  const [allDistricts, setAllDistricts] = useState<District[]>([]);
+  const [allSubDistricts, setAllSubDistricts] = useState<SubDistrict[]>([]);
+  const [allTowns, setAllTowns] = useState<Towns[]>([]);
 
-  // State for selected locations
+  // Selected locations
   const [selectedState, setSelectedState] = useState<number | null>(null);
   const [selectedDistricts, setSelectedDistricts] = useState<number[]>([]);
   const [selectedSubDistricts, setSelectedSubDistricts] = useState<number[]>([]);
   const [selectedTowns, setSelectedTowns] = useState<number[]>([]);
+  const [selectedVillages, setSelectedVillages] = useState<number[]>([]);
 
-  // State for additional information
+  // Additional state
   const [totalPopulation, setTotalPopulation] = useState<number>(0);
-  const [selectedVillages, setSelectedVillages] =useState<number[]>([]);
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [displayRaster, setDisplayRaster] = useState<ClipRasters[]>([]);
-  const [selectedStateName, setSelectedStateName] = useState<string>("");
-  const [selectedDistrictsNames, setSelectedDistrictNames] = useState<string[]>([]);
-  const [selectedSubDistrictsNames, setSelectedSubDistrictNames] = useState<string[]>([]);
-  const [selectedTownsNames, setSelectedTownsNames] = useState<string[]>([]);
+
+  // ✅ Load ALL data once on mount
   useEffect(() => {
-    setSelectedStateName(states.find((state) => state.id === selectedState)?.name || "");
-    setSelectedDistrictNames(districts.filter((district) => selectedDistricts.includes(district.id as number)).map((district) => district.name));
-    setSelectedSubDistrictNames(subDistricts.filter((subDistrict) => selectedSubDistricts.includes(subDistrict.id as number)).map((subDistrict) => subDistrict.name));
-    setSelectedTownsNames(towns.filter((town) => selectedTowns.includes(town.id as number)).map((town) => town.name));
-  }, [selectionsLocked])
-  useEffect(() => {
-    const fetchStates = async () => {
+    const fetchAllData = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get('/location/get_states?all_data=true');
-
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+        // Fetch all states
+        const statesResponse = await api.get("/location/get_states?all_data=true");
+        if (statesResponse.status === 201) {
+          const statesData = statesResponse.message as State[];
+          setAllStates(statesData);
         }
 
-        const data = await response.message as State[];
-        const stateData = data.map((state: State) => ({
-          id: state.id,
-          name: state.name
-        }));
+        // Fetch all districts
+        const districtsResponse = await api.get("/location/all_districts");
+        if (districtsResponse.status === 201) {
+          const districtsData = districtsResponse.message as District[];
+          setAllDistricts(districtsData);
+        }
 
-        setStates(stateData);
+        // Fetch all sub-districts
+        const subDistrictsResponse = await api.get("/location/all_sub_districts");
+        if (subDistrictsResponse.status === 201) {
+          const subDistrictsData = subDistrictsResponse.message as SubDistrict[];
+          setAllSubDistricts(subDistrictsData);
+        }
+
+        // Fetch all towns
+        const townsResponse = await api.get("/location/get_all_towns");
+        if (townsResponse.status === 201) {
+          const townsData = townsResponse.message as Towns[];
+          setAllTowns(townsData);
+        }
       } catch (error) {
-        console.log('Error fetching states:', error);
+        console.log("Error fetching location data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStates();
+    fetchAllData();
   }, []);
 
-  // Load districts when state is selected
-  useEffect(() => {
-    if (!selectedState) {
-      setDistricts([]);
-      setSubDistricts([]);
-      setTowns([]);
-      return;
-    }
+  // ✅ Filter districts based on selected state (computed, not fetched)
+  const districts = useMemo(() => {
+    if (!selectedState) return [];
+    return allDistricts.filter((d) => d.stateId === selectedState);
+  }, [allDistricts, selectedState]);
 
-    const fetchDistricts = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.post('/location/get_districts', {
-          body: {
-            state: selectedState,
-            all_data: true,
-          },
-        })
+  // ✅ Filter subdistricts based on selected districts (computed, not fetched)
+  const subDistricts = useMemo(() => {
+    if (selectedDistricts.length === 0) return [];
+    return allSubDistricts.filter((sd) =>
+      selectedDistricts.includes(Number(sd.districtId))
+    );
+  }, [allSubDistricts, selectedDistricts]);
 
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
+  // ✅ Filter towns based on selected subdistricts (computed, not fetched)
+  const towns = useMemo(() => {
+    if (selectedSubDistricts.length === 0) return [];
+    return allTowns.filter((town) =>
+      selectedSubDistricts.includes(Number(town.subdistrict_code))
+    );
+  }, [allTowns, selectedSubDistricts]);
 
-        const data = await response.message as District[];
+  // ✅ Computed names
+  const selectedStateName = useMemo(() => {
+    return allStates.find((s) => s.id === selectedState)?.name || "";
+  }, [allStates, selectedState]);
 
-        const districtData = data.map((district: District) => ({
-          id: district.id,
-          name: district.name,
-          stateId: selectedState
-        }));
+  const selectedDistrictsNames = useMemo(() => {
+    return allDistricts
+      .filter((d) => selectedDistricts.includes(Number(d.id)))
+      .map((d) => d.name);
+  }, [allDistricts, selectedDistricts]);
 
-        setDistricts(districtData);
-      } catch (error) {
-        console.log('Error fetching districts:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const selectedSubDistrictsNames = useMemo(() => {
+    return allSubDistricts
+      .filter((sd) => selectedSubDistricts.includes(Number(sd.id)))
+      .map((sd) => sd.name);
+  }, [allSubDistricts, selectedSubDistricts]);
 
-    fetchDistricts();
+  const selectedTownsNames = useMemo(() => {
+    return allTowns
+      .filter((town) => selectedTowns.includes(Number(town.id)))
+      .map((town) => town.name);
+  }, [allTowns, selectedTowns]);
 
-    // Reset dependent selections when state changes
-    setSelectedDistricts([]);
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
-    setTotalPopulation(0);
-  }, [selectedState]);
-
-  // Load sub-districts when districts are selected
-  useEffect(() => {
-    if (selectedDistricts.length === 0) {
-      setSubDistricts([]);
-      setTowns([]);
-      return;
-    }
-
-    const fetchSubDistricts = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.post("/location/get_sub_districts/", {
-          body: {
-            districts: selectedDistricts,
-            all_data: true,
-          },
-        });
-
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as SubDistrict[];
-       
-        const subDistrictData = data.map((subDistrict: SubDistrict) => ({
-          id: subDistrict.id,
-          name: subDistrict.name,
-          districtId: subDistrict.districtId
-        }));
-
-        setSubDistricts(subDistrictData);
-      } catch (error) {
-        console.log('Error fetching sub-districts:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSubDistricts();
-
-    // Reset dependent selections when districts change
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
-    setTotalPopulation(0);
-  }, [selectedDistricts]);
-
-  useEffect(() => {
-    const disp_raster = async () => {
-      if (selectionsLocked === true) {
-        setIsLoading(true);
-        try {
-          const response = await api.post("/stp_operation/stp_suitability_visual_display", {
-            body: {
-              clip: selectedTowns,
-              place: "sub_district",
-            },
-          })
-          const data = await response.message as ClipRasters[];
-          setDisplayRaster(data);
-        } catch (error) {
-          console.log("Error:", error);
-        }
-        setIsLoading(false);
-      }
-    };
-
-    disp_raster();
-  }, [selectionsLocked, selectedSubDistricts]);
-  // Load towns when sub-districts are selected
-  useEffect(() => {
-    if (selectedSubDistricts.length === 0) {
-      setTowns([]);
-      return;
-    }
-
-    const fetchTowns = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.post("/location/get_towns/", {
-          body: {
-            subdis_code: selectedSubDistricts,
-            all_data: true
-          },
-        });
-
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as Towns[];
-        const townData = data.map((town: Towns) => ({
-          id: town.id,
-          name: town.name,
-          population: town.population || 0,
-          subdistrictId: selectedSubDistricts[0]
-        }));
-
-        setTowns(townData);
-      } catch (error) {
-        console.log('Error fetching towns:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchTowns();
-
-    // Reset town selections when sub-districts change
-    setSelectedTowns([]);
-    setTotalPopulation(0);
-  }, [selectedSubDistricts]);
-
-  // Calculate total population based on selected TOWNS (not sub-districts)
+  // ✅ Calculate total population from selected towns
   useEffect(() => {
     if (selectedTowns.length > 0) {
-      // Filter to get only selected towns
-      const selectedTownObjects = towns.filter(town =>
+      const selectedTownObjects = allTowns.filter((town) =>
         selectedTowns.includes(Number(town.id))
       );
 
-      // Calculate total population from selected towns
       const total = selectedTownObjects.reduce(
         (sum, town) => sum + (town.population || 0),
         0
@@ -308,56 +209,126 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     } else {
       setTotalPopulation(0);
     }
-  }, [towns, selectedTowns]);
+  }, [allTowns, selectedTowns]);
 
-  // Handle state selection
+  // ✅ Handle state selection
   const handleStateChange = (stateId: number): void => {
     setSelectedState(stateId);
     setSelectedDistricts([]);
     setSelectedSubDistricts([]);
     setSelectedTowns([]);
     setSelectionsLocked(false);
-    setTotalPopulation(0);
   };
 
-  // Lock selections and return selected data (now requires towns to be selected)
+  // ✅ Wrapper for setSelectedDistricts with auto-cleanup
+  const handleSetSelectedDistricts = (districtIds: number[]): void => {
+    setSelectedDistricts(districtIds);
+
+    // Auto-cleanup: remove subdistricts whose parent district is no longer selected
+    setSelectedSubDistricts((prev) => {
+      if (districtIds.length === 0) return [];
+
+      return prev.filter((subId) => {
+        const subDistrict = allSubDistricts.find((sd) => sd.id === subId);
+        return (
+          subDistrict && districtIds.includes(Number(subDistrict.districtId))
+        );
+      });
+    });
+
+    // Auto-cleanup: remove towns whose parent subdistrict is no longer valid
+    setSelectedTowns((prev) => {
+      if (districtIds.length === 0) return [];
+
+      return prev.filter((townId) => {
+        const town = allTowns.find((t) => t.id === townId);
+        if (!town) return false;
+
+        const subDistrict = allSubDistricts.find(
+          (sd) => sd.id === town.subdistrict_code
+        );
+        return (
+          subDistrict && districtIds.includes(Number(subDistrict.districtId))
+        );
+      });
+    });
+  };
+
+  // ✅ Wrapper for setSelectedSubDistricts with auto-cleanup
+  const handleSetSelectedSubDistricts = (subDistrictIds: number[]): void => {
+    setSelectedSubDistricts(subDistrictIds);
+
+    // Auto-cleanup: remove towns whose parent subdistrict is no longer selected
+    setSelectedTowns((prev) => {
+      if (subDistrictIds.length === 0) return [];
+
+      return prev.filter((townId) => {
+        const town = allTowns.find((t) => t.id === townId);
+        return town && subDistrictIds.includes(Number(town.subdistrict_code));
+      });
+    });
+  };
+
+  // ✅ Fetch raster data when selections are locked
+  useEffect(() => {
+    const fetchRasterData = async () => {
+      if (selectionsLocked && selectedTowns.length > 0) {
+        setIsLoading(true);
+        try {
+          const response = await api.post(
+            "/stp_operation/stp_suitability_visual_display",
+            {
+              body: {
+                clip: selectedTowns,
+                place: "sub_district",
+              },
+            }
+          );
+
+          const data = (await response.message) as ClipRasters[];
+          setDisplayRaster(data);
+        } catch (error) {
+          console.log("Error fetching raster data:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchRasterData();
+  }, [selectionsLocked, selectedTowns]);
+
+  // ✅ Confirm selections
   const confirmSelections = (): SelectionsData | null => {
-    // Changed: Now requires towns to be selected instead of just sub-districts
     if (selectedTowns.length === 0) {
       return null;
     }
 
-    const selectedSubDistrictObjects = subDistricts.filter(subDistrict =>
-      selectedSubDistricts.includes(Number(subDistrict.id))
+    const selectedSubDistrictObjects = allSubDistricts.filter((sd) =>
+      selectedSubDistricts.includes(Number(sd.id))
     );
 
-    const selectedTownObjects = towns.filter(town =>
+    const selectedTownObjects = allTowns.filter((town) =>
       selectedTowns.includes(Number(town.id))
     );
 
     setSelectionsLocked(true);
 
-    // Population is now calculated from selected towns, not sub-districts
     return {
       subDistricts: selectedSubDistrictObjects,
       towns: selectedTownObjects,
-      totalPopulation // This comes from selected towns
+      totalPopulation,
     };
   };
 
-  // Reset all selections
   const resetSelections = (): void => {
-    setSelectedState(null);
-    setSelectedDistricts([]);
-    setSelectedSubDistricts([]);
-    setSelectedTowns([]);
     setTotalPopulation(0);
     setSelectionsLocked(false);
+    setDisplayRaster([]);
   };
 
-  // Context value
   const contextValue: LocationContextType = {
-    states,
+    states: allStates,
     districts,
     subDistricts,
     towns,
@@ -365,23 +336,24 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     selectedDistricts,
     selectedSubDistricts,
     selectedTowns,
+    selectedVillages,
     totalPopulation,
     selectionsLocked,
     isLoading,
     handleStateChange,
-    setSelectedDistricts,
-    setSelectedSubDistricts,
+    setSelectedDistricts: handleSetSelectedDistricts,
+    setSelectedSubDistricts: handleSetSelectedSubDistricts,
     setSelectedTowns,
     confirmSelections,
-    resetSelections,
     displayRaster,
+    setDisplayRaster,
     selectedStateName,
     selectedDistrictsNames,
     selectedSubDistrictsNames,
     selectedTownsNames,
-    setDisplayRaster,
+    setSelectedState,
+    resetSelections,
     setSelectedVillages,
-    selectedVillages
   };
 
   return (
@@ -391,11 +363,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   );
 };
 
-// Custom hook to use the location context
 export const useLocation = (): LocationContextType => {
   const context = useContext(LocationContext);
   if (context === undefined) {
-    throw new Error('useLocation must be used within a LocationProvider');
+    throw new Error("useLocation must be used within a LocationProvider");
   }
   return context;
 };

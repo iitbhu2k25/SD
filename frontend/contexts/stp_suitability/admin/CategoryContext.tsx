@@ -2,7 +2,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
 import { api } from '@/services/api';
-import { Category,Stp_area,SelectRasterLayer,RasterLayer } from '@/interface/raster_context';
+import { Category,Stp_area,SelectRasterLayer,ClipRasters } from '@/interface/raster_context';
 
 interface CategoryContextType {
   condition_categories: Category[];
@@ -34,8 +34,6 @@ interface CategoryContextType {
   StpArea:Stp_area[];
   OptSetStpArea:(Stp_area:Stp_area)=>void
   setFindArea:(value:boolean)=>void
-  rasterLayerInfo: RasterLayer | null;
-  setRasterLayerInfo: (info: RasterLayer) => void;
 }
 
 interface CategoryProviderProps {
@@ -59,7 +57,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
   const [StpArea,SetStpArea]= useState<Stp_area[]>([])
   const [OptStpArea,OptSetStpArea]=useState<Stp_area>()
   const [findArea,setFindArea]=useState<boolean>(false)
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<RasterLayer>();
+  
 
   // Fetch condition categories from API
   useEffect(() => {
@@ -379,9 +377,6 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     StpArea,
     OptSetStpArea,
     setFindArea,
-    setRasterLayerInfo,
-    rasterLayerInfo: rasterLayerInfo||null
-
   };
   
   return (

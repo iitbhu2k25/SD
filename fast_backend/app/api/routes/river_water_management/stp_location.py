@@ -29,6 +29,10 @@ async def get_districtss(db:db_dependency):
 async def get_sub_districtss(db:db_dependency):
     return Stp_location.get_sub_district_all(db)
 
+@router.get("/get_all_towns",response_model=list[Stp_town_respons],status_code=status.HTTP_201_CREATED)
+@validate
+async def get_towns(db:db_dependency):
+    return Stp_location.get_all_town(db)
 
 @router.post("/get_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
 @validate
@@ -47,11 +51,6 @@ async def get_sub_districts(db:db_dependency,payload:Sub_district_request,user: 
 async def get_villages(db:db_dependency,payload:Village_request,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_villages(db,payload)
 
-
-# @router.get("/all_villages",status_code=status.HTTP_201_CREATED)
-# @validate
-# async def get_villages(db:db_dependency):
-#     return Stp_location.get_villages(db)
 
 @router.post("/get_towns",response_model=list[Stp_town_respons],status_code=status.HTTP_201_CREATED)
 @validate

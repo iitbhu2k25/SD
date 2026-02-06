@@ -10,7 +10,7 @@ import React, {
 import { api } from "@/services/api";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import { useCategory } from "../admin/CategoryContext";
-import { stp_sutability_Output, DRAIN_LAYER_NAMES } from "@/interface/raster_context";
+import { stp_sutability_Output, DRAIN_LAYER_NAMES, ClipRasters } from "@/interface/raster_context";
 
 // Updated interface with separate filters for each layer
 interface LayerFilter {
@@ -58,6 +58,12 @@ interface MapContextType {
   handleLayerSelection: (layer: string) => void;
   setSelectedradioLayer: (layer: string | null) => void;
   selectedradioLayer: string | null;
+  rasterLayerInfo: ClipRasters | null;
+  setRasterLayerInfo: (layer: null) => void;
+  showResultLayer: boolean
+  setShowResultLayer: (layer: boolean) => void 
+
+
 }
 
 // Props for the MapProvider
@@ -104,6 +110,10 @@ const MapContext = createContext<MapContextType>({
   handleLayerSelection: () => { },
   setSelectedradioLayer: () => { },
   selectedradioLayer: null,
+  rasterLayerInfo: null,
+  setRasterLayerInfo: () => { },
+  showResultLayer: false,
+  setShowResultLayer: () => { },
 });
 
 // Create the provider component
@@ -112,7 +122,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   geoServerUrl = "/geoserver/api",
   defaultWorkspace = "vector_work",
 }) => {
- 
+
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
   const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
@@ -121,6 +131,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); // Always load drain layer
   const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT); // Always load catchment layer
   const [resultLayer, setResultLayer] = useState<string | null>(null);
+  const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
+  const [selectedradioLayer, setSelectedradioLayer] = useState("");
+  const [showResultLayer, setShowResultLayer] = useState(true);
   // Separate filter states for each layer
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
     filterField: null,
@@ -144,7 +157,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
-  const [selectedradioLayer, setSelectedradioLayer] = useState("");
   const { selectedCategory } = useCategory();
   // Get river system context data
   const {
@@ -155,6 +167,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setTableData,
     displayRaster,
     setDisplayRaster,
+     setShowTable
 
   } = useRiverSystem();
 
@@ -164,6 +177,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     setSelectedradioLayer("")
     setHasSelections(false);
     setCatchmentLayer(null);
+    console.log("catchmentLayer", catchmentLayer);
+    setCatchmentFilter({ filterField: null, filterValue: null }); 
+    setTableData([]);
+    setRasterLayerInfo(null);
   };
 
   // Function to zoom to a specific feature
@@ -321,6 +338,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           }
 
           setDisplayRaster(newData);
+          setRasterLayerInfo(append_data);
+          setShowTable(true);
           handleLayerSelection(append_data.file_name)
 
         }
@@ -377,6 +396,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     resultLayer,
     setResultLayer,
     setIsMapLoading,
+    showResultLayer,
+    setShowResultLayer,
+    rasterLayerInfo,
+    setRasterLayerInfo
   };
 
   return (

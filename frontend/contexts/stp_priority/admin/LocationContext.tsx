@@ -220,7 +220,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const resetSelections = (): void => {
     setSelectionsLocked(false);
     setTotalPopulation(0);
-    setSelectionsLocked(false);
     setDisplayRaster([]);
   };
 

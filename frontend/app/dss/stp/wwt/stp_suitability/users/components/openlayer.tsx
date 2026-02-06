@@ -44,7 +44,7 @@ const Maping: React.FC = () => {
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
-  const [rasterLayerInfo, setRasterLayerInfo] = useState<any>(null);
+
 
   // Simplified state
   const [isLoading, setIsLoading] = useState(true);
@@ -73,13 +73,15 @@ const Maping: React.FC = () => {
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
-  const [buttonClicked, setButtonClicked] = useState(false);
+
 
   // Context hooks
   const {
     selectedDrains,
     displayRaster,
     setShowCatchment,
+    AnalysisCachement,
+    setAnalysisCachement
   } = useRiverSystem();
 
   const {
@@ -98,6 +100,9 @@ const Maping: React.FC = () => {
     hasSelections,
     handleLayerSelection,
     selectedradioLayer,
+    rasterLayerInfo,
+    setRasterLayerInfo
+
   } = useMap();
   // Helper functions
   const toggleFullScreen = () => {
@@ -555,7 +560,7 @@ const Maping: React.FC = () => {
   }, []);
 
   const handleClick = () => {
-    setButtonClicked(true);
+    setAnalysisCachement(true);
     if (selectedDrains.length > 0) {
       setShowCatchment(true);
     }
@@ -648,7 +653,7 @@ const Maping: React.FC = () => {
         </div>
 
         {/* Catchment Button */}
-        {selectedDrains.length > 0 && !buttonClicked && (
+        {selectedDrains.length > 0 && !AnalysisCachement && (
           <button onClick={handleClick} className="absolute left-4 bottom-20 flex items-center justify-center gap-2 text-gray-800 text-sm font-medium rounded-full bg-gray-100 px-3 py-2 w-52 z-50">
             Analysis Catchment
           </button>

@@ -152,7 +152,18 @@ const Maping: React.FC = () => {
   const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
 
 
-  const { selectedDrains, setShowCatchmentLayer, showCatchmentLayer, displayRaster, setShowCatchment, setSelectedRiver, setSelectedCatchments, setSelectedStretches, setSelectedDrains, selectionsLocked, AnalysisCachement, setAnalysisCachement } = useRiverSystem();
+  const { selectedDrains,
+    setShowCatchmentLayer,
+    showCatchmentLayer,
+    displayRaster,
+    setShowCatchment,
+    setSelectedRiver,
+    setSelectedCatchments,
+    setSelectedStretches,
+    setSelectedDrains,
+    selectionsLocked,
+    AnalysisCachement,
+    setAnalysisCachement } = useRiverSystem();
 
   const {
     primaryLayer,
@@ -615,7 +626,7 @@ const Maping: React.FC = () => {
     });
 
     if (!rasterLayerInfo) {
-      console.log("load after the reset",rasterLayerInfo);
+      console.log("load after the reset", rasterLayerInfo);
       setRasterLoading(false);
       setLegendUrl(null);
       setShowLegend(false);

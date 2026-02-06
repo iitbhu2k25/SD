@@ -8,6 +8,7 @@ import {  Stretch,
   Drain,
   Catchment,} from "@/interface/raster_context";
 import WholeLoading from "@/components/app_layout/newLoading";
+import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];
@@ -45,7 +46,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
     resetSelections,
   } = useRiverSystem();
 
-  // Handle river selection from select input
+  const {resetMapView} = useMap();
   const handleRiverSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     if (!selectionsLocked) {
       handleRiverChange(parseInt(e.target.value));
@@ -92,11 +93,9 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
   // Handle reset button click
   const handleReset = (): void => {
     resetSelections();
+    resetMapView();
 
-    // Call the onReset prop to notify parent component
-    if (onReset) {
-      onReset();
-    }
+  
   };
 
   // Format stretch display
@@ -268,6 +267,15 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
           >
             Confirm Selection
           </button>
+          <button
+          className={`bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded
+    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50
+    disabled:bg-red-300 disabled:cursor-not-allowed disabled:hover:bg-red-300`}
+          onClick={handleReset}
+          disabled={selectedRiver === null}
+        >
+          Reset
+        </button>
          
         </div>
       </div>

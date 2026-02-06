@@ -4,6 +4,7 @@ import { MultiSelect } from './Multiselect';
 import { useLocation } from '@/contexts/stp_suitability/admin/LocationContext';
 import WholeLoading from "@/components/app_layout/newLoading";
 import { SubDistrict } from '@/interface/raster_context';
+import { useMap } from '@/contexts/stp_suitability/admin/MapContext';
 interface LocationSelectorProps {
   onConfirm?: (selectedData: {
     subDistricts: SubDistrict[];
@@ -32,7 +33,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
     confirmSelections,
     resetSelections
   } = useLocation();
-  
+    const { resetMapView } = useMap();
   // Handle state selection from select input
   const handleStateSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
     if (!selectionsLocked) {
@@ -76,11 +77,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
   // Handle reset button click
   const handleReset = (): void => {
     resetSelections();
+    resetMapView();
     
-    // Call the onReset prop to notify parent component
-    if (onReset) {
-      onReset();
-    }
   };
   
   // Format sub-district display to include population
@@ -191,6 +189,15 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
           disabled={selectedTowns.length === 0 || selectionsLocked || isLoading}
         >
           Confirm
+        </button>
+        <button
+          className={`bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded
+    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50
+    disabled:bg-red-300 disabled:cursor-not-allowed disabled:hover:bg-red-300`}
+          onClick={handleReset}
+          disabled={selectedState === null}
+        >
+          Reset
         </button>
        
       </div>

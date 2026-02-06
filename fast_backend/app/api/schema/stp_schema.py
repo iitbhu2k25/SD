@@ -12,7 +12,8 @@ class Stp_response(BaseModel):
 
 class Stp_town_respons(Stp_response):
     population:int
-    classs :int
+    subdistrict_code:int
+
 
 class District_request(BaseModel):
     state:int
