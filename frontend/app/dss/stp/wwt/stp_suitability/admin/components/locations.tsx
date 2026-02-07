@@ -197,7 +197,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset 
           onClick={handleReset}
           disabled={selectedState === null}
         >
-          Reset
+           Edit
         </button>
        
       </div>

@@ -43,11 +43,11 @@ export default function TeamPage() {
     return () => io.disconnect();
   }, []);
 
-  // Leadership & Dignitaries (from HomeHeader)
+  // Leadership & Dignitaries
   const leadership: TeamMember[] = [
     {
       image: "/Images/navbar/persons/CR_patil.jpg",
-      title: "Shri C R Patil",
+      title: "Shri C.R. Patil",
       position: "Hon'ble Union Minister",
       body: "Ministry of Jal Shakti",
     },
@@ -55,25 +55,25 @@ export default function TeamPage() {
       image: "/Images/navbar/persons/secretary1.jpg",
       title: "Shri V.L. Kantha Rao",
       position: "Secretary",
-      body: "(DoWR,RD & GR)",
+      body: "Department of Water Resources, River Development & Ganga Rejuvenation",
     },
     {
       image: "/Images/navbar/persons/Rajeev_Mital1.jpg",
       title: "Shri Rajeev Mittal",
       position: "Director General",
-      body: "National Mission For Clean Ganga",
+      body: "National Mission for Clean Ganga",
     },
     {
       image: "/Images/navbar/persons/nalin_sir.png",
       title: "Shri Nalin Kumar Srivastava",
       position: "Deputy Director General",
-      body: "National Mission For Clean Ganga",
+      body: "National Mission for Clean Ganga",
     },
     {
       image: "/Images/navbar/persons/dheeraj_joshi.jpeg",
       title: "Shri Dheeraj Joshi",
       position: "Director (Urban)",
-      body: "NMCG",
+      body: "National Mission for Clean Ganga",
     },
   ];
 
@@ -83,23 +83,15 @@ export default function TeamPage() {
       image: "/Images/navbar/persons/Anurag_Ohri_Sir.jpg",
       title: "Prof. Anurag Ohri",
       position: "Principal Investigator",
-      body: "Department of Civil Engineering, IIT(BHU) Varanasi",
+      body: "Department of Civil Engineering, IIT (BHU) Varanasi",
       url: "https://www.iitbhu.ac.in/dept/civ/people/aohriciv"
-
     },
     {
       image: "/Images/navbar/persons/Pramod_Sir.jpg",
       title: "Prof. Pramod Soni",
       position: "Principal Investigator",
-      body: "Department of Civil Engineering, IIT(BHU) Varanasi",
+      body: "Department of Civil Engineering, IIT (BHU) Varanasi",
       url: "https://www.iitbhu.ac.in/dept/civ/people/pramodciv"
-    },
-    {
-      image: "/Images/navbar/persons/sgsir.png",
-      title: "Prof. Shishir Gaur",
-      position: "Coordinator",
-      body: "Department of Civil Engineering, IIT(BHU) Varanasi",
-      url: "https://iitbhu.ac.in/dept/civ/people/shishirgciv"
     },
   ];
 
@@ -111,24 +103,24 @@ export default function TeamPage() {
     },
     {
       image: "/Images/about/PK_Mishra_Sir.avif",
-      title: "Prof P. K. Mishra",
-      body: "Department of Chemical Engineering, IIT(BHU)",
+      title: "Prof. P. K. Mishra",
+      body: "Department of Chemical Engineering, IIT (BHU) Varanasi",
     },
     {
       image: "/Images/about/Medha_Jha_Mam.jpeg",
       title: "Prof. Medha Jha",
-      body: "Department of Chemical Engineering, IIT(BHU)",
+      body: "Department of Chemical Engineering, IIT (BHU) Varanasi",
     },
     {
       image: "/Images/about/Tanima_Dutta_Mam.webp",
       title: "Prof. Tanima Dutta",
-      body: "Department of Computer Sc. and Engg., IIT(BHU)",
+      body: "Department of Computer Science and Engineering, IIT (BHU) Varanasi",
     },
     {
       image: "/Images/about/Shyam_Kamal_Sir.jpg",
       title: "Prof. Shyam Kamal",
       position: "Associate Professor",
-      body: "Dept of Electrical Engineering, IIT(BHU)",
+      body: "Department of Electrical Engineering, IIT (BHU) Varanasi",
     },
     {
       image: "/Images/about/Pooja_Parsad_Mam.jpg",
@@ -151,46 +143,53 @@ export default function TeamPage() {
     {
       image: "/Images/about/Akash_Sir.png",
       title: "Dr. Akash Tiwari",
-      body: "(Research Associate)",
+      body: "Research Associate",
       title_type: "normal",
     },
     {
       image: "/Images/about/Alok_Sir.jpg",
       title: "Dr. Alok Raj",
-      body: "Data Analyst (YP)",
+      body: "Data Analyst (Young Professional)",
       title_type: "normal",
     },
     {
       image: "/Images/about/hariom.png",
       title: "Hariom Singh Rathore",
-      body: "Programmer (YP)",
+      body: "Programmer (Young Professional)",
       title_type: "normal",
     },
     {
       image: "/Images/about/rajat.webp",
       title: "Rajat Saxena",
-      body: "(Software Engineer)",
+      body: "Software Architect",
       title_type: "normal",
     },
     {
       image: "/Images/about/Muskan.jpeg",
       title: "Muskan Gupta",
-      body: "(Software Engineer)",
+      body: "Software Engineer",
       title_type: "normal",
     },
     {
       image: "/Images/about/Rajkumar.jpg",
       title: "Rajkumar Choudhury",
-      body: "(Software Engineer)",
+      body: "Software Engineer",
       title_type: "normal",
     },
     {
       image: "/Images/about/Anas.webp",
       title: "Anas Khan",
-      body: "(Software Engineer)",
+      body: "Software Engineer",
+      title_type: "normal",
+    },
+    {
+      image: "/Images/about/gaurav.webp",
+      title: "Gaurav Kumar",
+      body: "Software Engineer",
       title_type: "normal",
     },
   ];
+
   const CardContent = ({ member }: { member: TeamMember }) => (
     <div className="aspect-square relative overflow-hidden bg-teal-50 cursor-pointer group">
       {member.image && (
@@ -204,6 +203,7 @@ export default function TeamPage() {
       <div className="absolute inset-0 bg-gradient-to-t from-teal-900/60 via-transparent to-transparent" />
     </div>
   );
+
   return (
     <div ref={containerRef} className="min-h-screen bg-slate-50 text-slate-900">
       {/* Hero Section */}
@@ -292,15 +292,17 @@ export default function TeamPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-5 gap-10 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-8 max-w-7xl mx-auto items-stretch">
             {leadership.map((member, idx) => (
               <div
                 key={idx}
-                className="fade-in-up group"
+                className="fade-in-up group h-full"
                 style={{ transitionDelay: `${idx * 100}ms` }}
               >
-                <div className="relative overflow-hidden rounded-2xl bg-white border-2 border-blue-200 hover:border-blue-500 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/30">
-                  <div className="aspect-square relative overflow-hidden bg-blue-50">
+                <div className="relative h-full flex flex-col overflow-hidden rounded-2xl bg-white border-2 border-blue-200 hover:border-blue-500 transition-all duration-500 hover:shadow-2xl hover:shadow-blue-500/30">
+
+                  {/* Image Section */}
+                  <div className="relative aspect-square overflow-hidden bg-blue-50">
                     {member.image && (
                       <Image
                         src={member.image}
@@ -311,16 +313,22 @@ export default function TeamPage() {
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-blue-900/60 via-transparent to-transparent" />
                   </div>
-                  <div className="p-7 bg-gradient-to-br from-white to-blue-50/30">
-                    <div className="mb-2">
+
+                  {/* Content Section */}
+                  <div className="p-6 flex flex-col flex-1 bg-gradient-to-br from-white to-blue-50/30">
+                    <div className="mb-3">
                       <span className="inline-block text-xs font-mono text-blue-700 bg-blue-100 px-3 py-1 rounded-full border border-blue-300">
                         {member.position}
                       </span>
                     </div>
-                    <h3 className="text-xl font-bold mb-2 text-slate-900 group-hover:text-blue-700 transition-colors leading-tight">
+
+                    <h3 className="text-xl font-bold mb-3 text-slate-900 group-hover:text-blue-700 transition-colors leading-tight">
                       {member.title}
                     </h3>
-                    <p className="text-sm text-slate-600 leading-relaxed">{member.body}</p>
+
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      {member.body}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -366,7 +374,7 @@ export default function TeamPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 max-w-4xl mx-auto">
             {teamMembers.map((member, idx) => (
               <div
                 key={idx}
@@ -376,25 +384,22 @@ export default function TeamPage() {
                 <div className="relative overflow-hidden rounded-2xl bg-white border-2 border-teal-200 hover:border-teal-500 transition-all duration-500 hover:shadow-2xl hover:shadow-teal-500/30">
 
                   {member.url ? (
-                    <Link
-                      href={member.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
+                    <Link href={member.url} target="_blank" rel="noopener noreferrer">
                       <CardContent member={member} />
                     </Link>
                   ) : (
                     <CardContent member={member} />
                   )}
+
                   <div className="p-7 bg-gradient-to-br from-white to-teal-50/30">
-                    <div className="mb-2">
-                      <span className="inline-block text-xs font-mono text-teal-700 bg-teal-100 px-3 py-1 rounded-full border border-teal-300">
-                        {member.position}
-                      </span>
-                    </div>
-                    <h3 className="text-2xl font-bold mb-2 text-slate-900 group-hover:text-teal-700 transition-colors leading-tight">
+                    <span className="inline-block text-xs font-mono text-teal-700 bg-teal-100 px-3 py-1 rounded-full border border-teal-300 mb-3">
+                      {member.position}
+                    </span>
+
+                    <h3 className="text-2xl font-bold mb-3 text-slate-900 group-hover:text-teal-700 transition-colors">
                       {member.title}
                     </h3>
+
                     <p className="text-sm text-slate-600 leading-relaxed">{member.body}</p>
                   </div>
                 </div>
@@ -427,7 +432,7 @@ export default function TeamPage() {
             <div className="flex items-center gap-4 mb-4">
               <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-emerald-600 to-transparent" />
               <span className="text-emerald-700 text-sm font-mono tracking-[0.2em] uppercase bg-emerald-50 px-4 py-2 rounded-full border border-emerald-300">
-                🛰️ Research Faculty
+                🛰️ Co-Principal Investigators
               </span>
               <div className="h-[2px] flex-1 bg-gradient-to-r from-transparent via-emerald-600 to-transparent" />
             </div>
@@ -439,7 +444,7 @@ export default function TeamPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
             {coInvestigators.map((member, idx) => (
               <div
                 key={idx}
@@ -509,7 +514,7 @@ export default function TeamPage() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-8 max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {rdTeam.map((member, idx) => (
               <div
                 key={idx}
@@ -556,8 +561,7 @@ export default function TeamPage() {
               We're always looking for talented individuals passionate about sustainable water management
             </p>
             <Link href="/dss/contact">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700
-            ">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/50 hover:scale-105 border-2 border-blue-700">
                 Contact Us
               </button>
             </Link>

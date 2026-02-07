@@ -279,7 +279,7 @@ const ConferencesPage: React.FC = () => {
             description: "The National Institute of Hydrology (NIH), Roorkee under Department of Water Resources, River Development & Ganga Rejuvenation, Ministry of Jal Shakti, Govt. of India in association with the Central Ground Water Board (CGWB); Association of Global Groundwater Scientists (AGGS); National Mission for Clean Ganga (NMCG); and National River Conservation Directorate (NRCD) has organized the prestigious International Ground Water Conference-2025 (IGWC-2025).",
             organizers: ["NIH Roorkee", "CGWB", "AGGS", "NMCG", "NRCD"],
             participants: ["DSS Research Staff"],
-            image: ["/Images/activity/Imagess/saminar/confrence/image_24.jpeg", "/Images/activity/Imagess/saminar/confrence/image_29.jpeg"]
+            image: ["/Images/activity/saminar/confrence/image_24.jpeg", "/Images/activity/saminar/confrence/image_29.jpeg"]
         },
         {
             title: "Sustainable Development and Management of Groundwater Resource",
@@ -287,23 +287,23 @@ const ConferencesPage: React.FC = () => {
             location: "Department of Geology, Banaras Hindu University",
             description: "Prof. Anurag Ohri and Dr. Shishir Gaur participated as Chief Guest in the 'Sustainable Development and Management of Groundwater Resource' of the Tier III Training Program organized by Rajiv Gandhi National Ground Water Training & Research Institute and hosted by Department of Geology, Banaras Hindu University.",
             participants: ["Prof. Anurag Ohri (Chief Guest)", "Dr. Shishir Gaur (Chief Guest)"],
-            image: ["/Images/activity/Imagess/saminar/prize/image_28.png", "/Images/activity/Imagess/saminar/prize/image_31.png", "/Images/activity/Imagess/saminar/prize/image_32.png"]
+            image: ["/Images/activity/saminar/prize/image_28.png", "/Images/activity/saminar/prize/image_31.png", "/Images/activity/saminar/prize/image_32.png"]
         },
         {
             title: "International Association of Hydrological Sciences (IAHS 2025)",
             date: "5th - 10th October, 2025",
             location: "IIT Roorkee",
             description: "A Research Associate from the Decision Support System (DSS) team participated in the International Association of Hydrological Sciences (IAHS) 2025 Scientific Assembly, where the Decision Support System for Water Resource Management was showcased to an international audience. The participation provided a valuable platform to present the DSS framework, exchange scientific insights, and engage with global experts on data-driven and sustainable water resource management approaches.",
-            participants: ["DSS Research Associate"],
-            image: ["/Images/activity/Imagess/saminar/assos/image_1.jpeg", "/Images/activity/Imagess/saminar/assos/image_2.jpeg", "/Images/activity/Imagess/saminar/assos/image_3.jpeg"]
+            participants: ["DSS Research Staff"],
+            image: ["/Images/activity/saminar/assos/image_1.jpeg", "/Images/activity/saminar/assos/image_2.jpeg", "/Images/activity/saminar/assos/image_3.jpeg"]
         },
         {
             title: "4th River Health Assessment and Rejuvenation (RHAR) 2025",
             date: "2025",
             location: "Conference Venue",
             description: "DSS research associate, Dr. Akash Tiwari has presented 'Decision Support System for Water Resource Management' in the 4th RHAR Conference, contributing to discussions on river health monitoring and sustainable rejuvenation strategies.",
-            participants: ["Dr. Akash Tiwari"],
-            image: ["/Images/activity/Imagess/saminar/rhar/image_4.jpeg", "/Images/activity/Imagess/saminar/rhar/image_5.jpeg"]
+            participants: ["DSS Research Staff"],
+            image: ["/Images/activity/saminar/rhar/image_4.jpeg", "/Images/activity/saminar/rhar/image_5.jpeg"]
         }
     ];
 

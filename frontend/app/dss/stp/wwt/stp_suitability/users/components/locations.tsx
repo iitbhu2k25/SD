@@ -274,7 +274,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
           onClick={handleReset}
           disabled={selectedRiver === null}
         >
-          Reset
+           Edit
         </button>
          
         </div>

@@ -11,6 +11,9 @@ const PUBLIC_DSS_ROUTES = [
   "/dss/about/team",
   "/dss/help",
   "/dss/dashboard",
+  "/dss/activities/confrence",
+  "/dss/activities/exposure",
+  "/dss/activities/training_workshop",
   "/dss/activities/gallery",
   "/dss/contact",
 ];

@@ -10,9 +10,9 @@ const gridItems = [
   {
     href: "dss/home/home_grid/home_card/basic_module",
     imgSrc: "/Images/GridSection/basicmodule.jpg",
-    alt: "Basic Module",
-    title: "Basic Module",
-    acronym: "BM",
+    alt: "STP Module",
+    title: "STP Module",
+    acronym: "SM",
     description: "Essential tools for sewage load estimation and predictions",
     color: "from-blue-400/30 to-blue-600/40",
   },

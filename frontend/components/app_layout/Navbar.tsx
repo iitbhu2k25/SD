@@ -272,11 +272,10 @@ const Navbar = (): JSX.Element => {
     <>
       <nav
         ref={navRef}
-        className={`${
-          isSticky
+        className={`${isSticky
             ? "bg-slate-900/98 shadow-2xl fixed top-0 left-0 w-full backdrop-blur-sm border-b border-slate-700/50"
             : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900"
-        } py-3.5 relative transition-all duration-300 z-[200]`}
+          } py-3.5 relative transition-all duration-300 z-[200]`}
       >
         <div className="container mx-auto px-4 lg:px-6">
           {/* Mobile menu button */}
@@ -308,6 +307,101 @@ const Navbar = (): JSX.Element => {
                   Home
                 </Link>
               </li>
+              {/* About */}
+              <li
+                className="relative group flex-shrink-0"
+                onMouseEnter={() => toggleDropdown("about", true)}
+                onMouseLeave={() => toggleDropdown("about", false)}
+              >
+                <button
+                  onClick={() => toggleDropdown("about", !openDropdowns.about)}
+                  className={navLinkClasses}
+                >
+                  About
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.about ? 'rotate-180' : ''}`} />
+                </button>
+
+                <ul
+                  className={`${openDropdowns.about ? "block" : "hidden"}
+                    lg:group-hover:block absolute left-0 top-[calc(100%+8px)]
+                    bg-white shadow-2xl border border-slate-200
+                    rounded-xl min-w-[220px] p-2 z-[200]
+                    before:content-[''] before:absolute before:bottom-full before:left-6
+                    before:border-8 before:border-transparent before:border-b-white`}
+                >
+                  <li>
+                    <Link
+                      href="/dss/about/objective"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Objective", href: "/dss/about/objective" }
+                        ])
+                      }
+                    >
+                      Objective
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/about/vission"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Vision and Mission", href: "/dss/about/vission" }
+                        ])
+                      }
+                    >
+                      Vision and Mission
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/dss/about/corevalue"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Core Values", href: "/dss/about/corevalue" }
+                        ])
+                      }
+                    >
+                      Core Values
+                    </Link>
+                  </li>
+ 
+                  <li>
+                    <Link
+                      href="/dss/about/team"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Team", href: "/dss/about/team" }
+                        ])
+                      }
+                    >
+                      Team
+                    </Link>
+                  </li>
+                                   <li>
+                    <Link
+                      href="/dss/about/message"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "About", href: "#" },
+                          { label: "Pi Message", href: "/dss/about/message" }
+                        ])
+                      }
+                    >
+                      PI Message
+                    </Link>
+                  </li>
+                </ul>
+              </li>
 
               {/* Dashboard */}
               <li className="relative group flex-shrink-0">
@@ -316,7 +410,7 @@ const Navbar = (): JSX.Element => {
                   Dashboard
                 </Link>
               </li>
-              
+
               {/* STP Module */}
               <li
                 className="relative group flex-shrink-0"
@@ -372,7 +466,7 @@ const Navbar = (): JSX.Element => {
                   </li>
                 </ul>
               </li>
-              
+
               {/* GWM */}
               <li
                 className="relative group flex-shrink-0"
@@ -1214,100 +1308,7 @@ const Navbar = (): JSX.Element => {
                 </ul>
               </li>
 
-              {/* About */}
-              <li
-                className="relative group flex-shrink-0"
-                onMouseEnter={() => toggleDropdown("about", true)}
-                onMouseLeave={() => toggleDropdown("about", false)}
-              >
-                <button
-                  onClick={() => toggleDropdown("about", !openDropdowns.about)}
-                  className={navLinkClasses}
-                >
-                  About
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.about ? 'rotate-180' : ''}`} />
-                </button>
-
-                <ul
-                  className={`${openDropdowns.about ? "block" : "hidden"}
-                    lg:group-hover:block absolute left-0 top-[calc(100%+8px)]
-                    bg-white shadow-2xl border border-slate-200
-                    rounded-xl min-w-[220px] p-2 z-[200]
-                    before:content-[''] before:absolute before:bottom-full before:left-6
-                    before:border-8 before:border-transparent before:border-b-white`}
-                >
-                  <li>
-                    <Link
-                      href="/dss/about/objective"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Objective", href: "/dss/about/objective" }
-                        ])
-                      }
-                    >
-                      Objective
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dss/about/vission"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Vision and Mission", href: "/dss/about/vission" }
-                        ])
-                      }
-                    >
-                      Vision and Mission
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dss/about/corevalue"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Core Values", href: "/dss/about/corevalue" }
-                        ])
-                      }
-                    >
-                      Core Values
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dss/about/message"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Pi Message", href: "/dss/about/message" }
-                        ])
-                      }
-                    >
-                      Pi Message
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/dss/about/team"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "About", href: "#" },
-                          { label: "Team", href: "/dss/about/team" }
-                        ])
-                      }
-                    >
-                      Team
-                    </Link>
-                  </li>
-                </ul>
-              </li>
+            
 
               {/* User */}
               <li

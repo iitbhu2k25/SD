@@ -280,10 +280,11 @@ export default function BasicModulesPage() {
         {/* Introduction */}
         <div className="text-center max-w-4xl mx-auto mb-16">
           <h2 className="text-4xl font-bold text-gray-800 mb-6">
-            Basic Modules
+            Seawage Treatment Plant Analysis Module
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Basic Modules include efficient sewage load estimation and prediction. This module integrates population forecasting, water demand estimation, sewage load assessment, and STP site suitability analysis to ensure efficient wastewater treatment, optimized resource allocation, and long-term urban sustainability.
+            This module in
+            clude efficient sewage load estimation and prediction. It integrates population forecasting, water demand estimation, sewage load assessment, and STP site suitability analysis to ensure efficient wastewater treatment, optimized resource allocation, and long-term urban sustainability.
           </p>
           <div className="w-24 h-1 bg-blue-600 mx-auto rounded-full"></div>
         </div>
