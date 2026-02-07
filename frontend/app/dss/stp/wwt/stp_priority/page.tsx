@@ -139,119 +139,110 @@ const PriorityPage: React.FC = () => {
 
         {/* Info Modal */}
         {showInfo && (
-          <>
-            {/* Backdrop with animation */}
-            <div
-              className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm animate-fadeIn"
-              onClick={() => setShowInfo(false)}
-            />
+  <>
+    {/* Backdrop */}
+    <div
+      className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm animate-fadeIn"
+      onClick={() => setShowInfo(false)}
+    />
 
-            {/* Modal Content */}
-           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-2xl z-500 max-w-4xl w-[90vw] mx-auto
- animate-slideIn border border-slate-200 mt-16">
-              {/* Header with industrial accent */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-4 rounded-t-2xl flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold tracking-tight">STP Priority System</h3>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowInfo(false)}
-                  className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition-all duration-200"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="p-6">
-                {/* Image with enhanced styling */}
-                <div className="mb-6 rounded-xl overflow-hidden shadow-lg border-4 border-white bg-white">
-                  <img
-                    src="/Images/modules/image_25.png"
-                    alt="STP Priority Information"
-                    className="w-full h-auto"
-                  />
-                </div>
-
-                {/* Content with industrial styling */}
-                <div className="space-y-4">
-                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-blue-500 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-blue-100 p-2 rounded-lg mt-0.5">
-                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          STP Priority module is intended to identify the sewage priority risk hot-spot areas.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-green-500 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-green-100 p-2 rounded-lg mt-0.5">
-                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          In this module several GIS-based layers related to sewerage, demography, land-use and groundwater are used for the identification of sewage priority risk areas.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500 hover:shadow-md transition-shadow">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-purple-100 p-2 rounded-lg mt-0.5">
-                        <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-gray-800 mb-1">Quick Toggle Navigation</h4>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          Final output related to the sewage risk could be generated in the pdf format.
-
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer badge */}
-                <div className="mt-6 flex justify-center">
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-2 rounded-full border border-blue-200">
-                    <button
-                      onClick={() => {
-                        window.open("/dss/home/home_grid/home_card/basic_module", "_blank", "noopener,noreferrer");
-                      }}
-                      className="text-xs text-blue-700 font-medium"
-                    >
-                      Learn more about STP Priority
-                    </button>
-
-
-                  </div>
-                </div>
-              </div>
+    {/* Modal Wrapper (Flex Centering – Zoom Safe) */}
+    <div className="fixed inset-0 z-60 flex items-center justify-center px-4 mt-40">
+      {/* Modal Content */}
+      <div
+        className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-2xl
+        w-full max-w-xl max-h-[90vh] overflow-y-auto
+        animate-slideIn border border-slate-200"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-5 py-3 rounded-t-2xl flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </div>
-          </>
-        )}
+            <h3 className="text-lg font-bold tracking-tight">
+              STP Priority System
+            </h3>
+          </div>
+
+          <button
+            onClick={() => setShowInfo(false)}
+            className="text-white/80 hover:text-white hover:bg-white/20 p-2 rounded-lg transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4">
+          {/* Image */}
+          <div className="mb-4 rounded-xl overflow-hidden shadow border bg-white">
+            <img
+              src="/Images/modules/image_25.png"
+              alt="STP Priority Information"
+              className="w-full h-40 object-contain"
+            />
+          </div>
+
+          {/* Info Cards */}
+          <div className="space-y-3">
+            <div className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-blue-500">
+              <p className="text-sm text-gray-600">
+                STP Priority module is intended to identify the sewage priority
+                risk hot-spot areas.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-green-500">
+              <p className="text-sm text-gray-600">
+                Several GIS-based layers related to sewerage, demography,
+                land-use, and groundwater are used to identify sewage priority
+                risk areas.
+              </p>
+            </div>
+
+            <div className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-purple-500">
+              <p className="text-sm text-gray-600">
+                Final output related to the sewage risk can be generated in PDF
+                format.
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-5 flex justify-center">
+            <button
+              onClick={() =>
+                window.open(
+                  "/dss/home/home_grid/home_card/basic_module",
+                  "_blank",
+                  "noopener,noreferrer"
+                )
+              }
+              className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-4 py-2 rounded-full hover:bg-blue-100 transition"
+            >
+              Learn more about STP Priority
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
       </header>
 
       <div className="transition-all duration-500 ease-in-out">

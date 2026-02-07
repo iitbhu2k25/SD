@@ -5,7 +5,6 @@ import { LocationProvider } from "@/contexts/stp_suitability/admin/LocationConte
 import { CategoryProvider } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp_suitability/admin/MapContext";
 import LocationSelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/locations";
-import CategorySelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/Category";
 import MapView from "@/app/dss/stp/wwt/stp_suitability/admin/components/openlayer";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";

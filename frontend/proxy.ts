@@ -34,9 +34,9 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const refreshToken = request.cookies.get("verified_token")?.value;
+  const VerifyToken = request.cookies.get("verified_token")?.value;
 
- if (!refreshToken) {
+ if (!VerifyToken) {
   const url = new URL("/", request.url);
   url.searchParams.set("auth_error", "auth_required");
   

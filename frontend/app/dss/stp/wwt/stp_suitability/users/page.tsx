@@ -6,7 +6,6 @@ import { CategoryProvider } from "@/contexts/stp_suitability/admin/CategoryConte
 import { MapProvider } from "@/contexts/stp_suitability/users/DrainMapContext";
 import RiverSelector from "@/app/dss/stp/wwt/stp_suitability/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
-import CategorySelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/Category";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import MapView from "@/app/dss/stp/wwt/stp_suitability/users/components/openlayer";

@@ -74,8 +74,8 @@ async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
         raise CustomException(403, "Invalid action")
 
     email = data["email"]
-    AuthService().verify_by_admin(db,bg,email=email,status="approved")
-    return JSONResponse({"message": f"User with email {email} has been approved."})
+    return AuthService().verify_by_admin(db,bg,email=email,status="approved")
+
 
 @app.get("/admin/reject")
 @validate
@@ -93,5 +93,4 @@ async def reject_user(db:db_dependency,bg:BackgroundTasks,token: str):
         raise CustomException(403, "Invalid action")
 
     email = "saxenarajat499@gmail.com"
-    AuthService().verify_by_admin(db,bg,email=email,status="rejected")
-    return JSONResponse({"message": f"User with email {email} has been rejected."})
+    return AuthService().verify_by_admin(db,bg,email=email,status="rejected")

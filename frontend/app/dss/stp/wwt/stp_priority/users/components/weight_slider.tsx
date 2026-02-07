@@ -94,8 +94,8 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ editable = false }) => 
                   </span>
 
                   <div className="relative group flex-shrink-0">
-                    <span className="text-gray-400 cursor-pointer text-sm">
-                      ℹ️
+                    <span className="text-gray-900 bg-yellow-200  cursor-pointer text-sm font-mono">
+                      ⓘ
                     </span>
 
                     <div

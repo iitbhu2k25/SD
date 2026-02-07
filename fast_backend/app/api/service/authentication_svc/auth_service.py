@@ -191,7 +191,18 @@ class AuthService(AuthServiceInterface):
                 "status":"rejected"
                 }
         self.email.approval_status(background=bg,email=email,status=status)
-        return UserCrud(db).update_email(new_data)
+        UserCrud(db).update_email(new_data)
+        return f"""
+            <html>
+                <head>
+                    <title>{status}</title>
+                </head>
+                <body style="font-family: Arial; text-align: center; margin-top: 80px;">
+                    <h2>✅ User Approved</h2>
+                    <p>User with email <strong>{email}</strong> has been {status}.</p>
+                </body>
+            </html>
+            """
        
     def verify_otp(self,db:Session,user:UserOut,otp:str)->UserOut:
         try:

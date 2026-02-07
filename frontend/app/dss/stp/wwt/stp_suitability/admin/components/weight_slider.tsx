@@ -107,8 +107,8 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
 
                     {category.details && (
                       <div className="relative group flex-shrink-0">
-                        <span className="text-gray-400 cursor-pointer text-sm">
-                          ℹ️
+                        <span className="text-gray-900 bg-yellow-200  cursor-pointer text-sm font-mono">
+                          ⓘ
                         </span>
 
                         <div
@@ -283,7 +283,7 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
                       }
                       className="h-4 w-4 text-blue-600 rounded flex-shrink-0"
                     />
-                    <span 
+                    <span
                       title={category.file_name}
                       className="font-medium text-gray-700 truncate"
                     >
@@ -292,8 +292,8 @@ export const CategorySlider: React.FC<CategorySliderProps> = ({ activeTab, edita
 
                     {category.details && (
                       <div className="relative group flex-shrink-0">
-                        <span className="text-gray-400 cursor-pointer text-sm">
-                          ℹ️
+                        <span className="text-gray-900 bg-yellow-200  cursor-pointer text-sm font-mono">
+                          ⓘ
                         </span>
 
                         <div

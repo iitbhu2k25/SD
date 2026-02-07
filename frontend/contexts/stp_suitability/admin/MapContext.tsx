@@ -107,15 +107,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   } = useLocation();
   const { selectedCategory, setShowTable, setTableData} =
     useCategory();
-  // Function to reset map view (zoom to default)
+
   const resetMapView = (): void => {
     setRasterLayerInfo(null);
     setShowTable(false);
     setTableData([]);
     setResultLayer(null)
-    setSelectedVillages([]);
-    setShowResultLayer(false);
-    
+    setSelectedVillages([]); 
+    resultLayer
 
   };
   const handleLayerSelection = (layerName: string) => {

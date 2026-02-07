@@ -368,7 +368,6 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     setShowCatchment(false);
     setShowTable(false);
     setAnalysisCachement(false);
-    setShowCatchmentLayer(false);
   };
 
   const contextValue: RiverSystemContextType = {
