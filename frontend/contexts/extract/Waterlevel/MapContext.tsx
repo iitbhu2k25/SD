@@ -156,7 +156,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: "/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json",
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`,
       }),
       style: indiaBoundaryStyle,
       zIndex: 1,
@@ -165,7 +165,7 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     const waterLevelLayer = new ImageLayer({
       source: new ImageWMS({
-        url: "/geoserver/api/myworkspace/wms",
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wms`,
         params: {
           LAYERS: "myworkspace:waterlevel",
           TILED: true,

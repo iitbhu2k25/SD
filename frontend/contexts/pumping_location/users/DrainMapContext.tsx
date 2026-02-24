@@ -91,7 +91,7 @@ const MapContext = createContext<MapContextType>({
   isMapLoading: false,
   zoomToFeature: () => { },
   resetMapView: () => { },
-  geoServerUrl: "/geoserver/api",
+  geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   defaultWorkspace: "vector_work",
   DRAIN_LAYER_NAMES,
   loading: false,
@@ -104,7 +104,7 @@ const MapContext = createContext<MapContextType>({
 // Create the provider component
 export const MapProvider: React.FC<MapProviderProps> = ({
   children,
-  geoServerUrl = "/geoserver/api",
+  geoServerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   defaultWorkspace = "vector_work",
 }) => {
   const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);

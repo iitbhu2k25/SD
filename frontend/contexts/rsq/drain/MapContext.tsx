@@ -25,7 +25,7 @@ import { useRSQ } from "./RsqContext";
 import CircleStyle from "ol/style/Circle";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = "/geoserver/api/myworkspace/wfs";
+const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs`;
 
 // Base maps configuration
 interface BaseMapDefinition {

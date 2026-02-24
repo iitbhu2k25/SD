@@ -661,7 +661,7 @@ const Maping: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const primaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
@@ -723,7 +723,7 @@ const Maping: React.FC = () => {
 
     setIsLoading(true);
 
-    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+    const secondaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
       ? LayerFilterValue.map((v) => `'${v}'`).join(",")
       : `'${LayerFilterValue}'`
       })`;
@@ -788,7 +788,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api/wms";
+      const layerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
       const workspace = rasterLayerInfo.workspace;
       const layerName = rasterLayerInfo.layer_name;
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;

@@ -38,7 +38,7 @@ interface BaseMapDefinition {
     label: string;
 }
 
-const GEOSERVER_WFS_URL = '/geoserver/api/myworkspace/wfs';
+const GEOSERVER_WFS_URL = '${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs';
 const WORKSPACE = 'myworkspace';
 const BASIN_BOUNDARY_LAYER = 'basin_boundary';
 

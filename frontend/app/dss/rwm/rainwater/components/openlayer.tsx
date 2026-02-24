@@ -710,7 +710,7 @@ const Maping: React.FC<MapingProps> = ({
 
     // Construct WFS URL for primary layer with filters_value
     let primaryWfsUrl =
-      `/geoserver/api/wfs?` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?` +
       "service=WFS&" +
       "version=1.1.0&" +
       "request=GetFeature&" +
@@ -802,7 +802,7 @@ const Maping: React.FC<MapingProps> = ({
     setSecondaryLayerLoading(true);
     // Construct WFS URL for secondary layer
     const secondaryWfsUrl =
-      `/geoserver/api/wfs?` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?` +
       "service=WFS&" +
       "version=1.1.0&" +
       "request=GetFeature&" +
@@ -1076,7 +1076,7 @@ const Maping: React.FC<MapingProps> = ({
     }
 
     try {
-      const layerUrl = "/geoserver/api/wms";
+      const layerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
         rasterLayerInfo.layer_name ||

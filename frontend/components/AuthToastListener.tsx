@@ -17,7 +17,7 @@ export default function AuthToastListener() {
     const reason = searchParams.get("auth_error");
 
     if (!reason) {
-      console.log("❌ No auth_error found");
+      
       return;
     }
 

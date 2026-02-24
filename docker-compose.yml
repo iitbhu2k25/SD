@@ -1,15 +1,15 @@
 
 services:
-  frontend:
-    build:
-      context: ./frontend/
-      dockerfile: dockerfile.frontend 
-    image: frontend:latest
-    ports:
-      - "3100:3000"
-    volumes:
-      - ./frontend:/home/app:z
-    command: npm start
+  # frontend:
+  #   build:
+  #     context: ./frontend/
+  #     dockerfile: dockerfile.frontend 
+  #   image: frontend:latest
+  #   ports:
+  #     - "3100:3000"
+  #   volumes:
+  #     - ./frontend:/home/app:z
+  #   command: npm start
 
   database:
     image: postgres:16
@@ -188,61 +188,6 @@ services:
     env_file:
       - ./fast_backend/.fastdb.env
     restart: always
-
-  # celery_exporter:
-  #   image: danihodovic/celery-exporter:0.12.2
-  #   container_name: celery_exporter
-  #   command: >
-  #     --broker-url redis://redis:6379/0 --port 9808
-  #   ports:
-  #     - "9808:9808"
-  #   restart: always
-  #   depends_on:
-  #     - redis
-
-
-  # prometheus:
-  #   image: prom/prometheus
-  #   container_name: prometheus
-  #   ports:
-  #     - "9092:9090"
-  #   volumes:
-  #     - ./fast_backend/logs/prometheus.yml:/etc/prometheus/prometheus.yml
-  #   depends_on:
-  #     - redis
-  #     - celery_low
-
-  #   restart: always
-
-  # redis_exporter:
-  #   image: oliver006/redis_exporter
-  #   container_name: redis_exporter
-  #   environment:
-  #     REDIS_ADDR: "redis:6379"
-  #   ports:
-  #     - "9121:9121"
-  #   restart: always
-  #   depends_on:
-  #     - redis
-
-  # node_exporter:
-  #   image: prom/node-exporter
-  #   container_name: node_exporter
-  #   ports:
-  #     - "9100:9100"
-  #   restart: always
-
-  # grafana:
-  #   image: grafana/grafana
-  #   container_name: grafana
-  #   ports:
-  #     - "3001:3000"
-  #   volumes:
-  #     - grafana_data:/var/lib/grafana
-  #   depends_on:
-  #     - prometheus
-  #   restart: always
-
 
 volumes:
   postgres_data:

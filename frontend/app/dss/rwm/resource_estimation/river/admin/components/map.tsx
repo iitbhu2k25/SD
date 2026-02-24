@@ -298,7 +298,7 @@ const MapComponent: React.FC = () => {
       }
       // Your GeoServer URL - adjust this to match your setup
       const geoserverUrl =
-        "/geoserver/api/myworkspace/wfs";
+        `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs`;
 
       // You can also add color scheme configuration here
       const colorScheme = {

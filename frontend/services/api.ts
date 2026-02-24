@@ -13,42 +13,36 @@ interface RequestOptions {
   responseType?: "json" | "blob" | "text";
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL;
 
 function buildQuery(params?: Record<string, string | number>): string {
   if (!params) return "";
   return `?${new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)])
+    Object.entries(params).map(([k, v]) => [k, String(v)]),
   )}`;
 }
 
 async function callBackend(
   method: HttpMethod,
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<Response> {
-  const {
-    headers = {},
-    params,
-    body,
-    authToken,
-    responseType = "json",
-  } = options;
+  const { headers = {}, params, body, authToken } = options;
 
-  const token = authToken ?? useAuthStore.getState().accessToken ?? "test-token";
+  const token = authToken ?? useAuthStore.getState().accessToken;
   const url = `${BASE_URL}${endpoint}${buildQuery(params)}`;
-  
+  const isFormData = body instanceof FormData;
+
   return fetch(url, {
     method,
     credentials: "include",
     headers: {
-      ...(responseType === "json" && body
-        ? { "Content-Type": "application/json" }
-        : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
+      ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
+      ...(isFormData ? {} : headers),
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(body ? { body: isFormData ? body : JSON.stringify(body) } : {}),
   });
 }
 
@@ -60,15 +54,14 @@ async function refreshAccessToken(): Promise<string> {
   isRefreshing = true;
 
   refreshPromise = (async () => {
-    const res = await fetch(`/access_token`, {
+    const res = await fetch(`${TOKEN_URL}`, {
       method: "POST",
       credentials: "include",
     });
-    console.log("access failed", res)
     if (res.status >= 400) {
       toast.error("All Sessions expired. Please login again.");
       await performLogout();
-      return
+      return;
     }
     const data = await res.json();
     useAuthStore.getState().setAccessToken(data);
@@ -85,7 +78,7 @@ async function refreshAccessToken(): Promise<string> {
 
 async function parseResponse<T>(
   res: Response,
-  responseType?: RequestOptions["responseType"]
+  responseType?: RequestOptions["responseType"],
 ): Promise<T | null> {
   if (res.status === 204) return null;
   if (responseType === "blob") return (await res.blob()) as T;
@@ -98,9 +91,8 @@ export async function request<T>(
   method: HttpMethod,
   endpoint: string,
   options: RequestOptions = {},
-  retry = true
+  retry = true,
 ): Promise<{ status: number; message: T | null }> {
-
   let res = await callBackend(method, endpoint, options);
 
   if (res.status === 401 && retry) {

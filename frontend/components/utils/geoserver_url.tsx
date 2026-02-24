@@ -19,7 +19,7 @@ export const createWFSVectorSource = ({
   layerName,
   layerFilter,
   srs = "EPSG:3857",
-  url = "/geoserver/api/wfs"
+  url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs`
 }: WFSOptions): VectorSource => {
   // base params
   const wfsParams: Record<string, string> = {

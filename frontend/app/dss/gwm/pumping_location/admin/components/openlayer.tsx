@@ -548,7 +548,7 @@ const Mapping: React.FC = () => {
   const handleVectorLayer = (layer: string | null, type: 'primary' | 'secondary' | 'result') => {
     if (!mapInstanceRef.current || !layer) return;
 
-    const wfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857${type === 'secondary' && LayerFilterValue && LayerFilter
+    const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layer}&outputFormat=application/json&srsname=EPSG:3857${type === 'secondary' && LayerFilterValue && LayerFilter
       ? `&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue) ? LayerFilterValue.map(v => `'${v}'`).join(",") : `'${LayerFilterValue}'`})`
       : ''
       }`;
@@ -625,7 +625,7 @@ const Mapping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api/wms";
+      const layerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
       const workspace = rasterLayerInfo.workspace;
       const layerName = rasterLayerInfo.layer_name;
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;

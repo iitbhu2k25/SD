@@ -14,7 +14,7 @@
 // import 'ol-layerswitcher/dist/ol-layerswitcher.css';
 
 // // Define GeoServer connection settings
-// const GEOSERVER_URL = '/geoserver/api/wms';
+// const GEOSERVER_URL = '${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms';
 // const WORKSPACE = 'admin';
 
 // const GeoServerMapComponent = () => {

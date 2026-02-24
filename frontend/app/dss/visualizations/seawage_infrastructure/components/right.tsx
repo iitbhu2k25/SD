@@ -58,7 +58,7 @@ const Right = () => {
                 const baseName =
                     activeShapefile.shapefile_path.split('/').pop()?.replace('.shp', '') ||
                     activeShapefile.shapefile_name;
-                const url = `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${baseName}&outputFormat=application/json`;
+                const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${baseName}&outputFormat=application/json`;
 
                 const res = await fetch(url);
                 const data = await res.json();

@@ -171,7 +171,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:India" +
             "&outputFormat=application/json",
@@ -184,7 +184,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:varuna_subbasin_data" +
             "&outputFormat=application/json",
@@ -198,7 +198,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:Streams_clipped" +
             "&outputFormat=application/json",
@@ -514,7 +514,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:varuna_subbasin_data` +
       `&outputFormat=application/json` +
@@ -583,7 +583,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:Streams_clipped` +
       `&outputFormat=application/json` +

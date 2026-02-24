@@ -413,8 +413,8 @@ const Maping: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
-    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const primaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const boundaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
@@ -622,7 +622,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api/wms";
+      const layerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName = rasterLayerInfo.layer_name || "Clipped_STP_Priority_Map";
       const fullLayerName = workspace ? `${workspace}:${layerName}` : layerName;

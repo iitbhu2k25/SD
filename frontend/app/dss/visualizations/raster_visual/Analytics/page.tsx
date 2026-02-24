@@ -49,8 +49,8 @@ const Analytics: React.FC = () => {
   const [showLegend, setShowLegend] = useState(true);
 
   // Constants
-  const GEOSERVER_URL = "/geoserver/api/wms";
-  const GEOSERVER_MVT_URL = "/geoserver/api/gwc/service/tms/1.0.0";
+  const GEOSERVER_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
+  const GEOSERVER_MVT_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/gwc/service/tms/1.0.0`;
   const Vector_workspace = "vector_work";
   const Raster_workspace = "raster_work";
   const FIXED_VECTOR_LAYER = "STP_State";

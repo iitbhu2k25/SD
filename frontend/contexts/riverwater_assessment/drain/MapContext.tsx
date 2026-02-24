@@ -895,7 +895,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
 
     const wmsLayer = new TileLayer({
       source: new TileWMS({
-        url: `/geoserver/api/wms`,
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`,
         params: {
           LAYERS: `riverwater_assessment:${parameter.toLowerCase()}_${season}_stretch_interpolation`,
           TILED: true,
