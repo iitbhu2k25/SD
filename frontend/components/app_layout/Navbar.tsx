@@ -83,29 +83,29 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" }
   ],
 
-  // Visualization
+  // Tools
   "/dss/watershed": [
-    { label: "Visualization", href: "#" },
+    { label: "Tools", href: "#" },
     { label: "Watershed", href: "/dss/watershed" }
   ],
-  "/dss/visualizations/vector_visual": [
-    { label: "Visualization", href: "#" },
-    { label: "Vector", href: "/dss/visualizations/vector_visual" }
+  "/dss/Tools/vector_visual": [
+    { label: "Tools", href: "#" },
+    { label: "Vector", href: "/dss/Tools/vector_visual" }
   ],
-  "/dss/visualizations/raster_visual": [
-    { label: "Visualization", href: "#" },
-    { label: "Raster", href: "/dss/visualizations/raster_visual" }
+  "/dss/Tools/raster_visual": [
+    { label: "Tools", href: "#" },
+    { label: "Raster", href: "/dss/Tools/raster_visual" }
   ],
-  "/dss/visualizations/model_water": [
-    { label: "Visualization", href: "#" },
-    { label: "Water", href: "/dss/visualizations/model_water" }
+  "/dss/Tools/model_water": [
+    { label: "Tools", href: "#" },
+    { label: "Water", href: "/dss/Tools/model_water" }
   ],
   "/dss/seawage_infrastructure": [
-    { label: "Visualization", href: "#" },
+    { label: "Tools", href: "#" },
     { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }
   ],
   "/dss/extractdata": [
-    { label: "Visualization", href: "#" },
+    { label: "Tools", href: "#" },
     { label: "Extract Data", href: "/dss/extractdata" }
   ],
 
@@ -1238,70 +1238,70 @@ const Navbar = (): JSX.Element => {
                 </ul>
               </li>
 
-              {/* Visualization */}
+              {/* Tools */}
               <li
                 className="relative group flex-shrink-0"
-                onMouseEnter={() => toggleDropdown("visualization", true)}
-                onMouseLeave={() => toggleDropdown("visualization", false)}
+                onMouseEnter={() => toggleDropdown("Tools", true)}
+                onMouseLeave={() => toggleDropdown("Tools", false)}
               >
                 <button
-                  onClick={() => toggleDropdown("visualization", !openDropdowns.visualization)}
+                  onClick={() => toggleDropdown("Tools", !openDropdowns.Tools)}
                   className={navLinkClasses}
                 >
-                  Visualization
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.visualization ? 'rotate-180' : ''}`} />
+                  Tools
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.Tools ? 'rotate-180' : ''}`} />
                 </button>
                 <ul
-                  className={`${openDropdowns.visualization ? "block" : "hidden"
+                  className={`${openDropdowns.Tools ? "block" : "hidden"
                     } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[200px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
                   <li>
                     <Link
-                      href="/dss/visualizations/vector_visual"
+                      href="/dss/Tools/vector_visual"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Vector", href: "/dss/visualizations/vector_visual" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Vector", href: "/dss/Tools/vector_visual" }])}>
                       Vector
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/dss/visualizations/raster_visual"
+                      href="/dss/Tools/raster_visual"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Raster", href: "/dss/visualizations/raster_visual" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Raster", href: "/dss/Tools/raster_visual" }])}>
                       Raster
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/dss/visualizations/watershed"
+                      href="/dss/Tools/watershed"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Watershed", href: "/dss/watershed" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Watershed", href: "/dss/watershed" }])}>
                       Watershed
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/dss/visualizations/model_water"
+                      href="/dss/Tools/model_water"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Water", href: "/dss/visualizations/model_water" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Water", href: "/dss/Tools/model_water" }])}>
                       Water
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/dss/visualizations/seawage_infrastructure"
+                      href="/dss/Tools/seawage_infrastructure"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "seawage_infrastructure", href: "/dss/visualizations/seawage_infrastructure" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "seawage_infrastructure", href: "/dss/Tools/seawage_infrastructure" }])}>
                       NMCG
                     </Link>
                   </li>
                   <li>
                     <Link
-                      href="/dss/visualizations/extractdata"
+                      href="/dss/Tools/extractdata"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Visualization", href: "#" }, { label: "Extract data", href: "/dss/extractdata" }])}>
+                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Extract data", href: "/dss/extractdata" }])}>
                       Extract Data
                     </Link>
                   </li>

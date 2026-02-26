@@ -40,7 +40,7 @@ pyjwt[crypto]
 pyjwt
 redis[hiredis]
 aiosmtplib
-fastapi-mail==1.5.7
+fastapi-mail
 pyotp
 datashader
 reportlab

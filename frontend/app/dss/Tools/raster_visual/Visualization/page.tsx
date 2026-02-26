@@ -82,7 +82,7 @@ const Visualization: React.FC = () => {
 
   // Constants
   const GEOSERVER_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
-  const GEOSERVER_MVT_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/gwc/service/tms/1.0.0`; // MVT endpoint
+  const GEOSERVER_MVT_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/gwc/service/tms/1.0.0`; 
   const Vector_workspace = "vector_work";
   const Raster_workspace = "raster_visualization";
   const FIXED_VECTOR_LAYER = "STP_State";

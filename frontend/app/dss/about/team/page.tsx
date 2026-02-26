@@ -161,7 +161,7 @@ export default function TeamPage() {
     {
       image: "/Images/about/rajat.webp",
       title: "Rajat Saxena",
-      body: "Software Architect",
+      body: "Software Lead",
       title_type: "normal",
     },
     {

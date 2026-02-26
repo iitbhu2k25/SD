@@ -1377,3 +1377,4 @@ def final_step1(self,results: List[dict],table_data:list,location_data:list,weig
     except Exception as e:
         logger.error(f"PDF generation failed: {e}")
         raise
+    

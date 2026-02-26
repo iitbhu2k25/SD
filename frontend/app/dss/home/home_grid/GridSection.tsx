@@ -197,7 +197,7 @@ export default function GridSection() {
       
       {/* Background Starfield (Subtle) for the Rocket Context */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-          {[...Array(15)].map((_, i) => (
+          {/* {[...Array(15)].map((_, i) => (
              <div 
                 key={i}
                 className="absolute bg-slate-300 rounded-full"
@@ -209,7 +209,7 @@ export default function GridSection() {
                     opacity: 0.3
                 }}
              />
-          ))}
+          ))} */}
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10">

@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Analytics from "@/app/dss/visualizations/raster_visual/Analytics/page";
-import Visualization from "@/app/dss/visualizations/raster_visual/Visualization/page";
+import Analytics from "@/app/dss/Tools/raster_visual/Analytics/page";
+import Visualization from "@/app/dss/Tools/raster_visual/Visualization/page";
 
 // Types
 type ViewType = "Visualization" | "Analytics";

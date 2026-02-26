@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
+       {
+        source: '/geoserver/api/:path*',
+        destination: 'http://localhost:9090/geoserver/:path*'
+      },
     ]
   },
 }
