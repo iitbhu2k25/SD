@@ -45,6 +45,19 @@ interface StateOption {
   state_code: string;
 }
 
+interface DistrictOption {
+  label: string;
+  district_code: string;
+  state_code: string;
+}
+
+interface RiverOption {
+  label: string;
+  rivname: string;
+  state_code?: string;
+  district_code?: string;
+}
+
 interface MapContextProps {
   map: Map | null;
   toggleBaseMap: () => void;
@@ -59,6 +72,13 @@ interface MapContextProps {
   states: StateOption[];
   selectedStateCode: string | null;
   setSelectedStateCode: (code: string | null) => void;
+  districts: DistrictOption[];
+  selectedDistrictCode: string | null;
+  setSelectedDistrictCode: (code: string | null) => void;
+  rivers: RiverOption[];
+  selectedRiverName: string | null;
+  setSelectedRiverName: (name: string | null) => void;
+  hoverInfo: string | null;
 }
 
 const MapContext = createContext<MapContextProps | undefined>(undefined);
@@ -72,46 +92,64 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
   const [isLoading, setIsLoading] = useState(false);
   const [states, setStates] = useState<StateOption[]>([]);
   const [selectedStateCode, setSelectedStateCode] = useState<string | null>(null);
+  const [districts, setDistricts] = useState<DistrictOption[]>([]);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<string | null>(null);
+  const [rivers, setRivers] = useState<RiverOption[]>([]);
+  const [selectedRiverName, setSelectedRiverName] = useState<string | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<string | null>(null);
 
   const indiaBoundaryStyle = new Style({
     fill: new Fill({ color: "rgba(0, 0, 0, 0.01)" }),
     stroke: new Stroke({ color: "blue", width: 2 }),
   });
 
-const fetchHydrographStationData = async (stationCode: string) => {
-  try {
-    const currentDate = new Date().toISOString().split("T")[0];
-    const startDate = "2016-01-01";
-    const apiUrl = "/django/extract/level";
+  const districtBoundaryStyle = new Style({
+    fill: new Fill({ color: "rgba(0, 0, 0, 0.01)" }),
+    stroke: new Stroke({ color: "green", width: 1 }),
+  });
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        stationCode: `'${stationCode}'`,
-        startDate,
-        endDate: currentDate,
-      }),
-    });
+  const riverStyle = new Style({
+    stroke: new Stroke({ color: "#0ea5e9", width: 2 }),
+  });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+  const riverHighlightStyle = new Style({
+    stroke: new Stroke({ color: "#f59e0b", width: 3 }),
+  });
+
+  const fetchHydrographStationData = async (stationCode: string) => {
+    try {
+      const currentDate = new Date().toISOString().split("T")[0];
+      const startDate = "2016-01-01";
+      const apiUrl = "/django/extract/level";
+
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stationCode: `'${stationCode}'`,
+          startDate,
+          endDate: currentDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Always return an array
+      if (Array.isArray(data)) return data; // already an array
+      if (data.data && Array.isArray(data.data)) return data.data; // extract from "data" field
+      if (data.message === "External API returned no valid data") return []; // return empty array for no-data message
+
+      return []; // fallback to empty array
+    } catch (error) {
+      console.error("[ERROR] fetchHydrographStationData:", error);
+      return []; // return empty array instead of throwing to prevent .sort error
     }
-
-    const data = await response.json();
-
-    // Always return an array
-    if (Array.isArray(data)) return data; // already an array
-    if (data.data && Array.isArray(data.data)) return data.data; // extract from "data" field
-    if (data.message === "External API returned no valid data") return []; // return empty array for no-data message
-
-    return []; // fallback to empty array
-  } catch (error) {
-    console.error("[ERROR] fetchHydrographStationData:", error);
-    return []; // return empty array instead of throwing to prevent .sort error
-  }
-};
+  };
 
 
   const updatePopupPosition = (coordinate: number[]) => {
@@ -228,11 +266,246 @@ const fetchHydrographStationData = async (stationCode: string) => {
       }
     });
 
+    // Initialize with "All Rivers" option
+    setRivers([{ label: "All Rivers", rivname: "" }]);
+
     setMap(initialMap);
     setPopupOverlay(overlay);
   }, []);
 
-  // Apply CQL filter when selectedStateCode changes
+  // Filter rivers based on selected district - dynamically fetch from GeoServer
+  useEffect(() => {
+    if (!selectedDistrictCode || selectedDistrictCode === "") {
+      // If no district selected, show all rivers
+      setRivers([{ label: "All Rivers", rivname: "" }]);
+      setSelectedRiverName(null);
+      return;
+    }
+
+    // Fetch rivers for the selected district from GeoServer
+    const fetchDistrictRivers = async () => {
+      try {
+        const cqlFilter = `DISTRICT_C='${selectedDistrictCode}'`;
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&propertyName=rivname,DISTRICT_C&CQL_FILTER=${encodeURIComponent(cqlFilter)}`
+        );
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          const riverList = (data.features as any[])
+            .map<RiverOption | null>((f) => {
+              const rivname =
+                f.properties?.rivname ||
+                f.properties?.RIVNAME ||
+                f.properties?.RivName;
+
+              const district_code =
+                f.properties?.DISTRICT_C ||
+                f.properties?.district_c ||
+                f.properties?.DistrictCode;
+
+              return rivname
+                ? {
+                    label: rivname,
+                    rivname,
+                    district_code,
+                  }
+                : null;
+            })
+            .filter((item): item is RiverOption => item !== null);
+
+          // Remove duplicates and sort
+          const uniqueRivers = Array.from(
+            new Set(riverList.map(r => r.rivname))
+          ).map(rivname => {
+            return riverList.find(r => r.rivname === rivname)!;
+          }).sort((a, b) => a.label.localeCompare(b.label));
+
+          setRivers([{ label: "All Rivers", rivname: "" }, ...uniqueRivers]);
+
+          // Reset river selection
+          setSelectedRiverName(null);
+        } else {
+          // No rivers found for this district
+          setRivers([{ label: "All Rivers", rivname: "" }]);
+          setSelectedRiverName(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch district rivers:", error);
+        setRivers([{ label: "All Rivers", rivname: "" }]);
+        setSelectedRiverName(null);
+      }
+    };
+
+    fetchDistrictRivers();
+  }, [selectedDistrictCode]);
+
+  // Apply river filter when river is selected - load river layer dynamically
+  useEffect(() => {
+    if (!map) return;
+
+    // Get existing river layer if any
+    let riverLayer = map.getLayers().getArray().find(l => l.get("name") === "riverLayer") as VectorLayer<VectorSource>;
+
+    if (!selectedRiverName || selectedRiverName === "") {
+      // Remove river layer if "All Rivers" selected
+      if (riverLayer) {
+        map.removeLayer(riverLayer);
+      }
+      return;
+    }
+
+    // Build CQL filter for selected river with district context
+    let cqlFilter = `rivname='${selectedRiverName}'`;
+
+    // Add district filter if district is selected
+    if (selectedDistrictCode && selectedDistrictCode !== "") {
+      cqlFilter += ` AND DISTRICT_C='${selectedDistrictCode}'`;
+    }
+
+    if (!riverLayer) {
+      // Create new river layer with selected river only
+      riverLayer = new VectorLayer({
+        source: new VectorSource({
+          format: new GeoJSON(),
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+        }),
+        style: riverHighlightStyle,
+        zIndex: 3,
+        properties: { name: "riverLayer" },
+      });
+
+      map.addLayer(riverLayer);
+
+      // Zoom to river when loaded
+      riverLayer.getSource()?.on("featuresloadend", () => {
+        const source = riverLayer.getSource();
+        if (!source) return;
+
+        const extent = source.getExtent();
+        if (extent && extent.some(isFinite)) {
+          map.getView().fit(extent, {
+            duration: 1000,
+            padding: [100, 100, 100, 100],
+            maxZoom: 8,
+          });
+        }
+      });
+    } else {
+      // Update existing layer with new filter
+      const source = riverLayer.getSource();
+      if (source) {
+        const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+
+        source.clear();
+        source.setUrl(newUrl);
+        source.refresh();
+
+        // Zoom to river when loaded
+        source.once("featuresloadend", () => {
+          const extent = source.getExtent();
+          if (extent && extent.some(isFinite)) {
+            map.getView().fit(extent, {
+              duration: 1000,
+              padding: [100, 100, 100, 100],
+              maxZoom: 8,
+            });
+          }
+        });
+      }
+    }
+  }, [selectedRiverName, selectedDistrictCode, map]);
+
+  // Dynamically load district layer when state is selected
+  useEffect(() => {
+    if (!map || !selectedStateCode || selectedStateCode === "") {
+      // Remove district layer if no state selected
+      if (map) {
+        const existingLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase");
+        if (existingLayer) {
+          map.removeLayer(existingLayer);
+        }
+      }
+      setDistricts([{ label: "All Districts", district_code: "", state_code: "" }]);
+      setSelectedDistrictCode(null);
+      return;
+    }
+
+    // Check if district layer already exists
+    let districtLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase") as VectorLayer<VectorSource>;
+
+    if (!districtLayer) {
+      // Create new district layer with CQL filter for selected state
+      const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
+
+      districtLayer = new VectorLayer({
+        source: new VectorSource({
+          format: new GeoJSON(),
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+        }),
+        style: districtBoundaryStyle,
+        zIndex: 2,
+        properties: { name: "districtBase" },
+      });
+
+      // Add layer to map
+      map.addLayer(districtLayer);
+
+      // Load districts when features are loaded
+      districtLayer.getSource()?.on("featuresloadend", () => {
+        const source = districtLayer.getSource();
+        if (!source) return;
+
+        const features = source.getFeatures();
+        const districtList: DistrictOption[] = features
+          .map((f: Feature<Geometry>) => {
+            const props = f.getProperties();
+            const label = props.DISTRICT || props.district || props.District || "Unknown";
+            const districtCode = props.DISTRICT_C || props.district_c || props.DistrictCode;
+            const stateCode = props.STATE_CODE || props.state_code || props.StateCode;
+            return { label, district_code: districtCode, state_code: stateCode } as DistrictOption;
+          })
+          .filter((item): item is DistrictOption => item !== null && Boolean(item.district_code))
+          .sort((a, b) => a.label.localeCompare(b.label));
+
+        setDistricts([{ label: "All Districts", district_code: "", state_code: selectedStateCode }, ...districtList]);
+      });
+    } else {
+      // Update existing layer with new CQL filter
+      const source = districtLayer.getSource();
+      if (source) {
+        const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
+        const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+
+        // Clear and reload source
+        source.clear();
+        source.setUrl(newUrl);
+        source.refresh();
+
+        // Reload districts when features are loaded
+        source.once("featuresloadend", () => {
+          const features = source.getFeatures();
+          const districtList: DistrictOption[] = features
+            .map((f: Feature<Geometry>) => {
+              const props = f.getProperties();
+              const label = props.DISTRICT || props.district || props.District || "Unknown";
+              const districtCode = props.DISTRICT_C || props.district_c || props.DistrictCode;
+              const stateCode = props.STATE_CODE || props.state_code || props.StateCode;
+              return { label, district_code: districtCode, state_code: stateCode } as DistrictOption;
+            })
+            .filter((item): item is DistrictOption => item !== null && Boolean(item.district_code))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+          setDistricts([{ label: "All Districts", district_code: "", state_code: selectedStateCode }, ...districtList]);
+        });
+      }
+    }
+
+    // Reset district selection when state changes
+    setSelectedDistrictCode(null);
+  }, [selectedStateCode, map]);
+
+  // Apply CQL filter when selectedStateCode or selectedDistrictCode changes
   useEffect(() => {
     if (!map) return;
 
@@ -244,42 +517,103 @@ const fetchHydrographStationData = async (stationCode: string) => {
 
     const params = source.getParams();
 
-    if (!selectedStateCode || selectedStateCode === "") {
-      delete params.CQL_FILTER;
+    // Build CQL filter based on state and district selection
+    let cqlFilter = "";
+
+    if (selectedDistrictCode && selectedDistrictCode !== "") {
+      // District filter takes priority
+      cqlFilter = `DISTRICT_C = '${selectedDistrictCode}'`;
+    } else if (selectedStateCode && selectedStateCode !== "") {
+      // State filter
+      cqlFilter = `STATE_CODE = '${selectedStateCode}'`;
+    }
+
+    if (cqlFilter) {
+      params.CQL_FILTER = cqlFilter;
     } else {
-      params.CQL_FILTER = `STATE_CODE = '${selectedStateCode}'`;
+      delete params.CQL_FILTER;
     }
 
     source.updateParams({ ...params, t: Date.now() }); // Force refresh
-  }, [selectedStateCode, map]);
+  }, [selectedStateCode, selectedDistrictCode, map]);
 
-  // Zoom to selected state
+  // Zoom to selected state or district
   useEffect(() => {
-    if (!map || !selectedStateCode) return;
+    if (!map) return;
 
-    const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
-    if (!indiaLayer) return;
+    if (selectedDistrictCode && selectedDistrictCode !== "") {
+      // Zoom to district
+      const districtLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase") as VectorLayer<VectorSource>;
+      if (!districtLayer) return;
 
-    const source = indiaLayer.getSource();
-    if (!source) return;
+      const source = districtLayer.getSource();
+      if (!source) return;
 
-    const feature = source.getFeatures().find((f: Feature<Geometry>) => {
-      const code = f.get("state_code") || f.get("STATE_CODE") || f.get("StateCode");
-      return code === selectedStateCode;
-    });
-
-    if (feature) {
-      const geometry = feature.getGeometry();
-      if (geometry) {
-        const extent = geometry.getExtent();
-        map.getView().fit(extent, {
-          duration: 1000,
-          padding: [100, 100, 100, 100],
-          maxZoom: 10,
+      // Wait a bit for features to load if needed
+      const zoomToDistrict = () => {
+        const feature = source.getFeatures().find((f: Feature<Geometry>) => {
+          const code = f.get("DISTRICT_C") || f.get("district_c") || f.get("DistrictCode");
+          return code === selectedDistrictCode;
         });
+
+        if (feature) {
+          const geometry = feature.getGeometry();
+          if (geometry) {
+            const extent = geometry.getExtent();
+            map.getView().fit(extent, {
+              duration: 1000,
+              padding: [100, 100, 100, 100],
+              maxZoom: 12,
+            });
+          }
+        }
+      };
+
+      // Try immediately first
+      if (source.getFeatures().length > 0) {
+        zoomToDistrict();
+      } else {
+        // Wait for features to load
+        source.once("featuresloadend", zoomToDistrict);
+      }
+    } else if (selectedStateCode && selectedStateCode !== "") {
+      // Zoom to state
+      const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
+      if (!indiaLayer) return;
+
+      const source = indiaLayer.getSource();
+      if (!source) return;
+
+      const feature = source.getFeatures().find((f: Feature<Geometry>) => {
+        const code = f.get("state_code") || f.get("STATE_CODE") || f.get("StateCode");
+        return code === selectedStateCode;
+      });
+
+      if (feature) {
+        const geometry = feature.getGeometry();
+        if (geometry) {
+          const extent = geometry.getExtent();
+          map.getView().fit(extent, {
+            duration: 1000,
+            padding: [100, 100, 100, 100],
+            maxZoom: 10,
+          });
+        }
+      }
+    } else {
+      // Zoom back to All India
+      const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
+      if (!indiaLayer) return;
+
+      const source = indiaLayer.getSource();
+      if (!source) return;
+
+      const extent = source.getExtent();
+      if (extent && extent.some(isFinite)) {
+        map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
       }
     }
-  }, [selectedStateCode, map]);
+  }, [selectedStateCode, selectedDistrictCode, map]);
 
   const handleMapClick = async (evt: MapBrowserEvent<any>) => {
     if (!map || !popupOverlay) return;
@@ -375,6 +709,101 @@ const fetchHydrographStationData = async (stationCode: string) => {
     return () => map.un("singleclick", handleMapClick);
   }, [map, popupOverlay]);
 
+  // Add pointer move handler for hover info
+  useEffect(() => {
+    if (!map) return;
+
+    const handlePointerMove = async (evt: MapBrowserEvent<any>) => {
+      if (evt.dragging) {
+        setHoverInfo(null);
+        return;
+      }
+
+      const pixel = evt.pixel;
+      let infoText = "";
+
+      // Check for river features
+      const riverLayer = map.getLayers().getArray().find(l => l.get("name") === "riverLayer") as VectorLayer<VectorSource>;
+      if (riverLayer) {
+        const riverFeature = map.forEachFeatureAtPixel(pixel, (feature) => feature, {
+          layerFilter: (layer) => layer === riverLayer,
+        }) as Feature<Geometry> | undefined;
+
+        if (riverFeature) {
+          const rivname = riverFeature.get("rivname") || riverFeature.get("RIVNAME") || riverFeature.get("RivName");
+          infoText += `River: ${rivname || 'Unknown'}`;
+        }
+      }
+
+      // Check for state
+      const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
+      if (indiaLayer) {
+        const stateFeature = map.forEachFeatureAtPixel(pixel, (feature) => feature, {
+          layerFilter: (layer) => layer === indiaLayer,
+        }) as Feature<Geometry> | undefined;
+
+        if (stateFeature) {
+          const stateName = stateFeature.get("State") || stateFeature.get("state") || stateFeature.get("STATE");
+          if (stateName && infoText) infoText += ` | `;
+          if (stateName) infoText += `State: ${stateName}`;
+        }
+      }
+
+      // Check for district
+      const districtLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase") as VectorLayer<VectorSource>;
+      if (districtLayer) {
+        const districtFeature = map.forEachFeatureAtPixel(pixel, (feature) => feature, {
+          layerFilter: (layer) => layer === districtLayer,
+        }) as Feature<Geometry> | undefined;
+
+        if (districtFeature) {
+          const districtName = districtFeature.get("DISTRICT") || districtFeature.get("district") || districtFeature.get("District");
+          if (districtName && infoText) infoText += ` | `;
+          if (districtName) infoText += `District: ${districtName}`;
+        }
+      }
+
+      // Check for water level station
+      const resolution = map.getView().getResolution();
+      if (resolution) {
+        const waterLevelLayer = map.getLayers().getArray().find(l => l.get("name") === "waterLevel") as ImageLayer<ImageWMS>;
+        if (waterLevelLayer) {
+          const url = waterLevelLayer.getSource()?.getFeatureInfoUrl(
+            evt.coordinate,
+            resolution,
+            "EPSG:3857",
+            { INFO_FORMAT: "application/json" }
+          );
+
+          if (url) {
+            try {
+              const res = await fetch(url);
+              const data = await res.json();
+              if (data.features?.length > 0) {
+                const props = data.features[0].properties;
+                const stationName = props.name || props.NAME || props.stationCode || props.station_code;
+                const waterLevel = props.value || props.VALUE;
+
+                if (stationName && infoText) infoText += ` | `;
+                if (stationName) infoText += `Station: ${stationName}`;
+                if (waterLevel != null) infoText += ` (${Number(waterLevel).toFixed(2)}m)`;
+              }
+            } catch (err) {
+              // Silently fail for hover
+            }
+          }
+        }
+      }
+
+      setHoverInfo(infoText || null);
+    };
+
+    map.on("pointermove", handlePointerMove);
+    return () => {
+      map.un("pointermove", handlePointerMove);
+    };
+  }, [map]);
+
   useEffect(() => {
     if (!map) return;
     map.getLayers().forEach(layer => {
@@ -416,6 +845,13 @@ const fetchHydrographStationData = async (stationCode: string) => {
         states,
         selectedStateCode,
         setSelectedStateCode,
+        districts,
+        selectedDistrictCode,
+        setSelectedDistrictCode,
+        rivers,
+        selectedRiverName,
+        setSelectedRiverName,
+        hoverInfo,
       }}
     >
       {children}

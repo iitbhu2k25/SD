@@ -1,24 +1,74 @@
-// app/vector/components/sidebar.tsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import UidModal from './analysis';
+import {
+  BASEMAP_OPTIONS,
+  ANALYSIS_TOOLS,
+  DEFAULT_STYLE,
+} from '../constants/app.constants';
+import type { SidebarProps } from '../types/map.types';
+import { fetchGeoJSON, fetchShapefileDirectory, isAcceptedFile, uploadShapefile } from '../services/api.service';
+import type { UploadProgress, CrsMeta } from '../services/api.service';
 
-type SidebarProps = {
-  collapsed: boolean;
-  onToggle: () => void;
-  onMapLayerChange: (layer: string) => void;
-  onFeatureInfoToggle: (show: boolean) => void;
-  onCompassToggle: (show: boolean) => void;
-  onGridToggle: (show: boolean) => void;
-  showNotification: (
-    title: string,
-    message: string,
-    type: 'success' | 'error' | 'info'
-  ) => void;
-  onUploadShapefile: (files: FileList) => Promise<any>;
+// ─────────────────────────────────────────────────────────────────
+//  Phase display maps
+// ─────────────────────────────────────────────────────────────────
+const PHASE_LABELS: Record<string, string> = {
+  queued:     'Queued…',
+  receiving:  'Uploading',
+  extracting: 'Extracting',
+  reading:    'Reading data',
+  crs_check:  'Checking CRS',
+  converting: 'Converting',
+  done:       'Complete',
+  error:      'Error',
 };
+
+const PHASE_ICON: Record<string, string> = {
+  queued:     'fa-hourglass-start',
+  receiving:  'fa-cloud-upload-alt',
+  extracting: 'fa-file-archive',
+  reading:    'fa-map',
+  crs_check:  'fa-globe',
+  converting: 'fa-cogs',
+  done:       'fa-check-circle',
+  error:      'fa-times-circle',
+};
+
+function CrsTag({ crs }: { crs: CrsMeta }) {
+  const orig = crs.original;
+  const wasReprojected = crs.reprojected;
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+        <i className="fas fa-globe text-[9px]" />
+        {orig.code || 'No CRS'}
+      </span>
+      {wasReprojected ? (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <i className="fas fa-arrow-right text-[9px]" />
+          WGS-84
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+          <i className="fas fa-check text-[9px]" />
+          WGS-84
+        </span>
+      )}
+      {orig.assumed && (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          <i className="fas fa-exclamation-triangle text-[9px]" />
+          CRS assumed
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Sidebar component
+// ─────────────────────────────────────────────────────────────────
 
 export default function Sidebar({
   collapsed,
@@ -28,535 +78,636 @@ export default function Sidebar({
   onCompassToggle,
   onGridToggle,
   showNotification,
-  onUploadShapefile
+  onUploadShapefile,
 }: SidebarProps) {
-  // Subcategories mapping
-  const subcategories = {
-    administrative: ["district", "villages"],
-    watershed: ["varuna", "basuhi", "morwa", "all"],
-    rivers: ["varuna", "basuhi", "morwa"],
-    drains: ["varuna", "basuhi", "morwa"],
-    canals: ["all"],
-    household: ["All", "Bhadohi", "Jaunpur", "Pratapgarh", "Prayajraj", "Varanasi"],
-    roads: ["all"],
-    railways: ["all"],
-    industries: ["all"],
-    stps: ["all"],
-  };
-  type Category = keyof typeof subcategories;
-  
-  // State for form fields
-  const [category, setCategory] = useState<Category | ''>('');
+
+  // ── Feature selection state ──────────────────────────────────
+  const [category, setCategory] = useState('');
   const [subcategory, setSubcategory] = useState('');
-  const [lineColor, setLineColor] = useState('#000000');
-  const [fillColor, setFillColor] = useState('#78b4db');
-  const [opacity, setOpacity] = useState(0.8);
-  const [weight, setWeight] = useState(2);
+  const [directory, setDirectory] = useState<Record<string, string[]>>({});
+  const [categories, setCategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [loadingDirectory, setLoadingDirectory] = useState(true);
+
+  // ── Style state ──────────────────────────────────────────────
+  const [lineColor, setLineColor] = useState(DEFAULT_STYLE.lineColor);
+  const [fillColor, setFillColor] = useState(DEFAULT_STYLE.fillColor);
+  const [opacity, setOpacity] = useState(DEFAULT_STYLE.opacity);
+  const [weight, setWeight] = useState(DEFAULT_STYLE.weight);
   const [showLabels, setShowLabels] = useState(false);
+
+  // ── Display settings ─────────────────────────────────────────
   const [showGrid, setShowGrid] = useState(true);
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [showCompass, setShowCompass] = useState(true);
 
-  // Upload state
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [progressText, setProgressText] = useState<string>('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // ── Upload state ─────────────────────────────────────────────
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadDone, setUploadDone] = useState(false);
 
-  // State for Union modal
-  const [unionModalOpen, setUnionModalOpen] = useState(false);
-
-  // Dropdown state
+  // ── Dropdown state ───────────────────────────────────────────
   const [openDropdown, setOpenDropdown] = useState('');
 
-  // Update subcategory dropdown when category changes
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const directoryLoadedRef = useRef(false);
+
+  // ── Load directory once ──────────────────────────────────────
   useEffect(() => {
-    setSubcategory('');
-  }, [category]);
+    if (directoryLoadedRef.current) return;
+    const load = async () => {
+      try {
+        setLoadingDirectory(true);
+        const data = await fetchShapefileDirectory();
+        setDirectory(data);
+        const cats = Object.keys(data);
+        setCategories(cats);
+        if (cats.length > 0) setCategory(cats[0]);
+        directoryLoadedRef.current = true;
+      } catch {
+        showNotification('Error', 'Failed to load shapefile directory', 'error');
+      } finally {
+        setLoadingDirectory(false);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Update map options when they change
   useEffect(() => {
-    if (onGridToggle) onGridToggle(showGrid);
-  }, [showGrid, onGridToggle]);
-
-  useEffect(() => {
-    if (onFeatureInfoToggle) onFeatureInfoToggle(showInfoPanel);
-  }, [showInfoPanel, onFeatureInfoToggle]);
-
-  useEffect(() => {
-    if (onCompassToggle) onCompassToggle(showCompass);
-  }, [showCompass, onCompassToggle]);
-
-  // Handle dropdown toggle
-  const toggleDropdown = (id: any) => {
-    setOpenDropdown(openDropdown === id ? '' : id);
-  };
-
-  // Function to handle style changes
-  const handleStyleChange = () => {
-    if (window.updateMapStyles) {
-      window.updateMapStyles();
+    if (category && directory[category]) {
+      const subs = directory[category];
+      setSubcategories(subs);
+      setSubcategory(subs[0] ?? '');
+    } else {
+      setSubcategories([]);
+      setSubcategory('');
     }
-  };
+  }, [category, directory]);
 
-  // Load shapefile data
-  const loadShapefile = async () => {
+  useEffect(() => { onGridToggle?.(showGrid); }, [showGrid, onGridToggle]);
+  useEffect(() => { onFeatureInfoToggle?.(showInfoPanel); }, [showInfoPanel, onFeatureInfoToggle]);
+  useEffect(() => { onCompassToggle?.(showCompass); }, [showCompass, onCompassToggle]);
+
+  const toggleDropdown = useCallback((id: string) => {
+    setOpenDropdown(prev => prev === id ? '' : id);
+  }, []);
+
+  const handleStyleChange = useCallback(() => {
+    if (typeof window !== 'undefined' && window.updateMapStyles) window.updateMapStyles();
+  }, []);
+
+  // ── Load shapefile from server ───────────────────────────────
+  const loadShapefile = useCallback(async () => {
     if (!category || !subcategory) {
       showNotification('Error', 'Please select both category and subcategory', 'error');
       return;
     }
+    try {
+      showNotification('Loading', 'Fetching vector data…', 'info');
+      const geoJsonData = await fetchGeoJSON(category, subcategory);
+      if (typeof window !== 'undefined' && window.loadGeoJSON) {
+        const layer = await window.loadGeoJSON(geoJsonData, { lineColor, fillColor, opacity, weight, showLabels });
+        if (layer) {
+          onMapLayerChange(layer);
+          showNotification('Success', 'Vector data loaded successfully', 'success');
+        }
+      }
+    } catch (error: any) {
+      showNotification('Error', `Failed to load data: ${error.message}`, 'error');
+    }
+  }, [category, subcategory, lineColor, fillColor, opacity, weight, showLabels, showNotification, onMapLayerChange]);
+
+  // ── Basemap / analysis ───────────────────────────────────────
+  const selectBasemap = useCallback((basemap: string) => {
+    if (typeof window !== 'undefined' && window.changeBasemap) window.changeBasemap(basemap);
+    else showNotification('Error', 'Map interface not available', 'error');
+    toggleDropdown('');
+  }, [showNotification, toggleDropdown]);
+
+  const selectAnalysisTool = useCallback((tool: string) => {
+    toggleDropdown('');
+    if (tool === 'Spatial Analysis (All Operations)') {
+      if (typeof window !== 'undefined' && window.openSpatialAnalysisModal) window.openSpatialAnalysisModal();
+      showNotification('Spatial Analysis', 'Opening spatial analysis toolkit', 'info');
+    } else if (tool === 'Intersection') {
+      if (typeof window !== 'undefined' && window.openIntersectionModal) window.openIntersectionModal();
+      showNotification('Analysis Tool', `${tool} selected`, 'info');
+    } else {
+      showNotification('Analysis Tool', `${tool} selected`, 'info');
+    }
+  }, [showNotification, toggleDropdown]);
+
+  // ── File picking ─────────────────────────────────────────────
+  const handleFilePick = useCallback((files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const arr = Array.from(files);
+    const rejected = arr.filter(f => !isAcceptedFile(f.name));
+    if (rejected.length > 0 && rejected.length === arr.length) {
+      showNotification('Warning', 'Unrecognised file type — the server will validate. Continuing…', 'error');
+    }
+    setSelectedFiles(arr);
+    setUploadProgress(null);
+    setUploadDone(false);
+  }, [showNotification]);
+
+  const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilePick(e.target.files);
+  }, [handleFilePick]);
+
+  // ── Drag-and-drop ────────────────────────────────────────────
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+  const onDragLeave = useCallback(() => setIsDragOver(false), []);
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFilePick(e.dataTransfer.files);
+  }, [handleFilePick]);
+
+  // ── Upload ───────────────────────────────────────────────────
+  const handleUpload = useCallback(async () => {
+    if (selectedFiles.length === 0) {
+      showNotification('Error', 'No file selected', 'error');
+      return;
+    }
+
+    setUploadDone(false);
+    setUploadProgress({ pct: 0, phase: 'queued', msg: 'Starting…' });
+
+    const onProgress = (p: UploadProgress) => {
+      setUploadProgress(p);
+    };
 
     try {
-      showNotification('Loading', 'Fetching vector data...', 'info');
+      // uploadShapefile streams SSE progress and resolves with the final geojson
+      const geojson = await uploadShapefile(selectedFiles, onProgress);
 
-      // Call the loadGeoJSON function exposed by the map component
-      if (window.loadGeoJSON) {
-        const layer = await window.loadGeoJSON(category, subcategory);
-        if (layer && onMapLayerChange) {
+      // Mark done in UI
+      setUploadDone(true);
+
+      // Plot directly using the geojson we already have — NO second upload
+      if (typeof window !== 'undefined' && window.loadGeoJSON) {
+        const layer = await window.loadGeoJSON(geojson, { lineColor, fillColor, opacity, weight, showLabels });
+        if (layer) {
           onMapLayerChange(layer);
         }
-      } else {
-        showNotification('Error', 'Map interface not available', 'error');
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        showNotification('Error', `Failed to load data: ${error.message}`, 'error');
-      } else {
-        showNotification('Error', 'Failed to load data: Unknown error', 'error');
-      }
-    }
-  };
-
-  // Handle basemap change
-  const selectBasemap = (basemap: string) => {
-    // Call the changeBasemap function exposed by the map component
-    if (window.changeBasemap) {
-      window.changeBasemap(basemap);
-    } else {
-      showNotification('Error', 'Map interface not available', 'error');
-    }
-    toggleDropdown('');
-  };
-
-  // Handle analysis tool selection
-  const selectAnalysisTool = (tool: string) => {
-    showNotification('Analysis Tool', `${tool} analysis tool selected`, 'info');
-    toggleDropdown('');
-    
-    // Open the Union modal when Union is selected
-    if (tool === 'Union') {
-      setUnionModalOpen(true);
-    }
-  };
-
-  // Upload functions
-  const startSimulatedProgress = () => {
-    setUploadProgress(0);
-    setProgressText('Upload 0% complete');
-    if (uploadTimerRef.current) clearInterval(uploadTimerRef.current);
-    let p = 0;
-    uploadTimerRef.current = setInterval(() => {
-      p = Math.min(95, p + Math.max(1, Math.round((95 - p) * 0.08)));
-      setUploadProgress(p);
-      setProgressText(`Upload ${p}% complete`);
-      if (p >= 95) {
-        if (uploadTimerRef.current) {
-          clearInterval(uploadTimerRef.current);
-          uploadTimerRef.current = null;
-        }
-      }
-    }, 200);
-  };
-
-  const completeProgress = () => {
-    if (uploadTimerRef.current) {
-      clearInterval(uploadTimerRef.current);
-      uploadTimerRef.current = null;
-    }
-    setUploadProgress(100);
-    setProgressText('Upload 100% complete');
-    setTimeout(() => {
-      setUploadProgress(0);
-      setProgressText('');
-    }, 1200);
-  };
-
-  const failProgress = () => {
-    if (uploadTimerRef.current) {
-      clearInterval(uploadTimerRef.current);
-      uploadTimerRef.current = null;
-    }
-    setProgressText('Upload failed');
-    setTimeout(() => {
-      setUploadProgress(0);
-      setProgressText('');
-    }, 1500);
-  };
-
-  const handleUpload = async () => {
-    try {
-      const files = fileInputRef.current?.files;
-      if (!files || files.length === 0) {
-        showNotification('Error', 'No file selected', 'error');
-        return;
       }
 
-      setUploading(true);
-      startSimulatedProgress();
-      showNotification('Uploading', 'Uploading shapefile...', 'info');
+      const count = geojson._feature_count ?? geojson.features?.length ?? '?';
+      showNotification('Success', `${count} features plotted`, 'success');
 
-      const result = await onUploadShapefile(files);
-
-      if (result) {
-        showNotification('Success', 'Shapefile uploaded and plotted', 'success');
-        completeProgress();
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      } else {
-        showNotification('Error', 'Upload failed', 'error');
-        failProgress();
-      }
     } catch (e: any) {
+      setUploadProgress({ pct: 0, phase: 'error', msg: e?.message || 'Upload failed' });
+      setUploadDone(false);
       showNotification('Error', e?.message || 'Upload failed', 'error');
-      failProgress();
-    } finally {
-      setUploading(false);
     }
-  };
+  }, [selectedFiles, lineColor, fillColor, opacity, weight, showLabels, onMapLayerChange, showNotification]);
+
+  // ── New Upload — clears state so user can upload another file ─
+  const handleNewUpload = useCallback(() => {
+    setSelectedFiles([]);
+    setUploadProgress(null);
+    setUploadDone(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
+
+  // ── Clear (error / pre-upload) ────────────────────────────────
+  const clearUpload = useCallback(() => {
+    setSelectedFiles([]);
+    setUploadProgress(null);
+    setUploadDone(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
+
+  // ── Derived ──────────────────────────────────────────────────
+  const isUploading = uploadProgress !== null && !uploadDone && uploadProgress.phase !== 'error';
+  const hasError    = uploadProgress?.phase === 'error';
+  const crsData     = uploadProgress?.meta?.crs as CrsMeta | undefined;
+  const featureCount = uploadProgress?.meta?.feature_count;
+
+  const progressPct = uploadProgress?.pct ?? 0;
+  const phaseLabel  = uploadProgress ? (PHASE_LABELS[uploadProgress.phase] ?? uploadProgress.phase) : '';
+  const phaseIcon   = uploadProgress ? (PHASE_ICON[uploadProgress.phase]  ?? 'fa-spinner') : '';
 
   return (
     <>
       <div
-        className={`w-[300px] bg-white p-5 overflow-y-auto transition-all duration-300 z-10 border-r border-gray-200 shadow-md flex-shrink-0 ${
-          collapsed ? 'w-0 p-0 overflow-hidden' : ''
+        className={`w-[300px] bg-white overflow-y-auto transition-all duration-300 z-10 border-r border-gray-200 shadow-md flex-shrink-0 ${
+          collapsed ? 'w-0 p-0 overflow-hidden' : 'p-5'
         }`}
       >
+        {/* Header */}
         <div className="flex justify-between items-center mb-5 pb-2.5 border-b-2 border-blue-500">
-          <h5 className="font-semibold text-gray-700">Control Panel</h5>
+          <h5 className="font-semibold text-gray-700 tracking-wide">Control Panel</h5>
         </div>
 
-        {/* Upload Shapefile Section */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
-            <i className="fas fa-upload mr-2 text-emerald-600"></i> Upload Shapefile
+        {/* ══════════════════════════════════════════════════════
+            UPLOAD SECTION
+        ══════════════════════════════════════════════════════ */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 shadow-sm border border-gray-100 transition-all duration-200 hover:shadow-md">
+          <div className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
+            <i className="fas fa-upload text-emerald-600 text-base" />
+            Upload Spatial File
           </div>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="shapefile-upload"
-              className="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition"
+          {/* Drop zone — hidden when upload is done */}
+          {!uploadDone && (
+            <div
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              className={`
+                relative flex flex-col items-center justify-center w-full rounded-xl border-2 border-dashed
+                cursor-pointer select-none transition-all duration-200 py-5 px-3 text-center
+                ${isDragOver
+                  ? 'border-emerald-500 bg-emerald-50 scale-[1.01]'
+                  : selectedFiles.length > 0
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-gray-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/40'
+                }
+                ${isUploading ? 'cursor-not-allowed opacity-70' : ''}
+              `}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-gray-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-8m0 0L8 12m4-4l4 4M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1" />
-              </svg>
-              <span className="text-xs text-gray-600">Choose or drag & drop files</span>
               <input
-                id="shapefile-upload"
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept=".zip,.shp,.dbf,.shx,.prj,.cpg"
+                accept=".zip,.shp,.dbf,.shx,.prj,.cpg,.qpj,.geojson,.json,.gpkg,.kml,.kmz,.gml,.fgb,.tab,.mif,.csv"
                 className="hidden"
+                onChange={onFileInputChange}
+                disabled={isUploading}
               />
-            </label>
 
-            {uploading && (
-              <div className="space-y-1">
-                <div className="w-full h-2 bg-gray-200 rounded">
+              {selectedFiles.length === 0 ? (
+                <>
+                  <div className={`
+                    w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-colors
+                    ${isDragOver ? 'bg-emerald-100' : 'bg-gray-100'}
+                  `}>
+                    <i className={`fas fa-cloud-upload-alt text-xl ${isDragOver ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  </div>
+                  <p className="text-xs font-medium text-gray-600">
+                    {isDragOver ? 'Drop files here' : 'Drag & drop or click to browse'}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    .zip · .shp · .geojson · .gpkg · .kml · and more
+                  </p>
+                </>
+              ) : (
+                <div className="w-full space-y-1">
+                  {selectedFiles.slice(0, 4).map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-left bg-white rounded-lg px-2 py-1.5 border border-blue-100">
+                      <i className="fas fa-file text-blue-400 flex-shrink-0" />
+                      <span className="truncate text-gray-700 flex-1">{f.name}</span>
+                      <span className="text-gray-400 flex-shrink-0 text-[10px]">
+                        {f.size > 1_048_576
+                          ? `${(f.size / 1_048_576).toFixed(1)} MB`
+                          : `${(f.size / 1024).toFixed(0)} KB`}
+                      </span>
+                    </div>
+                  ))}
+                  {selectedFiles.length > 4 && (
+                    <p className="text-[10px] text-gray-400 text-center">
+                      +{selectedFiles.length - 4} more file{selectedFiles.length - 4 > 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Progress block */}
+          {uploadProgress && (
+            <div className={`
+              mt-3 rounded-xl border px-3 py-2.5 transition-all
+              ${hasError
+                ? 'bg-red-50 border-red-200'
+                : uploadDone
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-white border-gray-200 shadow-sm'
+              }
+            `}>
+              {/* Phase header */}
+              <div className="flex items-center gap-2 mb-1.5">
+                <i className={`fas ${phaseIcon} text-sm ${
+                  hasError ? 'text-red-500' : uploadDone ? 'text-emerald-600' : 'text-blue-500'
+                } ${isUploading ? 'fa-spin' : ''}`} />
+                <span className={`text-xs font-semibold ${
+                  hasError ? 'text-red-700' : uploadDone ? 'text-emerald-700' : 'text-gray-700'
+                }`}>
+                  {phaseLabel}
+                </span>
+                <span className="ml-auto text-xs font-mono font-medium text-gray-500">
+                  {progressPct}%
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              {!hasError && (
+                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
                   <div
-                    className="h-2 bg-emerald-600 rounded transition-all"
-                    style={{ width: `${uploadProgress}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      uploadDone ? 'bg-emerald-500' : 'bg-blue-500'
+                    }`}
+                    style={{ width: `${progressPct}%` }}
                   />
                 </div>
-                <div className="text-xs text-gray-600">{progressText || `Upload ${uploadProgress}% complete`}</div>
-              </div>
+              )}
+
+              {/* Message */}
+              <p className={`text-[10px] leading-relaxed ${
+                hasError ? 'text-red-600' : 'text-gray-500'
+              }`}>
+                {uploadProgress.msg}
+              </p>
+
+              {/* CRS tags */}
+              {crsData && <CrsTag crs={crsData} />}
+
+              {/* Feature count */}
+              {featureCount !== undefined && uploadDone && (
+                <p className="mt-1.5 text-[11px] font-semibold text-emerald-700">
+                  <i className="fas fa-layer-group mr-1" />
+                  {featureCount.toLocaleString()} features loaded
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── Action buttons ─────────────────────────────────── */}
+          <div className="flex gap-2 mt-3">
+
+            {/* SUCCESS STATE — show only "New Upload" button */}
+            {uploadDone && (
+              <button
+                onClick={handleNewUpload}
+                className="flex-1 py-2 px-3 rounded-lg text-white text-xs font-semibold
+                  flex items-center justify-center gap-1.5 transition-all duration-200
+                  bg-blue-500 hover:bg-blue-600 hover:shadow-md active:scale-95"
+              >
+                <i className="fas fa-plus" /> New Upload
+              </button>
             )}
 
-            <button
-              disabled={uploading}
-              onClick={handleUpload}
-              className={`w-full px-3 py-2 rounded-md text-white text-sm font-medium transition ${
-                uploading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-700'
-              }`}
-              title="Upload and plot"
-            >
-              {uploading ? 'Uploading…' : 'Upload & Plot'}
-            </button>
-            
-            <p className="text-xs text-gray-500">
-             {/* Accepts .zip or .shp + sidecars (.dbf, .shx, .prj). */}
-              Accepts  .shp +.dbf, +.shx, +.prj
-            </p>
+            {/* ERROR STATE — retry button */}
+            {hasError && (
+              <button
+                onClick={handleUpload}
+                disabled={selectedFiles.length === 0}
+                className="flex-1 py-2 px-3 rounded-lg text-white text-xs font-semibold
+                  flex items-center justify-center gap-1.5 transition-all duration-200
+                  bg-red-500 hover:bg-red-600 hover:shadow-md active:scale-95"
+              >
+                <i className="fas fa-redo" /> Retry
+              </button>
+            )}
+
+            {/* DEFAULT / UPLOADING STATE — Upload & Plot button */}
+            {!uploadDone && !hasError && (
+              <button
+                onClick={handleUpload}
+                disabled={isUploading || selectedFiles.length === 0}
+                className={`
+                  flex-1 py-2 px-3 rounded-lg text-white text-xs font-semibold
+                  flex items-center justify-center gap-1.5 transition-all duration-200
+                  ${isUploading || selectedFiles.length === 0
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-700 hover:shadow-md active:scale-95'
+                  }
+                `}
+              >
+                {isUploading
+                  ? <><i className="fas fa-circle-notch fa-spin" /> Uploading…</>
+                  : <><i className="fas fa-upload" /> Upload & Plot</>
+                }
+              </button>
+            )}
+
+            {/* Clear / cancel button — hidden when done */}
+            {!uploadDone && (selectedFiles.length > 0 || uploadProgress) && (
+              <button
+                onClick={clearUpload}
+                disabled={isUploading}
+                className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 text-xs transition-colors active:scale-95"
+                title="Clear"
+              >
+                <i className="fas fa-times" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Feature Selection */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
-            <i className="fas fa-layer-group mr-2 text-blue-500"></i> Feature Selection
+        {/* ══════════════════════════════════════════════════════
+            FEATURE SELECTION
+        ══════════════════════════════════════════════════════ */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 shadow-sm border border-gray-100 transition-all duration-200 hover:shadow-md">
+          <div className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
+            <i className="fas fa-layer-group text-blue-500" />
+            Feature Selection
           </div>
 
           <div className="mb-3">
-            <select
-              id="categorySelect"
-              className="w-full p-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm cursor-pointer transition-all duration-300 hover:border-blue-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 fill=%27%233498db%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%27/%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_12px] bg-[length:12px]"
-              value={category || ""}
-              onChange={(e) => setCategory(e.target.value as Category)}
-            >
-              <option value="" disabled>Select Category</option>
-              <option value="administrative">Administrative</option>
-              <option value="watershed">Watershed</option>
-              <option value="rivers">Rivers</option>
-              <option value="drains">Drains</option>
-              <option value="canals">Canals</option>
-              <option value="household">Household</option>
-              <option value="roads">Roads</option>
-              <option value="railways">Railways</option>
-              <option value="industries">Industries</option>
-              <option value="stps">STPs</option>
-            </select>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Category <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                disabled={loadingDirectory || categories.length === 0}
+                className="w-full p-2.5 pr-8 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm cursor-pointer transition-all hover:border-blue-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed appearance-none"
+              >
+                <option value="">Select Category</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <i className="fas fa-chevron-down text-gray-400 text-xs absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            {loadingDirectory && <p className="mt-1 text-[10px] text-blue-500">Loading…</p>}
+            {!loadingDirectory && categories.length === 0 && (
+              <p className="mt-1 text-[10px] text-amber-600">No categories available</p>
+            )}
           </div>
 
-          <div className="mb-3">
-            <select
-              id="subcategorySelect"
-              className="w-full p-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm cursor-pointer transition-all duration-300 hover:border-blue-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2716%27 height=%2716%27 fill=%27%233498db%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z%27/%3E%3C/svg%3E')] bg-no-repeat bg-[center_right_12px] bg-[length:12px]"
-              value={subcategory}
-              onChange={(e) => setSubcategory(e.target.value)}
-              disabled={!category}
-            >
-              <option value="" disabled>Select Subcategory</option>
-              {category && subcategories[category]?.map((sub) => (
-                <option key={sub} value={sub}>{sub.charAt(0).toUpperCase() + sub.slice(1)}</option>
-              ))}
-            </select>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Subcategory <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <select
+                value={subcategory}
+                disabled={!category || subcategories.length === 0}
+                onChange={(e) => setSubcategory(e.target.value)}
+                className="w-full p-2.5 pr-8 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm cursor-pointer transition-all hover:border-blue-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:border-gray-200 appearance-none"
+              >
+                <option value="">Select Subcategory</option>
+                {subcategories.map((sub) => (
+                  <option key={sub} value={sub}>
+                    {sub === 'all' ? 'All Files' : sub.charAt(0).toUpperCase() + sub.slice(1)}
+                  </option>
+                ))}
+              </select>
+              <i className="fas fa-chevron-down text-gray-400 text-xs absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            {!category && <p className="mt-1 text-[10px] text-gray-400 italic">Select category first</p>}
           </div>
 
           <button
             onClick={loadShapefile}
             disabled={!category || !subcategory}
-            className={`w-full py-3 px-5 mt-4 rounded-lg border-none text-white font-medium flex justify-center items-center cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 relative ${
-              !category || !subcategory
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 after:content-[""] after:absolute after:top-0 after:left-0 after:w-full after:h-full after:rounded-lg after:bg-blue-500 after:z-[-1] after:opacity-50 after:animate-pulse'
-            }`}
+            className={`
+              w-full py-2.5 px-4 rounded-lg text-white text-sm font-semibold flex justify-center items-center gap-2 transition-all duration-200
+              ${!category || !subcategory
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 hover:shadow-md active:scale-[0.98]'
+              }
+            `}
           >
-            <i className="fas fa-map-marked-alt mr-2"></i> Plot Features
+            <i className="fas fa-map-marked-alt" /> Plot Features
           </button>
         </div>
 
-        {/* Map Options */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
-            <i className="fas fa-map mr-2 text-blue-500"></i> Map Options
+        {/* ══════════════════════════════════════════════════════
+            MAP OPTIONS
+        ══════════════════════════════════════════════════════ */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 shadow-sm border border-gray-100 transition-all duration-200 hover:shadow-md">
+          <div className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
+            <i className="fas fa-map text-blue-500" />
+            Map Options
           </div>
 
-          {/* Basemap Dropdown */}
-          <div className="relative mb-3">
-            <div
-              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${
-                openDropdown === 'basemap' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''
-              }`}
-              onClick={() => toggleDropdown('basemap')}
-            >
-              <div><i className="fas fa-map mr-2 text-blue-500"></i> Base Map</div>
-              <i className={`fas fa-chevron-down transition-transform duration-300 ${openDropdown === 'basemap' ? 'rotate-180' : ''}`}></i>
-            </div>
+          {[
+            { id: 'basemap',  label: 'Base Map',       icon: 'fa-map',        items: BASEMAP_OPTIONS, onSelect: (b: any) => selectBasemap(b.id),        itemLabel: (b: any) => b.label, itemIcon: (b: any) => b.icon },
+            { id: 'analysis', label: 'Analysis Tools', icon: 'fa-chart-line', items: ANALYSIS_TOOLS,  onSelect: (t: any) => selectAnalysisTool(t.label), itemLabel: (t: any) => t.label, itemIcon: (t: any) => t.icon },
+          ].map(({ id, label, icon, items, onSelect, itemLabel, itemIcon }) => (
+            <div key={id} className="relative mb-2.5">
+              <button
+                onClick={() => toggleDropdown(id)}
+                className={`
+                  w-full flex justify-between items-center px-3 py-2.5 rounded-lg border text-sm transition-all
+                  ${openDropdown === id
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 rounded-b-none'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                  }
+                `}
+              >
+                <span className="flex items-center gap-2">
+                  <i className={`fas ${icon} text-blue-500`} />
+                  {label}
+                </span>
+                <i className={`fas fa-chevron-down text-xs transition-transform duration-200 ${openDropdown === id ? 'rotate-180' : ''}`} />
+              </button>
 
-            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${
-              openDropdown === 'basemap'
-                ? 'max-h-[300px] opacity-100 translate-y-0'
-                : 'max-h-0 opacity-0 -translate-y-2 overflow-hidden border-none'
-            }`}>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('streets')}>
-                <i className="fas fa-road mr-2.5 w-5 text-center text-blue-500"></i> Streets
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('satellite')}>
-                <i className="fas fa-satellite mr-2.5 w-5 text-center text-blue-500"></i> Satellite
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('terrain')}>
-                <i className="fas fa-mountain mr-2.5 w-5 text-center text-blue-500"></i> Terrain
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('traffic')}>
-                <i className="fas fa-car mr-2.5 w-5 text-center text-blue-500"></i> Traffic
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectBasemap('hybrid')}>
-                <i className="fas fa-globe mr-2.5 w-5 text-center text-blue-500"></i> Hybrid
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1" onClick={() => selectBasemap('none')}>
-                <i className="fas fa-ban mr-2.5 w-5 text-center text-blue-500"></i> No Basemap
+              <div className={`
+                absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-lg z-[1001]
+                transition-all duration-200 overflow-hidden
+                ${openDropdown === id ? 'max-h-60 opacity-100' : 'max-h-0 opacity-0 border-none pointer-events-none'}
+              `}>
+                {items.map((item: any) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onSelect(item)}
+                    className="w-full text-left px-3 py-2.5 flex items-center gap-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-gray-100 last:border-0"
+                  >
+                    <i className={`fas ${itemIcon(item)} text-blue-400 w-4 text-center`} />
+                    {itemLabel(item)}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
-
-          {/* Analysis Tools Dropdown */}
-          <div className="relative mb-3">
-            <div
-              className={`flex justify-between items-center p-3 bg-white rounded-lg border border-gray-300 cursor-pointer transition-all duration-300 hover:border-blue-500 ${
-                openDropdown === 'analysis' ? 'border-blue-500 rounded-b-none bg-gray-50 shadow-sm' : ''
-              }`}
-              onClick={() => toggleDropdown('analysis')}
-            >
-              <div><i className="fas fa-chart-line mr-2 text-blue-500"></i> Analysis Tools</div>
-              <i className={`fas fa-chevron-down transition-transform duration-300 ${openDropdown === 'analysis' ? 'rotate-180' : ''}`}></i>
-            </div>
-
-            <div className={`absolute left-0 right-0 bg-white border border-blue-500 border-t-0 rounded-b-lg shadow-md z-[1001] transition-all duration-300 ${
-              openDropdown === 'analysis'
-                ? 'max-h-[300px] opacity-100 translate-y-0'
-                : 'max-h-0 opacity-0 -translate-y-2 overflow-hidden border-none'
-            }`}>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Intersection')}>
-                <i className="fas fa-object-group mr-2.5 w-5 text-center text-blue-500"></i> Intersection
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Dissolve')}>
-                <i className="fas fa-object-ungroup mr-2.5 w-5 text-center text-blue-500"></i> Dissolve
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Statistics')}>
-                <i className="fas fa-calculator mr-2.5 w-5 text-center text-blue-500"></i> Statistics
-              </div>
-              <div className="p-3 cursor-pointer flex items-center hover:bg-gray-50 transition-transform duration-200 hover:translate-x-1 border-b border-gray-100" onClick={() => selectAnalysisTool('Euclidean Distance')}>
-                <i className="fas fa-calculator mr-2.5 w-5 text-center text-blue-500"></i> Euclidean Distance
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Style Options */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
-            <i className="fas fa-palette mr-2 text-blue-500"></i> Style Options
+        {/* ══════════════════════════════════════════════════════
+            STYLE OPTIONS
+        ══════════════════════════════════════════════════════ */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 shadow-sm border border-gray-100 transition-all duration-200 hover:shadow-md">
+          <div className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
+            <i className="fas fa-palette text-blue-500" />
+            Style Options
           </div>
 
-          <div className="flex items-center gap-5 mb-4">
-            <div className="flex items-center">
-              <label htmlFor="lineColor" className="text-sm text-gray-700 mr-2">Line Color:</label>
-              <input
-                type="color"
-                id="lineColor"
-                value={lineColor}
-                onChange={(e) => {
-                  setLineColor(e.target.value);
-                  handleStyleChange();
-                }}
-                className="h-8 w-8 p-0 border-0 rounded cursor-pointer bg-transparent"
-              />
+          <div className="flex gap-4 mb-3">
+            {[
+              { id: 'lineColor', label: 'Line', value: lineColor, onChange: (v: string) => { setLineColor(v); handleStyleChange(); } },
+              { id: 'fillColor', label: 'Fill', value: fillColor, onChange: (v: string) => { setFillColor(v); handleStyleChange(); } },
+            ].map(({ id, label, value, onChange }) => (
+              <div key={id} className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">{label}:</label>
+                <div className="relative">
+                  <input type="color" id={id} value={value} onChange={(e) => onChange(e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                  <div className="w-8 h-8 rounded-lg border-2 border-gray-200 shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                    style={{ backgroundColor: value }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {[
+            { id: 'opacity', label: 'Opacity',     value: opacity, min: 0.1, max: 1,  step: 0.1, display: opacity.toFixed(1), onChange: (v: number) => { setOpacity(v); handleStyleChange(); } },
+            { id: 'weight',  label: 'Line Weight', value: weight,  min: 1,   max: 10, step: 1,   display: weight,             onChange: (v: number) => { setWeight(v);  handleStyleChange(); } },
+          ].map(({ id, label, value, min, max, step, display, onChange }) => (
+            <div key={id} className="mb-3">
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs text-gray-600">{label}</label>
+                <span className="text-xs font-mono font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{display}</span>
+              </div>
+              <input type="range" id={id} min={min} max={max} step={step} value={value}
+                onChange={(e) => onChange(id === 'weight' ? parseInt(e.target.value) : parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue-500" />
             </div>
+          ))}
 
-            <div className="flex items-center">
-              <label htmlFor="fillColor" className="text-sm text-gray-700 mr-2">Fill Color:</label>
-              <input
-                type="color"
-                id="fillColor"
-                value={fillColor}
-                onChange={(e) => {
-                  setFillColor(e.target.value);
-                  handleStyleChange();
-                }}
-                className="h-8 w-8 p-0 border-0 rounded cursor-pointer bg-transparent"
-              />
-            </div>
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="opacity" className="block text-sm text-gray-700 mb-1">
-              Opacity: <span id="opacityValue">{opacity}</span>
-            </label>
-            <input
-              type="range"
-              id="opacity"
-              min="0.1"
-              max="1"
-              step="0.1"
-              value={opacity}
-              onChange={(e) => {
-                setOpacity(parseFloat(e.target.value));
-                handleStyleChange();
-              }}
-              className="w-full h-1.5 bg-gray-200 rounded-md appearance-none cursor-pointer focus:outline-none"
-            />
-          </div>
-
-          <div className="mb-3">
-            <label htmlFor="weight" className="block text-sm text-gray-700 mb-1">
-              Line Weight: <span id="weightValue">{weight}</span>
-            </label>
-            <input
-              type="range"
-              id="weight"
-              min="1"
-              max="10"
-              step="1"
-              value={weight}
-              onChange={(e) => {
-                setWeight(parseInt(e.target.value));
-                handleStyleChange();
-              }}
-              className="w-full h-1.5 bg-gray-200 rounded-md appearance-none cursor-pointer focus:outline-none"
-            />
-          </div>
-
-          <div className="flex items-center mb-2">
-            <input
-              className="mr-2 rounded text-blue-500 focus:ring-blue-500"
-              type="checkbox"
-              id="toggleLabels"
-              checked={showLabels}
-              onChange={(e) => setShowLabels(e.target.checked)}
-            />
-            <label className="text-sm text-gray-700" htmlFor="toggleLabels">Show Labels</label>
-          </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)}
+              className="w-4 h-4 rounded accent-blue-500" />
+            <span className="text-xs text-gray-600">Show Labels</span>
+          </label>
         </div>
 
-        {/* Display Settings */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <div className="text-base font-semibold mb-4 text-gray-700 flex items-center">
-            <i className="fas fa-sliders-h mr-2 text-blue-500"></i> Display Settings
+        {/* ══════════════════════════════════════════════════════
+            DISPLAY SETTINGS
+        ══════════════════════════════════════════════════════ */}
+        <div className="bg-gray-50 rounded-xl p-4 mb-5 shadow-sm border border-gray-100 transition-all duration-200 hover:shadow-md">
+          <div className="text-sm font-semibold mb-3 text-gray-700 flex items-center gap-2">
+            <i className="fas fa-sliders-h text-blue-500" />
+            Display Settings
           </div>
 
-          <div className="flex items-center mb-2">
-            <input
-              className="mr-2 rounded text-blue-500 focus:ring-blue-500"
-              type="checkbox"
-              id="info-toggle"
-              checked={showInfoPanel}
-              onChange={(e) => setShowInfoPanel(e.target.checked)}
-            />
-            <label className="text-sm text-gray-700" htmlFor="info-toggle">Show Info Panel</label>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              className="mr-2 rounded text-blue-500 focus:ring-blue-500"
-              type="checkbox"
-              id="compass-toggle"
-              checked={showCompass}
-              onChange={(e) => setShowCompass(e.target.checked)}
-            />
-            <label className="text-sm text-gray-700" htmlFor="compass-toggle">Show Compass</label>
-          </div>
+          {[
+            { id: 'info',    label: 'Show Info Panel', value: showInfoPanel, onChange: setShowInfoPanel },
+            { id: 'compass', label: 'Show Compass',    value: showCompass,   onChange: setShowCompass  },
+          ].map(({ id, label, value, onChange }) => (
+            <label key={id} className="flex items-center gap-2 cursor-pointer select-none mb-2 last:mb-0">
+              <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)}
+                className="w-4 h-4 rounded accent-blue-500" />
+              <span className="text-xs text-gray-600">{label}</span>
+            </label>
+          ))}
         </div>
       </div>
 
-      {/* Toggle Sidebar Button */}
+      {/* Toggle button */}
       <button
         onClick={onToggle}
-        className={`absolute z-[999] flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-md border-none cursor-pointer transition-all duration-300 hover:bg-blue-500 hover:text-white hover:scale-110 ${
-          collapsed
-            ? 'left-5 top-5'
-            : 'left-[300px] top-5'
-        }`}
+        className={`
+          absolute z-[999] flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md
+          border border-gray-200 cursor-pointer transition-all duration-300
+          hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:scale-110
+          ${collapsed ? 'left-4 top-5' : 'left-[300px] top-5'}
+        `}
       >
-        <i className={`fas ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
+        <i className={`fas ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'} text-xs`} />
       </button>
-
-      {/* Union Modal */}
-      <UidModal 
-        isOpen={unionModalOpen} 
-        onOpenChange={(isOpen: any) => setUnionModalOpen(isOpen)} 
-      />
     </>
   );
 }
