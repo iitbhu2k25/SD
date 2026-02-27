@@ -10,14 +10,14 @@ from app.utils.exception import validate
 from app.api.service.authentication_svc.email_otp import EmailService
 from app.utils.exception import CustomException
 from fastapi.responses import JSONResponse
-app = APIRouter()
+router = APIRouter()
 
-@app.get("/me",response_model=Useroutput)
+@router.get("/me",response_model=Useroutput)
 @validate
 async def get_me(user: Annotated[str, Depends(get_current_user)]):
     return user
 
-@app.get("/authentic",status_code=201)
+@router.get("/authentic",status_code=201)
 @validate
 async  def user_verification(user: Annotated[str, Depends(get_current_user_cookie)]):
     return {
@@ -26,39 +26,39 @@ async  def user_verification(user: Annotated[str, Depends(get_current_user_cooki
         "is_valid":True,
     }
 
-@app.post("/login",status_code=status.HTTP_201_CREATED,response_model=UserOut)
+@router.post("/login",status_code=status.HTTP_201_CREATED,response_model=UserOut)
 @validate
 async def login(response:Response,db:db_dependency,payload:login_input):
     return AuthService().login(db,payload,response)
 
-@app.post("/signup",status_code=status.HTTP_201_CREATED)
+@router.post("/signup",status_code=status.HTTP_201_CREATED)
 @validate
 async def signup(db:db_dependency,bg:BackgroundTasks,payload:signup_input)->bool:
    return AuthService().registration(db,bg,payload)
 
 
-@app.post("/logout",status_code=status.HTTP_201_CREATED)
+@router.post("/logout",status_code=status.HTTP_201_CREATED)
 @validate
 async def logout(db:db_dependency,request:Request,response:Response):            
     return AuthService().logout(db,request,response)
 
 
-# @app.post("/email_otp",status_code=status.HTTP_201_CREATED)
+# @router.post("/email_otp",status_code=status.HTTP_201_CREATED)
 # @validate
 # async def generate_email_opt(backgroud:BackgroundTasks,user: Annotated[str, Depends(get_current_user)])->bool:
 #     return AuthService().send_email_otp(backgroud=backgroud,email=user.email)
 
-# @app.post("/email_verify",status_code=status.HTTP_201_CREATED)
+# @router.post("/email_verify",status_code=status.HTTP_201_CREATED)
 # @validate
 # async def verify_email_opt(db:db_dependency,user: Annotated[str, Depends(get_current_user)],otp:OTPVerify):
 #     return AuthService().verify_otp(db,user,otp.otp)
    
-@app.delete("/delete_account",status_code=status.HTTP_201_CREATED)
+@router.delete("/delete_account",status_code=status.HTTP_201_CREATED)
 @validate
 async  def delete_account(db:db_dependency,user: Annotated[str, Depends(get_current_user)])->bool:
     return AuthService().delete_account(db,user.email)
 
-@app.get("/admin/approve")
+@router.get("/admin/approve")
 @validate
 async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
@@ -77,7 +77,7 @@ async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
     return AuthService().verify_by_admin(db,bg,email=email,status="approved")
 
 
-@app.get("/admin/reject")
+@router.get("/admin/reject")
 @validate
 async def reject_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
