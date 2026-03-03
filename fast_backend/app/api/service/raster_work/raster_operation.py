@@ -15,8 +15,8 @@ import math
 import os
 import time
 from app.conf.logging import logger
-from app.api.service.celery.raster_heavy_task import celery_reprojection,celery_euclidean_distance,reclassify_raster
-from app.api.schema.raster_operation import Edliudian,RasterReclassify
+from app.api.service.celery.raster_heavy_task import celery_reprojection,celery_euclidean_distance,reclassify_raster,compute_flow_direction_task,compute_flow_accumulation_task,compute_slope_task,compute_tpi_task,compute_twi_task
+from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams
 
 
 
@@ -272,3 +272,31 @@ class RasterOperation:
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"ecludian_{time.time()}.tif"
         return celery_euclidean_distance(file_path,output_path,payload.target_values,payload.max_distance,payload.distance_units)
+    
+    def flow_direction(self,db:Session,payload:FlowDirectionParams):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"flow_direction_{time.time()}.tif"
+        return compute_flow_direction_task(file_path,output_path,payload.algorithm,payload.fill_depressions,payload.max_slope)
+    
+    def flow_accumulation(self,db:Session,payload:FlowAccumulationParams):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"flow_accumulation_{time.time()}.tif"
+        return compute_flow_accumulation_task(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,file_path,output_path)
+
+    def slope(self,db:Session,payload:SlopeParams):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"slope_{time.time()}.tif"
+        return compute_slope_task(file_path,output_path,payload.units)
+
+    def tpi(self,db:Session,payload:TpiParams):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"tpi_{time.time()}.tif"
+        return compute_tpi_task(file_path,output_path,payload.neighbourhood,payload.radius)
+
+    def twi(self,db:Session,payload:TwiParams):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"twi_{time.time()}.tif"
+        return compute_twi_task(file_path,output_path,payload.algorithm,payload.fill_depressions)
+
+    def resolution():
+        pass

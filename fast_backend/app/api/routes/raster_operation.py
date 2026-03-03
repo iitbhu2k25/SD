@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status,UploadFile,File
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
-from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian
+from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
@@ -39,29 +39,34 @@ async def raster_ecludian(db:db_dependency,payload:Edliudian):
 
 @router.post("/flow_direction",status_code=status.HTTP_201_CREATED)
 @validate
-async def flow_direction(db:db_dependency):
-    pass
-
+async def flow_direction(db:db_dependency,payload:FlowDirectionParams):
+    """return the flow direction raster"""
+    return RasterOperation().flow_direction(db,payload)
 
 @router.post("/flow_acumulation",status_code=status.HTTP_201_CREATED)
 @validate
-async def flow_acumulation(db:db_dependency):
-    pass
+async def flow_acumulation(db:db_dependency,payload:FlowAccumulationParams):
+    """return the flow accumulation raster"""
+    return RasterOperation().flow_accumulation(db,payload)
+
 
 @router.post("/tpi",status_code=status.HTTP_201_CREATED)
 @validate
-async def tpi(db:db_dependency):
-    pass
+async def tpi(db:db_dependency,payload:TpiParams):
+    """return the tpi raster"""
+    return RasterOperation().tpi(db,payload)
 
 @router.post("/twi",status_code=status.HTTP_201_CREATED)
 @validate
-async def twi(db:db_dependency):
-    pass
+async def twi(db:db_dependency,payload:TwiParams):
+    """ return the twi raster"""
+    return RasterOperation().twi(db,payload)
 
 @router.post("/slope",status_code=status.HTTP_201_CREATED)
 @validate
-async def slope(db:db_dependency):
-    pass
+async def slope(db:db_dependency,payload:SlopeParams):
+    """return the slope raster"""
+    return RasterOperation().slope(db,payload)
 
 @router.post("/raster_resolution",status_code=status.HTTP_201_CREATED)
 @validate

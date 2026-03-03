@@ -1,5 +1,6 @@
 import subprocess
 from pathlib import Path
+import tempfile
 from app.conf.logging import logger
 import json
 from typing import Optional,List
@@ -7,6 +8,12 @@ from uuid import uuid4
 import numpy as np
 import rasterio
 from app.api.schema.raster_operation import RasterReclassify,ReclassRule
+from whitebox.whitebox_tools import WhiteboxTools
+import os
+
+wbt = WhiteboxTools()
+wbt.set_whitebox_dir(os.environ["WBT_PATH"])
+wbt.set_working_dir("/tmp")
 
 def _remove_duplicate(file_path: str):
     path = Path(file_path)
@@ -56,7 +63,7 @@ def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
     return "continuous"
 
 
-def _normalize_nodata(input_path: str) -> str:
+def _normalize_nodata(input_path: str):
     input_path = Path(input_path)
     output_path = input_path.parent / f"{uuid4()}.tif"
 
@@ -311,7 +318,7 @@ def celery_euclidean_distance(
         logger.error("GDAL proximity timed out")
         raise RuntimeError("Euclidean distance computation timed out")
 
-def _update_stats(nodata_out,output_path: str, ):
+def _update_stats(nodata_out:float,output_path: str):
     with rasterio.open(output_path, "r+") as ds:
         band = ds.read(1)
 
@@ -326,8 +333,8 @@ def _update_stats(nodata_out,output_path: str, ):
             "STATISTICS_STDDEV":  str(float(valid.std())),
         }
 
-        ds.update_tags(1, **stats)  # write to band metadata
-        ds.nodata = nodata_out      # ensure nodata is set
+        ds.update_tags(1, **stats)  
+        ds.nodata = nodata_out  
 
 
 def _infer_output_type(rules: List[ReclassRule], nodata_out: float) -> str:
@@ -420,3 +427,446 @@ def reclassify_raster(params: RasterReclassify, input_path: str, output_path: st
 
     _update_stats(nodata_out, output_path)
     return output_path
+
+
+
+#-------------------------------------------------------------------------------
+
+# class WhiteboxTask(Task):
+#     abstract = True
+#     _wbt: whitebox.WhiteboxTools | None = None
+
+#     @property
+#     def wbt(self) -> whitebox.WhiteboxTools:
+#         if self._wbt is None:
+#             self._wbt = whitebox.WhiteboxTools()
+#             self._wbt.set_verbose_mode(False)
+#             self._wbt.set_compress_rasters(True)
+#             logger.info("WhiteboxTools initialized [worker pid=%s]", os.getpid())
+#         return self._wbt
+
+
+# @celery_app.task(
+#     bind=True,
+#     base=WhiteboxTask,
+#     name="tasks.compute_flow_direction",
+#     max_retries=3,
+#     default_retry_delay=5,
+# )
+# def compute_flow_direction_task(
+#     self,
+#     params_dict:  dict,
+#     input_path:   str,
+#     output_path:  str,
+# ) -> str:
+#     try:
+#         params = FlowDirectionParams(**params_dict)
+
+#         input_path, src_nodata = _normalize_nodata(input_path)
+
+#         with tempfile.TemporaryDirectory(prefix="flow_dir_") as tmp_dir:
+
+#             # Fill depressions
+#             dem_path = input_path
+#             if params.fill_depressions:
+#                 dem_path = _fill_depressions(self.wbt, input_path, tmp_dir)
+
+#             # Flow direction
+#             _run_flow_direction(
+#                 wbt=self.wbt,
+#                 dem_path=dem_path,
+#                 output_path=output_path,
+#                 algorithm=params.algorithm,
+#                 max_slope=params.max_slope,
+#             )
+
+#         # Fix metadata
+#         nodata_val = params.nodata_value if params.nodata_value is not None else FLOW_NODATA
+#         _update_stats(nodata_out, output_path)
+
+#         logger.info("Flow direction complete [pid=%s]: %s", os.getpid(), output_path)
+#         return output_path
+
+#     except (FileNotFoundError, PermissionError, ValueError) as e:
+#         # Non-retryable — bad input
+#         logger.error("Flow direction failed (non-retryable): %s", e)
+#         raise
+
+#     except RuntimeError as e:
+#         # Retryable — WBT process failure
+#         logger.warning("Flow direction failed (retryable): %s", e)
+#         raise self.retry(exc=e)
+
+
+
+def _fill_depressions(input_path: str, tmp_dir: str) -> str:
+
+    filled_path = os.path.join(tmp_dir, "filled_dem.tif")
+
+    logger.info("Filling depressions: %s → %s", input_path, filled_path)
+
+    ret = wbt.fill_depressions(
+        dem=input_path,
+        output=filled_path,
+        fix_flats=True,          # ensures flat areas drain correctly
+        flat_increment=None,     # auto
+        max_depth=None,          # fill all depressions
+    )
+
+    if ret != 0:
+        raise RuntimeError(
+            f"WhiteboxTools fill_depressions failed (exit {ret}). "
+            f"Check logs: {wbt.get_working_directory()}"
+        )
+
+    if not os.path.exists(filled_path):
+        raise RuntimeError(f"fill_depressions did not produce output: {filled_path}")
+
+    logger.info("Depression filling complete")
+    return filled_path
+
+def _run_flow_direction(
+    dem_path:   str,
+    output_path: str,
+    algorithm:  str,
+    max_slope:  Optional[float],
+) -> None:
+    """Dispatch to correct WhiteboxTools flow direction algorithm."""
+
+    logger.info("Running flow direction [%s]: %s → %s", algorithm, dem_path, output_path)
+
+    if algorithm == "d8":
+        ret = wbt.d8_pointer(
+            dem=dem_path,
+            output=output_path,
+        )
+
+    elif algorithm == "dinf":
+        ret = wbt.d_inf_pointer(
+            dem=dem_path,
+            output=output_path,
+        )
+
+    elif algorithm == "mfd":
+        ret = wbt.quinn_flow_accumulation(   # WBT uses Quinn for MFD
+            dem=dem_path,
+            output=output_path,
+            out_type="catchment area",
+        )
+
+    else:
+        raise ValueError(f"Unsupported algorithm: {algorithm}")
+
+    if ret != 0:
+        raise RuntimeError(
+            f"WhiteboxTools {algorithm} failed (exit {ret})"
+        )
+
+    logger.info("Flow direction complete [%s]", algorithm)
+
+
+
+
+def _run_flow_accumulation(
+    dem_path:    str,
+    output_path: str,
+    algorithm:   str,
+    output_type: str,
+    log_transform: bool,
+) -> None:
+
+    if algorithm == "d8":
+        ret = wbt.d8_flow_accumulation(
+            i=dem_path,
+            output=output_path,
+            out_type=output_type,
+            log=log_transform,
+            clip=False,
+        )
+
+    elif algorithm == "dinf":
+        ret = wbt.d_inf_flow_accumulation(
+            i=dem_path,
+            output=output_path,
+            out_type=output_type,
+            log=log_transform,
+            clip=False,
+        )
+
+    elif algorithm == "mfd":
+        ret = wbt.quinn_flow_accumulation(
+            i=dem_path,
+            output=output_path,
+            out_type=output_type,
+            log=log_transform,
+            clip=False,
+        )
+
+    else:
+        raise ValueError(f"Unsupported algorithm: {algorithm}")
+
+    if ret != 0:
+        raise RuntimeError(
+            f"WhiteboxTools {algorithm} flow accumulation failed (exit {ret})"
+        )
+
+    if not os.path.exists(output_path):
+        raise RuntimeError(
+            f"Flow accumulation did not produce output: {output_path}"
+        )
+
+    logger.info("Flow accumulation complete [%s]", algorithm)
+
+def _run_slope(
+    dem_path:    str,
+    output_path: str,
+    units:       str,
+) -> None:
+
+    ret = wbt.slope(
+        dem=dem_path,
+        output=output_path,
+        units=units,
+        zfactor=None,
+    )
+
+    if ret != 0:
+        raise RuntimeError(f"WhiteboxTools slope failed (exit {ret})")
+    if not os.path.exists(output_path):
+        raise RuntimeError(f"Slope did not produce output: {output_path}")
+
+    logger.info("Slope complete")
+
+def _run_tpi(
+    dem_path:     str,
+    output_path:  str,
+    neighbourhood: str,
+    radius:       int,
+) -> None:
+    logger.info(
+        "Running TPI [neighbourhood=%s radius=%s]: %s → %s",
+        neighbourhood, radius, dem_path, output_path
+    )
+
+    ret = wbt.ruggedness_index(   # WBT TPI = relative_topographic_position
+        dem=dem_path,
+        output=output_path
+    )
+
+    if ret != 0:
+        raise RuntimeError(f"WhiteboxTools TPI failed (exit {ret})")
+    if not os.path.exists(output_path):
+        raise RuntimeError(f"TPI did not produce output: {output_path}")
+
+    logger.info("TPI complete")
+
+def _run_twi(
+    dem_path:    str,
+    output_path: str,
+    tmp_dir:     str,
+    algorithm:   str,
+) -> None:
+    flow_acc_path = os.path.join(tmp_dir, "flow_acc.tif")
+    slope_path    = os.path.join(tmp_dir, "slope_rad.tif")
+
+    # Step 1 — Flow accumulation (catchment area for TWI)
+    if algorithm == "d8":
+        ret = wbt.d8_flow_accumulation(
+            i=dem_path,
+            output=flow_acc_path,
+            out_type="specific contributing area",
+            log=False,
+            clip=False,
+        )
+    elif algorithm == "dinf":
+        ret = wbt.d_inf_flow_accumulation(
+            i=dem_path,
+            output=flow_acc_path,
+            out_type="specific contributing area",
+            log=False,
+            clip=False,
+        )
+    elif algorithm == "mfd":
+        ret = wbt.quinn_flow_accumulation(
+            dem=dem_path,
+            output=flow_acc_path,
+            out_type="specific contributing area",
+            log=False,
+            clip=False,
+        )
+
+    if ret != 0:
+        raise RuntimeError(f"Flow accumulation for TWI failed (exit {ret})")
+
+    # Step 2 — Slope in radians
+    ret = wbt.slope(
+        dem=dem_path,
+        output=slope_path,
+        units="radians",
+        zfactor=None,
+    )
+
+    if ret != 0:
+        raise RuntimeError(f"Slope for TWI failed (exit {ret})")
+
+    # Step 3 — TWI = ln(sca / tan(slope))
+    ret = wbt.wetness_index(
+        sca=flow_acc_path,
+        slope=slope_path,
+        output=output_path,
+    )
+
+    if ret != 0:
+        raise RuntimeError(f"WhiteboxTools wetness_index failed (exit {ret})")
+    if not os.path.exists(output_path):
+        raise RuntimeError(f"TWI did not produce output: {output_path}")
+
+    logger.info("TWI complete")
+
+def compute_flow_accumulation_task(
+    fill_depressions: bool,
+    algorithm:str,
+    output_type: str,
+    log_transform: bool,
+    input_path:   str,
+    output_path:  str,
+) -> str:
+    try:
+        input_path,nodata_value = _normalize_nodata(input_path)
+
+        with tempfile.TemporaryDirectory(prefix="flow_acc_") as tmp_dir:
+
+            # Step 1 — Fill depressions
+            dem_path = input_path
+            if fill_depressions:
+                dem_path = _fill_depressions( input_path, tmp_dir)
+
+            # Step 2 — Flow accumulation
+            _run_flow_accumulation(
+                dem_path=dem_path,
+                output_path=output_path,
+                algorithm=algorithm,
+                output_type=output_type,
+                log_transform=log_transform,
+            )
+
+        _update_stats(float(nodata_value),output_path)
+
+        logger.info("Flow accumulation complete [pid=%s]: %s", os.getpid(), output_path)
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        logger.error("Flow accumulation failed (non-retryable): %s", e)
+        raise
+
+def compute_flow_direction_task(
+    input_path:   str,
+    output_path:  str,
+    algorithm:str,
+    fill_depressions: bool,
+    max_slope:      Optional[float] = None,
+) -> str:
+    input_path,nodata_value = _normalize_nodata(input_path)
+    try:
+        with tempfile.TemporaryDirectory(prefix="flow_dir_") as tmp_dir:
+            # Fill depressions
+            dem_path = input_path
+            if fill_depressions:
+                dem_path = _fill_depressions(input_path, tmp_dir)
+
+            # Flow direction
+            _run_flow_direction(
+                dem_path=dem_path,
+                output_path=output_path,
+                algorithm=algorithm,
+                max_slope=max_slope,
+            )
+
+        _update_stats(float(nodata_value),output_path)
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        # Non-retryable — bad input
+        logger.error("Flow direction failed (non-retryable): %s", e)
+        raise
+
+    except RuntimeError as e:
+        # Retryable — WBT process failure
+        logger.warning("Flow direction failed (retryable): %s", e)
+
+def compute_slope_task(
+    input_path:   str,
+    output_path:  str,
+    units:        str,
+) -> str:
+    try:
+        
+        input_path, src_nodata = _normalize_nodata(input_path)
+        _run_slope(
+            dem_path=input_path,
+            output_path=output_path,
+            units=units,
+        )
+        _update_stats(float(src_nodata),output_path)
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        logger.error("Slope failed (non-retryable): %s", e)
+        raise
+
+
+
+
+def compute_tpi_task(
+    input_path:   str,
+    output_path:  str,
+    neighbourhood: str,
+    radius:       int,
+) -> str:
+    try:
+        input_path, src_nodata = _normalize_nodata(input_path)
+
+        _run_tpi(
+            dem_path=input_path,
+            output_path=output_path,
+            neighbourhood=neighbourhood,
+            radius=radius,
+        )
+        _update_stats(float(src_nodata), output_path)
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        logger.error("TPI failed (non-retryable): %s", e)
+        raise
+
+
+
+
+def compute_twi_task(
+    input_path:   str,
+    output_path:  str,
+    algorithm:    str,
+    fill_depressions: bool,
+) -> str:
+    try:
+        input_path, src_nodata = _normalize_nodata(input_path)
+
+        with tempfile.TemporaryDirectory(prefix="twi_") as tmp_dir:
+            dem_path = input_path
+            if fill_depressions:
+                dem_path = _fill_depressions(input_path, tmp_dir)
+
+            _run_twi(
+                dem_path=dem_path,
+                output_path=output_path,
+                tmp_dir=tmp_dir,
+                algorithm=algorithm,
+            )
+
+        _update_stats(float(src_nodata),output_path)
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        logger.error("TWI failed (non-retryable): %s", e)
+        raise
+

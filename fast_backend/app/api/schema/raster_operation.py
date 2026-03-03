@@ -111,3 +111,66 @@ class Edliudian(BaseModel):
     target_values: Optional[List[int]] = None
     max_distance: Optional[float] = None
     
+
+FlowAlgorithm = Literal["d8", "dinf", "mfd"]
+OutputType = Literal["cells", "catchment area", "specific contributing area"]
+class FlowDirectionParams(BaseModel):
+    file_id:        str
+    algorithm:      FlowAlgorithm = "d8"
+    fill_depressions: bool        = True
+    max_slope:      Optional[float] = None   # only for dinf/mfd
+
+    @model_validator(mode="after")
+    def validate_params(self):
+        if self.max_slope is not None and self.algorithm == "d8":
+            raise ValueError("max_slope is only valid for 'dinf' or 'mfd' algorithms")
+        return self
+    
+
+FLOW_ACC_NODATA = -1.0
+
+
+class FlowAccumulationParams(BaseModel):
+    file_id:          str
+    algorithm:         FlowAlgorithm = "d8"
+    output_type:      OutputType                = "cells"
+    fill_depressions: bool                      = True
+    log_transform:    bool                      = False  
+
+    @model_validator(mode="after")
+    def validate_params(self):
+        if self.output_type == "specific contributing area" and self.algorithm == "d8":
+            raise ValueError(
+                "'specific contributing area' is only valid for 'dinf' or 'mfd'"
+            )
+        return self
+
+
+SlopeUnits = Literal["degrees", "radians", "percent"]
+TpiNeighbourhood = Literal["circle", "rectangle"]
+
+
+
+
+
+class SlopeParams(BaseModel):
+    file_id:     str
+    units:       SlopeUnits    = "degrees"
+
+
+class TpiParams(BaseModel):
+    file_id:          str
+    neighbourhood:    TpiNeighbourhood = "circle"
+    radius:           int              = 3      
+
+    @model_validator(mode="after")
+    def validate_radius(self):
+        if self.radius < 1:
+            raise ValueError("radius must be >= 1")
+        return self
+
+
+class TwiParams(BaseModel):
+    file_id:          str
+    fill_depressions: bool           = True
+    algorithm:        FlowAlgorithm = "d8"
