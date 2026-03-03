@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status,UploadFile,File
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
-from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams
+from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams,CellResize
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
@@ -70,5 +70,12 @@ async def slope(db:db_dependency,payload:SlopeParams):
 
 @router.post("/raster_resolution",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_resolution(db:db_dependency):
-    pass
+async def raster_resolution(db:db_dependency,payload:CellResize):
+    """ return the raster resolution dry run"""
+    return RasterOperation().check_resolution(db,payload)
+
+@router.post("/raster_resolution_execute",status_code=status.HTTP_201_CREATED)
+@validate
+async def raster_resolution(db:db_dependency,payload:CellResize):
+    """ return the raster resolution """
+    return RasterOperation().execute_resolution(db,payload)

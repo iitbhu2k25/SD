@@ -174,3 +174,12 @@ class TwiParams(BaseModel):
     file_id:          str
     fill_depressions: bool           = True
     algorithm:        FlowAlgorithm = "d8"
+
+
+
+cell_resize_algorithms = Literal["near","bilinear","cubic","cubicspline","lanczos","average","mode"]
+class CellResize(BaseModel):
+    file_id:      str
+    target_cell:  float
+    algorithm:    cell_resize_algorithms="near"
+    dtype_override: Optional[str] = None

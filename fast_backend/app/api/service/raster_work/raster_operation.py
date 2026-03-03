@@ -15,10 +15,25 @@ import math
 import os
 import time
 from app.conf.logging import logger
-from app.api.service.celery.raster_heavy_task import celery_reprojection,celery_euclidean_distance,reclassify_raster,compute_flow_direction_task,compute_flow_accumulation_task,compute_slope_task,compute_tpi_task,compute_twi_task
-from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams
-
-
+from app.api.service.celery.raster_heavy_task import (celery_reprojection,
+                                                      celery_euclidean_distance,
+                                                      reclassify_raster,
+                                                      compute_flow_direction_task,
+                                                      compute_flow_accumulation_task,
+                                                      compute_slope_task,
+                                                      compute_tpi_task,
+                                                      compute_twi_task,
+                                                      resample_raster_task
+                                                    )
+from app.api.schema.raster_operation import( RasterReclassify,
+                                            Edliudian,
+                                            FlowDirectionParams,
+                                            FlowAccumulationParams,
+                                            SlopeParams,
+                                            TpiParams,
+                                            TwiParams,
+                                            CellResize)
+from .raster_resize import dry_run_resample
 
 class RasterOperation:
 
@@ -298,5 +313,12 @@ class RasterOperation:
         output_path = self.temp_dir / f"twi_{time.time()}.tif"
         return compute_twi_task(file_path,output_path,payload.algorithm,payload.fill_depressions)
 
-    def resolution():
-        pass
+    def execute_resolution(self,db:Session,payload:CellResize):
+        file_path=self._get_file_path(payload.file_id)
+        output_path = self.temp_dir / f"resolution_{time.time()}.tif"
+        return resample_raster_task(file_path,output_path,payload.target_cell,payload.algorithm)
+       
+
+    def check_resolution(self,db:Session,payload:CellResize):
+        file_path=self._get_file_path(payload.file_id)
+        return dry_run_resample(file_path,payload.target_cell,payload.algorithm)

@@ -870,3 +870,69 @@ def compute_twi_task(
         logger.error("TWI failed (non-retryable): %s", e)
         raise
 
+
+
+
+def _run_resample(
+    input_path:  str,
+    output_path: str,
+    cell_size:   float,
+    algorithm:   str,
+    nodata:      str = None,
+) -> None:
+    cmd = [
+        "gdalwarp",
+        "-tr",         str(cell_size), str(cell_size), 
+        "-r",          algorithm,                
+        "-of",         "GTiff",
+        "-co",         "COMPRESS=LZW",
+        "-co",         "TILED=YES",
+        "-co",         "BIGTIFF=IF_SAFER",
+        "-overwrite",
+    ]
+
+    if nodata is not None:
+        cmd += ["-dstnodata", str(nodata)]
+        cmd += ["-srcnodata", str(nodata)]
+    cmd += [input_path, output_path]
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"gdalwarp failed (exit {result.returncode}):\n{result.stderr}"
+        )
+
+
+
+def resample_raster_task(
+    input_path:   str,
+    output_path:  str,
+    cell_size:int,
+    algorithm:    str,
+
+) -> str:
+    try:
+       
+        input_path,src_nodata = _normalize_nodata(input_path)
+        _run_resample(
+            input_path=input_path,
+            output_path=output_path,
+            cell_size=cell_size,
+            algorithm=algorithm,
+            nodata=src_nodata,
+        )
+        
+        _update_stats(float(src_nodata),output_path)
+
+
+        return output_path
+
+    except (FileNotFoundError, PermissionError, ValueError) as e:
+        logger.error("Resample failed (non-retryable): %s", e)
+        raise
+
