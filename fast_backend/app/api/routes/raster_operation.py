@@ -1,7 +1,18 @@
-from fastapi import APIRouter,status,UploadFile,File
+from fastapi import APIRouter,status,UploadFile,File,Header
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
-from app.api.schema.raster_operation import RasterReproject,RasterReclassify,Edliudian,FlowDirectionParams,FlowAccumulationParams,SlopeParams,TpiParams,TwiParams,CellResize
+from app.api.schema.raster_operation import (
+    RasterMetadataResponse,
+    RasterReproject,
+    RasterReclassify,
+    Edliudian,
+    FlowDirectionParams,
+    FlowAccumulationParams,
+    SlopeParams,
+    TpiParams,
+    TwiParams,
+    Chunkcomplete,
+    CellResize)
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
@@ -12,7 +23,24 @@ async def post_raster(db:db_dependency,file: UploadFile = File(...)):
     """ return the raster temp id"""
     return RasterOperation().save_upload(file)
 
-@router.get("/get_raster_detail",status_code=status.HTTP_201_CREATED)
+@router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
+@validate
+async def post_raster(db:db_dependency, file: UploadFile = File(...),
+    upload_id: str = Header(...),
+    chunk_index: int = Header(...),
+):
+    return await RasterOperation().chunk_upload(file,upload_id,chunk_index)   
+
+
+@router.post("/upload/complete")
+async def complete_upload(db:db_dependency,payload:Chunkcomplete):
+    """
+    Merge all chunks into final file.
+    """
+    return RasterOperation().merge_chunks(payload.upload_id,payload.filename,payload.total_chunks)
+
+
+@router.get("/get_raster_detail",status_code=status.HTTP_201_CREATED,response_model=RasterMetadataResponse)
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""

@@ -8,7 +8,7 @@ from fastapi import UploadFile
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Optional,List
-from fastapi import UploadFile
+from fastapi import UploadFile,HTTPException
 from app.conf.settings import Settings
 from sqlalchemy.orm import Session
 import math
@@ -40,7 +40,10 @@ class RasterOperation:
     def __init__(self):
         self.redis_client = Settings().redis_client
         self.temp_dir = Path(Settings().TEMP_DIR+"/raster_tools")
+        self.chunk_dir=Path(Settings().TEMP_DIR+"/chunk_dir")
         os.makedirs(self.temp_dir, exist_ok=True)
+        os.makedirs(self.chunk_dir, exist_ok=True)
+        self.MAX_SIZE_BYTES = 500 * 1024 * 1024
 
     def _get_file_path(self, file_id: str) -> Path:
         file_path = self.redis_client.get(f"raster:{file_id}")
@@ -238,7 +241,75 @@ class RasterOperation:
         if path.exists() and path.is_file():
             path.unlink()
             logger.info(f"Removed existing file: {file_path}")
-    
+
+   
+    async def chunk_upload(self, file: UploadFile,upload_id:str,chunk_index: int) -> str:
+        
+        chunk_dir = self.chunk_dir / upload_id
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        chunk_path = chunk_dir / f"{chunk_index}.part"
+        try:
+            current_size = sum(
+                f.stat().st_size for f in chunk_dir.glob("*.part")
+            )
+
+            with chunk_path.open("wb") as buffer:
+                while True:
+                    chunk = await file.read(1024 * 1024)  # 1MB
+                    if not chunk:
+                        break
+                    current_size += len(chunk)
+
+                   
+                    if current_size > self.MAX_SIZE_BYTES:
+                        buffer.close()
+                        shutil.rmtree(chunk_dir, ignore_errors=True)
+                        raise HTTPException(
+                            status_code=400,
+                            detail="File exceeds 500MB limit"
+                        )
+                    buffer.write(chunk)
+
+        except HTTPException:
+            raise
+        except Exception:
+            shutil.rmtree(chunk_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to write chunk"
+            )
+
+        return "Chunk uploaded successfully"
+
+    def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
+        file_ext = Path(filename).suffix.lower()
+        if file_ext not in (".tif", ".tiff"):
+            raise HTTPException(status_code=404, detail="Invalid file format — only .tif / .tiff accepted")
+        file_id = str(uuid.uuid4())
+        chunk_dir = self.chunk_dir / upload_id
+        if not chunk_dir.exists():
+            raise HTTPException(status_code=404, detail="Upload ID not found")
+
+        output_path = self.temp_dir / f"{file_id}{file_ext}"
+
+        with output_path.open("wb") as output_file:
+            for i in range(total_chunks):
+                chunk_file = chunk_dir / f"{i}.part"
+                if not chunk_file.exists():
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Missing chunk {i}"
+                    )
+
+                with chunk_file.open("rb") as cf:
+                    shutil.copyfileobj(cf, output_file)
+
+
+        shutil.rmtree(chunk_dir)
+
+        self.redis_client.setex(f"raster:{file_id}", 10800, str(output_path))
+        return file_id
+
     def save_upload(self, file: UploadFile) -> str:
         file.file.seek(0, 2)
         file_size = file.file.tell()

@@ -1,5 +1,5 @@
-from pydantic import BaseModel,model_validator
-from typing import Literal,Optional,List
+from pydantic import BaseModel,model_validator, Field
+from typing import Literal,Optional,List,Dict
 import numpy as np
 DTYPE_MAP: dict = {
     "byte":    (int,   np.uint8),
@@ -183,3 +183,73 @@ class CellResize(BaseModel):
     target_cell:  float
     algorithm:    cell_resize_algorithms="near"
     dtype_override: Optional[str] = None
+
+class FileSize(BaseModel):
+    value: float = Field(..., description="File size numeric value")
+    unit: str = Field(..., description="Unit of file size (e.g., MB, GB)")
+
+
+class Bounds(BaseModel):
+    west: float
+    south: float
+    east: float
+    north: float
+    unit: str = Field(..., description="Unit of bounds (metre or degree)")
+
+
+class ResolutionValue(BaseModel):
+    value: float
+    unit: str
+
+
+class Resolution(BaseModel):
+    x: ResolutionValue
+    y: ResolutionValue
+
+
+class BandStatistics(BaseModel):
+    band_number: int
+    dtype: str
+    color_interpretation: str
+    min: Optional[float] = None
+    max: Optional[float] = None
+    mean: Optional[float] = None
+    std: Optional[float] = None
+
+
+# ----------------------------
+# Main Raster Metadata Model
+# ----------------------------
+
+class RasterMetadataResponse(BaseModel):
+    file_size: FileSize
+    driver: str
+    width: int
+    height: int
+    band_count: int
+    dtypes: List[str]
+    nodata: Optional[float] = None
+    crs: str
+    crs_unit: str
+
+    bounds: Bounds
+    bounds_wgs84: Bounds
+
+    resolution: Resolution
+
+    compression: Optional[str] = None
+    is_tiled: bool
+    block_shapes: List[List[int]]
+
+    
+
+    is_cog_like: bool
+
+    bands: List[BandStatistics]
+
+    tags: Dict[str, str]
+
+class Chunkcomplete(BaseModel):
+    upload_id: str
+    total_chunks: int
+    filename: str
