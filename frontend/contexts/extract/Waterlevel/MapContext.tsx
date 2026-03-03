@@ -120,7 +120,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
     try {
       const currentDate = new Date().toISOString().split("T")[0];
       const startDate = "2016-01-01";
-      const apiUrl = "/django/extract/level";
+      const apiUrl = `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/level`;
 
       const response = await fetch(apiUrl, {
         method: "POST",

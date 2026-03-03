@@ -150,7 +150,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
   useEffect(() => {
     const fetchStates = async (): Promise<void> => {
       try {
-        const response = await fetch('/django/state/');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/state/`);
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
@@ -176,7 +176,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
       const fetchDistricts = async (): Promise<void> => {
         //console.log('Fetching districts for state:', selectedState);
         try {
-          const response = await fetch('/django/district/',
+          const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/district/`,
             {
               method: 'POST',
               headers: {
@@ -227,7 +227,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
     if (selectedDistricts.length > 0) {
       const fetchSubDistricts = async (): Promise<void> => {
         try {
-          const response = await fetch('/django/subdistrict/',
+          const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/subdistrict/`,
             {
               method: 'POST',
               headers: {
@@ -287,7 +287,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
     if (selectedSubDistricts.length > 0) {
       const fetchVillages = async (): Promise<void> => {
         try {
-          const response = await fetch('/django/village/',
+          const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/village/`,
             {
               method: 'POST',
               headers: {

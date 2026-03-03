@@ -186,7 +186,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/state", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/state`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -226,7 +226,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/district/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/district/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -264,7 +264,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/subdistrict/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/subdistrict/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -345,7 +345,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     try {
       const response = await fetch(
-        `/django/rwm/shapefile/subdistbased/${season}/`,
+        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/subdistbased/${season}/`,
         {
           method: "POST",
           headers: {
@@ -433,7 +433,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       const responses = await Promise.all(
         seasons.map((season) =>
           fetch(
-            `/django/rwm/shapefile/subdistbased/${season}/`,
+            `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/subdistbased/${season}/`,
             {
               method: "POST",
               headers: {
@@ -565,7 +565,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     try {
       const response = await fetch(
-        `/django/rwm/water_quality/subdistbased/${season}/`,
+        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/water_quality/subdistbased/${season}/`,
         {
           method: "POST",
           headers: {

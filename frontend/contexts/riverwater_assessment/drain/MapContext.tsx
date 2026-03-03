@@ -736,7 +736,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
         `Generating interpolation for ${parameterInfo.label} (${backendAttribute}), stretch-based, ${season}`
       );
 
-      const url = `/django/rwm/interpolate/${encodeURIComponent(
+      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
         backendAttribute
       )}/stretchbased/${season}/`;
 

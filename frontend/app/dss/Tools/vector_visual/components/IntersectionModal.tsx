@@ -120,7 +120,7 @@ export default function IntersectionModal({
       });
 
       // Call the intersection API
-      const response = await fetch('http://localhost:9000/django/mapplot/intersection/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/mapplot/intersection/`, {
         method: 'POST',
         body: formData,
       });

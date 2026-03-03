@@ -409,7 +409,7 @@ const Population: React.FC<PopulationProps> = ({
 
             //console.log("Enhanced 2025 cohort request:", requestBody);
 
-            fetch('/django/cohort/', {
+            fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/cohort/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -459,7 +459,7 @@ const Population: React.FC<PopulationProps> = ({
             let requestBody = {};
 
             if (selectedMethod.toLowerCase().includes('demographic')) {
-                apiEndpoint = '/django/time_series/demographic/';
+                apiEndpoint = `${process.env.NEXT_PUBLIC_DJANGO_URL}/time_series/demographic/`;
                 requestBody = {
                     "start_year": null,
                     "end_year": null,
@@ -475,7 +475,7 @@ const Population: React.FC<PopulationProps> = ({
                     } : null
                 };
             } else {
-                apiEndpoint = '/django/time_series/arthemitic/';
+                apiEndpoint = `${process.env.NEXT_PUBLIC_DJANGO_URL}/time_series/arthemitic/`;
                 requestBody = {
                     "start_year": null,
                     "end_year": null,
@@ -696,7 +696,7 @@ const Population: React.FC<PopulationProps> = ({
 
                 //console.log('Enhanced cohort request body:', cohortRequestBody);
 
-                cohortApiRequest = fetch('/django/cohort/', {
+                cohortApiRequest = fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/cohort/`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -715,7 +715,7 @@ const Population: React.FC<PopulationProps> = ({
                 try {
                     //console.log("Attempting time series API with totalPopulation:", totalPopulation_props);
 
-                    const timeSeriesResponse = await fetch('/django/time_series/arthemitic/', {
+                    const timeSeriesResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/time_series/arthemitic/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -763,7 +763,7 @@ const Population: React.FC<PopulationProps> = ({
 
             if (methods.demographic) {
                 requests.push(
-                    fetch('/django/time_series/demographic/', {
+                    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/time_series/demographic/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

@@ -312,7 +312,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
         setRiverError(null);
         setError(null);
 
-        const response = await fetch('/django/rivers/');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_NEXT_PUBLIC_DJANGO_URL}/rivers/`);
         if (!response.ok) {
           throw new Error(`Failed to fetch rivers (Status: ${response.status})`);
         }
@@ -350,7 +350,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setStretchError(null);
           setError(null);
 
-          const response = await fetch('/django/river-stretched/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_NEXT_PUBLIC_DJANGO_URL}/river-stretched/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ River_Code: parseInt(selectedRiver) }),
@@ -407,7 +407,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setDrainError(null);
           setError(null);
 
-          const response = await fetch('/django/drain/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_NEXT_PUBLIC_DJANGO_URL}/drain/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ Stretch_ID: parseInt(selectedStretch) }),
@@ -462,7 +462,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setVillageError(null);
           setError(null);
 
-          const response = await fetch('/django/catchment_village/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_NEXT_PUBLIC_DJANGO_URL}/catchment_village/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -688,7 +688,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     try {
       //console.log("Fetching populations for villages:", selectedVillageIds.length, "villages");
 
-      const response = await fetch('/django/village-population/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_NEXT_PUBLIC_DJANGO_URL}/village-population/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shapeID: selectedVillageIds })

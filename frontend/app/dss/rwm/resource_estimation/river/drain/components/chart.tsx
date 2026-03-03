@@ -368,7 +368,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
       // ==================== FETCH DATA FROM BACKEND ====================
 
-      const response = await fetch(`/django/rwm/start-pdf-report/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/start-pdf-report/`, {
         method: "POST",
         body: JSON.stringify({
           stretch_ids: selectedStretches,

@@ -151,7 +151,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
 
   /* ---------- API BASE ---------- */
-  const API_BASE = "/django/"
+  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_BASE}`;
 
   /* ==============================================================
      1. INITIALISE MAP

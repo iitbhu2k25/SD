@@ -357,7 +357,7 @@ export default function VarunaRiverDashboard() {
 
   // Fetch Sewage Statistics
   useEffect(() => {
-    fetch('/django/drain-water-quality/sewage-infrastructure/statistics')
+    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/sewage-infrastructure/statistics`)
       .then(res => res.json())
       .then(data => {
         if (data && data.statistics) {
@@ -540,7 +540,7 @@ export default function VarunaRiverDashboard() {
 
   // Fetch drain data
   useEffect(() => {
-    fetch('/django/drain-water-quality/main/')
+    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main/`)
       .then(async res => {
         if (!res.ok) throw new Error(await res.text());
         return res.json();

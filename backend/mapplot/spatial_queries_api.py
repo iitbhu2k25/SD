@@ -1,18 +1,3 @@
-# file: backend/mapplot/spatial_queries_api.py
-#
-# Spatial Query Engine
-# --------------------
-# All queries follow the pattern:
-#   "Select features from the SOURCE layer WHERE <spatial_condition> TARGET layer"
-#
-# POST /django/mapplot/spatial/query
-#   geojson_0  = source layer (FeatureCollection JSON)  ← features to SELECT FROM
-#   geojson_1  = target layer (FeatureCollection JSON)  ← spatial reference / condition
-#   query_type = one of the QUERY_TYPES below
-#   + optional parameters (distance_m, predicate, stat_field, …)
-#
-# GET /django/mapplot/spatial/query/types
-#   Returns list of all query types with descriptions and parameters
 
 import json
 import logging
@@ -563,10 +548,7 @@ QUERY_REGISTRY = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 class SpatialQueryAPIView(APIView):
-    """
-    POST /django/mapplot/spatial/query
-    Run a spatial query between a source and target layer.
-    """
+    
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -651,10 +633,7 @@ class SpatialQueryAPIView(APIView):
 
 
 class SpatialQueryTypesView(APIView):
-    """
-    GET /django/mapplot/spatial/query/types
-    Returns all available query types grouped by category.
-    """
+    
     permission_classes = [AllowAny]
 
     def get(self, request):

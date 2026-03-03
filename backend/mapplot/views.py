@@ -225,15 +225,7 @@ def gdf_to_geojson(gdf: gpd.GeoDataFrame) -> dict:
 # ─────────────────────────────────────────────────────────────────
 
 class UploadShapefile(APIView):
-    """
-    POST /django/mapplot/upload-shapefile
-
-    Accepts any mix of spatial files (or a ZIP containing them).
-    Returns GeoJSON reprojected to EPSG:4326 plus CRS metadata.
-
-    Progress is streamed via WebSocket from UploadShapefileConsumer;
-    this view is the final "done" endpoint that returns the payload.
-    """
+    
     permission_classes = [AllowAny]
     parser_classes = (MultiPartParser, FormParser)
 

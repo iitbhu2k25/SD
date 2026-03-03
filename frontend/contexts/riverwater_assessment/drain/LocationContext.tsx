@@ -295,7 +295,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
     try {
       console.log("📡 Making stretches API request...");
-      const response = await fetch(`/django/rwm/stretches/`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/stretches/`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -325,7 +325,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       console.log("Fetching map layers...");
 
       // Fetch basin data
-      const basinResponse = await fetch(`/django/basin`);
+      const basinResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/basin`);
       if (!basinResponse.ok) {
         throw new Error(`Basin API error! Status: ${basinResponse.status}`);
       }
@@ -334,7 +334,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       console.log("Fetched basin data:", basinGeoJSON);
 
       // Fetch river data
-      const riverResponse = await fetch(`/django/rwm/river/`);
+      const riverResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river/`);
       if (!riverResponse.ok) {
         throw new Error(`River API error! Status: ${riverResponse.status}`);
       }
@@ -344,7 +344,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
       // Fetch river buffer data
       const riverBufferResponse = await fetch(
-        `/django/rwm/river_100m_buffer/stretchbased/`
+        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/stretchbased/`
       );
       if (!riverBufferResponse.ok) {
         throw new Error(
@@ -385,7 +385,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
   try {
     const response = await fetch(
-      `/django/rwm/shapefile/stretchbased/${season}/`,
+      `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/stretchbased/${season}/`,
       {
         method: "POST",
         headers: {
@@ -466,7 +466,7 @@ const fetchAllSeasonsWaterQualityData = async (
     const responses = await Promise.all(
       seasons.map((season) =>
         fetch(
-          `/django/rwm/shapefile/stretchbased/${season}/`,
+          `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/stretchbased/${season}/`,
           {
             method: "POST",
             headers: {
@@ -644,7 +644,7 @@ const clearAllSeasonalData = (): void => {
     };
 
     try {
-      const response = await fetch(`/django/rwm/stretch_lines/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/stretch_lines/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -700,7 +700,7 @@ const clearAllSeasonalData = (): void => {
   };
 
   try {
-    const response = await fetch(`/django/rwm/river_100m_buffer/stretchbased/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/stretchbased/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

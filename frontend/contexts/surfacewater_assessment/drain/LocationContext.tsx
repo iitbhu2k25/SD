@@ -41,7 +41,7 @@ export const LocationProvider: React.FC<React.PropsWithChildren> = ({ children }
     selectedSubbasinsRef.current = selectedSubbasins;
   }, [selectedSubbasins]); // keep ref in sync for safe async use [3]
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '/django/swa';
+  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`;
 
   const fetchOnce = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);

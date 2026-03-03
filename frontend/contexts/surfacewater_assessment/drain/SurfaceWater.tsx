@@ -68,7 +68,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
 
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '/django/swa';
+  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`;
 
   const selectedSubs = useMemo(
     () =>

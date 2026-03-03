@@ -23,21 +23,7 @@ def _sse(data: dict) -> str:
 
 
 class UploadShapefileSSE(APIView):
-    """
-    POST /django/mapplot/upload-shapefile
-
-    Returns a text/event-stream response.
-    Each processing step emits:
-        data: {"pct": N, "phase": "...", "msg": "..."}
-
-    Final success event:
-        data: {"pct": 100, "phase": "done", "msg": "...",
-               "feature_count": N, "crs": {...}, "source_file": "...",
-               "geojson": {...}}
-
-    Error event:
-        data: {"pct": 0, "phase": "error", "msg": "..."}
-    """
+    
     permission_classes = [AllowAny]
     # No parser_classes — we read request.FILES directly
 

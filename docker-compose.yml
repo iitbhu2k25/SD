@@ -30,7 +30,7 @@ services:
       dockerfile: docker/dockerfile.backend
     image: backend:latest
     ports:
-      - "9200:9000"
+      - "9000:9000"
     env_file:
       - .env
     volumes:

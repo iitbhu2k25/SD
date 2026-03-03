@@ -475,11 +475,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const apiCalls = [
       {
-        url: "/django/rwm/river/",
+        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river/`,
         name: "rivers",
       },
       {
-        url: "/django/rwm/river_100m_buffer/subdistbased/",
+        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/subdistbased/`,
         name: "riverBuffer",
       },
     ];
@@ -1638,7 +1638,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         attributeMapping[parameter as keyof typeof attributeMapping] ||
         parameter;
 
-      const url = `/django/rwm/interpolate/${encodeURIComponent(
+      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
         backendAttribute
       )}/${analysisType}/${season}/`;
 

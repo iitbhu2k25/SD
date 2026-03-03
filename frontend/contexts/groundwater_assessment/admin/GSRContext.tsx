@@ -95,7 +95,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
   // Get map image URL helper
   const getMapImageUrl = (): string | null => {
     if (!mapImageFilename) return null;
-    return `/django/media/temp/${mapImageFilename}`;
+    return `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${mapImageFilename}`;
   };
 
   // Get map image source helper 

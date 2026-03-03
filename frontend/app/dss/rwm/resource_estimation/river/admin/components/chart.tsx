@@ -380,7 +380,7 @@ const wqiInfo = getWQIInfo(wqiMean);
       console.log("   Season:", selectedSeason);
 
       // ==================== FETCH DATA FROM BACKEND ====================
-      const response = await fetch(`/django/rwm/start-pdf-report/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/start-pdf-report/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

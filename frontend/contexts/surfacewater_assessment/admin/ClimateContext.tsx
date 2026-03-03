@@ -120,7 +120,7 @@ export const ClimateAdminProvider: React.FC<React.PropsWithChildren> = ({ childr
     setResults(null);
 
     try {
-      const res = await fetch(`${apiBase}/django/swa/adminclimate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminclimate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
