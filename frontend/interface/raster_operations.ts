@@ -6,6 +6,22 @@ export interface RasterLayer {
   category?: string;
 }
 
+export interface ColorStop {
+  id: string;
+  value: number;
+  color: string;
+  label?: string;
+
+}
+
+export interface SLDConfig {
+  layerName: string;
+  colorStops: ColorStop[];
+  interpolation: 'linear' | 'discrete';
+  opacity: number;
+}
+
+
 export interface UploadResponse {
   success: boolean;
   file_id: string;
@@ -108,4 +124,5 @@ export interface WMSLayerState {
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
 export type RasterPanelTab = "layers" | "basemap" | "details" | "operations";
+
 

@@ -16,6 +16,8 @@ import {
   OperationStatus,
   OperationResult,
   Operation,
+  ColorStop,
+  SLDConfig,
 } from "@/interface/raster_operations";
 import { api } from "@/services/api";
 
@@ -101,6 +103,8 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rasterFileName, setRasterFileName] = useState<string | null>(null);
+
+  const [sldConfig, setSldConfig] = useState<SLDConfig | null>(null);
 
   // ── Load details ──────────────────────────────────────────────────────────
   const loadDetails = useCallback(async (fileId: string) => {

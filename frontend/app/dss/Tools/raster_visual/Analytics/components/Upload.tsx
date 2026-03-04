@@ -1,9 +1,11 @@
 import React, { useRef, useState, useCallback } from "react";
 import { useRaster } from "@/contexts/raster_operations/RasterContext";
 
-const ACCEPTED = [".tif", ".tiff", ".png", ".jpg", ".jpeg"];
+const ACCEPTED = [".tif", ".tiff"];
 const MAX_MB = 500;
 const MAX_SIZE = MAX_MB * 1024 * 1024;
+
+
 
 const UploadRaster: React.FC = () => {
   const { uploading, uploadProgress, layer, error, handleUpload } = useRaster();
@@ -16,18 +18,15 @@ const UploadRaster: React.FC = () => {
     (file: File | undefined) => {
       if (!file) return;
       setLocalError(null);
-
       if (file.size > MAX_SIZE) {
         setLocalError(`File too large. Max ${MAX_MB} MB.`);
         return;
       }
-
       const ext = "." + file.name.split(".").pop()?.toLowerCase();
       if (!ACCEPTED.includes(ext)) {
         setLocalError(`Unsupported format. Use: ${ACCEPTED.join(", ")}`);
         return;
       }
-
       handleUpload(file);
     },
     [handleUpload]
@@ -62,78 +61,105 @@ const UploadRaster: React.FC = () => {
         className="hidden"
       />
 
-      {/* Drop zone */}
+      {/* ── Drop zone ────────────────────────────────────────────────────── */}
       <div
         onClick={() => !uploading && inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
         onDragEnter={(e) => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
         onDrop={onDrop}
-        className={[
-          "relative flex flex-col items-center justify-center",
-          "min-h-[120px] rounded-xl border-2 border-dashed",
-          "cursor-pointer select-none transition-all duration-300 overflow-hidden",
-          uploading
-            ? "border-slate-600/40 bg-slate-800/15 cursor-not-allowed"
+        className="relative flex flex-col items-center justify-center min-h-[140px] select-none transition-all duration-300 overflow-hidden"
+        style={{
+          borderRadius: 'var(--radius-lg)',
+          border: `2px dashed ${
+            uploading
+              ? 'var(--border-strong)'
+              : drag
+              ? 'var(--accent)'
+              : 'var(--border-strong)'
+          }`,
+          background: uploading
+            ? 'var(--surface-card)'
             : drag
-            ? "border-cyan-400/60 bg-cyan-500/5 shadow-[0_0_24px_rgba(34,211,238,0.1)]"
-            : "border-slate-600/35 bg-slate-800/12 hover:border-blue-500/40 hover:bg-slate-800/30",
-        ].join(" ")}
+            ? 'var(--accent-bg)'
+            : 'var(--surface-card)',
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          boxShadow: drag ? '0 0 0 4px rgba(13, 155, 122, 0.08)' : 'var(--shadow-sm)',
+        }}
       >
         {/* Scan line when dragging */}
         {drag && !uploading && (
-          <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+          <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ borderRadius: 'var(--radius-lg)' }}>
             <div
-              className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-70"
-              style={{ animation: "scan 1.5s linear infinite" }}
+              className="absolute left-0 right-0 h-px opacity-60"
+              style={{
+                background: 'linear-gradient(to right, transparent, var(--accent), transparent)',
+                animation: 'scan 1.5s linear infinite',
+              }}
             />
           </div>
         )}
 
         {/* Bottom progress bar */}
         {uploading && (
-          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800">
+          <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: 'var(--border-subtle)' }}>
             <div
-              className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 transition-all duration-300"
-              style={{ width: `${uploadProgress}%` }}
+              className="h-full transition-all duration-300"
+              style={{
+                width: `${uploadProgress}%`,
+                background: `linear-gradient(90deg, var(--accent), var(--blue))`,
+                borderRadius: '0 2px 2px 0',
+              }}
             />
           </div>
         )}
 
         {uploading ? (
-          <div className="flex flex-col items-center gap-3 py-4">
+          /* ── Upload progress state ─────────────────────────────────────── */
+          <div className="flex flex-col items-center gap-3 py-5">
             <div className="relative w-14 h-14">
               <svg className="absolute inset-0 w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                <circle cx="28" cy="28" r={r} fill="none" stroke="#1e293b" strokeWidth="3" />
+                <circle cx="28" cy="28" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="3" />
               </svg>
               <svg className="absolute inset-0 w-14 h-14 -rotate-90" viewBox="0 0 56 56">
                 <circle
                   cx="28" cy="28" r={r}
-                  fill="none" stroke="#38bdf8" strokeWidth="3"
+                  fill="none" stroke="var(--accent)" strokeWidth="3"
                   strokeLinecap="round"
                   strokeDasharray={`${dash} ${circ}`}
                   className="transition-all duration-300"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[11px] font-bold text-cyan-300 tabular-nums">
+                <span
+                  className="text-[11px] font-bold tabular-nums"
+                  style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
+                >
                   {Math.round(uploadProgress)}%
                 </span>
               </div>
             </div>
             <div className="text-center">
-              <p className="text-xs font-semibold text-slate-200">Uploading…</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Chunked transfer in progress</p>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Uploading…</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                Chunked transfer in progress
+              </p>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2.5 py-7 px-4 text-center">
-            <div className={[
-              "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
-              drag ? "bg-cyan-500/15 scale-110" : "bg-slate-700/40",
-            ].join(" ")}>
+          /* ── Idle / drag state ─────────────────────────────────────────── */
+          <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300"
+              style={{
+                background: drag ? 'rgba(13, 155, 122, 0.12)' : 'var(--surface-sunken)',
+                transform: drag ? 'scale(1.1)' : 'scale(1)',
+                border: `1px solid ${drag ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
+              }}
+            >
               <svg
-                className={`w-5 h-5 transition-colors duration-200 ${drag ? "text-cyan-300" : "text-slate-400"}`}
+                className="w-5 h-5 transition-colors duration-200"
+                style={{ color: drag ? 'var(--accent)' : 'var(--text-muted)' }}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -141,10 +167,13 @@ const UploadRaster: React.FC = () => {
               </svg>
             </div>
             <div>
-              <p className={`text-xs font-semibold transition-colors ${drag ? "text-cyan-200" : "text-slate-200"}`}>
+              <p
+                className="text-[13px] font-semibold transition-colors"
+                style={{ color: drag ? 'var(--accent)' : 'var(--text-primary)' }}
+              >
                 {drag ? "Drop to upload" : "Click or drag & drop"}
               </p>
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {ACCEPTED.join(" / ")} — max {MAX_MB} MB
               </p>
             </div>
@@ -152,27 +181,49 @@ const UploadRaster: React.FC = () => {
         )}
       </div>
 
-      {/* Error */}
+      {/* ── Error ────────────────────────────────────────────────────────── */}
       {displayError && (
-        <div className="flex items-start gap-2 px-3 py-2.5 bg-red-500/8 border border-red-500/20 rounded-xl">
-          <svg className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div
+          className="flex items-start gap-2 px-3 py-2.5"
+          style={{
+            background: 'var(--red-bg)',
+            border: '1px solid rgba(239, 68, 68, 0.15)',
+            borderRadius: 'var(--radius-lg)',
+          }}
+        >
+          <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--red)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
               d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-[11px] text-red-300 leading-relaxed">{displayError}</p>
+          <p className="text-[11px] leading-relaxed" style={{ color: '#b91c1c' }}>{displayError}</p>
         </div>
       )}
 
-      {/* Layer status pill */}
+      {/* ── Active layer pill ────────────────────────────────────────────── */}
       {layer && !uploading && (
-        <div className="flex items-center justify-between px-3 py-2 bg-slate-800/35 rounded-xl border border-slate-700/30">
+        <div
+          className="flex items-center justify-between px-3 py-2.5"
+          style={{
+            background: 'var(--surface-card)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-            <span className="text-[11px] text-slate-400 font-medium truncate" title={layer.file_name}>
+            <span
+              className="w-[6px] h-[6px] rounded-full terra-pulse-dot"
+              style={{ background: 'var(--green)', boxShadow: '0 0 6px rgba(34,197,94,0.4)' }}
+            />
+            <span
+              className="text-[11px] font-medium truncate"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', maxWidth: '200px' }}
+              title={layer.file_name}
+            >
               {layer.file_name}
             </span>
           </div>
-          <span className="text-[10px] text-emerald-300 font-medium">Active</span>
+          <span className="terra-badge terra-badge--success">Active</span>
         </div>
       )}
     </div>

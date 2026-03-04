@@ -18,11 +18,11 @@ from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
 
-@router.post("/post_raster",status_code=status.HTTP_201_CREATED)
-@validate
-async def post_raster(db:db_dependency,file: UploadFile = File(...)):
-    """ return the raster temp id"""
-    return RasterOperation().save_upload(file)
+# @router.post("/post_raster",status_code=status.HTTP_201_CREATED)
+# @validate
+# async def post_raster(db:db_dependency,file: UploadFile = File(...)):
+#     """ return the raster temp id"""
+#     return RasterOperation().save_upload(file)
 
 @router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
 @validate

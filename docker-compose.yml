@@ -104,6 +104,8 @@ services:
       - ./fast_backend/.fastdb.env
     volumes:
       - ./fast_backend:/home/app:z
+    environment:
+      - SERVICE_TYPE=app
 
     #command: gunicorn app.main:app --config gunicorn.conf.py --reload
     command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload 
@@ -136,6 +138,8 @@ services:
       - redis
       - fast_backend
       - geoserver
+    environment:
+      - SERVICE_TYPE=celery
     command:  
       - /bin/sh
       - -c
@@ -145,25 +149,27 @@ services:
     env_file:
       - ./fast_backend/.fastdb.env
 
-  # celery_high:
-  #   build:
-  #     context: ./fast_backend
-  #     dockerfile: Dockerfile
-  #   image: celery_high:latest
-  #   volumes:
-  #     - ./fast_backend:/home/app:z 
-  #   depends_on:
-  #     - redis
-  #     - fast_backend
-  #     - geoserver
-  #   command:  
-  #     - /bin/sh
-  #     - -c
-  #     - |
-  #       celery -A app.conf.celery worker -n heavy_worker -c 2 --pool=prefork -Q heavy_tasks --autoscale=4,2
+  celery_high:
+    build:
+      context: ./fast_backend
+      dockerfile: Dockerfile
+    image: celery_high:latest
+    volumes:
+      - ./fast_backend:/home/app:z 
+    depends_on:
+      - redis
+      - fast_backend
+      - geoserver
+    environment:
+      - SERVICE_TYPE=celery
+    command:  
+      - /bin/sh
+      - -c
+      - |
+        celery -A app.conf.celery worker -n heavy_worker -c 2 --pool=prefork -Q heavy_tasks --autoscale=4,2
 
-  #   env_file:
-  #     - .fastdb.env
+    env_file:
+      - ./fast_backend/.fastdb.env
   
       
   
