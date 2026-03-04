@@ -12,7 +12,8 @@ from app.api.schema.raster_operation import (
     TpiParams,
     TwiParams,
     Chunkcomplete,
-    CellResize)
+    CellResize,
+    RasterUploadResponse)
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
@@ -32,15 +33,15 @@ async def post_raster(db:db_dependency, file: UploadFile = File(...),
     return await RasterOperation().chunk_upload(file,upload_id,chunk_index)   
 
 
-@router.post("/upload/complete")
+@router.post("/upload/complete",status_code=status.HTTP_201_CREATED)
 async def complete_upload(db:db_dependency,payload:Chunkcomplete):
     """
     Merge all chunks into final file.
     """
-    return RasterOperation().merge_chunks(payload.upload_id,payload.filename,payload.total_chunks)
+    return await RasterOperation().merge_chunks(payload.upload_id,payload.filename,payload.total_chunks)
 
 
-@router.get("/get_raster_detail",status_code=status.HTTP_201_CREATED,response_model=RasterMetadataResponse)
+@router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterMetadataResponse)
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""

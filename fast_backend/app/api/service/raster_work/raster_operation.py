@@ -15,25 +15,30 @@ import math
 import os
 import time
 from app.conf.logging import logger
-from app.api.service.celery.raster_heavy_task import (celery_reprojection,
-                                                      celery_euclidean_distance,
-                                                      reclassify_raster,
-                                                      compute_flow_direction_task,
-                                                      compute_flow_accumulation_task,
-                                                      compute_slope_task,
-                                                      compute_tpi_task,
-                                                      compute_twi_task,
-                                                      resample_raster_task
-                                                    )
-from app.api.schema.raster_operation import( RasterReclassify,
-                                            Edliudian,
-                                            FlowDirectionParams,
-                                            FlowAccumulationParams,
-                                            SlopeParams,
-                                            TpiParams,
-                                            TwiParams,
-                                            CellResize)
+from app.api.service.celery.raster_heavy_task import (
+    celery_reprojection,
+    celery_euclidean_distance,
+    reclassify_raster,
+    compute_flow_direction_task,
+    compute_flow_accumulation_task,
+    compute_slope_task,
+    compute_tpi_task,
+    compute_twi_task,
+    resample_raster_task)
+
+from app.api.schema.raster_operation import( 
+    RasterReclassify,
+    Edliudian,
+    FlowDirectionParams,
+    FlowAccumulationParams,
+    SlopeParams,
+    TpiParams,
+    TwiParams,
+    CellResize)
+from app.utils.name import Unique_name
+
 from .raster_resize import dry_run_resample
+from app.api.service.geoserver import Geoserver
 
 class RasterOperation:
 
@@ -44,6 +49,9 @@ class RasterOperation:
         os.makedirs(self.temp_dir, exist_ok=True)
         os.makedirs(self.chunk_dir, exist_ok=True)
         self.MAX_SIZE_BYTES = 500 * 1024 * 1024
+        self.geo=Geoserver()
+        self.workspace="raster_work"
+        self.default_sld="/home/app/media/Rajat_data/default_sld.xml"
 
     def _get_file_path(self, file_id: str) -> Path:
         file_path = self.redis_client.get(f"raster:{file_id}")
@@ -280,8 +288,12 @@ class RasterOperation:
             )
 
         return "Chunk uploaded successfully"
-
-    def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
+    async def _upload_geoserver(self,file_path:str):
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=await Geoserver().upload_raster(self.workspace,store_name=unique_store_name,raster_path=file_path)
+        return layer_name
+    
+    async def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
         file_ext = Path(filename).suffix.lower()
         if file_ext not in (".tif", ".tiff"):
             raise HTTPException(status_code=404, detail="Invalid file format — only .tif / .tiff accepted")
@@ -306,9 +318,9 @@ class RasterOperation:
 
 
         shutil.rmtree(chunk_dir)
-
-        self.redis_client.setex(f"raster:{file_id}", 10800, str(output_path))
-        return file_id
+        self.redis_client.setex(f"raster:{file_id}", 10800, str(output_path)) 
+        layer_name=await self._upload_geoserver(output_path)
+        return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
 
     def save_upload(self, file: UploadFile) -> str:
         file.file.seek(0, 2)
@@ -342,6 +354,7 @@ class RasterOperation:
                 **self._advanced_info(src),
                 "bands": self._band_info(src, compute_stats),
                 "tags": src.tags(),
+                "file_id": file_id,
             }
 
     def reprojection(self,db:Session,file_id:str,crs:str,resampling:str):

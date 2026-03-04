@@ -57,3 +57,5 @@ prometheus-fastapi-instrumentator
 matplotlib-scalebar
 itsdangerous
 whitebox
+aiohttp
+aiofiles

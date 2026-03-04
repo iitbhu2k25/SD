@@ -3,82 +3,21 @@
 import React, {
   createContext,
   useContext,
-  useReducer,
+  useState,
   useCallback,
   ReactNode,
 } from "react";
 import { toast } from "react-toastify";
 import { uploadFileInChunks } from "@/utils/chunkUpload";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface RasterLayer {
-  file_id: string;
-  file_name: string;
-  layer_name: string;
-  category?: string;
-}
-
-export interface BandInfo {
-  band_number: number;
-  dtype: string;
-  color_interpretation: string;
-  min: number;
-  max: number;
-  mean: number;
-  std: number;
-}
-
-export interface RasterDetails {
-  file_size: { value: number; unit: string };
-  driver: string;
-  width: number;
-  height: number;
-  band_count: number;
-  dtypes: string[];
-  nodata: number | null;
-  crs: string;
-  crs_unit: string;
-  bounds: { west: number; south: number; east: number; north: number; unit: string };
-  bounds_wgs84: { west: number; south: number; east: number; north: number; unit: string };
-  resolution: { x: { value: number; unit: string }; y: { value: number; unit: string } };
-  compression: string | null;
-  is_tiled: boolean;
-  block_shapes: number[][];
-  is_cog_like: boolean;
-  bands: BandInfo[];
-  tags: Record<string, string>;
-}
-
-export type OperationType =
-  | "reprojection"
-  | "reclassification"
-  | "euclidean_distance"
-  | "slope"
-  | "tpi"
-  | "twi";
-
-export type OperationStatus = "idle" | "running" | "success" | "error";
-
-export interface OperationResult {
-  file_id: string;
-  file_name: string;
-  layer_name: string;
-  output_path?: string;
-}
-
-export interface Operation {
-  id: string;
-  type: OperationType;
-  status: OperationStatus;
-  params: Record<string, unknown>;
-  result?: OperationResult;
-  error?: string;
-  startedAt?: number;
-  finishedAt?: number;
-}
+import {
+  RasterDetails,
+  RasterLayer,
+  OperationType,
+  OperationStatus,
+  OperationResult,
+  Operation,
+} from "@/interface/raster_operations";
+import { api } from "@/services/api";
 
 export type SidebarTab = "layers" | "basemap" | "details" | "operations";
 
@@ -99,233 +38,38 @@ export const BASE_MAPS = {
 
 export type BaseMapKey = keyof typeof BASE_MAPS;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface State {
-  uploading: boolean;
-  uploadProgress: number;
-
-  layers: RasterLayer[];
-  activeLayer: RasterLayer | null;
-
-  details: RasterDetails | null;
-  detailsLoading: boolean;
-
-  operations: Operation[];
-
-  activeBaseMap: BaseMapKey;
-  wmsOpacity: number;
-  legendUrl: string | null;
-  showLegend: boolean;
-  mapLoading: boolean;
-  isFullscreen: boolean;
-
-  sidebarTab: SidebarTab;
-  sidebarOpen: boolean;
-  error: string | null;
-}
-
-const INIT: State = {
-  uploading: false,
-  uploadProgress: 0,
-  layers: [],
-  activeLayer: null,
-  details: null,
-  detailsLoading: false,
-  operations: [],
-  activeBaseMap: "satellite",
-  wmsOpacity: 75,
-  legendUrl: null,
-  showLegend: true,
-  mapLoading: false,
-  isFullscreen: false,
-  sidebarTab: "layers",
-  sidebarOpen: false,
-  error: null,
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ACTIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
-type Action =
-  | { type: "UPLOAD_START" }
-  | { type: "UPLOAD_PROGRESS"; pct: number }
-  | { type: "UPLOAD_SUCCESS"; layers: RasterLayer[] }
-  | { type: "UPLOAD_ERROR"; msg: string }
-  | { type: "ADD_LAYERS"; layers: RasterLayer[] }
-  | { type: "REMOVE_LAYER"; fileId: string }
-  | { type: "SET_ACTIVE"; layer: RasterLayer }
-  | { type: "CLEAR_ACTIVE" }
-  | { type: "DETAILS_START" }
-  | { type: "DETAILS_OK"; details: RasterDetails }
-  | { type: "DETAILS_FAIL" }
-  | { type: "OP_ADD"; op: Operation }
-  | { type: "OP_UPDATE"; id: string; status: OperationStatus; result?: OperationResult; error?: string }
-  | { type: "SET_BASEMAP"; key: BaseMapKey }
-  | { type: "SET_OPACITY"; v: number }
-  | { type: "SET_LEGEND_URL"; url: string | null }
-  | { type: "SET_SHOW_LEGEND"; v: boolean }
-  | { type: "SET_MAP_LOADING"; v: boolean }
-  | { type: "SET_FULLSCREEN"; v: boolean }
-  | { type: "SET_TAB"; tab: SidebarTab }
-  | { type: "SET_SIDEBAR"; open: boolean }
-  | { type: "SET_ERROR"; msg: string | null };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REDUCER
-// ─────────────────────────────────────────────────────────────────────────────
-
-function reducer(s: State, a: Action): State {
-  switch (a.type) {
-    case "UPLOAD_START":
-      return { ...s, uploading: true, uploadProgress: 0, error: null };
-
-    case "UPLOAD_PROGRESS":
-      return { ...s, uploadProgress: a.pct };
-
-    case "UPLOAD_SUCCESS":
-    case "ADD_LAYERS": {
-      const incoming = a.layers.filter(
-        (l) => !s.layers.some((ex) => ex.file_id === l.file_id)
-      );
-      return {
-        ...s,
-        uploading: false,
-        uploadProgress: 0,
-        layers: [...s.layers, ...incoming],
-      };
-    }
-
-    case "UPLOAD_ERROR":
-      return { ...s, uploading: false, uploadProgress: 0, error: a.msg };
-
-    case "REMOVE_LAYER": {
-      const layers = s.layers.filter((l) => l.file_id !== a.fileId);
-      const gone = s.activeLayer?.file_id === a.fileId;
-      return {
-        ...s,
-        layers,
-        activeLayer: gone ? null : s.activeLayer,
-        details: gone ? null : s.details,
-        legendUrl: gone ? null : s.legendUrl,
-      };
-    }
-
-    case "SET_ACTIVE":
-      return { ...s, activeLayer: a.layer, details: null };
-
-    case "CLEAR_ACTIVE":
-      return { ...s, activeLayer: null, details: null, legendUrl: null };
-
-    case "DETAILS_START":
-      return { ...s, detailsLoading: true, details: null };
-
-    case "DETAILS_OK":
-      return { ...s, detailsLoading: false, details: a.details };
-
-    case "DETAILS_FAIL":
-      return { ...s, detailsLoading: false };
-
-    case "OP_ADD":
-      return { ...s, operations: [a.op, ...s.operations] };
-
-    case "OP_UPDATE":
-      return {
-        ...s,
-        operations: s.operations.map((op) =>
-          op.id !== a.id
-            ? op
-            : {
-                ...op,
-                status: a.status,
-                finishedAt: Date.now(),
-                ...(a.result ? { result: a.result } : {}),
-                ...(a.error ? { error: a.error } : {}),
-              }
-        ),
-      };
-
-    case "SET_BASEMAP":     return { ...s, activeBaseMap: a.key };
-    case "SET_OPACITY":     return { ...s, wmsOpacity: a.v };
-    case "SET_LEGEND_URL":  return { ...s, legendUrl: a.url };
-    case "SET_SHOW_LEGEND": return { ...s, showLegend: a.v };
-    case "SET_MAP_LOADING": return { ...s, mapLoading: a.v };
-    case "SET_FULLSCREEN":  return { ...s, isFullscreen: a.v };
-    case "SET_TAB":         return { ...s, sidebarTab: a.tab };
-    case "SET_SIDEBAR":     return { ...s, sidebarOpen: a.open };
-    case "SET_ERROR":       return { ...s, error: a.msg };
-
-    default:
-      return s;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
-
-async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`);
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const b = await res.json();
-      msg = b.detail ?? b.message ?? msg;
-    } catch {/* ignore */}
-    throw new Error(msg);
-  }
-  return res.json();
-}
-
-async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const b = await res.json();
-      msg = b.detail ?? b.message ?? msg;
-    } catch {/* ignore */}
-    throw new Error(msg);
-  }
-  return res.json();
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXT VALUE
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CtxValue {
-  state: State;
-  dispatch: React.Dispatch<Action>;
+  uploading: boolean;
+  uploadProgress: number;
+  layer: RasterLayer | null;
+  details: RasterDetails | null;
+  detailsLoading: boolean;
+  operations: Operation[];
+  activeBaseMap: BaseMapKey;
+  wmsOpacity: number;
+  legendUrl: string | null;
+  showLegend: boolean;
+  mapLoading: boolean;
+  isFullscreen: boolean;
+  sidebarTab: SidebarTab;
+  sidebarOpen: boolean;
+  error: string | null;
 
-  // Upload & layers
   handleUpload: (file: File) => Promise<void>;
-  selectLayer: (layer: RasterLayer) => void;
-  removeLayer: (fileId: string) => void;
-  clearActiveLayer: () => void;
-
-  // Operations
+  removeLayer: () => void;
   executeOperation: (type: OperationType, params: Record<string, unknown>) => Promise<void>;
-
-  // Map config
   setOpacity: (v: number) => void;
   setLegendUrl: (url: string | null) => void;
   setShowLegend: (v: boolean) => void;
   setMapLoading: (v: boolean) => void;
   setFullscreen: (v: boolean) => void;
   setBaseMap: (key: BaseMapKey) => void;
-
-  // UI
   setTab: (tab: SidebarTab) => void;
   setSidebar: (open: boolean) => void;
   clearError: () => void;
@@ -338,21 +82,40 @@ const Ctx = createContext<CtxValue | null>(null);
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function RasterProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, INIT);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [layer, setLayer] = useState<RasterLayer | null>(null);
+  const [details, setDetails] = useState<RasterDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [activeBaseMap, setActiveBaseMap] = useState<BaseMapKey>("satellite");
+  const [wmsOpacity, setWmsOpacity] = useState(75);
+  const [legendUrl, setLegendUrl] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(true);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("layers");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // ── Load details for a layer ──────────────────────────────────────────────
+  // ── Load details ──────────────────────────────────────────────────────────
   const loadDetails = useCallback(async (fileId: string) => {
-    dispatch({ type: "DETAILS_START" });
+    setDetailsLoading(true);
     try {
-      const details = await apiGet<RasterDetails>(`/api/raster/${fileId}/details`);
-      dispatch({ type: "DETAILS_OK", details });
-    } catch (err) {
-      dispatch({ type: "DETAILS_FAIL" });
-      toast.error(err instanceof Error ? err.message : "Failed to load metadata");
+      const resp = await api.get<RasterDetails>(`/api/tools/raster/${fileId}/details`);
+      if (resp.status > 201) {
+        toast.error("Failed to load metadata");
+        return;
+      }
+      setDetails(resp.message);
+    } catch {
+      toast.error("Failed to load metadata");
+    } finally {
+      setDetailsLoading(false);
     }
   }, []);
 
-  // ── Upload (chunked) ─────────────────────────────────────────────────────
+  // ── Upload ────────────────────────────────────────────────────────────────
   const handleUpload = useCallback(
     async (file: File) => {
       if (file.size > MAX_FILE_SIZE) {
@@ -360,61 +123,49 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      dispatch({ type: "UPLOAD_START" });
+      setUploading(true);
+      setUploadProgress(0);
+      setError(null);
 
       try {
-        
-        const res = await uploadFileInChunks(file, (pct: number) =>
-          dispatch({ type: "UPLOAD_PROGRESS", pct })
-        );
+        const res = await uploadFileInChunks(file, (progress: number) => {
+          setUploadProgress(progress);
+        });
 
-        // Normalise: your chunk endpoint may return layers in `message` or directly
-        const layers: RasterLayer[] = Array.isArray(res) ? res : (typeof res === 'string' ? JSON.parse(res) : []);
-
-        if (layers.length === 0) {
-          throw new Error("No layers returned from server");
+        if (res.status > 201) {
+          toast.error("Failed to upload file");
+          setUploading(false);
+          return;
         }
 
-        dispatch({ type: "UPLOAD_SUCCESS", layers });
+        const newLayer: RasterLayer = res.data;
+        setLayer(newLayer);
+        setUploading(false);
+        setUploadProgress(100);
         toast.success(`"${file.name}" uploaded`);
-
-        // Auto-select first layer and fetch details
-        const first = layers[0];
-        dispatch({ type: "SET_ACTIVE", layer: first });
-        loadDetails(first.file_id);
+        loadDetails(newLayer.file_id);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
-        dispatch({ type: "UPLOAD_ERROR", msg });
+        setUploading(false);
+        setError(msg);
         toast.error(msg);
       }
     },
-    [loadDetails]
+    [loadDetails],
   );
 
   // ── Layer actions ─────────────────────────────────────────────────────────
-  const selectLayer = useCallback(
-    (layer: RasterLayer) => {
-      dispatch({ type: "SET_ACTIVE", layer });
-      loadDetails(layer.file_id);
-    },
-    [loadDetails]
-  );
-
-  const removeLayer = useCallback((fileId: string) => {
-    dispatch({ type: "REMOVE_LAYER", fileId });
+  const removeLayer = useCallback(() => {
+    setLayer(null);
+    setDetails(null);
     toast.info("Layer removed");
-  }, []);
-
-  const clearActiveLayer = useCallback(() => {
-    dispatch({ type: "CLEAR_ACTIVE" });
   }, []);
 
   // ── Operations ────────────────────────────────────────────────────────────
   const executeOperation = useCallback(
     async (type: OperationType, params: Record<string, unknown>) => {
-      const active = state.activeLayer;
-      if (!active) {
-        toast.error("Select a layer first");
+      if (!layer) {
+        toast.error("Upload a layer first");
         return;
       }
 
@@ -425,71 +176,79 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         params,
         startedAt: Date.now(),
       };
-      dispatch({ type: "OP_ADD", op });
+
+      setOperations((prev) => [...prev, op]);
       toast.info(`Running ${type.replace(/_/g, " ")}…`);
 
       try {
-        const result = await apiPost<OperationResult>("/api/raster/operation", {
-          file_id: active.file_id,
+        const resp = await api.post<OperationResult>("/api/raster/operation", {
+          file_id: layer.file_id,
           operation: type,
           params,
         });
-        dispatch({ type: "OP_UPDATE", id: op.id, status: "success", result });
+        const result = resp.data;
+
+        setOperations((prev) =>
+          prev.map((o) =>
+            o.id === op.id ? { ...o, status: "success" as OperationStatus, result } : o,
+          ),
+        );
         toast.success(`${type.replace(/_/g, " ")} completed`);
 
+        // If the operation produced a new layer, replace the current one
         if (result.file_id && result.layer_name) {
-          dispatch({
-            type: "ADD_LAYERS",
-            layers: [
-              {
-                file_id: result.file_id,
-                file_name: result.file_name,
-                layer_name: result.layer_name,
-              },
-            ],
-          });
+          const updatedLayer: RasterLayer = {
+            file_id: result.file_id,
+            file_name: result.file_name,
+            layer_name: result.layer_name,
+          };
+          setLayer(updatedLayer);
+          loadDetails(updatedLayer.file_id);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Operation failed";
-        dispatch({ type: "OP_UPDATE", id: op.id, status: "error", error: msg });
+        setOperations((prev) =>
+          prev.map((o) =>
+            o.id === op.id ? { ...o, status: "error" as OperationStatus, error: msg } : o,
+          ),
+        );
         toast.error(msg);
       }
     },
-    [state.activeLayer]
+    [layer, loadDetails],
   );
-
-  // ── Map config ────────────────────────────────────────────────────────────
-  const setOpacity    = useCallback((v: number)          => dispatch({ type: "SET_OPACITY", v }), []);
-  const setLegendUrl  = useCallback((url: string | null) => dispatch({ type: "SET_LEGEND_URL", url }), []);
-  const setShowLegend = useCallback((v: boolean)         => dispatch({ type: "SET_SHOW_LEGEND", v }), []);
-  const setMapLoading = useCallback((v: boolean)         => dispatch({ type: "SET_MAP_LOADING", v }), []);
-  const setFullscreen = useCallback((v: boolean)         => dispatch({ type: "SET_FULLSCREEN", v }), []);
-  const setBaseMap    = useCallback((key: BaseMapKey)     => dispatch({ type: "SET_BASEMAP", key }), []);
-
-  // ── UI ────────────────────────────────────────────────────────────────────
-  const setTab     = useCallback((tab: SidebarTab) => dispatch({ type: "SET_TAB", tab }), []);
-  const setSidebar = useCallback((open: boolean)   => dispatch({ type: "SET_SIDEBAR", open }), []);
-  const clearError = useCallback(()                => dispatch({ type: "SET_ERROR", msg: null }), []);
 
   return (
     <Ctx.Provider
       value={{
-        state,
-        dispatch,
+        uploading,
+        uploadProgress,
+        layer,
+        details,
+        detailsLoading,
+        operations,
+        activeBaseMap,
+        wmsOpacity,
+        legendUrl,
+        showLegend,
+        mapLoading,
+        isFullscreen,
+        sidebarTab,
+        sidebarOpen,
+        error,
+
         handleUpload,
-        selectLayer,
         removeLayer,
-        clearActiveLayer,
         executeOperation,
-        setOpacity,
+        setOpacity: setWmsOpacity,
         setLegendUrl,
         setShowLegend,
         setMapLoading,
-        setFullscreen,
-        setBaseMap,
-        setTab,
-        setSidebar,
-        clearError,
+        setFullscreen: setIsFullscreen,
+        setBaseMap: setActiveBaseMap,
+        setTab: setSidebarTab,
+        setSidebar: setSidebarOpen,
+        clearError: () => setError(null),
       }}
     >
       {children}

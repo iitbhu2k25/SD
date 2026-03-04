@@ -38,11 +38,11 @@ export async function uploadFileInChunks(
   }
 
   // Merge chunks
-  await uploadClient.post("http://localhost:7000/api/tools/upload/complete", {
+  const resp=await uploadClient.post("http://localhost:7000/api/tools/upload/complete", {
     upload_id: uploadId,
     total_chunks: totalChunks,
     filename: file.name,
   });
 
-  return uploadId;
+  return resp;
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useRaster, type BandInfo } from "@/contexts/raster_operations/RasterContext"
+import { useRaster } from "@/contexts/raster_operations/RasterContext"
+import { BandInfo } from "@/interface/raster_operations";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RasterDetails.tsx
@@ -205,11 +206,11 @@ function BandSection({ bands }: { bands: BandInfo[] }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const RasterDetails: React.FC = () => {
-  const { state } = useRaster();
-  const { activeLayer, details: d, detailsLoading } = state;
+  const { layer,details:d, detailsLoading} = useRaster();
+
 
   // ── Empty state ─────────────────────────────────────────────────────────────
-  if (!activeLayer) {
+  if (!layer) {
     return (
       <div className="flex flex-col items-center justify-center py-14 text-center px-4">
         <div className="w-12 h-12 rounded-2xl bg-slate-700/20 border border-slate-600/20 flex items-center justify-center mb-3">
@@ -257,10 +258,10 @@ const RasterDetails: React.FC = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-white truncate leading-tight">
-              {activeLayer.file_name}
+              {layer.file_name}
             </p>
             <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">
-              {activeLayer.layer_name}
+              {layer.layer_name}
             </p>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {badges.map((b, i) => (

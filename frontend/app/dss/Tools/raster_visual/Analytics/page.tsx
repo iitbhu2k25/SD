@@ -15,20 +15,7 @@ import {
 const AnalyticsInner: React.FC = () => {
   const mapViewRef = useRef<MapViewHandle>(null);
   const {
-    state,
-    clearActiveLayer,
-    setOpacity,
-    setShowLegend,
-    setLegendUrl,
-    setBaseMap,
-    setMapLoading,
-    setSidebar,
-    setTab,
-    clearError,
-  } = useRaster();
-
-  const {
-    activeLayer,
+    layer,
     wmsOpacity,
     legendUrl,
     showLegend,
@@ -37,23 +24,32 @@ const AnalyticsInner: React.FC = () => {
     sidebarTab,
     sidebarOpen,
     error,
-  } = state;
+    setOpacity,
+    setShowLegend,
+    setLegendUrl,
+    setBaseMap,
+    setMapLoading,
+    setSidebar,
+    setTab,
+    clearError,
+    removeLayer,
+  } = useRaster();
 
-  // ── Map bridge: load layer when activeLayer changes ────────────────────
+  // ── Map bridge: load layer when it changes ─────────────────────────────
   useEffect(() => {
-    if (activeLayer) {
-      mapViewRef.current?.loadRasterLayer(activeLayer.layer_name, activeLayer.file_name);
+    if (layer) {
+      mapViewRef.current?.loadRasterLayer(layer.layer_name, layer.file_name);
     }
-  }, [activeLayer]);
+  }, [layer]);
 
   // ── Handlers ───────────────────────────────────────────────────────────
   const handleUploadNew = () => {
-    clearActiveLayer();
+    removeLayer();
     mapViewRef.current?.removeRasterLayer();
   };
 
   const handleRemoveLayer = () => {
-    clearActiveLayer();
+    removeLayer();
     mapViewRef.current?.removeRasterLayer();
   };
 
@@ -152,7 +148,7 @@ const AnalyticsInner: React.FC = () => {
           {/* ── Layers panel ───────────────────────────────────────────── */}
           {sidebarTab === "layers" && (
             <div className="space-y-4">
-              {!activeLayer ? (
+              {!layer ? (
                 <UploadRaster />
               ) : (
                 <div className="space-y-4">
@@ -210,8 +206,8 @@ const AnalyticsInner: React.FC = () => {
                     </div>
 
                     <div className="bg-slate-800/50 rounded-lg p-3">
-                      <p className="text-sm text-slate-200 font-medium truncate" title={activeLayer.file_name}>
-                        {activeLayer.file_name}
+                      <p className="text-sm text-slate-200 font-medium truncate" title={layer.file_name}>
+                        {layer.file_name}
                       </p>
                     </div>
 
@@ -315,7 +311,7 @@ const AnalyticsInner: React.FC = () => {
         onOpacityChange={setOpacity}
         selectedBaseMap={activeBaseMap}
         onBaseMapChange={(k) => setBaseMap(k as keyof typeof BASE_MAPS)}
-        rasterFileName={activeLayer?.file_name ?? ""}
+        rasterFileName={layer?.file_name ?? ""}
         onRasterFileNameChange={() => {}}
         legendUrl={legendUrl}
         onLegendUrlChange={setLegendUrl}

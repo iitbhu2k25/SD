@@ -240,14 +240,16 @@ class RasterMetadataResponse(BaseModel):
     compression: Optional[str] = None
     is_tiled: bool
     block_shapes: List[List[int]]
+    is_cog_like: bool
+    bands: List[BandStatistics]
+    tags: Dict[str, str]
+
+class RasterUploadResponse(BaseModel):
+    file_id:str
+    layer_name: str
+    file_name:str
 
     
-
-    is_cog_like: bool
-
-    bands: List[BandStatistics]
-
-    tags: Dict[str, str]
 
 class Chunkcomplete(BaseModel):
     upload_id: str

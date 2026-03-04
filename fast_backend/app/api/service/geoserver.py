@@ -1,5 +1,4 @@
-import requests
-from requests.auth import HTTPBasicAuth
+import aiohttp
 import os
 from app.conf.settings import Settings
 import rasterio
@@ -10,347 +9,371 @@ from xml.etree import ElementTree as ET
 from datetime import datetime
 from app.utils.network_conf import GeoConfig
 import time
+import aiofiles
 
-input_path=f"{Settings().BASE_DIR}"+"/temp/input"
-output_path=f"{Settings().BASE_DIR}"+"/temp/output"
-raster_workspace="vector_work"
-raster_store="stp_raster_store"
+input_path = f"{Settings().BASE_DIR}" + "/temp/input"
+output_path = f"{Settings().BASE_DIR}" + "/temp/output"
+raster_workspace = "vector_work"
+raster_store = "stp_raster_store"
 
 
 class Geoserver:
-    def __init__(self, config: GeoConfig =GeoConfig()):
-
+    def __init__(self, config: GeoConfig = GeoConfig()):
         self.geoserver_url = config.geoserver_url
         self.username = config.username
         self.password = config.password
-        self.geoserver_external_url = config.geoserver_external_url  # Corrected the typo
+        self.geoserver_external_url = config.geoserver_external_url
         self.wcs_url = f"{self.geoserver_url}/wcs"
         self.wms_url = f"{self.geoserver_url}/wms"
         self.wfs_url = f"{self.geoserver_url}/wfs"
         self.temp_dir = config.output_path
-    def update_raster_min_max(self,tif_path):
-        with rasterio.open(tif_path, "r+") as ds:
-            band = ds.read(1, masked=True)
 
-            min_val = float(band.min())
-            max_val = float(band.max())
+    # def update_raster_min_max(self, tif_path):
+    #     """Synchronous operation - rasterio doesn't have async support"""
+    #     with rasterio.open(tif_path, "r+") as ds:
+    #         band = ds.read(1, masked=True)
 
-            ds.update_tags(
-                1,
-                STATISTICS_MINIMUM=min_val,
-                STATISTICS_MAXIMUM=max_val,
-                STATISTICS_MEAN=float(band.mean()),
-                STATISTICS_STDDEV=float(band.std())
-            )
+    #         min_val = float(band.min())
+    #         max_val = float(band.max())
 
-            # THIS is the key part for QGIS
-            ds.update_tags(
-                STATISTICS_APPROXIMATE="FALSE"
-            )
+    #         ds.update_tags(
+    #             1,
+    #             STATISTICS_MINIMUM=min_val,
+    #             STATISTICS_MAXIMUM=max_val,
+    #             STATISTICS_MEAN=float(band.mean()),
+    #             STATISTICS_STDDEV=float(band.std())
+    #         )
 
-        print("Stats written — QGIS compatible")
+    #         # THIS is the key part for QGIS
+    #         ds.update_tags(STATISTICS_APPROXIMATE="FALSE")
 
-    def raster_download(self,temp_path,layer_name,workspace:str="raster_work"):
-        sld_file_path=None
-        geoserver_wcs_url = (f"{self.wcs_url}"
-                    f"?service=WCS"
-                    f"&version=2.0.1"
-                    f"&request=GetCoverage"
-                    f"&coverageId={workspace}:{layer_name}"
-                    f"&format=image/tiff"
-                    f"&resample=nearest" 
-                    f"&ScaleFactor=1" 
-                )
+    #     print("Stats written — QGIS compatible")
 
-        r = requests.get(geoserver_wcs_url
-                    , auth=HTTPBasicAuth(self.username, self.password),cookies={})
-        name_part = "_".join(layer_name.split("_")[:-1])
-        filename = name_part + ".tif"
-        file_path = os.path.join(temp_path, filename)
-            
-        if r.status_code == 200:
-            with open(file_path, "wb") as f:
-                f.write(r.content)
-            self.update_raster_min_max(file_path)
-        # Step 2: get the SLD
-        layer_info_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/layers/{layer_name}.json"
-        resp = requests.get(layer_info_url
-                    , auth=HTTPBasicAuth(self.username, self.password),cookies={})
-        resp.raise_for_status()
-        layer_json = resp.json()
+    # async def raster_download(self, temp_path, layer_name, workspace: str = "raster_work"):
+    #     sld_file_path = None
+    #     geoserver_wcs_url = (
+    #         f"{self.wcs_url}"
+    #         f"?service=WCS"
+    #         f"&version=2.0.1"
+    #         f"&request=GetCoverage"
+    #         f"&coverageId={workspace}:{layer_name}"
+    #         f"&format=image/tiff"
+    #         f"&resample=nearest"
+    #         f"&ScaleFactor=1"
+    #     )
 
-        style_href = layer_json["layer"]["defaultStyle"]["href"]
-        style_json = requests.get(style_href, auth=HTTPBasicAuth(self.username, self.password),cookies={}).json()
-        sld_filename = style_json["style"]["filename"]
+    #     auth = aiohttp.BasicAuth(self.username, self.password)
 
-        # Step 3: download the SLD
-        sld_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/styles/{sld_filename}"
-        sld_resp = requests.get(sld_url,  auth=HTTPBasicAuth(self.username, self.password),cookies={})
-        sld_resp.raise_for_status()
-        sld_file_path = os.path.join(temp_path, sld_filename)
-        with open(sld_file_path, "wb") as f:
-            f.write(sld_resp.content)
-        return {
-            "raster_path": file_path,
-            "sld_path": sld_file_path
-        }
-            
-            
-    def apply_sld_to_layer(self,workspace_name, layer_name, sld_content, sld_name=None):
+    #     async with aiohttp.ClientSession() as session:
+    #         # Step 1: Download the raster
+    #         async with session.get(geoserver_wcs_url, auth=auth) as r:
+    #             name_part = "_".join(layer_name.split("_")[:-1])
+    #             filename = name_part + ".tif"
+    #             file_path = os.path.join(temp_path, filename)
+
+    #             if r.status == 200:
+    #                 content = await r.read()
+    #                 async with aiofiles.open(file_path, "wb") as f:
+    #                     await f.write(content)
+    #                 self.update_raster_min_max(file_path)
+
+    #         # Step 2: Get the SLD
+    #         layer_info_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/layers/{layer_name}.json"
+    #         async with session.get(layer_info_url, auth=auth) as resp:
+    #             resp.raise_for_status()
+    #             layer_json = await resp.json()
+
+    #         style_href = layer_json["layer"]["defaultStyle"]["href"]
+    #         async with session.get(style_href, auth=auth) as style_resp:
+    #             style_json = await style_resp.json()
+    #         sld_filename = style_json["style"]["filename"]
+
+    #         # Step 3: Download the SLD
+    #         sld_url = f"{self.geoserver_url}/rest/workspaces/{workspace}/styles/{sld_filename}"
+    #         async with session.get(sld_url, auth=auth) as sld_resp:
+    #             sld_resp.raise_for_status()
+    #             sld_content = await sld_resp.read()
+    #             sld_file_path = os.path.join(temp_path, sld_filename)
+    #             async with aiofiles.open(sld_file_path, "wb") as f:
+    #                 await f.write(sld_content)
+
+    #         return {"raster_path": file_path, "sld_path": sld_file_path}
+
+    async def apply_sld_to_layer(self, workspace_name, layer_name, sld_content, sld_name=None):
         if sld_name is None:
-            sld_name = layer_name+datetime.now().strftime("%Y%m%d%H%M%S")
+            sld_name = layer_name + datetime.now().strftime("%Y%m%d%H%M%S")
 
-        new_sld_content=""
-        with open(sld_content, "r") as f:
-            new_sld_content = f.read()
-        
-        styles_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/styles"
-        style_data = {
-            "style": {
-                "name": sld_name,
-                "filename": f"{sld_name}.sld"
-            }
-        }
-        
-        style_url = f"{styles_url}/{sld_name}"
-        check_response = requests.get(
-            style_url,
-            auth=HTTPBasicAuth(self.username, self.password)
-        )
-        
-        if check_response.status_code != 200:
-            create_response = requests.post(
-                styles_url,
-                json=style_data,
-                auth=HTTPBasicAuth(self.username, self.password),
-                headers={"Content-Type": "application/json"}
-            )
-            
-            if create_response.status_code not in [200, 201]:
-                print(f"Failed to create style metadata: {create_response.status_code}, {create_response.text}")
-                return False
-        
-       
-        upload_response = requests.put(
-            style_url,
-            data=new_sld_content,
-            auth=HTTPBasicAuth(self.username, self.password),
-            headers={"Content-Type": "application/vnd.ogc.sld+xml"}
-        )
-        
-        if upload_response.status_code not in [200, 201]:
-            print(f"Failed to upload SLD content: {upload_response.status_code}, {upload_response.text}")
-            return False
-        
-    
-        
-        # Now apply the style to the layer
-        layer_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/layers/{layer_name}"
-        payload = {
-        "layer": {
-            "defaultStyle": {
-                "name": sld_name
-            }
-        }
-        }
+        async with aiofiles.open(sld_content, "r") as f:
+            new_sld_content = await f.read()
 
-        apply_response = requests.put(
-            layer_url,
-            json=payload,  # This will serialize the payload as JSON
-            auth=HTTPBasicAuth(self.username, self.password),
-            headers={"Content-Type": "application/json"}
-        )
-            
-        if apply_response.status_code not in [200, 201]:
-            print(f"Failed to apply style to layer: {apply_response.status_code}, {apply_response.text}")
-            return False
-        return True
-  
-    
-    def publish_raster(self, workspace_name, store_name, raster_path,layer_name=None):
+        auth = aiohttp.BasicAuth(self.username, self.password)
+
+        async with aiohttp.ClientSession() as session:
+            styles_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/styles"
+            style_data = {"style": {"name": sld_name, "filename": f"{sld_name}.sld"}}
+
+            style_url = f"{styles_url}/{sld_name}"
+
+            # Check if style exists
+            async with session.get(style_url, auth=auth) as check_response:
+                style_exists = check_response.status == 200
+
+            if not style_exists:
+                # Create style metadata
+                async with session.post(
+                    styles_url,
+                    json=style_data,
+                    auth=auth,
+                    headers={"Content-Type": "application/json"},
+                ) as create_response:
+                    if create_response.status not in [200, 201]:
+                        response_text = await create_response.text()
+                        print(f"Failed to create style metadata: {create_response.status}, {response_text}")
+                        return False
+
+            # Upload SLD content
+            async with session.put(
+                style_url,
+                data=new_sld_content,
+                auth=auth,
+                headers={"Content-Type": "application/vnd.ogc.sld+xml"},
+            ) as upload_response:
+                if upload_response.status not in [200, 201]:
+                    response_text = await upload_response.text()
+                    print(f"Failed to upload SLD content: {upload_response.status}, {response_text}")
+                    return False
+
+            # Apply the style to the layer
+            layer_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/layers/{layer_name}"
+            payload = {"layer": {"defaultStyle": {"name": sld_name}}}
+
+            async with session.put(
+                layer_url, json=payload, auth=auth, headers={"Content-Type": "application/json"}
+            ) as apply_response:
+                if apply_response.status not in [200, 201]:
+                    response_text = await apply_response.text()
+                    print(f"Failed to apply style to layer: {apply_response.status}, {response_text}")
+                    return False
+
+            return True
+
+    async def apply_sld_content(self, workspace_name, layer_name, sld_content, sld_name=None):
+        if sld_name is None:
+            sld_name = layer_name + datetime.now().strftime("%Y%m%d%H%M%S")
+
+        auth = aiohttp.BasicAuth(self.username, self.password)
+
+        async with aiohttp.ClientSession() as session:
+            styles_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/styles"
+            style_data = {"style": {"name": sld_name, "filename": f"{sld_name}.sld"}}
+
+            style_url = f"{styles_url}/{sld_name}"
+
+            # Check if style exists
+            async with session.get(style_url, auth=auth) as check_response:
+                style_exists = check_response.status == 200
+
+            if not style_exists:
+                # Create style metadata
+                async with session.post(
+                    styles_url,
+                    json=style_data,
+                    auth=auth,
+                    headers={"Content-Type": "application/json"},
+                ) as create_response:
+                    if create_response.status not in [200, 201]:
+                        response_text = await create_response.text()
+                        print(f"Failed to create style metadata: {create_response.status}, {response_text}")
+                        return False
+
+            # Upload SLD content
+            async with session.put(
+                style_url,
+                data=sld_content,
+                auth=auth,
+                headers={"Content-Type": "application/vnd.ogc.sld+xml"},
+            ) as upload_response:
+                if upload_response.status not in [200, 201]:
+                    response_text = await upload_response.text()
+                    print(f"Failed to upload SLD content: {upload_response.status}, {response_text}")
+                    return False
+
+            # Apply the style to the layer
+            layer_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/layers/{layer_name}"
+            payload = {"layer": {"defaultStyle": {"name": sld_name}}}
+
+            async with session.put(
+                layer_url, json=payload, auth=auth, headers={"Content-Type": "application/json"}
+            ) as apply_response:
+                if apply_response.status not in [200, 201]:
+                    response_text = await apply_response.text()
+                    print(f"Failed to apply style to layer: {apply_response.status}, {response_text}")
+                    return False
+
+            return True
+
+    async def upload_raster(self, workspace_name, store_name, raster_path, layer_name=None):
         try:
             if layer_name is None:
                 layer_name = os.path.splitext(os.path.basename(raster_path))[0]
-            layer_name=layer_name.replace(" ","_")
+            layer_name = layer_name.replace(" ", "_")
 
             content_type = "image/tiff"
             store_type = "GeoTIFF"
             api_extension = "file.geotiff"
-            
-            # Check if workspace exists, create if not
-            check_workspace_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}"
-            check_workspace_response = requests.get(
-                check_workspace_url,
-                auth=HTTPBasicAuth(self.username, self.password)
-            )
-            
-            if check_workspace_response.status_code != 200:
-                create_workspace_url = f"{self.geoserver_url}/rest/workspaces"
-                create_workspace_data = {
-                    "workspace": {
-                        "name": workspace_name
-                    }
-                }
-                
-                create_workspace_response = requests.post(
-                    create_workspace_url,
-                    auth=HTTPBasicAuth(self.username, self.password),
-                    json=create_workspace_data,
-                    headers={"Content-type": "application/json"}
-                )
-                
-                if create_workspace_response.status_code not in (200, 201):
-                    return False
 
-                # Ensure WMS service is enabled for the workspace
-                wms_settings_url = f"{self.geoserver_url}/rest/services/wms/workspaces/{workspace_name}/settings"
-                wms_settings_data = {
-                    "wms": {
-                        "enabled": True,
-                        "name": f"{workspace_name}_wms"
-                    }
-                }
-                
-                wms_settings_response = requests.put(
-                    wms_settings_url,
-                    auth=HTTPBasicAuth(self.username, self.password),
-                    json=wms_settings_data,
-                    headers={"Content-type": "application/json"}
-                )
-                
-                if wms_settings_response.status_code not in (200, 201):
-                    print(f"Warning: Failed to enable WMS for workspace. Status code: {wms_settings_response.status_code}")
-                    print(f"Response: {wms_settings_response.text}")
+            auth = aiohttp.BasicAuth(self.username, self.password)
 
-            # Check if coverage store exists
-            check_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}"    
-            check_store_response = requests.get(
-                check_store_url,
-                auth=HTTPBasicAuth(self.username, self.password)
-            )
-            
-            # If store exists, delete it completely to avoid duplicates
-            if check_store_response.status_code == 200:
-                delete_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}?recurse=true"
-                delete_store_response = requests.delete(
-                    delete_store_url,
-                    auth=HTTPBasicAuth(self.username, self.password)
-                )
-                
-                if delete_store_response.status_code == 200:
-                    print(f"Existing coverage store '{store_name}' deleted successfully")
-                else:
-                    print(f"Warning: Failed to delete existing store. Status code: {delete_store_response.status_code}")
+            async with aiohttp.ClientSession() as session:
+                # Check if workspace exists, create if not
+                check_workspace_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}"
+                async with session.get(check_workspace_url, auth=auth) as check_workspace_response:
+                    workspace_exists = check_workspace_response.status == 200
 
-    
-            create_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores"
-            create_store_data = {
-                "coverageStore": {
-                    "name": store_name,
-                    "type": store_type,
-                    "enabled": True,
-                    "workspace": {
-                        "name": workspace_name
-                    }
-                }
-            }
-            
-            create_response = requests.post(
-                create_store_url,
-                auth=HTTPBasicAuth(self.username, self.password),
-                json=create_store_data,
-                headers={"Content-type": "application/json"}
-            )
-            
-            if create_response.status_code not in (200, 201):
-                print(f"Failed to create coverage store. Status code: {create_response.status_code}")
-                print(f"Response: {create_response.text}")
-                return False
-                
-          
+                if not workspace_exists:
+                    create_workspace_url = f"{self.geoserver_url}/rest/workspaces"
+                    create_workspace_data = {"workspace": {"name": workspace_name}}
 
-            # Upload raster file with configure=first to avoid auto-creation of duplicate coverages
-            upload_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/{api_extension}?configure=first"
-            
-            headers = {"Content-type": content_type}
-            with open(raster_path, 'rb') as f:
-                data = f.read()
-            
-            response = requests.put(
-                upload_url,
-                auth=HTTPBasicAuth(self.username, self.password),
-                data=data,
-                headers=headers
-            )
-            
-            if response.status_code in (200, 201):
-                print(f"Raster file uploaded successfully to store '{store_name}'")
-                
-                # Now create the coverage/layer explicitly
-                configure_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/coverages"
-                
-                coverage_data = {
-                    "coverage": {
-                        "name": layer_name,
-                        "title": layer_name,
-                        "enabled": True,
-                        "metadata": {
-                            "entry": [
-                                {
-                                    "@key": "wms.published",
-                                    "$": "true"
-                                }
-                            ]
-                        }
-                    }
-                }
-                
-                configure_response = requests.post(
-                    configure_url,
-                    auth=HTTPBasicAuth(self.username, self.password),
-                    json=coverage_data,
-                    headers={"Content-type": "application/json"}
-                )
-                
-                if configure_response.status_code in (200, 201):
-                    print(f"Coverage layer '{layer_name}' created and configured successfully")
-                else:
-                    print(f"Warning: Failed to create coverage layer. Status code: {configure_response.status_code}")
-                    print(f"Response: {configure_response.text}")
-                    
-                    # Try to get automatically created coverage if manual creation failed
-                    auto_coverage_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/coverages"
-                    auto_coverage_response = requests.get(
-                        auto_coverage_url,
-                        auth=HTTPBasicAuth(self.username, self.password)
+                    async with session.post(
+                        create_workspace_url,
+                        auth=auth,
+                        json=create_workspace_data,
+                        headers={"Content-type": "application/json"},
+                    ) as create_workspace_response:
+                        if create_workspace_response.status not in (200, 201):
+                            return False
+
+                    # Ensure WMS service is enabled for the workspace
+                    wms_settings_url = (
+                        f"{self.geoserver_url}/rest/services/wms/workspaces/{workspace_name}/settings"
                     )
-                    
-                    if auto_coverage_response.status_code == 200:
-                        coverages = auto_coverage_response.json()
-                        if 'coverage' in coverages or 'coverages' in coverages:
-                            print(f"Found automatically created coverage in store '{store_name}'")
-                
-                # Verify the layer exists and is accessible
-                verify_url = f"{self.geoserver_url}/rest/layers/{workspace_name}:{layer_name}"
-                verify_response = requests.get(
-                    verify_url,
-                    auth=HTTPBasicAuth(self.username, self.password)
+                    wms_settings_data = {"wms": {"enabled": True, "name": f"{workspace_name}_wms"}}
+
+                    async with session.put(
+                        wms_settings_url,
+                        auth=auth,
+                        json=wms_settings_data,
+                        headers={"Content-type": "application/json"},
+                    ) as wms_settings_response:
+                        if wms_settings_response.status not in (200, 201):
+                            response_text = await wms_settings_response.text()
+                            print(
+                                f"Warning: Failed to enable WMS for workspace. Status code: {wms_settings_response.status}"
+                            )
+                            print(f"Response: {response_text}")
+
+                # Check if coverage store exists
+                check_store_url = (
+                    f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}"
                 )
-                
-                if verify_response.status_code == 200:
-                    wms_url = f"{self.geoserver_url}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace_name}:{layer_name}"
-        
-                    
-                    return True, layer_name
-                else:
-                    print(f"Warning: Could not verify layer configuration: {verify_response.status_code}")
-                    return True, layer_name  # Upload was successful even if verification failed
-                    
-            else:
-                print(f"Failed to upload raster file. Status code: {response.status_code}")
-                print(f"Response: {response.text}")
-                return False
-                
+                async with session.get(check_store_url, auth=auth) as check_store_response:
+                    store_exists = check_store_response.status == 200
+
+                # If store exists, delete it completely to avoid duplicates
+                if store_exists:
+                    delete_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}?recurse=true"
+                    async with session.delete(delete_store_url, auth=auth) as delete_store_response:
+                        if delete_store_response.status == 200:
+                            print(f"Existing coverage store '{store_name}' deleted successfully")
+                        else:
+                            print(
+                                f"Warning: Failed to delete existing store. Status code: {delete_store_response.status}"
+                            )
+
+                # Create coverage store
+                create_store_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores"
+                create_store_data = {
+                    "coverageStore": {
+                        "name": store_name,
+                        "type": store_type,
+                        "enabled": True,
+                        "workspace": {"name": workspace_name},
+                    }
+                }
+
+                async with session.post(
+                    create_store_url,
+                    auth=auth,
+                    json=create_store_data,
+                    headers={"Content-type": "application/json"},
+                ) as create_response:
+                    if create_response.status not in (200, 201):
+                        response_text = await create_response.text()
+                        print(f"Failed to create coverage store. Status code: {create_response.status}")
+                        print(f"Response: {response_text}")
+                        return False
+
+                # Upload raster file with configure=first to avoid auto-creation of duplicate coverages
+                upload_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/{api_extension}?configure=first"
+
+                headers = {"Content-type": content_type}
+                async with aiofiles.open(raster_path, "rb") as f:
+                    data = await f.read()
+
+                async with session.put(upload_url, auth=auth, data=data, headers=headers) as response:
+                    if response.status in (200, 201):
+                        print(f"Raster file uploaded successfully to store '{store_name}'")
+
+                        # Now create the coverage/layer explicitly
+                        configure_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/coverages"
+
+                        coverage_data = {
+                            "coverage": {
+                                "name": layer_name,
+                                "title": layer_name,
+                                "enabled": True,
+                                "metadata": {
+                                    "entry": [{"@key": "wms.published", "$": "true"}]
+                                },
+                            }
+                        }
+
+                        async with session.post(
+                            configure_url,
+                            auth=auth,
+                            json=coverage_data,
+                            headers={"Content-type": "application/json"},
+                        ) as configure_response:
+                            if configure_response.status in (200, 201):
+                                print(f"Coverage layer '{layer_name}' created and configured successfully")
+                            else:
+                                response_text = await configure_response.text()
+                                print(
+                                    f"Warning: Failed to create coverage layer. Status code: {configure_response.status}"
+                                )
+                                print(f"Response: {response_text}")
+
+                                # Try to get automatically created coverage if manual creation failed
+                                auto_coverage_url = f"{self.geoserver_url}/rest/workspaces/{workspace_name}/coveragestores/{store_name}/coverages"
+                                async with session.get(
+                                    auto_coverage_url, auth=auth
+                                ) as auto_coverage_response:
+                                    if auto_coverage_response.status == 200:
+                                        coverages = await auto_coverage_response.json()
+                                        if "coverage" in coverages or "coverages" in coverages:
+                                            print(
+                                                f"Found automatically created coverage in store '{store_name}'"
+                                            )
+
+                        # Verify the layer exists and is accessible
+                        verify_url = f"{self.geoserver_url}/rest/layers/{workspace_name}:{layer_name}"
+                        async with session.get(verify_url, auth=auth) as verify_response:
+                            if verify_response.status == 200:
+                                wms_url = f"{self.geoserver_url}/wms?service=WMS&version=1.1.0&request=GetMap&layers={workspace_name}:{layer_name}"
+
+                                return True, layer_name
+                            else:
+                                print(
+                                    f"Warning: Could not verify layer configuration: {verify_response.status}"
+                                )
+                                return True, layer_name  # Upload was successful even if verification failed
+
+                    else:
+                        response_text = await response.text()
+                        print(f"Failed to upload raster file. Status code: {response.status}")
+                        print(f"Response: {response_text}")
+                        return False
+
         except Exception as e:
             print(f"Error uploading raster file: {str(e)}")
             return False

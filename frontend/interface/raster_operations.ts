@@ -1,8 +1,3 @@
-// =============================================================================
-// src/types/index.ts  —  Shared types for the entire raster app
-// =============================================================================
-
-// ─── Upload & Layer ───────────────────────────────────────────────────────────
 
 export interface RasterLayer {
   file_id: string;
@@ -17,7 +12,7 @@ export interface UploadResponse {
   message: RasterLayer[];
 }
 
-// ─── Raster Metadata ──────────────────────────────────────────────────────────
+
 
 export interface BandInfo {
   band_number: number;
@@ -55,6 +50,11 @@ export interface RasterDetails {
   is_cog_like: boolean;
   bands: BandInfo[];
   tags: Record<string, string>;
+}
+
+export interface UploadComplete extends RasterDetails {
+  file_id: string;
+  layer_name: string;
 }
 
 // ─── Raster Operations ────────────────────────────────────────────────────────
