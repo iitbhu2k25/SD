@@ -60,6 +60,9 @@ interface CtxValue {
   sidebarTab: SidebarTab;
   sidebarOpen: boolean;
   error: string | null;
+  rasterFileName: string | null;
+
+  setRasterFileName: (name: string | null) => void;
 
   handleUpload: (file: File) => Promise<void>;
   removeLayer: () => void;
@@ -97,12 +100,13 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("layers");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rasterFileName, setRasterFileName] = useState<string | null>(null);
 
   // ── Load details ──────────────────────────────────────────────────────────
   const loadDetails = useCallback(async (fileId: string) => {
     setDetailsLoading(true);
     try {
-      const resp = await api.get<RasterDetails>(`/api/tools/raster/${fileId}/details`);
+      const resp = await api.get<RasterDetails>(`/tools/raster/${fileId}/details`);
       if (resp.status > 201) {
         toast.error("Failed to load metadata");
         return;
@@ -143,6 +147,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         setUploading(false);
         setUploadProgress(100);
         toast.success(`"${file.name}" uploaded`);
+        setRasterFileName(file.name);
         loadDetails(newLayer.file_id);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
@@ -158,6 +163,9 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const removeLayer = useCallback(() => {
     setLayer(null);
     setDetails(null);
+    setRasterFileName(null);
+    setLegendUrl(null);
+    setShowLegend(false);
     toast.info("Layer removed");
   }, []);
 
@@ -195,7 +203,6 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         );
         toast.success(`${type.replace(/_/g, " ")} completed`);
 
-        // If the operation produced a new layer, replace the current one
         if (result.file_id && result.layer_name) {
           const updatedLayer: RasterLayer = {
             file_id: result.file_id,
@@ -236,7 +243,8 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         sidebarTab,
         sidebarOpen,
         error,
-
+        rasterFileName,
+        setRasterFileName,
         handleUpload,
         removeLayer,
         executeOperation,
