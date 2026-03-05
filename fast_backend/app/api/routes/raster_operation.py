@@ -18,11 +18,11 @@ from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 
 
-# @router.post("/post_raster",status_code=status.HTTP_201_CREATED)
-# @validate
-# async def post_raster(db:db_dependency,file: UploadFile = File(...)):
-#     """ return the raster temp id"""
-#     return RasterOperation().save_upload(file)
+@router.post("/post_raster",status_code=status.HTTP_201_CREATED)
+@validate
+async def post_raster(db:db_dependency,file: UploadFile = File(...)):
+    """ return the raster temp id"""
+    return RasterOperation().save_upload(db,file)
 
 @router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
 @validate
@@ -41,11 +41,13 @@ async def complete_upload(db:db_dependency,payload:Chunkcomplete):
     return await RasterOperation().merge_chunks(payload.upload_id,payload.filename,payload.total_chunks)
 
 
+
 @router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterMetadataResponse)
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""
     return RasterOperation().get_raster_info(file_id)
+
 
 @router.post("/reprojection",status_code=status.HTTP_201_CREATED)
 @validate

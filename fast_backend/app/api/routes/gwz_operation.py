@@ -5,8 +5,8 @@ from app.database.config.dependency import db_dependency
 from app.api.service.ground_water_management.gwpz_operation import GWAPriorityMapper,GWPumpingMapper, MARRasterDetails,MARSuitabilityMapper
 from app.api.service.ground_water_management.gwpz_svc import MARSuitability_svc,Gwzp_service,GWPL_service
 from app.utils.exception import validate
-from app.api.service.celery.gwz_admin_document import document_gen4
-from app.api.service.celery.gwz_drain_document import document_gen5
+from app.api.service.celery.pdf_generations.gwz_admin_document import document_gen4
+from app.api.service.celery.pdf_generations.gwz_drain_document import document_gen5
 from app.api.schema.stp_schema import  MARsuitabilityOutput,STPCategory,STPsuitabilityOutput,GWPL_output,Mardetails,STPPriorityOutput,StpPriorityDrainReport,STPsuitabilityInput,category_raster,StpPriorityAdminReport,celery_id,GWPL_Table_input
 router=APIRouter()
 @router.get("/get_gwz_category",response_model=list[STPPriorityOutput],status_code=status.HTTP_201_CREATED)

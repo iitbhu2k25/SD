@@ -5,10 +5,10 @@ from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
 from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper,STP_Area
-from app.api.service.celery.stp_priority_admin_document import document_gen
-from app.api.service.celery.stp_priority_drain_document import document_gen1
-from app.api.service.celery.stp_suitability_admin_report import document_gen2
-from app.api.service.celery.stp_suitability_drain_report import document_gen3
+from app.api.service.celery.pdf_generations.stp_priority_admin_document import document_gen
+from app.api.service.celery.pdf_generations.stp_priority_drain_document import document_gen1
+from app.api.service.celery.pdf_generations.stp_suitability_admin_report import document_gen2
+from app.api.service.celery.pdf_generations.stp_suitability_drain_report import document_gen3
 from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse

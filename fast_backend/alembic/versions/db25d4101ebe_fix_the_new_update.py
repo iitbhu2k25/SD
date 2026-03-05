@@ -1,18 +1,18 @@
-"""fix the code 
+"""fix the new update 
 
-Revision ID: 732bebd466af
+Revision ID: db25d4101ebe
 Revises: 
-Create Date: 2026-02-02 22:57:42.161736
+Create Date: 2026-03-04 20:24:48.725943
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '732bebd466af'
+revision: str = 'db25d4101ebe'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -125,6 +125,48 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_rainwater_raster_id'), 'rainwater_raster', ['id'], unique=True)
+    op.create_table('raster_metadata',
+    sa.Column('file_id', sa.String(), nullable=False),
+    sa.Column('driver', sa.String(), nullable=False),
+    sa.Column('width', sa.Integer(), nullable=False),
+    sa.Column('height', sa.Integer(), nullable=False),
+    sa.Column('band_count', sa.Integer(), nullable=False),
+    sa.Column('dtypes', sa.String(), nullable=False),
+    sa.Column('nodata', sa.Float(), nullable=True),
+    sa.Column('crs', sa.String(), nullable=False),
+    sa.Column('crs_unit', sa.String(), nullable=False),
+    sa.Column('compression', sa.String(), nullable=True),
+    sa.Column('is_tiled', sa.Boolean(), nullable=False),
+    sa.Column('block_shapes', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('is_cog_like', sa.Boolean(), nullable=False),
+    sa.Column('file_size', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bounds', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bounds_wgs84', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('resolution', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bands', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('file_id')
+    )
+    op.create_index(op.f('ix_raster_metadata_id'), 'raster_metadata', ['id'], unique=True)
+    op.create_table('raster_storage',
+    sa.Column('file_id', sa.String(), nullable=False),
+    sa.Column('file_name', sa.String(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=False),
+    sa.Column('layer_name', sa.String(), nullable=False),
+    sa.Column('parent_id', sa.Integer(), nullable=True),
+    sa.Column('raster_type', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['parent_id'], ['raster_storage.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('file_id')
+    )
+    op.create_index(op.f('ix_raster_storage_id'), 'raster_storage', ['id'], unique=True)
     op.create_table('stp_priority_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -396,6 +438,10 @@ def downgrade() -> None:
     op.drop_table('stp_priority_visual_raster')
     op.drop_index(op.f('ix_stp_priority_raster_id'), table_name='stp_priority_raster')
     op.drop_table('stp_priority_raster')
+    op.drop_index(op.f('ix_raster_storage_id'), table_name='raster_storage')
+    op.drop_table('raster_storage')
+    op.drop_index(op.f('ix_raster_metadata_id'), table_name='raster_metadata')
+    op.drop_table('raster_metadata')
     op.drop_index(op.f('ix_rainwater_raster_id'), table_name='rainwater_raster')
     op.drop_table('rainwater_raster')
     op.drop_index(op.f('ix_mar_suitability_visual_raster_id'), table_name='mar_suitability_visual_raster')

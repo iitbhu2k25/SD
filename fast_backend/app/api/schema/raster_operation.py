@@ -151,8 +151,6 @@ TpiNeighbourhood = Literal["circle", "rectangle"]
 
 
 
-
-
 class SlopeParams(BaseModel):
     file_id:     str
     units:       SlopeUnits    = "degrees"

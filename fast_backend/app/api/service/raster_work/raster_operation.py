@@ -15,7 +15,7 @@ import math
 import os
 import time
 from app.conf.logging import logger
-from app.api.service.celery.raster_heavy_task import (
+from app.api.service.celery.raster_operations.raster_heavy_task import (
     celery_reprojection,
     celery_euclidean_distance,
     reclassify_raster,
@@ -322,7 +322,7 @@ class RasterOperation:
         layer_name=await self._upload_geoserver(output_path)
         return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
 
-    def save_upload(self, file: UploadFile) -> str:
+    def save_upload(self, db:Session,file: UploadFile) -> str:
         file.file.seek(0, 2)
         file_size = file.file.tell()
         file.file.seek(0)

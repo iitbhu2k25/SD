@@ -8,7 +8,7 @@ from app.api.service.ground_water_management.gwpz_svc import Raster_visual
 from fastapi.responses import FileResponse
 from typing import Annotated,Optional
 from app.dependency.token_dependency import validate_user
-from app.api.service.celery.raster_visual_celery import raster_visual
+from app.api.service.celery.raster_operations.raster_visual_celery import raster_visual
 router=APIRouter()
 
 
