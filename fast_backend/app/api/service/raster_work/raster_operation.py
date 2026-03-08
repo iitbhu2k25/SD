@@ -7,7 +7,7 @@ from pyproj import CRS as ProjCRS
 from fastapi import UploadFile
 import numpy as np
 from pathlib import Path
-from typing import Dict, Any, Optional,List
+from typing import Dict, Any
 from fastapi import UploadFile,HTTPException
 from app.conf.settings import Settings
 from sqlalchemy.orm import Session
@@ -34,11 +34,14 @@ from app.api.schema.raster_operation import(
     SlopeParams,
     TpiParams,
     TwiParams,
-    CellResize)
+    CellResize,
+    rasterMetaSchame,
+    rasteroperSchema)
 from app.utils.name import Unique_name
 
-from .raster_resize import dry_run_resample
+from .raster_resize_test import dry_run_resample
 from app.api.service.geoserver import Geoserver
+from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud
 
 class RasterOperation:
 
@@ -130,8 +133,6 @@ class RasterOperation:
             return {"value": round(size_bytes / 1024**2, 2), "unit": "MB"}
         return {"value": round(size_bytes / 1024**3, 2), "unit": "GB"}
 
-   
-
     def _basic_info(self, src, file_path: Path) -> Dict[str, Any]:
         size_bytes = file_path.stat().st_size
         return {
@@ -141,7 +142,7 @@ class RasterOperation:
             "width": src.width,
             "height": src.height,
             "band_count": src.count,
-            "dtypes": list(src.dtypes),
+            "dtypes": src.dtypes[0],
             "nodata": self._safe_float(src.nodata),
         }
 
@@ -244,13 +245,13 @@ class RasterOperation:
                 f"({valid.size:,} valid pixels out of {out_width * out_height:,} sampled)"
             ),
         }
+    
     def _remove_duplicate(file_path: str):
         path = Path(file_path)
         if path.exists() and path.is_file():
             path.unlink()
             logger.info(f"Removed existing file: {file_path}")
 
-   
     async def chunk_upload(self, file: UploadFile,upload_id:str,chunk_index: int) -> str:
         
         chunk_dir = self.chunk_dir / upload_id
@@ -288,11 +289,59 @@ class RasterOperation:
             )
 
         return "Chunk uploaded successfully"
+    
     async def _upload_geoserver(self,file_path:str):
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=await Geoserver().upload_raster(self.workspace,store_name=unique_store_name,raster_path=file_path)
         return layer_name
     
+    async def _make_raster_info(self,db:Session, file_id: str, file_name: str = None, compute_stats: bool = True) -> Dict[str, Any]:
+        file_path = self._get_file_path(file_id)
+        layer_name=await self._upload_geoserver(file_path)
+        rasteroperSchemaObj=rasteroperSchema(
+            file_id=file_id,
+            layer_name=layer_name,
+            file_path=str(file_path),
+            file_name=file_name,
+            parent_id=None,
+            raster_type="uploaded"
+        )
+        rasterstorecrud(db).create_details(rasteroperSchemaObj)
+        with rasterio.open(file_path) as src:
+            rasterMetaSchameObj=rasterMetaSchame(
+                **self._basic_info(src, file_path),
+                **self._spatial_info(src),
+                **self._advanced_info(src),
+                bands= self._band_info(src, compute_stats),
+                tags= src.tags(),
+                file_id= file_id, 
+            )
+        rasterMetacrud(db).create_details(rasterMetaSchameObj)
+
+    async def save_upload(self, db:Session,file: UploadFile) -> str:
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+
+        if file_size > 500 * 1024 * 1024:
+            raise ValueError("File size exceeds 500 MB limit")
+        file_name = file.filename
+
+        file_ext = Path(file_name).suffix.lower()
+        if file_ext not in (".tif", ".tiff"):
+            raise ValueError("Invalid file format — only .tif / .tiff accepted")
+
+        file_id = str(uuid.uuid4())
+        file_path = self.temp_dir / f"{file_id}{file_ext}"
+
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Store path in Redis for 3 hours
+        self.redis_client.setex(f"raster:{file_id}", 10800, str(file_path))
+        await self._make_raster_info(db,file_id,file_name.split(".")[0])
+        return file_id
+
     async def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
         file_ext = Path(filename).suffix.lower()
         if file_ext not in (".tif", ".tiff"):
@@ -321,41 +370,6 @@ class RasterOperation:
         self.redis_client.setex(f"raster:{file_id}", 10800, str(output_path)) 
         layer_name=await self._upload_geoserver(output_path)
         return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
-
-    def save_upload(self, db:Session,file: UploadFile) -> str:
-        file.file.seek(0, 2)
-        file_size = file.file.tell()
-        file.file.seek(0)
-
-        if file_size > 500 * 1024 * 1024:
-            raise ValueError("File size exceeds 500 MB limit")
-
-        file_ext = Path(file.filename).suffix.lower()
-        if file_ext not in (".tif", ".tiff"):
-            raise ValueError("Invalid file format — only .tif / .tiff accepted")
-
-        file_id = str(uuid.uuid4())
-        file_path = self.temp_dir / f"{file_id}{file_ext}"
-
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Store path in Redis for 3 hours
-        self.redis_client.setex(f"raster:{file_id}", 10800, str(file_path))
-        return file_id
-
-    def get_raster_info(self, file_id: str, compute_stats: bool = True) -> Dict[str, Any]:
-        file_path = self._get_file_path(file_id)
-
-        with rasterio.open(file_path) as src:
-            return {
-                **self._basic_info(src, file_path),
-                **self._spatial_info(src),
-                **self._advanced_info(src),
-                "bands": self._band_info(src, compute_stats),
-                "tags": src.tags(),
-                "file_id": file_id,
-            }
 
     def reprojection(self,db:Session,file_id:str,crs:str,resampling:str):
         file_path=self._get_file_path(file_id)

@@ -22,7 +22,7 @@ router=APIRouter()
 @validate
 async def post_raster(db:db_dependency,file: UploadFile = File(...)):
     """ return the raster temp id"""
-    return RasterOperation().save_upload(db,file)
+    return await RasterOperation().save_upload(db,file)
 
 @router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
 @validate
@@ -46,7 +46,7 @@ async def complete_upload(db:db_dependency,payload:Chunkcomplete):
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""
-    return RasterOperation().get_raster_info(file_id)
+    return await RasterOperation().make_raster_info(db,file_id)
 
 
 @router.post("/reprojection",status_code=status.HTTP_201_CREATED)

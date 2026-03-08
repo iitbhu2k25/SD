@@ -27,7 +27,7 @@ class RasterStorage(Base):
     # Relationships
     parent: Mapped["RasterStorage"] = relationship(
         "RasterStorage",
-        remote_side=[id],
+        remote_side=lambda: [RasterStorage.id],
         backref="children"
     )
 
@@ -40,7 +40,11 @@ class RasterStorage(Base):
 class RasterMetadata(Base):
     __tablename__ = "raster_metadata"
 
-    file_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    file_id: Mapped[str] = mapped_column(
+        ForeignKey("raster_storage.file_id"),
+        unique=True,
+        nullable=False
+    )
     driver: Mapped[str] = mapped_column(String, nullable=False)
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -54,7 +58,7 @@ class RasterMetadata(Base):
 
     compression: Mapped[str | None] = mapped_column(String, nullable=True)
     is_tiled: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    block_shapes: Mapped[list | None] = mapped_column(JSON)
+    block_shapes: Mapped[dict | None] = mapped_column(JSON)
     is_cog_like: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     # Structured metadata stored as JSON

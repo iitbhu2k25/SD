@@ -225,7 +225,7 @@ class RasterMetadataResponse(BaseModel):
     width: int
     height: int
     band_count: int
-    dtypes: List[str]
+    dtypes: str
     nodata: Optional[float] = None
     crs: str
     crs_unit: str
@@ -253,3 +253,34 @@ class Chunkcomplete(BaseModel):
     upload_id: str
     total_chunks: int
     filename: str
+
+class rasteroperSchema(BaseModel):
+    file_id:str
+    file_name:str
+    file_path:str
+    layer_name: str
+    parent_id: int | None
+    raster_type: str  # uploaded or operated
+
+class rasterMetaSchame(BaseModel):
+    file_id:str
+    driver: str
+    width: int
+    height: int
+    band_count: int
+
+    dtypes: str
+    nodata: float|None = None
+    crs: str
+    crs_unit: str
+
+    compression: str | None = None
+    is_tiled: bool
+    block_shapes: list
+    is_cog_like: bool
+    file_size: dict
+    bounds: dict
+    bounds_wgs84: dict
+    resolution: dict
+    bands: list
+    tags: dict
