@@ -252,43 +252,6 @@ class RasterOperation:
             path.unlink()
             logger.info(f"Removed existing file: {file_path}")
 
-    async def chunk_upload(self, file: UploadFile,upload_id:str,chunk_index: int) -> str:
-        
-        chunk_dir = self.chunk_dir / upload_id
-        chunk_dir.mkdir(parents=True, exist_ok=True)
-        chunk_path = chunk_dir / f"{chunk_index}.part"
-        try:
-            current_size = sum(
-                f.stat().st_size for f in chunk_dir.glob("*.part")
-            )
-
-            with chunk_path.open("wb") as buffer:
-                while True:
-                    chunk = await file.read(1024 * 1024)  # 1MB
-                    if not chunk:
-                        break
-                    current_size += len(chunk)
-
-                   
-                    if current_size > self.MAX_SIZE_BYTES:
-                        buffer.close()
-                        shutil.rmtree(chunk_dir, ignore_errors=True)
-                        raise HTTPException(
-                            status_code=400,
-                            detail="File exceeds 500MB limit"
-                        )
-                    buffer.write(chunk)
-
-        except HTTPException:
-            raise
-        except Exception:
-            shutil.rmtree(chunk_dir, ignore_errors=True)
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to write chunk"
-            )
-
-        return "Chunk uploaded successfully"
     
     async def _upload_geoserver(self,file_path:str):
         unique_store_name =Unique_name.unique_name("raster_store")
@@ -342,6 +305,44 @@ class RasterOperation:
         await self._make_raster_info(db,file_id,file_name.split(".")[0])
         return file_id
 
+    async def chunk_upload(self, file: UploadFile,upload_id:str,chunk_index: int) -> str:
+        
+        chunk_dir = self.chunk_dir / upload_id
+        chunk_dir.mkdir(parents=True, exist_ok=True)
+        chunk_path = chunk_dir / f"{chunk_index}.part"
+        try:
+            current_size = sum(
+                f.stat().st_size for f in chunk_dir.glob("*.part")
+            )
+
+            with chunk_path.open("wb") as buffer:
+                while True:
+                    chunk = await file.read(1024 * 1024)  # 1MB
+                    if not chunk:
+                        break
+                    current_size += len(chunk)
+
+                   
+                    if current_size > self.MAX_SIZE_BYTES:
+                        buffer.close()
+                        shutil.rmtree(chunk_dir, ignore_errors=True)
+                        raise HTTPException(
+                            status_code=400,
+                            detail="File exceeds 500MB limit"
+                        )
+                    buffer.write(chunk)
+
+        except HTTPException:
+            raise
+        except Exception:
+            shutil.rmtree(chunk_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to write chunk"
+            )
+
+        return "Chunk uploaded successfully"
+    
     async def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
         file_ext = Path(filename).suffix.lower()
         if file_ext not in (".tif", ".tiff"):
@@ -370,6 +371,11 @@ class RasterOperation:
         self.redis_client.setex(f"raster:{file_id}", 10800, str(output_path)) 
         layer_name=await self._upload_geoserver(output_path)
         return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
+
+    async def get_info(self,db:Session,file_id:str):
+        resp1=rasterstorecrud(db).get_details(file_id)
+        resp2=rasterMetacrud(db).get_details(file_id)
+        return {"raster_info":resp1,"raster_meta":resp2}
 
     def reprojection(self,db:Session,file_id:str,crs:str,resampling:str):
         file_path=self._get_file_path(file_id)

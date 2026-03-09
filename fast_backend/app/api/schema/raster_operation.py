@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel,model_validator, Field
 from typing import Literal,Optional,List,Dict
 import numpy as np
@@ -218,6 +220,14 @@ class BandStatistics(BaseModel):
 # ----------------------------
 # Main Raster Metadata Model
 # ----------------------------
+class RasterdataResponse(BaseModel):
+    file_id: str
+    layer_name: str
+    raster_type: str #uploaded or operated
+    modified_at: datetime
+    id: int
+    parent_id: int|None
+
 
 class RasterMetadataResponse(BaseModel):
     file_size: FileSize
@@ -241,6 +251,12 @@ class RasterMetadataResponse(BaseModel):
     is_cog_like: bool
     bands: List[BandStatistics]
     tags: Dict[str, str]
+
+
+class RasterInfoResponse(BaseModel):
+    raster_info:RasterdataResponse
+    raster_meta:RasterMetadataResponse
+    
 
 class RasterUploadResponse(BaseModel):
     file_id:str

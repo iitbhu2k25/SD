@@ -2,7 +2,7 @@ from fastapi import APIRouter,status,UploadFile,File,Header
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
 from app.api.schema.raster_operation import (
-    RasterMetadataResponse,
+    RasterInfoResponse,
     RasterReproject,
     RasterReclassify,
     Edliudian,
@@ -42,11 +42,11 @@ async def complete_upload(db:db_dependency,payload:Chunkcomplete):
 
 
 
-@router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterMetadataResponse)
+@router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterInfoResponse)
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""
-    return await RasterOperation().make_raster_info(db,file_id)
+    return await RasterOperation().get_info(db,file_id)
 
 
 @router.post("/reprojection",status_code=status.HTTP_201_CREATED)
