@@ -17,9 +17,7 @@ import asyncio
 from app.conf.celery import app 
 from app.utils.exception import validate
 from pathlib import Path
-import logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from app.conf.logging import logger
 
 
 connection_manager=ConnectionManager()

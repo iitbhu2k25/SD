@@ -16,7 +16,8 @@ RasterType = Literal["byte", "int16", "uint16", "int32", "uint32", "float32", "f
 
 class RasterReproject(BaseModel):
     file_id: str
-    target_epsg: Literal["EPSG:32644", "EPSG:4326", "EPSG:3857"]
+    nodata:str
+    target_epsg: str
     resampling: Literal["near", "bilinear", "cubic"]
 
 def cast_to_dtype(value: str, dtype: str):

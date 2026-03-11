@@ -14,6 +14,7 @@ app = Celery('myapp', backend=Settings().CELERY_RESULT_BACKEND,broker=Settings()
 app.autodiscover_tasks(
     ['app.api.service.celery.celery_task'],
 )
+
 app.conf.update(
     task_serializer='json',
     accept_content=['json'],
@@ -21,7 +22,12 @@ app.conf.update(
     timezone='Asia/Kolkata', 
     enable_utc=True,
     
-    
+    task_default_queue="default",
+    task_queues=(
+        Queue("default"),
+        Queue("heavy_task"),
+    ),
+
     broker_connection_retry_on_startup=True,
     broker_heartbeat=30,
     broker_pool_limit=10,
@@ -45,10 +51,7 @@ app.conf.update(
     task_soft_time_limit=120,
     task_time_limit=150,
 )
-# app.conf.task_queues = (
-#     Queue("default"),
-#     Queue("heavy_tasks"),
-# )
+
 
 app.autodiscover_tasks()
 log.info("Celery app initialized successfully")

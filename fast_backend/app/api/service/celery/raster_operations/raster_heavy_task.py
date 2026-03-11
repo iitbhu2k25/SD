@@ -10,6 +10,7 @@ import rasterio
 from app.api.schema.raster_operation import RasterReclassify,ReclassRule
 from whitebox.whitebox_tools import WhiteboxTools
 import os
+from app.conf.celery import app
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
@@ -153,18 +154,15 @@ def _normalize_nodata(input_path: str):
         logger.error(e.stderr)
         raise RuntimeError(f"GDAL error: {e.stderr}")
 
-def celery_reprojection(
+@app.task(bind=True,name='celery_projection_tools',queue='heavy_task')
+def celery_reprojection(self,
     input_path: str,
     output_path: str,
     target_epsg: str,
+    src_nodata: str,
     resampling: str = "near",
 ):
-   
-    input_path,src_nodata= _normalize_nodata(input_path)
-    input_path = Path(input_path)
-    output_path = Path(output_path)
 
-    
     command = [
         "gdalwarp",
         "-t_srs", target_epsg,

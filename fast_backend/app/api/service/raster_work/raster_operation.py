@@ -42,6 +42,18 @@ from app.utils.name import Unique_name
 from .raster_resize_test import dry_run_resample
 from app.api.service.geoserver import Geoserver
 from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud
+from enum import Enum
+
+class EPSG(Enum):
+    WGS84 = 4326
+    WGS84_Web_Mercator = 3857
+    NAD83 = 4269
+    ETRS89 = 4258
+    UTM_Zone_33N = 32633
+    UTM_Zone_43N = 32643
+    UTM_Zone_44N = 32644
+    UTM_Zone_45N = 32645
+    UTM_Zone_46N = 32646
 
 class RasterOperation:
 
@@ -55,7 +67,6 @@ class RasterOperation:
         self.geo=Geoserver()
         self.workspace="raster_work"
         self.default_sld="/home/app/media/Rajat_data/default_sld.xml"
-
     def _get_file_path(self, file_id: str) -> Path:
         file_path = self.redis_client.get(f"raster:{file_id}")
         if not file_path:
@@ -64,6 +75,9 @@ class RasterOperation:
         if file_path.exists():
             return file_path
         raise FileNotFoundError("Temporary file missing")
+
+    def _get_Nodata(self):
+        pass
 
     def _safe_float(self, value):
         if value is None:
@@ -281,6 +295,9 @@ class RasterOperation:
             )
         rasterMetacrud(db).create_details(rasterMetaSchameObj)
 
+    async def available_epsg(self):
+        return {epsg.name :epsg.value for epsg in EPSG}
+        
     async def save_upload(self, db:Session,file: UploadFile) -> str:
         file.file.seek(0, 2)
         file_size = file.file.tell()
@@ -377,10 +394,17 @@ class RasterOperation:
         resp2=rasterMetacrud(db).get_details(file_id)
         return {"raster_info":resp1,"raster_meta":resp2}
 
-    def reprojection(self,db:Session,file_id:str,crs:str,resampling:str):
-        file_path=self._get_file_path(file_id)
-        output_path = self.temp_dir / f"reprojected_{crs}_{time.time()}.tif"
-        return celery_reprojection(file_path,output_path,crs,resampling)   
+    def reprojection(self,db:Session,file_id:str,crs:str,resampling:str,nodata:str):
+        try:
+            epsg_code = EPSG[crs].value
+            crs="EPSG:"+str(epsg_code)
+            file_path=self._get_file_path(file_id)
+            output_path = self.temp_dir / f"reprojected_{crs}_{time.time()}.tif"
+            return celery_reprojection.delay(str(file_path),str(output_path),crs,nodata,resampling)
+        except KeyError:
+            raise ValueError("Invalid EPSG")
+
+           
 
     def reclassify(self,db:Session,payload:RasterReclassify):
         file_path=self._get_file_path(payload.file_id)

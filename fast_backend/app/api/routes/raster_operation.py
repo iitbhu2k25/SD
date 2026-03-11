@@ -1,4 +1,11 @@
 from fastapi import APIRouter,status,UploadFile,File,Header
+from fastapi.responses import FileResponse
+import asyncio
+from pathlib import Path
+from app.conf.celery import app 
+from app.conf.ws_config import ConnectionManager,safe_send
+from fastapi import  WebSocket, WebSocketDisconnect
+from celery.result import AsyncResult
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
 from app.api.schema.raster_operation import (
@@ -16,7 +23,8 @@ from app.api.schema.raster_operation import (
     RasterUploadResponse)
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
-
+connection_manager=ConnectionManager()
+from app.conf.logging import logger
 
 @router.post("/post_raster",status_code=status.HTTP_201_CREATED)
 @validate
@@ -48,13 +56,17 @@ async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""
     return await RasterOperation().get_info(db,file_id)
 
+@router.get("/get_avaliable_epsg",status_code=status.HTTP_201_CREATED)
+@validate
+async def raster_reproject(db:db_dependency):
+    return await RasterOperation().available_epsg()
 
 @router.post("/reprojection",status_code=status.HTTP_201_CREATED)
 @validate
 async def raster_reproject(db:db_dependency,payload:RasterReproject):
     """ return the reprojected raster """
-    return RasterOperation().reprojection(db,payload.file_id,payload.target_epsg,payload.resampling)
-
+    resp = RasterOperation().reprojection(db,payload.file_id,payload.target_epsg,payload.resampling,payload.nodata)
+    return resp.id
 @router.post("/reclassify",status_code=status.HTTP_201_CREATED)
 @validate
 async def raster_reclassify(db:db_dependency,payload:RasterReclassify):
@@ -110,3 +122,83 @@ async def raster_resolution(db:db_dependency,payload:CellResize):
 async def raster_resolution(db:db_dependency,payload:CellResize):
     """ return the raster resolution """
     return RasterOperation().execute_resolution(db,payload)
+
+
+@router.get("/download_output",status_code=status.HTTP_200_OK,response_class=FileResponse)
+@validate
+async def get_report(chord_id:str):
+    file_path = AsyncResult(chord_id).get()      
+    file_path = Path(file_path)
+    if not file_path.exists():
+        return {"error": "File not found"}
+    return FileResponse(path=file_path, filename=file_path.name, media_type="image/tiff")
+
+
+@router.websocket("/ws/operation/{task_id}")
+async def operation_progress(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+    await connection_manager.connect(websocket, task_id)
+    try:
+        while True:
+            result = AsyncResult(task_id)
+            if result.state == 'PENDING':
+                progress_data = {
+                    'state': 'PENDING',
+                    'progress': 0,
+                    'total': 100,
+                    'description': 'Task pending...'
+                }
+            
+            elif result.state == 'FAILURE':
+                error_msg = str(result.info) if result.info else 'Unknown error'
+                progress_data = {
+                    'state': 'FAILURE',
+                    'progress': 100,
+                    'total': 100,
+                    'description': f'Failed: {error_msg}'
+                }
+                await safe_send(websocket, progress_data)
+
+                break
+            
+            elif result.state == 'SUCCESS':
+                result_id = task_id
+                if isinstance(result.result, dict):
+                    result_id = result.result.get('chord_id', task_id)
+                progress_data = {
+                    'state': 'SUCCESS',
+                    'progress': 100,
+                    'total': 100,
+                    'description': 'Complete',
+                    'result': result_id
+                }
+                await websocket.send_json(progress_data)
+                break
+            
+            else:
+                if result.info and isinstance(result.info, dict):
+                    progress_data = {
+                        'state': result.state,
+                        'progress': result.info.get('current', 0),
+                        'total': result.info.get('total', 100),
+                        'description': result.info.get('description', 'Processing...')
+                    }
+                else:
+                    logger.info(f"Unknown result info: {result.info}")
+                    progress_data = {
+                        'state': result.state,
+                        'progress': 50,
+                        'total': 100,
+                        'description': f'State: {result.state}'
+                    }
+            
+            await safe_send(websocket,progress_data)
+            await asyncio.sleep(0.5)
+    
+    except WebSocketDisconnect:
+        pass
+    
+    except Exception as e:
+        await safe_send(websocket, {"state": "ERROR", "description": str(e)})
+    finally:
+        await connection_manager.disconnect(websocket, task_id)

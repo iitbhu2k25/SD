@@ -14,3 +14,6 @@ from app.api.service.wqi.water_quality import (
     celery_rank_raster,
     start_weight_raster,
 )
+from app.api.service.celery.raster_operations.raster_heavy_task import (
+    celery_reprojection,    
+)
