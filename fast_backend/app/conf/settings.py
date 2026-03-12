@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings
 from decouple import config
 from sqlalchemy import URL
 from pydantic import AnyHttpUrl,Field,computed_field
-import redis
 from fastapi_mail import ConnectionConfig
 def get_db_url(drivername,username,password,host,database,port)->str:
     return URL.create(
@@ -61,16 +60,7 @@ class Settings(BaseSettings):
         port=config("POSTGRES_PORT"),
     ),validate_default=False)
 
-    @computed_field
-    @property
-    def redis_client(self) -> redis.Redis:
-        return redis.Redis(
-            host=self.REDIS_HOST,
-            port=self.REDIS_PORT,
-            password=self.REDIS_PASSWORD,
-            username=self.REDIS_USERNAME,  
-            decode_responses=True
-        )
+
     @computed_field
     @property
     def email_conf(self)->ConnectionConfig:

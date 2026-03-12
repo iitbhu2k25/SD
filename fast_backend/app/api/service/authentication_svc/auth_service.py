@@ -15,7 +15,7 @@ from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-redis_client=Settings().redis_client
+from app.conf.redis import redis_client
 
 
 class AuthServiceInterface(ABC):

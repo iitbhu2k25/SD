@@ -31,6 +31,7 @@ from app.api.schema.raster_operation import(
     Edliudian,
     FlowDirectionParams,
     FlowAccumulationParams,
+    RasterReproject,
     SlopeParams,
     TpiParams,
     TwiParams,
@@ -38,11 +39,13 @@ from app.api.schema.raster_operation import(
     rasterMetaSchame,
     rasteroperSchema)
 from app.utils.name import Unique_name
+from app.api.exception.exceptions import CustomException
 
 from .raster_resize_test import dry_run_resample
 from app.api.service.geoserver import Geoserver
 from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud
 from enum import Enum
+from app.conf.redis import redis_client
 
 class EPSG(Enum):
     WGS84 = 4326
@@ -58,7 +61,7 @@ class EPSG(Enum):
 class RasterOperation:
 
     def __init__(self):
-        self.redis_client = Settings().redis_client
+        self.redis_client=redis_client
         self.temp_dir = Path(Settings().TEMP_DIR+"/raster_tools")
         self.chunk_dir=Path(Settings().TEMP_DIR+"/chunk_dir")
         os.makedirs(self.temp_dir, exist_ok=True)
@@ -392,15 +395,17 @@ class RasterOperation:
     async def get_info(self,db:Session,file_id:str):
         resp1=rasterstorecrud(db).get_details(file_id)
         resp2=rasterMetacrud(db).get_details(file_id)
+        if resp1 is None or resp2 is None:
+            raise CustomException(status_code=404,detail="File not found")
         return {"raster_info":resp1,"raster_meta":resp2}
 
-    def reprojection(self,db:Session,file_id:str,crs:str,resampling:str,nodata:str):
+    def reprojection(self,db:Session,payload:RasterReproject):
         try:
             epsg_code = EPSG[crs].value
             crs="EPSG:"+str(epsg_code)
-            file_path=self._get_file_path(file_id)
+            file_path=self._get_file_path(payload.file_id)
             output_path = self.temp_dir / f"reprojected_{crs}_{time.time()}.tif"
-            return celery_reprojection.delay(str(file_path),str(output_path),crs,nodata,resampling)
+            return celery_reprojection.delay(str(file_path),str(output_path),crs,payload.src_nodata,payload.resampling)
         except KeyError:
             raise ValueError("Invalid EPSG")
 
@@ -409,44 +414,46 @@ class RasterOperation:
     def reclassify(self,db:Session,payload:RasterReclassify):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"reclassified_{time.time()}.tif"
-        return reclassify_raster(payload,file_path,output_path)
+        return reclassify_raster(payload,str(file_path),str(output_path))
 
     def edludian(self,db:Session,payload:Edliudian):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"ecludian_{time.time()}.tif"
-        return celery_euclidean_distance(file_path,output_path,payload.target_values,payload.max_distance,payload.distance_units)
+        return celery_euclidean_distance(str(file_path),str(output_path),payload.target_values,payload.max_distance,payload.distance_units)
     
     def flow_direction(self,db:Session,payload:FlowDirectionParams):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"flow_direction_{time.time()}.tif"
-        return compute_flow_direction_task(file_path,output_path,payload.algorithm,payload.fill_depressions,payload.max_slope)
+        return compute_flow_direction_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata,payload.max_slope)
     
     def flow_accumulation(self,db:Session,payload:FlowAccumulationParams):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"flow_accumulation_{time.time()}.tif"
-        return compute_flow_accumulation_task(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,file_path,output_path)
+        return compute_flow_accumulation_task.delay(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,str(file_path),str(output_path),payload.src_nodata)
 
     def slope(self,db:Session,payload:SlopeParams):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"slope_{time.time()}.tif"
-        return compute_slope_task(file_path,output_path,payload.units)
+        return compute_slope_task.delay(str(file_path),str(output_path),payload.units,payload.src_nodata)
 
     def tpi(self,db:Session,payload:TpiParams):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"tpi_{time.time()}.tif"
-        return compute_tpi_task(file_path,output_path,payload.neighbourhood,payload.radius)
+        return compute_tpi_task.delay(str(file_path),str(output_path),payload.neighbourhood,payload.radius,payload.src_nodata)
 
     def twi(self,db:Session,payload:TwiParams):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"twi_{time.time()}.tif"
-        return compute_twi_task(file_path,output_path,payload.algorithm,payload.fill_depressions)
+        return compute_twi_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
 
+    def test_resolution(self,db:Session,payload:CellResize):
+        file_path=self._get_file_path(payload.file_id)
+        return dry_run_resample(file_path,payload.target_cell,payload.algorithm)
+    
     def execute_resolution(self,db:Session,payload:CellResize):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"resolution_{time.time()}.tif"
-        return resample_raster_task(file_path,output_path,payload.target_cell,payload.algorithm)
+        return resample_raster_task(str(file_path),str(output_path),payload.target_cell,payload.algorithm)
        
 
-    def check_resolution(self,db:Session,payload:CellResize):
-        file_path=self._get_file_path(payload.file_id)
-        return dry_run_resample(file_path,payload.target_cell,payload.algorithm)
+    

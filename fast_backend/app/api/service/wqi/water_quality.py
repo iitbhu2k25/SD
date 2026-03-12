@@ -28,7 +28,7 @@ from app.utils.name import Unique_name
 from fastapi import HTTPException,status
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-redis_client = Settings().redis_client
+from app.conf.redis import redis_client
 from celery import group, chord
 from app.conf.celery import app
 

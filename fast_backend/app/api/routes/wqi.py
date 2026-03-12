@@ -8,7 +8,7 @@ from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
 import asyncio
 from app.conf.settings import Settings
-redis_client = Settings().redis_client
+from app.conf.redis import redis_client
 from typing import Annotated
 router=APIRouter()
 connection_manager=ConnectionManager()

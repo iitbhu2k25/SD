@@ -80,7 +80,7 @@ registerFontFamily(
     boldItalic='TimesNewRoman-BoldItalic'
 )
 
-redis_client = Settings().redis_client
+from app.conf.redis import redis_client
 
 
 

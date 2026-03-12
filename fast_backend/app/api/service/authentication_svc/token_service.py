@@ -4,7 +4,7 @@ from app.conf.settings import Settings
 from app.api.exception.exceptions import TokenNone,InternalServerError,Invalid_Token
 from app.database.crud.user_crud import UserCrud
 from sqlalchemy.orm import Session 
-redis_client=Settings().redis_client
+from app.conf.redis import redis_client
 
 class TokenManager:
     

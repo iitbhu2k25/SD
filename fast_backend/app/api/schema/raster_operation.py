@@ -13,10 +13,15 @@ DTYPE_MAP: dict = {
     "float64": (float, np.float64),
 }
 RasterType = Literal["byte", "int16", "uint16", "int32", "uint32", "float32", "float64"]
+SlopeUnits = Literal["degrees", "radians", "percent"]
+TpiNeighbourhood = Literal["circle", "rectangle"]
+FlowAlgorithm = Literal["d8", "dinf", "mfd"]
+OutputType = Literal["cells", "catchment area", "specific contributing area"]
+cell_resize_algorithms = Literal["near","bilinear","cubic","cubicspline","lanczos","average","mode"]
 
 class RasterReproject(BaseModel):
     file_id: str
-    nodata:str
+    src_nodata: str
     target_epsg: str
     resampling: Literal["near", "bilinear", "cubic"]
 
@@ -113,15 +118,16 @@ class Edliudian(BaseModel):
     distance_units: str = "GEO"
     target_values: Optional[List[int]] = None
     max_distance: Optional[float] = None
+    src_nodata: str
     
 
-FlowAlgorithm = Literal["d8", "dinf", "mfd"]
-OutputType = Literal["cells", "catchment area", "specific contributing area"]
+
 class FlowDirectionParams(BaseModel):
     file_id:        str
     algorithm:      FlowAlgorithm = "d8"
     fill_depressions: bool        = True
     max_slope:      Optional[float] = None   # only for dinf/mfd
+    src_nodata: str
 
     @model_validator(mode="after")
     def validate_params(self):
@@ -139,7 +145,7 @@ class FlowAccumulationParams(BaseModel):
     output_type:      OutputType                = "cells"
     fill_depressions: bool                      = True
     log_transform:    bool                      = False  
-
+    src_nodata: str
     @model_validator(mode="after")
     def validate_params(self):
         if self.output_type == "specific contributing area" and self.algorithm == "d8":
@@ -149,21 +155,21 @@ class FlowAccumulationParams(BaseModel):
         return self
 
 
-SlopeUnits = Literal["degrees", "radians", "percent"]
-TpiNeighbourhood = Literal["circle", "rectangle"]
+
 
 
 
 class SlopeParams(BaseModel):
     file_id:     str
     units:       SlopeUnits    = "degrees"
+    src_nodata: str
 
 
 class TpiParams(BaseModel):
     file_id:          str
     neighbourhood:    TpiNeighbourhood = "circle"
     radius:           int              = 3      
-
+    src_nodata: str
     @model_validator(mode="after")
     def validate_radius(self):
         if self.radius < 1:
@@ -175,15 +181,17 @@ class TwiParams(BaseModel):
     file_id:          str
     fill_depressions: bool           = True
     algorithm:        FlowAlgorithm = "d8"
+    src_nodata: str
 
 
 
-cell_resize_algorithms = Literal["near","bilinear","cubic","cubicspline","lanczos","average","mode"]
 class CellResize(BaseModel):
     file_id:      str
     target_cell:  float
     algorithm:    cell_resize_algorithms="near"
     dtype_override: Optional[str] = None
+    src_nodata: str
+
 
 class FileSize(BaseModel):
     value: float = Field(..., description="File size numeric value")
@@ -218,9 +226,7 @@ class BandStatistics(BaseModel):
     std: Optional[float] = None
 
 
-# ----------------------------
-# Main Raster Metadata Model
-# ----------------------------
+# raster data info schema 
 class RasterdataResponse(BaseModel):
     file_id: str
     layer_name: str
@@ -255,8 +261,8 @@ class RasterMetadataResponse(BaseModel):
 
 
 class RasterInfoResponse(BaseModel):
-    raster_info:RasterdataResponse
-    raster_meta:RasterMetadataResponse
+    raster_info:RasterdataResponse 
+    raster_meta:RasterMetadataResponse 
     
 
 class RasterUploadResponse(BaseModel):

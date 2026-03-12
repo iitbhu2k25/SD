@@ -9,8 +9,11 @@ import numpy as np
 import rasterio
 from app.api.schema.raster_operation import RasterReclassify,ReclassRule
 from whitebox.whitebox_tools import WhiteboxTools
+import time
 import os
 from app.conf.celery import app
+from app.conf.settings import Settings
+from app.conf.redis import redis_client
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
@@ -154,56 +157,6 @@ def _normalize_nodata(input_path: str):
         logger.error(e.stderr)
         raise RuntimeError(f"GDAL error: {e.stderr}")
 
-@app.task(bind=True,name='celery_projection_tools',queue='heavy_task')
-def celery_reprojection(self,
-    input_path: str,
-    output_path: str,
-    target_epsg: str,
-    src_nodata: str,
-    resampling: str = "near",
-):
-
-    command = [
-        "gdalwarp",
-        "-t_srs", target_epsg,
-        "-r", resampling,
-
-        "-multi",
-        "-wo", "NUM_THREADS=2",
-        "-wm", "2048",
-
-        "-srcnodata", str(src_nodata),
-        "-dstnodata", str(src_nodata),
-
-        "-co", "COMPRESS=LZW",
-        "-co", "TILED=YES",
-        "-co", "BIGTIFF=YES",
-
-        "-overwrite",
-        str(input_path),
-        str(output_path),
-    ]
-
-    logger.info(f"Running GDAL command: {' '.join(command)}")
-    
-    try:
-        result = subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True
-        )
-
-        logger.info("Reprojection completed successfully")
-        logger.debug(result.stdout)
-
-        return str(output_path)
-
-    except subprocess.CalledProcessError as e:
-        logger.error("GDAL reprojection failed")
-        logger.error(e.stderr)
-        raise RuntimeError(f"GDAL error: {e.stderr}")
-
 
 
 # -------------------------------------
@@ -238,7 +191,6 @@ def _get_best_crs_for_india(input_path: str) -> str:
     zone = int((centroid_lon + 180) / 6) + 1
     return f"EPSG:326{zone}"
 
-
 def _get_current_epsg(input_path: str) -> Optional[str]:
     with rasterio.open(input_path) as src:
         if src.crs and src.crs.to_epsg():
@@ -253,7 +205,7 @@ def celery_euclidean_distance(
     distance_units: str = "GEO",
     timeout: int = 3600,
 ):
-    input_path,nodata_value = _normalize_nodata(input_path)
+    
     input_path = Path(input_path)
     output_path = Path(output_path)
 
@@ -278,7 +230,7 @@ def celery_euclidean_distance(
         "-co", "COMPRESS=LZW",
         "-co", "TILED=YES",
         "-co", "BIGTIFF=YES",
-        "-nodata", str(nodata_value),
+        "-nodata", str("nodata_value"),
     ]
 
     if target_values:
@@ -382,7 +334,6 @@ def _build_calc_expression(rules: List[ReclassRule], nodata_val: float) -> str:
 
     return expr
 
-
 def reclassify_raster(params: RasterReclassify, input_path: str, output_path: str):
 
     input_path, src_nodata = _normalize_nodata(input_path)
@@ -427,8 +378,63 @@ def reclassify_raster(params: RasterReclassify, input_path: str, output_path: st
     return output_path
 
 
+@app.task(bind=True,name='celery_projection_tools',queue='heavy_task')
+def celery_reprojection(self,
+    input_path: str,
+    output_path: str,
+    target_epsg: str,
+    src_nodata: str,
+    resampling: str = "near",
+):
+    channel = f"opr_id:{self.request.id}"
+    redis_client.publish(channel, json.dumps({
+        "status": "started",
+        "progress": 0
+    }))
+    command = [
+        "gdalwarp",
+        "-t_srs", target_epsg,
+        "-r", resampling,
+
+        "-multi",
+        "-wo", "NUM_THREADS=2",
+        "-wm", "2048",
+        "-srcnodata", str(src_nodata),
+        "-dstnodata", str(src_nodata),
+        "-overwrite",
+        str(input_path),
+        str(output_path),
+    ]
+    logger.info(f"Running GDAL command: {' '.join(command)}")
+    time.sleep(30) 
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        logger.info("Reprojection completed successfully")
+        logger.debug(result.stdout)
+        redis_client.publish(channel, json.dumps({
+        "status": "completed",
+        "progress": 100
+        }))
+        return str(output_path)
+
+    except subprocess.CalledProcessError as e:
+        logger.error("GDAL reprojection failed")
+        logger.error(e.stderr)
+        redis_client.publish(channel, json.dumps({
+            "status": "failed",
+            "progress": 100
+        }))
+        raise RuntimeError(f"GDAL error: {e.stderr}")
+
 
 #-------------------------------------------------------------------------------
+# whitebox operations
 
 # class WhiteboxTask(Task):
 #     abstract = True
@@ -564,16 +570,25 @@ def _run_flow_direction(
 
 
 
-
 def _run_flow_accumulation(
-    dem_path:    str,
+    dem_path: str,
     output_path: str,
-    algorithm:   str,
+    algorithm: str,
     output_type: str,
     log_transform: bool,
 ) -> None:
 
+    algorithm = algorithm.lower()
+
+    logger.info(
+        "Running flow accumulation [%s]: %s → %s",
+        algorithm,
+        dem_path,
+        output_path,
+    )
+
     if algorithm == "d8":
+
         ret = wbt.d8_flow_accumulation(
             i=dem_path,
             output=output_path,
@@ -583,17 +598,19 @@ def _run_flow_accumulation(
         )
 
     elif algorithm == "dinf":
-        ret = wbt.d_inf_flow_accumulation(
-            i=dem_path,
+
+        ret = wbt.dinf_flow_accumulation(
+            dem=dem_path,
             output=output_path,
             out_type=output_type,
             log=log_transform,
             clip=False,
         )
 
-    elif algorithm == "mfd":
+    elif algorithm in ("mfd", "quinn"):
+
         ret = wbt.quinn_flow_accumulation(
-            i=dem_path,
+            dem=dem_path,
             output=output_path,
             out_type=output_type,
             log=log_transform,
@@ -636,27 +653,27 @@ def _run_slope(
     logger.info("Slope complete")
 
 def _run_tpi(
-    dem_path:     str,
-    output_path:  str,
-    neighbourhood: str,
-    radius:       int,
+    dem_path: str,
+    output_path: str,
+    radius: int,
 ) -> None:
-    logger.info(
-        "Running TPI [neighbourhood=%s radius=%s]: %s → %s",
-        neighbourhood, radius, dem_path, output_path
-    )
 
-    ret = wbt.ruggedness_index(   # WBT TPI = relative_topographic_position
+    filter_size = radius * 2 + 1
+
+    ret = wbt.relative_topographic_position(
         dem=dem_path,
-        output=output_path
+        output=output_path,
+        filterx=filter_size,
+        filtery=filter_size
     )
 
     if ret != 0:
-        raise RuntimeError(f"WhiteboxTools TPI failed (exit {ret})")
-    if not os.path.exists(output_path):
-        raise RuntimeError(f"TPI did not produce output: {output_path}")
+        raise RuntimeError(f"TPI failed (exit code {ret})")
 
-    logger.info("TPI complete")
+    if not os.path.exists(output_path):
+        raise RuntimeError("WhiteboxTools produced no output")
+
+    logger.info("TPI calculation finished")
 
 def _run_twi(
     dem_path:    str,
@@ -721,16 +738,19 @@ def _run_twi(
 
     logger.info("TWI complete")
 
+@app.task(bind=True,name='celery_flow_accumulation_tools',queue='heavy_task')
 def compute_flow_accumulation_task(
+    self,
     fill_depressions: bool,
     algorithm:str,
     output_type: str,
     log_transform: bool,
     input_path:   str,
     output_path:  str,
+    src_nodata: str,
 ) -> str:
     try:
-        input_path,nodata_value = _normalize_nodata(input_path)
+        
 
         with tempfile.TemporaryDirectory(prefix="flow_acc_") as tmp_dir:
 
@@ -748,7 +768,7 @@ def compute_flow_accumulation_task(
                 log_transform=log_transform,
             )
 
-        _update_stats(float(nodata_value),output_path)
+        _update_stats(float(src_nodata),output_path)
 
         logger.info("Flow accumulation complete [pid=%s]: %s", os.getpid(), output_path)
         return output_path
@@ -757,14 +777,18 @@ def compute_flow_accumulation_task(
         logger.error("Flow accumulation failed (non-retryable): %s", e)
         raise
 
+@app.task(bind=True,name='celery_flow_direction_tools',queue='heavy_task')
 def compute_flow_direction_task(
+    self,
     input_path:   str,
     output_path:  str,
     algorithm:str,
     fill_depressions: bool,
+    src_nodata: str,
     max_slope:      Optional[float] = None,
+    
 ) -> str:
-    input_path,nodata_value = _normalize_nodata(input_path)
+    
     try:
         with tempfile.TemporaryDirectory(prefix="flow_dir_") as tmp_dir:
             # Fill depressions
@@ -780,7 +804,7 @@ def compute_flow_direction_task(
                 max_slope=max_slope,
             )
 
-        _update_stats(float(nodata_value),output_path)
+        _update_stats(float(src_nodata),output_path)
         return output_path
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -792,14 +816,16 @@ def compute_flow_direction_task(
         # Retryable — WBT process failure
         logger.warning("Flow direction failed (retryable): %s", e)
 
+
+@app.task(bind=True,name='celery_slope_task_tools',queue='heavy_task')
 def compute_slope_task(
+    self,
     input_path:   str,
     output_path:  str,
     units:        str,
+    src_nodata: str,
 ) -> str:
     try:
-        
-        input_path, src_nodata = _normalize_nodata(input_path)
         _run_slope(
             dem_path=input_path,
             output_path=output_path,
@@ -813,21 +839,18 @@ def compute_slope_task(
         raise
 
 
-
-
+@app.task(bind=True,name='celery_tpi_task_tools',queue='heavy_task')
 def compute_tpi_task(
-    input_path:   str,
-    output_path:  str,
-    neighbourhood: str,
-    radius:       int,
+        self,
+        input_path:   str,
+        output_path:  str,
+        radius:       int,
+        src_nodata: str
 ) -> str:
     try:
-        input_path, src_nodata = _normalize_nodata(input_path)
-
         _run_tpi(
             dem_path=input_path,
             output_path=output_path,
-            neighbourhood=neighbourhood,
             radius=radius,
         )
         _update_stats(float(src_nodata), output_path)
@@ -838,17 +861,16 @@ def compute_tpi_task(
         raise
 
 
-
-
+@app.task(bind=True,name='celery_twi_task_tools',queue='heavy_task')
 def compute_twi_task(
+    self,
     input_path:   str,
     output_path:  str,
     algorithm:    str,
     fill_depressions: bool,
+    src_nodata: str
 ) -> str:
     try:
-        input_path, src_nodata = _normalize_nodata(input_path)
-
         with tempfile.TemporaryDirectory(prefix="twi_") as tmp_dir:
             dem_path = input_path
             if fill_depressions:
@@ -867,8 +889,6 @@ def compute_twi_task(
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("TWI failed (non-retryable): %s", e)
         raise
-
-
 
 
 def _run_resample(
@@ -904,7 +924,6 @@ def _run_resample(
         raise RuntimeError(
             f"gdalwarp failed (exit {result.returncode}):\n{result.stderr}"
         )
-
 
 
 def resample_raster_task(

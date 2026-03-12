@@ -68,7 +68,7 @@ pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roma
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
 
-redis_client = Settings().redis_client
+from app.conf.redis import redis_client
 
 
 
