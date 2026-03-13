@@ -51,7 +51,7 @@ const Analytics: React.FC = () => {
   // Constants
   const GEOSERVER_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
   const GEOSERVER_MVT_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/gwc/service/tms/1.0.0`;
-  const Vector_workspace = "vector_work";
+  const Vector_workspace = "dss_vector";
   const Raster_workspace = "raster_work";
   const FIXED_VECTOR_LAYER = "STP_State";
 

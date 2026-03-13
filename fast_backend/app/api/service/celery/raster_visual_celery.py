@@ -1085,7 +1085,7 @@ def raster_visual(self,payload:RasterVisual):
         temp_folder = Settings().TEMP_DIR+"/"+uuid.uuid4().hex
         Path(temp_folder).mkdir(parents=True, exist_ok=True)
         output_pdf = Path(temp_folder,Unique_name.unique_name_with_ext("raster","pdf"))
-        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
+        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"dss_raster")
         generator = GISMapGenerator(resp["raster_path"], 
                                     resp["sld_path"], 
                                     str(output_pdf),

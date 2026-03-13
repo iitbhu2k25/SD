@@ -85,8 +85,8 @@ const OpenLayersRasterViewer: React.FC = () => {
   // Constants
   const GEOSERVER_URL = "/geoserver/api/wms";
   const GEOSERVER_MVT_URL = "/geoserver/api/gwc/service/tms/1.0.0"; // MVT endpoint
-  const Vector_workspace = "vector_work";
-  const Raster_workspace = "raster_visualization";
+  const Vector_workspace = "dss_vector";
+  const Raster_workspace = "dss_raster";
   const FIXED_VECTOR_LAYER = "STP_State";
   const INDIA_CENTER_LON = 78.9629;
   const INDIA_CENTER_LAT = 23.5937;

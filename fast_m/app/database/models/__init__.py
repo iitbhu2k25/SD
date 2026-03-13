@@ -10,3 +10,4 @@ from app.database.models.basic.basic import (
     BasicRunoffCoefficient,
 )
 
+from app.database.models.model_water import Stretches, Drain

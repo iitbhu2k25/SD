@@ -638,7 +638,7 @@ class Raster_visual:
     @staticmethod
     def raster_pdf(db,payload:RasterVisual):
         output_pdf = Path(Settings().TEMP_DIR,Unique_name.unique_name_with_ext("raster","pdf"))
-        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
+        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"dss_raster")
         generator = GISMapGenerator(resp["raster_path"], 
                                     resp["sld_path"], 
                                     str(output_pdf),

@@ -59,7 +59,7 @@ const MapContext = createContext<MapContextType>({
   zoomToFeature: () => { },
   resetMapView: () => { },
   geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
-  defaultWorkspace: "vector_work",
+  defaultWorkspace: "dss_vector",
   ADMIN_LAYER_NAMES,
   loading: false,
   setLoading: () => { },
@@ -76,7 +76,7 @@ const MapContext = createContext<MapContextType>({
 export const MapProvider: React.FC<MapProviderProps> = ({
   children,
   geoServerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
-  defaultWorkspace = "vector_work"
+  defaultWorkspace = "dss_vector"
 }) => {
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_LAYER_NAMES.STATE);
