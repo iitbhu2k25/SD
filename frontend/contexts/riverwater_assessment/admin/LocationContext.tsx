@@ -5,9 +5,14 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
 } from "react";
 import { useApp } from "@/contexts/riverwater_assessment/admin/AppContext";
+
+type SeasonType = "premonsoon" | "monsoon" | "postmonsoon";
+const SEASONS: SeasonType[] = ["premonsoon", "monsoon", "postmonsoon"];
+const DEFAULT_SEASON: SeasonType = "premonsoon";
 
 // Define types for the location data
 export interface State {
@@ -124,8 +129,8 @@ export interface LocationContextType {
   fetchAllSeasonsWaterQualityData: (subDistrictCodes: number[]) => Promise<void>;
   clearAllSeasonalData: () => void;
   
-  selectedSeason: "premonsoon" | "monsoon" | "postmonsoon";
-  setSelectedSeason: (season: "premonsoon" | "monsoon" | "postmonsoon") => void;
+  selectedSeason: "premonsoon" | "monsoon" | "postmonsoon" | "";
+  setSelectedSeason: (season: "premonsoon" | "monsoon" | "postmonsoon" | "") => void;
 }
 
 interface LocationProviderProps {
@@ -152,8 +157,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [areaConfirmed, setAreaConfirmed] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<
-    "premonsoon" | "monsoon" | "postmonsoon"
-  >("premonsoon");
+    "premonsoon" | "monsoon" | "postmonsoon" | ""
+  >("");
 
   // EXISTING: Single season water quality data state
   const [waterQualityData, setWaterQualityData] =
@@ -175,9 +180,23 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [isLoadingAllSeasons, setIsLoadingAllSeasons] = useState<boolean>(false);
   const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
+  // Request guards to prevent stale response writes and abort in-flight calls.
+  const singleSeasonAbortRef = useRef<AbortController | null>(null);
+  const allSeasonAbortRef = useRef<AbortController | null>(null);
+  const singleSeasonRequestIdRef = useRef(0);
+  const allSeasonRequestIdRef = useRef(0);
+
   // Register the reset function with parent context
   useEffect(() => {
     locationActions.current.resetSelections = resetSelections;
+  }, []);
+
+  // Cancel pending network requests on unmount.
+  useEffect(() => {
+    return () => {
+      singleSeasonAbortRef.current?.abort();
+      allSeasonAbortRef.current?.abort();
+    };
   }, []);
 
   // Fetch states on component mount
@@ -186,7 +205,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/state`, {
+        const response = await fetch("/django/state", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -226,7 +245,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/district/`, {
+        const response = await fetch("/django/district/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -264,7 +283,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/subdistrict/`, {
+        const response = await fetch("/django/subdistrict/", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -302,232 +321,191 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     fetchSubDistricts();
   }, [selectedDistricts, districts]);
 
-  // MODIFIED: Auto-fetch water quality data - PARALLEL EXECUTION (Option A)
+  // Single-season data drives map/chart point rendering.
   useEffect(() => {
     if (areaConfirmed && selectedSubDistricts.length > 0) {
-      console.log(
-        "Area confirmed and subdistricts selected, fetching water quality data..."
-      );
-      
-      // EXISTING PATH: Single season fetch for current charts
-      fetchWaterQualityData(selectedSubDistricts, selectedSeason);
-      
-      // NEW PATH: All seasons fetch for comparison table
-      fetchAllSeasonsWaterQualityData(selectedSubDistricts);
+      const seasonToFetch = selectedSeason || DEFAULT_SEASON;
+      fetchWaterQualityData(selectedSubDistricts, seasonToFetch);
     } else {
-      console.log("Conditions not met, clearing water quality data...");
       clearWaterQualityData();
-      clearAllSeasonalData();
     }
   }, [selectedSubDistricts, areaConfirmed, selectedSeason]);
 
-  // EXISTING: Single season fetch function (unchanged)
+  // Multi-season data drives the comparison table only.
+  // Intentionally decoupled from selectedSeason to avoid redundant refetching.
+  useEffect(() => {
+    if (areaConfirmed && selectedSubDistricts.length > 0) {
+      fetchAllSeasonsWaterQualityData(selectedSubDistricts);
+    } else {
+      clearAllSeasonalData();
+    }
+  }, [selectedSubDistricts, areaConfirmed]);
+
+  const isAbortError = (error: unknown): boolean => {
+    return error instanceof Error && error.name === "AbortError";
+  };
+
+  // Utility function to normalize sampling names for cross-season alignment.
+  const normalizeSamplingName = (originalSampling: string): string => {
+    return originalSampling
+      .replace(/\s*\((US|DS|Drain)\)\s*$/i, "")
+      .replace(/\s*Drain\s*\((US|DS)\)\s*$/i, "")
+      .replace(/\s*(Drain|Upstream|Downstream)\s*$/i, "")
+      .trim();
+  };
+
+  const fetchSeasonWaterQualityGeoJson = async (
+    subDistrictCodes: number[],
+    season: SeasonType,
+    signal?: AbortSignal
+  ): Promise<WaterQualityGeoJSON> => {
+    const requestBody = { Sub_District_Code: subDistrictCodes };
+    const response = await fetch(`/django/rwm/shapefile/subdistbased/${season}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const withNormalizedSampling = (
+    seasonData: WaterQualityGeoJSON | null
+  ): WaterQualityGeoJSON | null => {
+    if (!seasonData || !seasonData.features) return null;
+
+    return {
+      ...seasonData,
+      features: seasonData.features.map((feature: WaterQualityFeature) => {
+        const originalSampling = feature.properties.Sampling || "";
+        const normalizedSampling = normalizeSamplingName(originalSampling);
+
+        return {
+          ...feature,
+          properties: {
+            ...feature.properties,
+            NormalizedSampling: normalizedSampling,
+          },
+        };
+      }),
+    };
+  };
+
+  // Single-season fetch used by map/point rendering.
   const fetchWaterQualityData = async (
     subDistrictCodes: number[],
-    season: string = "premonsoon"
+    season: string = DEFAULT_SEASON
   ): Promise<void> => {
-    console.log("fetchWaterQualityData called with:", subDistrictCodes);
-
     if (subDistrictCodes.length === 0) {
-      console.log("No sub-district codes provided, clearing data");
       clearWaterQualityData();
       return;
     }
 
+    const normalizedSeason: SeasonType = SEASONS.includes(season as SeasonType)
+      ? (season as SeasonType)
+      : DEFAULT_SEASON;
+
+    singleSeasonAbortRef.current?.abort();
+    const controller = new AbortController();
+    singleSeasonAbortRef.current = controller;
+    const requestId = ++singleSeasonRequestIdRef.current;
+
     setIsLoadingWaterQuality(true);
     setWaterQualityError(null);
 
-    const requestBody = {
-      Sub_District_Code: subDistrictCodes,
-    };
-
-    console.log("Making water quality API request:", requestBody);
-
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/subdistbased/${season}/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        }
+      const data = await fetchSeasonWaterQualityGeoJson(
+        subDistrictCodes,
+        normalizedSeason,
+        controller.signal
       );
 
-      console.log("Water quality API response status:", response.status);
+      if (requestId !== singleSeasonRequestIdRef.current) return;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-
-      const data: WaterQualityGeoJSON = await response.json();
-      console.log(
-        "Water quality data received:",
-        data.features?.length || 0,
-        "features"
-      );
-
-      // Store the raw GeoJSON data as-is
       setWaterQualityData(data);
-
       if (!data.features || data.features.length === 0) {
         setWaterQualityError(
           "No water quality data found for selected sub-districts."
         );
       }
     } catch (error: any) {
-      console.log("Water quality API error:", error);
+      if (isAbortError(error)) return;
+      if (requestId !== singleSeasonRequestIdRef.current) return;
+
       setWaterQualityError(
         `Failed to fetch water quality data: ${error.message}`
       );
       setWaterQualityData(null);
     } finally {
-      setIsLoadingWaterQuality(false);
+      if (requestId === singleSeasonRequestIdRef.current) {
+        setIsLoadingWaterQuality(false);
+      }
     }
   };
 
-  // NEW: Utility function to normalize sampling names
-  const normalizeSamplingName = (originalSampling: string): string => {
-    let normalized = originalSampling
-      // Remove patterns like "(US)", "(DS)", "(Drain)"
-      .replace(/\s*\((US|DS|Drain)\)\s*$/i, "")
-      // Remove patterns like "Drain (US)" or "Drain (DS)"
-      .replace(/\s*Drain\s*\((US|DS)\)\s*$/i, "")
-      // Remove standalone words: "Drain", "Upstream", "Downstream"
-      .replace(/\s*(Drain|Upstream|Downstream)\s*$/i, "")
-      .trim();
-    
-    return normalized;
-  };
-
-  // NEW: Fetch all seasons in parallel
+  // All-seasons fetch used by comparison table.
   const fetchAllSeasonsWaterQualityData = async (
     subDistrictCodes: number[]
   ): Promise<void> => {
-    console.log("fetchAllSeasonsWaterQualityData called with:", subDistrictCodes);
-
     if (subDistrictCodes.length === 0) {
-      console.log("No sub-district codes provided, clearing seasonal data");
       clearAllSeasonalData();
       return;
     }
 
+    allSeasonAbortRef.current?.abort();
+    const controller = new AbortController();
+    allSeasonAbortRef.current = controller;
+    const requestId = ++allSeasonRequestIdRef.current;
+
     setIsLoadingAllSeasons(true);
     setAllSeasonsError(null);
 
-    const requestBody = {
-      Sub_District_Code: subDistrictCodes,
-    };
-
-    const seasons: Array<"premonsoon" | "monsoon" | "postmonsoon"> = [
-      "premonsoon",
-      "monsoon",
-      // "postmonsoon",
-    ];
-
-    console.log("Making parallel seasonal API requests for:", seasons);
-
     try {
-      // Parallel API calls using Promise.all
-      const responses = await Promise.all(
-        seasons.map((season) =>
-          fetch(
-            `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/subdistbased/${season}/`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(requestBody),
-            }
+      const allSeasonalData = await Promise.all(
+        SEASONS.map((season) =>
+          fetchSeasonWaterQualityGeoJson(
+            subDistrictCodes,
+            season,
+            controller.signal
           )
         )
       );
 
-      console.log("All seasonal API responses received");
+      if (requestId !== allSeasonRequestIdRef.current) return;
 
-      // Check if all responses are OK
-      const failedResponses = responses.filter((r) => !r.ok);
-      if (failedResponses.length > 0) {
-        throw new Error(
-          `Failed to fetch ${failedResponses.length} season(s): ${failedResponses
-            .map((r) => r.status)
-            .join(", ")}`
-        );
-      }
-
-      // Parse all responses
-      const dataPromises = responses.map((response) => response.json());
-      const allSeasonalData = await Promise.all(dataPromises);
-
-      // Process and normalize sampling names for each season
       const processedSeasonalData: {
         premonsoon: WaterQualityGeoJSON | null;
         monsoon: WaterQualityGeoJSON | null;
         postmonsoon: WaterQualityGeoJSON | null;
       } = {
-        premonsoon: null,
-        monsoon: null,
-        postmonsoon: null,
+        premonsoon: withNormalizedSampling(allSeasonalData[0]),
+        monsoon: withNormalizedSampling(allSeasonalData[1]),
+        postmonsoon: withNormalizedSampling(allSeasonalData[2]),
       };
 
-      seasons.forEach((season, index) => {
-        const seasonData = allSeasonalData[index];
-        
-        if (seasonData && seasonData.features) {
-          // Normalize sampling names for each feature
-          const processedFeatures = seasonData.features.map((feature: WaterQualityFeature) => {
-            const originalSampling = feature.properties.Sampling || "";
-            const normalizedSampling = normalizeSamplingName(originalSampling);
-            
-            return {
-              ...feature,
-              properties: {
-                ...feature.properties,
-                NormalizedSampling: normalizedSampling,
-              },
-            };
-          });
-
-          processedSeasonalData[season] = {
-            ...seasonData,
-            features: processedFeatures,
-          };
-
-          console.log(
-            `${season} data processed:`,
-            processedFeatures.length,
-            "features"
-          );
-        } else {
-          console.warn(`No features found for ${season}`);
-          processedSeasonalData[season] = null;
-        }
-      });
-
-      // Store all processed seasonal data
       setSeasonalWaterQualityData(processedSeasonalData);
 
-      // Check if any season has no data
-      const emptySeasonsCount = seasons.filter(
-        (season) =>
-          !processedSeasonalData[season] ||
-          !processedSeasonalData[season]?.features ||
-          processedSeasonalData[season]?.features.length === 0
-      ).length;
+      const emptySeasonsCount = SEASONS.filter((season) => {
+        const seasonData = processedSeasonalData[season];
+        return !seasonData || !seasonData.features || seasonData.features.length === 0;
+      }).length;
 
-      if (emptySeasonsCount === seasons.length) {
+      if (emptySeasonsCount === SEASONS.length) {
         setAllSeasonsError(
           "No water quality data found for any season in selected sub-districts."
         );
-      } else if (emptySeasonsCount > 0) {
-        console.warn(
-          `${emptySeasonsCount} season(s) have no data for selected sub-districts`
-        );
       }
     } catch (error: any) {
-      console.log("Seasonal water quality API error:", error);
+      if (isAbortError(error)) return;
+      if (requestId !== allSeasonRequestIdRef.current) return;
+
       setAllSeasonsError(
         `Failed to fetch seasonal water quality data: ${error.message}`
       );
@@ -537,7 +515,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         postmonsoon: null,
       });
     } finally {
-      setIsLoadingAllSeasons(false);
+      if (requestId === allSeasonRequestIdRef.current) {
+        setIsLoadingAllSeasons(false);
+      }
     }
   };
 
@@ -546,26 +526,29 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     subDistrictCodes: number[],
     season: string = selectedSeason
   ): Promise<void> => {
-    console.log("fetchWaterQualityWithWQI called with:", subDistrictCodes, season);
+    // console.log("fetchWaterQualityWithWQI called with:", subDistrictCodes, season);
     
     if (subDistrictCodes.length === 0) {
-      console.log("No sub-district codes provided, clearing data");
+      // console.log("No sub-district codes provided, clearing data");
       clearWaterQualityData();
       return;
     }
 
     setIsLoadingWaterQuality(true);
     setWaterQualityError(null);
+    const normalizedSeason: SeasonType = SEASONS.includes(season as SeasonType)
+      ? (season as SeasonType)
+      : DEFAULT_SEASON;
 
     const requestBody = {
       Sub_District_Code: subDistrictCodes
     };
 
-    console.log("Making WQI API request:", requestBody);
+    // console.log("Making WQI API request:", requestBody);
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/water_quality/subdistbased/${season}/`,
+        `/django/rwm/water_quality/subdistbased/${normalizedSeason}/`,
         {
           method: "POST",
           headers: {
@@ -575,14 +558,14 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         }
       );
 
-      console.log("WQI API response status:", response.status);
+      // console.log("WQI API response status:", response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const wqiData = await response.json();
-      console.log("WQI data received:", wqiData.length, "points");
+      // console.log("WQI data received:", wqiData.length, "points");
 
       // Convert WQI JSON array to GeoJSON format
       const geoJsonData: WaterQualityGeoJSON = {
@@ -636,7 +619,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         setWaterQualityError("No WQI data found for selected sub-districts.");
       }
     } catch (error: any) {
-      console.log("WQI API error:", error);
+      // console.log("WQI API error:", error);
       setWaterQualityError(`Failed to fetch WQI data: ${error.message}`);
       setWaterQualityData(null);
     } finally {
@@ -646,20 +629,26 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
   // EXISTING: Clear single season data
   const clearWaterQualityData = (): void => {
-    console.log("Clearing water quality data");
+    singleSeasonAbortRef.current?.abort();
+    singleSeasonAbortRef.current = null;
+    singleSeasonRequestIdRef.current += 1;
     setWaterQualityData(null);
     setWaterQualityError(null);
+    setIsLoadingWaterQuality(false);
   };
 
   // NEW: Clear all seasonal data
   const clearAllSeasonalData = (): void => {
-    console.log("Clearing all seasonal data");
+    allSeasonAbortRef.current?.abort();
+    allSeasonAbortRef.current = null;
+    allSeasonRequestIdRef.current += 1;
     setSeasonalWaterQualityData({
       premonsoon: null,
       monsoon: null,
       postmonsoon: null,
     });
     setAllSeasonsError(null);
+    setIsLoadingAllSeasons(false);
   };
 
   const handleStateChange = (stateId: number): void => {

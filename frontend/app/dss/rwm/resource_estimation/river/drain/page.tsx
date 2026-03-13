@@ -16,22 +16,28 @@ const StretchPage: React.FC = () => {
       <StretchProvider>
         <StretchMapProvider>
           <StretchChartProvider>
-            <div className="flex h-screen gap-4 p-4">
+            <div className="flex md:h-[850px] min-h-0 gap-4 p-4">
               {/* Left side: Stretch selector and Charts */}
-              <div className="w-1/2 flex flex-col gap-4">
+              <div
+                className="w-1/2 flex flex-col gap-4 p-4
+                  rounded-xl
+                  border border-gray-200
+                  bg-white
+                  transition-all duration-200
+                  hover:ring-2 hover:ring-blue-500/20
+                  hover:border-blue-300/60"
+              >
                 {/* Stretch selector - top half */}
-                <div className="h-1/2 overflow-auto border border-gray-300 rounded p-4 shadow bg-white">
-                  <StretchSelector />
-                </div>
+
+                <StretchSelector />
 
                 {/* Charts - bottom half */}
-                <div className="h-1/2 overflow-auto border border-gray-300 rounded p-4 shadow bg-white">
-                  <StretchChart />
-                </div>
+
+                <StretchChart />
               </div>
 
               {/* Right side: Map */}
-              <div className="w-1/2 rounded-lg shadow border border-gray-300 flex flex-col">
+              <div className="w-1/2 rounded-xl overflow-hidden shadow border border-gray-300 flex flex-col">
                 <StretchMapComponent />
               </div>
             </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Analytics from "@/app/dss/Tools/raster_visual/Analytics/page";
 import Visualization from "@/app/dss/Tools/raster_visual/Visualization/page";
 
 // Types
@@ -121,7 +120,7 @@ const PriorityPage: React.FC = () => {
 
       <div className="transition-all duration-500 ease-in-out">
         {activeView === "Visualization" && <Visualization />}
-        {activeView === "Analytics" }
+        {activeView === "Analytics" && <Visualization />}
       </div>
     </div>
   );

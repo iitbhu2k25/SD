@@ -1,8 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo } from "react";
+import React, { createContext, useContext, ReactNode, useMemo, useState } from "react";
 import { useLocation } from "./LocationContext";
-import { useMap } from "@/contexts/riverwater_assessment/admin/MapContext";
 
 export interface ProcessedWaterQualityData {
   id: string;
@@ -57,12 +56,16 @@ interface ChartContextType {
   processedChartData: ProcessedWaterQualityData[];
   isLoadingWaterQuality: boolean;
   waterQualityError: string | null;
-  
+
   // NEW: Seasonal data
   seasonalProcessedData: SeasonalProcessedData;
   comparisonTableData: ComparisonTableRow[];
   isLoadingAllSeasons: boolean;
   allSeasonsError: string | null;
+
+  // Global UI parameter selection
+  selectedAttribute: string;
+  setSelectedAttribute: (attr: string) => void;
 }
 
 interface ChartProviderProps {
@@ -80,6 +83,8 @@ export const ChartProvider: React.FC<ChartProviderProps> = ({ children }) => {
     isLoadingAllSeasons,
     allSeasonsError,
   } = useLocation();
+
+  const [selectedAttribute, setSelectedAttribute] = useState<string>("ph");
 
   // EXISTING: Process single season data (unchanged)
   const processedChartData = useMemo(() => {
@@ -239,7 +244,6 @@ export const ChartProvider: React.FC<ChartProviderProps> = ({ children }) => {
       );
     });
 
-    console.log("Comparison table data generated:", result.length, "rows");
     return result;
   }, [seasonalProcessedData]);
 
@@ -249,12 +253,16 @@ export const ChartProvider: React.FC<ChartProviderProps> = ({ children }) => {
     processedChartData,
     isLoadingWaterQuality,
     waterQualityError,
-    
+
     // NEW
     seasonalProcessedData,
     comparisonTableData,
     isLoadingAllSeasons,
     allSeasonsError,
+
+    // Global UI parameter selection
+    selectedAttribute,
+    setSelectedAttribute,
   };
 
   return (

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 
 // Types remain the same
 type ViewType = "admin" | "user";
+type BasinType = "varuna" | "general" | null;
 
 interface ModernSwitchProps {
   leftLabel: string;
@@ -15,6 +16,7 @@ interface ModernSwitchProps {
 // Import corresponding river water management components
 import RiverWaterManagementAdmin from "./admin/page"; // update relative path if different
 import RiverWaterManagementDrain from "./drain/page";
+import GeneralRiverWaterManagement from "./general/page";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -29,9 +31,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   return (
     <div className="flex items-center space-x-4">
       <span
-        className={`text-xl font-medium transition-colors ${
-          value === "admin" ? "text-blue-600" : "text-gray-500"
-        }`}
+        className={`text-xl font-medium transition-colors ${value === "admin" ? "text-blue-600" : "text-gray-500"
+          }`}
       >
         {leftLabel}
       </span>
@@ -50,9 +51,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
         }}
       >
         <div
-          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
-            value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
-          }`}
+          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
+            }`}
         >
           <div className="flex items-center justify-center w-full h-full">
             {value === "admin" ? (
@@ -87,9 +87,8 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
       </div>
 
       <span
-        className={`text-xl font-medium transition-colors ${
-          value === "user" ? "text-green-600" : "text-gray-500"
-        }`}
+        className={`text-xl font-medium transition-colors ${value === "user" ? "text-green-600" : "text-gray-500"
+          }`}
       >
         {rightLabel}
       </span>
@@ -99,6 +98,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
 
 const RiverWaterManagementPage: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
+  const [selectedBasin, setSelectedBasin] = useState<BasinType>(null);
 
   const handleViewChange = (newView: ViewType): void => {
     setActiveView(newView);
@@ -106,24 +106,61 @@ const RiverWaterManagementPage: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
-        <div className="container mx-auto px-4">
-          <h1 className="text-5xl font-bold">River Water Quality Assessment</h1>
+      <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-4 shadow-lg">
+        <div className="container mx-auto px-8">
+          <h1 className="text-4xl font-bold">River Water Quality Assessment</h1>
         </div>
-        <div className="flex justify-center w-full items-center font-medium">
-          <ModernSwitch
-            leftLabel="Admin"
-            rightLabel="Stretch"
-            value={activeView} 
-            onChange={handleViewChange}
-          />
-        </div>
+        {selectedBasin === "varuna" && (
+          <div className="flex justify-center w-full items-center font-medium">
+            <ModernSwitch
+              leftLabel="Admin"
+              rightLabel="Stretch"
+              value={activeView}
+              onChange={setActiveView}
+            />
+          </div>
+        )}
       </header>
 
-      <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <RiverWaterManagementAdmin />}
-        {activeView === "user" && <RiverWaterManagementDrain />}
-      </div>
+      <main className="flex-1 relative transition-all duration-500 ease-in-out">
+        {/* 1️⃣ BASIN QUESTION */}
+        {selectedBasin === null && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+            <div className="text-center space-y-8">
+              <h2 className="text-2xl font-semibold text-gray-800 text-center">
+                What do you want to work on?
+              </h2>
+
+              <div className="flex justify-center gap-6">
+                <button
+                  onClick={() => setSelectedBasin("varuna")}
+                  className="px-8 py-4 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition cursor-pointer"
+                >
+                  Varuna Basin
+                </button>
+
+                <button
+                  onClick={() => setSelectedBasin("general")}
+                  className="px-8 py-4 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 transition cursor-pointer"
+                >
+                  Other Basins
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2️⃣ VARUNA FLOW */}
+        {selectedBasin === "varuna" && (
+          <>
+            {activeView === "admin" && <RiverWaterManagementAdmin />}
+            {activeView === "user" && <RiverWaterManagementDrain />}
+          </>
+        )}
+
+        {/* 3️⃣ GENERAL FLOW */}
+        {selectedBasin === "general" && <GeneralRiverWaterManagement />}
+      </main>
     </div>
   );
 };

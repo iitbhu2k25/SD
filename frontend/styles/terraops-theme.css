@@ -1,0 +1,143 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TerraOps — SCOPED Theme v2
+   Everything under .terraops — zero leakage to other pages
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+.terraops {
+  --surface-base: #eef1f5;
+  --surface-card: #ffffff;
+  --surface-raised: #f7f8fa;
+  --surface-sunken: #f0f2f6;
+  --surface-input: #f7f8fa;
+
+  --border-subtle: #e2e6ec;
+  --border-muted: #eef0f4;
+  --border-strong: #d0d5dc;
+
+  --text-primary: #1a2a36;
+  --text-secondary: #3a4a58;
+  --text-tertiary: #6b7a88;
+  --text-muted: #9aa4b0;
+  --text-faint: #b0b8c4;
+
+  --accent: #0d9b7a;
+  --accent-hover: #0ab58d;
+  --accent-bg: #e6f7f3;
+  --accent-border: rgba(13, 155, 122, 0.2);
+
+  --blue: #3b82f6;
+  --blue-bg: #e6f0ff;
+  --blue-border: rgba(59, 130, 246, 0.18);
+
+  --purple: #8b5cf6;
+  --purple-bg: #f0ebff;
+  --purple-border: rgba(139, 92, 246, 0.18);
+  --purple-border: rgba(139, 92, 246, 0.18);
+
+  --amber: #d97706;
+  --amber-bg: #fef3e2;
+  --amber-border: rgba(217, 119, 6, 0.18);
+
+  --red: #ef4444;
+  --red-bg: #fde8ec;
+
+  --green: #22c55e;
+  --green-bg: #e6f9ee;
+
+  --orange: #ea580c;
+  --orange-bg: #fff3ed;
+  --orange-border: rgba(234, 88, 12, 0.18);
+
+  --cyan: #0891b2;
+  --cyan-bg: #ecfeff;
+  --cyan-border: rgba(8, 145, 178, 0.18);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.10);
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  font-family: var(--font-body);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+.terraops .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.terraops .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.terraops .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+.terraops .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Range slider ─────────────────────────────────────────────────────────── */
+.terraops input[type="range"].terra-slider {
+  -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 999px; outline: none; cursor: pointer;
+}
+.terraops input[type="range"].terra-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent); border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.15s;
+}
+.terraops input[type="range"].terra-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+/* ── Toggle switch ────────────────────────────────────────────────────────── */
+.terraops .terra-toggle {
+  position: relative; width: 40px; height: 22px;
+  border-radius: 999px; cursor: pointer; transition: background 0.2s;
+}
+.terraops .terra-toggle[data-active="true"]  { background: var(--accent); }
+.terraops .terra-toggle[data-active="false"] { background: var(--border-strong); }
+.terraops .terra-toggle::after {
+  content: ""; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%; background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15); transition: transform 0.2s;
+}
+.terraops .terra-toggle[data-active="true"]::after { transform: translateX(18px); }
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes scan { 0% { top: -2px; } 100% { top: 100%; } }
+@keyframes terra-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes terra-fade-in { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes terra-slide-right { 0% { opacity: 0; transform: translateX(12px); } 100% { opacity: 1; transform: translateX(0); } }
+
+.terraops .terra-pulse-dot { animation: terra-pulse 2s ease-in-out infinite; }
+.terraops .terra-fade-in { animation: terra-fade-in 0.25s ease-out forwards; }
+.terraops .terra-slide-right { animation: terra-slide-right 0.3s ease-out forwards; }
+
+/* ── Status badges ────────────────────────────────────────────────────────── */
+.terraops .terra-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase; padding: 3px 10px; border-radius: 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.terraops .terra-badge--ready      { background: var(--accent-bg); color: var(--accent); }
+.terraops .terra-badge--processing { background: var(--blue-bg);   color: var(--blue); }
+.terraops .terra-badge--warning    { background: var(--amber-bg);  color: var(--amber); }
+.terraops .terra-badge--error      { background: var(--red-bg);    color: var(--red); }
+.terraops .terra-badge--success    { background: var(--green-bg);  color: var(--green); }
+
+/* ── Operation card hover ─────────────────────────────────────────────────── */
+.terraops .op-card {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.terraops .op-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.terraops .op-card:active {
+  transform: translateY(0);
+}
+
+/* ── Category section ─────────────────────────────────────────────────────── */
+.terraops .category-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}

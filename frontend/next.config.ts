@@ -14,6 +14,26 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
+      {
+        source: '/geoserver/api/:path*',
+        destination: 'http://localhost:9090/geoserver/:path*'
+      },
+      {
+        source: '/api/:path*',
+        destination: "http://localhost:7000/api/:path*"
+      },
+      {
+        source: "/django/:path*",
+        destination: "http://localhost:9000/django/:path*",
+      },
+      {
+        source: "/fastapi/:path*",
+        destination: "http://localhost:7100/:path*",
+      },
+      {
+        source: "/token/:path*",
+        destination: "http://localhost:7000/access_token/:path*",
+      },
     ]
   },
 }

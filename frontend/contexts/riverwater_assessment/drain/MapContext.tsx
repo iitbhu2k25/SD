@@ -17,7 +17,7 @@ import ImageLayer from "ol/layer/Image";
 import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import GeoJSON from "ol/format/GeoJSON";
-import { Circle as CircleStyle, Fill, Stroke, Style, Text } from "ol/style";
+import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import { fromLonLat, transformExtent } from "ol/proj";
@@ -150,7 +150,7 @@ interface LegendData {
   max: number;
   min: number;
   parameter: string;
-  colors?: Array<{value: number, color: string, label: string}>; 
+  colors?: Array<{ value: number, color: string, label: string }>;
   interpolation?: {
     parameter: string;
     parameterKey: string;
@@ -235,27 +235,27 @@ const StretchMapContext = createContext<StretchMapContextType>({
   isInterpolationLoading: false,
   interpolationError: null,
   legendData: null,
-  setMapContainer: () => {},
-  changeBaseMap: () => {},
-  zoomToCurrentExtent: () => {},
-  addInterpolationLayer: () => {},
-  removeInterpolationLayer: () => {},
+  setMapContainer: () => { },
+  changeBaseMap: () => { },
+  zoomToCurrentExtent: () => { },
+  addInterpolationLayer: () => { },
+  removeInterpolationLayer: () => { },
   currentInterpolationParam: null,
   interpolationOpacity: 0.8,
-  setInterpolationOpacity: () => {},
+  setInterpolationOpacity: () => { },
   interpolationData: null,
   selectedDropdownParam: null,
-  setSelectedDropdownParam: () => {},
+  setSelectedDropdownParam: () => { },
   fetchWaterQualityData: async () => null,
-  generateInterpolation: async () => {},
+  generateInterpolation: async () => { },
   isProcessing: false,
-  setCurrentInterpolationParam: () => {},
+  setCurrentInterpolationParam: () => { },
   dataError: null,
   selectedStretches: [],
   isWaterQualityDisplayed: false,
   isStretchLinesDisplayed: false,
-  toggleWaterQualityPoints: () => {},
-  toggleStretchLines: () => {},
+  toggleWaterQualityPoints: () => { },
+  toggleStretchLines: () => { },
   baseMaps: baseMaps,
   waterQualityParameters: WQ_PARAMETERS,
   getParameterByKey: () => undefined,
@@ -264,13 +264,13 @@ const StretchMapContext = createContext<StretchMapContextType>({
   isBasinDisplayed: true,
   isRiverDisplayed: true,
   isRiverBufferDisplayed: true,
-  toggleBasinLayer: () => {},
-  toggleRiverLayer: () => {},
-  toggleRiverBufferLayer: () => {},
-  toggleInterpolationLayer: () => {},
-  resetView: () => {},
+  toggleBasinLayer: () => { },
+  toggleRiverLayer: () => { },
+  toggleRiverBufferLayer: () => { },
+  toggleInterpolationLayer: () => { },
+  resetView: () => { },
   showLayerPanel: false,
-  setShowLayerPanel: () => {},
+  setShowLayerPanel: () => { },
 });
 
 export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
@@ -415,7 +415,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     basinLayer.set("name", "basin-layer");
     basinLayerRef.current = basinLayer;
     map.addLayer(basinLayer);
-     setIsBasinDisplayed(true);
+    setIsBasinDisplayed(true);
 
     console.log("Basin layer added successfully");
   }, [basinData]);
@@ -551,20 +551,6 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
             fill: new Fill({ color }),
             stroke: new Stroke({ color: "rgba(255, 255, 255, 1)", width: 2 }),
           }),
-          text: new Text({
-            font: "12px Arial, sans-serif",
-            text: properties.Sampling || `Point ${properties.S_No_}`,
-            fill: new Fill({
-              color: "rgba(0, 0, 0, 1)",
-            }),
-            backgroundFill: new Fill({
-              color: "rgba(255, 255, 255, 0.9)",
-            }),
-            padding: [3, 5, 3, 5],
-            offsetY: -25,
-            textAlign: "center",
-            textBaseline: "bottom",
-          }),
         });
       },
     });
@@ -649,17 +635,17 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     return () => {
       if (mapInstanceRef.current) {
         if (basinLayerRef.current) {
-        mapInstanceRef.current.removeLayer(basinLayerRef.current);
-        basinLayerRef.current = null;
-      }
-      if (riverLayerRef.current) {
-        mapInstanceRef.current.removeLayer(riverLayerRef.current);
-        riverLayerRef.current = null;
-      }
-      if (riverBufferLayerRef.current) {
-        mapInstanceRef.current.removeLayer(riverBufferLayerRef.current);
-        riverBufferLayerRef.current = null;
-      }
+          mapInstanceRef.current.removeLayer(basinLayerRef.current);
+          basinLayerRef.current = null;
+        }
+        if (riverLayerRef.current) {
+          mapInstanceRef.current.removeLayer(riverLayerRef.current);
+          riverLayerRef.current = null;
+        }
+        if (riverBufferLayerRef.current) {
+          mapInstanceRef.current.removeLayer(riverBufferLayerRef.current);
+          riverBufferLayerRef.current = null;
+        }
         if (stretchLinesLayerRef.current) {
           mapInstanceRef.current.removeLayer(stretchLinesLayerRef.current);
           stretchLinesLayerRef.current = null;
@@ -736,7 +722,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
         `Generating interpolation for ${parameterInfo.label} (${backendAttribute}), stretch-based, ${season}`
       );
 
-      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
+      const url = `/django/rwm/interpolate/${encodeURIComponent(
         backendAttribute
       )}/stretchbased/${season}/`;
 
@@ -895,7 +881,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
 
     const wmsLayer = new TileLayer({
       source: new TileWMS({
-        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`,
+        url: `/geoserver/api/wms`,
         params: {
           LAYERS: `riverwater_assessment:${parameter.toLowerCase()}_${season}_stretch_interpolation`,
           TILED: true,
@@ -963,25 +949,25 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
   };
 
   const resetView = () => {
-  if (!mapInstanceRef.current) {
-    console.warn("Cannot reset view: map not initialized");
-    return;
-  }
+    if (!mapInstanceRef.current) {
+      console.warn("Cannot reset view: map not initialized");
+      return;
+    }
 
-  const view = mapInstanceRef.current.getView();
-  const basinCenter = fromLonLat([82.495045, 25.628354]);
-  
-  view.animate({
-    center: basinCenter,
-    zoom: 9.5,
-    duration: 1000,
-  });
-  
-  // Close layer panel on reset
-  setShowLayerPanel(false);
-  
-  console.log("Map view reset to default");
-};
+    const view = mapInstanceRef.current.getView();
+    const basinCenter = fromLonLat([82.495045, 25.628354]);
+
+    view.animate({
+      center: basinCenter,
+      zoom: 9.5,
+      duration: 1000,
+    });
+
+    // Close layer panel on reset
+    setShowLayerPanel(false);
+
+    console.log("Map view reset to default");
+  };
 
   // Toggle functions for layers
   const toggleBasinLayer = () => {
@@ -1027,23 +1013,23 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
   };
 
   const toggleInterpolationLayer = () => {
-  if (!mapInstanceRef.current || !interpolationLayerRef.current) {
-    console.warn("Cannot toggle interpolation: layer not initialized");
-    return;
-  }
+    if (!mapInstanceRef.current || !interpolationLayerRef.current) {
+      console.warn("Cannot toggle interpolation: layer not initialized");
+      return;
+    }
 
-  if (isInterpolationDisplayed) {
-    // Hide the layer
-    mapInstanceRef.current.removeLayer(interpolationLayerRef.current);
-    setIsInterpolationDisplayed(false);
-    console.log("Interpolation layer hidden");
-  } else {
-    // Show the layer
-    mapInstanceRef.current.addLayer(interpolationLayerRef.current);
-    setIsInterpolationDisplayed(true);
-    console.log("Interpolation layer shown");
-  }
-};
+    if (isInterpolationDisplayed) {
+      // Hide the layer
+      mapInstanceRef.current.removeLayer(interpolationLayerRef.current);
+      setIsInterpolationDisplayed(false);
+      console.log("Interpolation layer hidden");
+    } else {
+      // Show the layer
+      mapInstanceRef.current.addLayer(interpolationLayerRef.current);
+      setIsInterpolationDisplayed(true);
+      console.log("Interpolation layer shown");
+    }
+  };
 
 
   const contextValue: StretchMapContextType = {
@@ -1084,10 +1070,10 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     toggleBasinLayer,
     toggleRiverLayer,
     toggleRiverBufferLayer,
-    toggleInterpolationLayer, 
+    toggleInterpolationLayer,
     resetView,
     showLayerPanel,
-  setShowLayerPanel,
+    setShowLayerPanel,
   };
 
   return (

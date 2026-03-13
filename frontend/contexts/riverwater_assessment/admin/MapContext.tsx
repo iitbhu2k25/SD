@@ -88,7 +88,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
     icon: "M7 14l5-5 5 5",
   },
 };
- 
+
 // Workspace used for GeoServer layer names (can be overridden via env var)
 const WORKSPACE = "myworkspace";
 
@@ -97,7 +97,7 @@ interface LegendData {
   max?: number;
   min?: number;
   parameter?: string;
-  colors?: Array<{value: number, color: string, label: string}>; 
+  colors?: Array<{ value: number, color: string, label: string }>;
   interpolation?: {
     parameter: string;
     parameterKey: string;
@@ -163,6 +163,7 @@ interface MapContextType {
     season?: string
   ) => void;
   currentInterpolationParam: string | null;
+  currentInterpolationLayerName: string | null;
   attributeMapping: Record<string, string>;
   interpolationOpacity: number;
   setInterpolationOpacity: (opacity: number) => void;
@@ -192,18 +193,18 @@ const MapContext = createContext<MapContextType>({
   },
   isDataLoading: false,
   dataError: null,
-  setMapContainer: () => {},
-  changeBaseMap: () => {},
-  addRasterLayer: () => {},
-  removeRasterLayer: () => {},
-  zoomToCurrentExtent: () => {},
+  setMapContainer: () => { },
+  changeBaseMap: () => { },
+  addRasterLayer: () => { },
+  removeRasterLayer: () => { },
+  zoomToCurrentExtent: () => { },
   getAllLayers: () => [],
-  setLegendData: () => {},
-  addRiverLayers: () => {},
-  removeRiverLayers: () => {},
-  addWaterQualityPoints: () => {},
-  removeWaterQualityPoints: () => {},
-  toggleWaterQualityPoints: () => {},
+  setLegendData: () => { },
+  addRiverLayers: () => { },
+  removeRiverLayers: () => { },
+  addWaterQualityPoints: () => { },
+  removeWaterQualityPoints: () => { },
+  toggleWaterQualityPoints: () => { },
   isInterpolationDisplayed: false,
   isInterpolationLoading: false,
   interpolationError: null,
@@ -221,18 +222,19 @@ const MapContext = createContext<MapContextType>({
     throw new Error("Function not implemented.");
   },
   currentInterpolationParam: null,
+  currentInterpolationLayerName: null,
   attributeMapping: {},
   interpolationOpacity: 1,
-  setInterpolationOpacity: () => {},
-  resetView: () => {},
+  setInterpolationOpacity: () => { },
+  resetView: () => { },
   isRiverDisplayed: false,
   isRiverBufferDisplayed: false,
-  toggleRiverLayer: () => {},
-  toggleRiverBufferLayer: () => {},
+  toggleRiverLayer: () => { },
+  toggleRiverBufferLayer: () => { },
   isSubDistrictDisplayed: true,
-  toggleSubDistrictLayer: () => {},
+  toggleSubDistrictLayer: () => { },
   isInterpolationVisible: true,
-  hideShowInterpolationLayer: () => {},
+  hideShowInterpolationLayer: () => { },
 });
 
 export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
@@ -252,6 +254,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const riverLayerRef = useRef<VectorLayer<any> | null>(null);
   const riverBufferLayerRef = useRef<VectorLayer<any> | null>(null);
   const waterQualityLayerRef = useRef<VectorLayer<any> | null>(null);
+  const riverFetchAbortRef = useRef<AbortController | null>(null);
+  const riverFetchRequestIdRef = useRef(0);
 
   const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("satellite");
@@ -284,6 +288,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const [currentInterpolationParam, setCurrentInterpolationParam] = useState<
     string | null
   >(null);
+  const [currentInterpolationLayerName, setCurrentInterpolationLayerName] =
+    useState<string | null>(null);
   const [interpolationOpacity, setInterpolationOpacity] = useState<number>(0.8);
   const [isRiverDisplayed, setIsRiverDisplayed] = useState(false);
   const [isRiverBufferDisplayed, setIsRiverBufferDisplayed] = useState(false);
@@ -340,7 +346,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     selectedSubDistricts,
     areaConfirmed,
     waterQualityData,
-    isLoadingWaterQuality,
     selectedSeason,
   } = useLocation();
 
@@ -356,10 +361,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       waterQualityData.features.length > 0 &&
       mapInstanceRef.current
     ) {
-      console.log("Water quality data available, adding points to map");
+      // console.log("Water quality data available, adding points to map");
       addWaterQualityPoints();
     } else {
-      console.log("No water quality data or map not ready");
+      // console.log("No water quality data or map not ready");
       removeWaterQualityPoints();
     }
   }, [waterQualityData, mapInstanceRef.current]);
@@ -412,11 +417,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   });
 
   const subdistrictStyle = new Style({
-  stroke: new Stroke({
-    color: "blue", // Orange boundary
-    width: 2,
-  }),
-});
+    stroke: new Stroke({
+      color: "blue", // Orange boundary
+      width: 2,
+    }),
+  });
 
   // Style for water quality points
   const waterQualityPointStyle = new Style({
@@ -452,15 +457,23 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     if (interpolationLayerRef.current) {
       interpolationLayerRef.current.setOpacity(opacity);
       setInterpolationOpacity(opacity); // ✅ ADD THIS LINE
-      console.log(`Interpolation opacity changed to: ${opacity}`);
+      // console.log(`Interpolation opacity changed to: ${opacity}`);
     }
   };
+
+  const isAbortError = (error: unknown): boolean =>
+    error instanceof Error && error.name === "AbortError";
 
   // Function to fetch data from APIs
   const fetchRiverData = async () => {
     if (!areaConfirmed || selectedSubDistricts.length === 0) {
       return;
     }
+
+    riverFetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    riverFetchAbortRef.current = controller;
+    const requestId = ++riverFetchRequestIdRef.current;
 
     setIsDataLoading(true);
     setDataError(null);
@@ -470,32 +483,32 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       Sub_District_Code: selectedSubDistricts,
     };
 
-    console.log("POST request body:", requestBody);
-    console.log("Selected subdistricts:", selectedSubDistricts);
+    // console.log("POST request body:", requestBody);
+    // console.log("Selected subdistricts:", selectedSubDistricts);
 
     const apiCalls = [
       {
-        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river/`,
+        url: "/django/rwm/river/",
         name: "rivers",
       },
       {
-        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/subdistbased/`,
+        url: "/django/rwm/river_100m_buffer/subdistbased/",
         name: "riverBuffer",
       },
     ];
 
     try {
-      console.log(
-        "Fetching river data for selected subdistricts:",
-        selectedSubDistricts
-      );
+      // console.log(
+      //   "Fetching river data for selected subdistricts:",
+      //   selectedSubDistricts
+      // );
 
       const fetchPromises = apiCalls.map(async (apiCall) => {
         try {
-          console.log(
-            `Making POST request to ${apiCall.url} with body:`,
-            requestBody
-          );
+          // console.log(
+          //   `Making POST request to ${apiCall.url} with body:`,
+          //   requestBody
+          // );
 
           const response = await fetch(apiCall.url, {
             method: "POST",
@@ -504,90 +517,100 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
               Accept: "application/json",
             },
             body: JSON.stringify(requestBody),
+            signal: controller.signal,
           });
 
-          console.log(`Response status for ${apiCall.name}:`, response.status);
-          console.log(
-            `Response headers for ${apiCall.name}:`,
-            response.headers
-          );
+          // console.log(`Response status for ${apiCall.name}:`, response.status);
+          // console.log(
+          //   `Response headers for ${apiCall.name}:`,
+          //   response.headers
+          // );
 
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
           const data = await response.json();
-          console.log(
-            `Fetched ${apiCall.name} data - Feature count:`,
-            data.features?.length || 0
-          );
-          console.log(`Sample ${apiCall.name} data:`, data);
+          // console.log(
+          //   `Fetched ${apiCall.name} data - Feature count:`,
+          //   data.features?.length || 0
+          // );
+          // console.log(`Sample ${apiCall.name} data:`, data);
           return data;
         } catch (error) {
-          console.log(
-            `Error fetching ${apiCall.name} from ${apiCall.url}:`,
-            error
-          );
+          // console.log(
+          //   `Error fetching ${apiCall.name} from ${apiCall.url}:`,
+          //   error
+          // );
           throw error;
         }
       });
 
       const [riverData, riverBufferData] = await Promise.all(fetchPromises);
+      if (requestId !== riverFetchRequestIdRef.current) return;
 
       setFetchedData({
         riverData,
         riverBufferData,
       });
 
-      console.log("All river data fetched successfully");
-      console.log("River features:", riverData.features?.length || 0);
-      console.log("Buffer features:", riverBufferData.features?.length || 0);
+      // console.log("All river data fetched successfully");
+      // console.log("River features:", riverData.features?.length || 0);
+      // console.log("Buffer features:", riverBufferData.features?.length || 0);
     } catch (error) {
-      console.log("Error fetching river data:", error);
+      if (isAbortError(error)) return;
+      if (requestId !== riverFetchRequestIdRef.current) return;
+
+      // console.log("Error fetching river data:", error);
       setDataError(
-        `Failed to fetch river data: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Failed to fetch river data: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
     } finally {
-      setIsDataLoading(false);
+      if (requestId === riverFetchRequestIdRef.current) {
+        setIsDataLoading(false);
+      }
     }
   };
 
   // Effect to fetch data when conditions are met
   useEffect(() => {
     if (areaConfirmed && selectedSubDistricts.length > 0) {
-      console.log(
-        "Area confirmed and subdistricts selected, fetching river data..."
-      );
+      // console.log(
+      //   "Area confirmed and subdistricts selected, fetching river data..."
+      // );
       // First clear any existing river data
       removeRiverLayers();
       fetchRiverData();
     } else {
       // Clear data if conditions are not met
-      console.log("Clearing river data - conditions not met");
+      // console.log("Clearing river data - conditions not met");
       removeRiverLayers();
+      riverFetchAbortRef.current?.abort();
+      riverFetchAbortRef.current = null;
+      riverFetchRequestIdRef.current += 1;
       setFetchedData({
         riverData: null,
         riverBufferData: null,
       });
       setDataError(null);
+      setIsDataLoading(false);
     }
   }, [areaConfirmed, selectedSubDistricts]);
 
 
   const toggleSubDistrictLayer = () => {
-  if (!mapInstanceRef.current) return;
-  
-  if (subdistrictLayerRef.current) {
-    const isVisible = subdistrictLayerRef.current.getVisible();
-    subdistrictLayerRef.current.setVisible(!isVisible);
-    setIsSubDistrictDisplayed(!isVisible);
-    console.log(`Subdistrict layer visibility: ${!isVisible}`);
-  } else {
-    console.warn("Subdistrict layer not available");
-  }
-};
+    if (!mapInstanceRef.current) return;
+
+    if (subdistrictLayerRef.current) {
+      const isVisible = subdistrictLayerRef.current.getVisible();
+      subdistrictLayerRef.current.setVisible(!isVisible);
+      setIsSubDistrictDisplayed(!isVisible);
+      // console.log(`Subdistrict layer visibility: ${!isVisible}`);
+    } else {
+      console.warn("Subdistrict layer not available");
+    }
+  };
 
   // Function to add river layers to the map
   const addRiverLayers = () => {
@@ -598,7 +621,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log("Adding river layers to map");
+    // console.log("Adding river layers to map");
 
     try {
       // Remove existing river layers
@@ -622,7 +645,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         riverLayerRef.current = riverLayer;
         mapInstanceRef.current.addLayer(riverLayer);
         setIsRiverDisplayed(true);
-        console.log("River layer added");
+        // console.log("River layer added");
       }
 
       // Add river buffer layer
@@ -643,7 +666,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         riverBufferLayerRef.current = riverBufferLayer;
         mapInstanceRef.current.addLayer(riverBufferLayer);
         setIsRiverBufferDisplayed(true);
-        console.log("River buffer layer added");
+        // console.log("River buffer layer added");
       }
 
       // Zoom to extent of all river layers
@@ -665,7 +688,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     layers.forEach((layerRef, index) => {
       if (layerRef) {
         mapInstanceRef.current?.removeLayer(layerRef);
-        console.log(`Removed river layer ${index + 1}`);
+        // console.log(`Removed river layer ${index + 1}`);
       }
     });
 
@@ -680,7 +703,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
           layerName.includes("clipped"))
       ) {
         mapInstanceRef.current?.removeLayer(layer);
-        console.log(`Removed layer with name: ${layerName}`);
+        // console.log(`Removed layer with name: ${layerName}`);
       }
     });
 
@@ -726,7 +749,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         maxZoom: 14,
         duration: 1000,
       });
-      console.log("Zoomed to river extent");
+      // console.log("Zoomed to river extent");
     }
   };
 
@@ -744,11 +767,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log(
-      "Adding water quality points to map",
-      waterQualityData.features.length,
-      "points"
-    );
+    // console.log(
+    //   "Adding water quality points to map",
+    //   waterQualityData.features.length,
+    //   "points"
+    // );
 
     try {
       // Remove existing water quality layer
@@ -770,9 +793,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
           // Set feature properties from GeoJSON properties
           const props = feature.properties;
+
+          // Perform the same normalization ChartContext does so they match perfectly
+          const originalSampling = props.Sampling || "";
+          const normalizedSampling = originalSampling
+            .replace(/\s*\((US|DS|Drain)\)\s*$/i, "")
+            .replace(/\s*Drain\s*\((US|DS)\)\s*$/i, "")
+            .replace(/\s*(Drain|Upstream|Downstream)\s*$/i, "")
+            .trim();
+
           olFeature.setProperties({
             id: props.S_No_,
-            location: props.Location || props.Sampling,
+            name: normalizedSampling, // <--- Preserve the actual name
+            originalSampling: originalSampling,
+            locationType: props.Location, // <--- Preserve the location type separately
+            location: props.Location || props.Sampling, // Keep this for legacy compatibility
             subDistrict: props.Sub_Distri,
             ph: props.pH,
             tds: props.TDS_mg_L_,
@@ -785,6 +820,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             nitrate: props.Nitrate_mg,
             hardness: props.Hardness_m,
             stretchId: props.Stretch_ID,
+            // ADD MISSING ONES:
+            ec: props.EC__S_cm_,
+            tss: props.TSS_mg_L_,
+            ts: props.TS_mg_L_,
+            orp: props.ORP,
+            faecalColiform: props.Faecal_Col,
+            totalColiform: props.Total_Coli,
+            wqi: props.WQI,
           });
 
           // Set dynamic style with label based on location type
@@ -807,21 +850,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                 color: "rgba(255, 255, 255, 1)",
                 width: 2,
               }),
-            }),
-            text: new Text({
-              font: "12px Arial, sans-serif",
-              text: props.Sampling || `Point ${props.S_No_}`,
-              fill: new Fill({
-                color: "rgba(0, 0, 0, 1)", // Black text
-              }),
-              backgroundFill: new Fill({
-                color: "rgba(255, 255, 255, 0.9)", // White background
-              }),
-              padding: [3, 5, 3, 5], // top, right, bottom, left padding
-              offsetY: -25,
-              textAlign: "center",
-              textBaseline: "bottom",
-            }),
+            })
           });
 
           olFeature.setStyle(pointStyle);
@@ -845,9 +874,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         mapInstanceRef.current.addLayer(waterQualityLayer);
         setIsWaterQualityDisplayed(true);
 
-        console.log(
-          `Water quality points layer added with ${features.length} features`
-        );
+        // console.log(
+        //   `Water quality points layer added with ${features.length} features`
+        // );
       }
     } catch (error) {
       console.log("Error adding water quality points:", error);
@@ -862,7 +891,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       mapInstanceRef.current.removeLayer(waterQualityLayerRef.current);
       waterQualityLayerRef.current = null;
       setIsWaterQualityDisplayed(false);
-      console.log("Water quality points layer removed");
+      // console.log("Water quality points layer removed");
     }
   };
 
@@ -882,7 +911,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const isVisible = riverLayerRef.current.getVisible();
       riverLayerRef.current.setVisible(!isVisible);
       setIsRiverDisplayed(!isVisible);
-      console.log(`River layer visibility: ${!isVisible}`);
+      // console.log(`River layer visibility: ${!isVisible}`);
     }
   };
 
@@ -893,7 +922,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const isVisible = riverBufferLayerRef.current.getVisible();
       riverBufferLayerRef.current.setVisible(!isVisible);
       setIsRiverBufferDisplayed(!isVisible);
-      console.log(`River buffer layer visibility: ${!isVisible}`);
+      // console.log(`River buffer layer visibility: ${!isVisible}`);
     }
   };
 
@@ -918,7 +947,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
+        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
       }),
       style: boundaryLayerStyle,
       zIndex: 1,
@@ -943,7 +972,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     });
 
     mapInstanceRef.current = map;
-    console.log("River Water Map initialized with India WFS layer");
+    // console.log("River Water Map initialized with India WFS layer");
 
     // Error handling for WFS layer
     indiaLayer.getSource()?.on("featuresloaderror", (event: any) => {
@@ -987,7 +1016,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     isVillageOverlay: boolean = false,
     customStyle?: Style
   ): VectorLayer<any> => {
-    console.log(`Creating WFS layer: ${layerName} with filter: ${cqlFilter}`);
+    // console.log(`Creating WFS layer: ${layerName} with filter: ${cqlFilter}`);
 
     let style = customStyle || boundaryLayerStyle;
     if (isVillageOverlay) {
@@ -997,7 +1026,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const layer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
           cqlFilter
         )}`,
       }),
@@ -1039,11 +1068,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     if (!mapInstanceRef.current) return;
 
     try {
-      console.log(
-        `Attempting to zoom to ${layerName} with filter: ${cqlFilter}`
-      );
+      // console.log(
+      //   `Attempting to zoom to ${layerName} with filter: ${cqlFilter}`
+      // );
 
-      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+      const wfsUrl = `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
         cqlFilter
       )}`;
 
@@ -1055,7 +1084,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      console.log(`WFS response for ${layerName}:`, data);
 
       if (data.features && data.features.length > 0) {
         let minX = Infinity,
@@ -1065,7 +1093,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         let validCoords = false;
 
         // Log first few features for debugging
-        console.log(`First feature geometry:`, data.features[0]?.geometry);
+        // console.log(`First feature geometry:`, data.features[0]?.geometry);
 
         data.features.forEach((feature: any, index: number) => {
           if (feature.geometry && feature.geometry.coordinates) {
@@ -1167,8 +1195,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
               layerName === "B_subdistrict"
                 ? 12
                 : layerName === "B_district"
-                ? 9
-                : 6,
+                  ? 9
+                  : 6,
             duration: 500,
           });
 
@@ -1333,7 +1361,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         }, 500);
       });
 
-      console.log("Added district layer with filter:", cqlFilter);
+      // console.log("Added district layer with filter:", cqlFilter);
     } catch (error) {
       console.log("Error creating district layer:", error);
     }
@@ -1370,7 +1398,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         .join(",");
       const cqlFilter = `SUBDIS_COD IN (${subdistrictCodes})`;
 
-      console.log("Creating subdistrict layer with filter:", cqlFilter);
+      // console.log("Creating subdistrict layer with filter:", cqlFilter);
 
       const subdistrictLayer = createWFSLayer("B_subdistrict", cqlFilter, 4, false, subdistrictStyle);
 
@@ -1378,7 +1406,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         console.log("Subdistrict layer loading error:", event);
       });
       subdistrictLayer.getSource()?.on("featuresloadend", () => {
-        console.log("Subdistrict layer loaded successfully");
+        // console.log("Subdistrict layer loaded successfully");
         setIsSubDistrictDisplayed(true);
         // Auto-zoom to subdistricts when loaded
         setTimeout(() => {
@@ -1389,7 +1417,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       subdistrictLayerRef.current = subdistrictLayer;
       mapInstanceRef.current.addLayer(subdistrictLayer);
 
-      console.log("Added subdistrict layer with filter:", cqlFilter);
+      // console.log("Added subdistrict layer with filter:", cqlFilter);
     } catch (error) {
       console.log("Error creating subdistrict layer:", error);
     }
@@ -1468,7 +1496,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       duration: 1000,
     });
 
-    console.log("Map view reset to India default");
+    // console.log("Map view reset to India default");
   };
 
   // Enhanced addRasterLayer function
@@ -1482,12 +1510,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       return;
     }
 
-    console.log(`Adding raster layer: ${layerName} from ${geoserverUrl}`);
+    // console.log(`Adding raster layer: ${layerName} from ${geoserverUrl}`);
 
     try {
       // Remove existing raster layer if present
       if (rasterLayerRef.current) {
-        console.log("Removing existing raster layer");
+        // console.log("Removing existing raster layer");
         mapInstanceRef.current.removeLayer(rasterLayerRef.current);
         rasterLayerRef.current = null;
       }
@@ -1536,7 +1564,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       });
 
       imageWmsSource.on("imageloadend", () => {
-        console.log(`Raster image loaded successfully for ${layerName}`);
+        // console.log(`Raster image loaded successfully for ${layerName}`);
         setIsRasterDisplayed(true);
 
         // Auto-zoom to raster extent after loading
@@ -1561,7 +1589,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       mapInstanceRef.current.render();
       mapInstanceRef.current.getView().changed();
 
-      console.log(`Raster layer successfully added: ${layerName}`);
+      // console.log(`Raster layer successfully added: ${layerName}`);
     } catch (error) {
       console.log("Error in addRasterLayer:", error);
     }
@@ -1572,12 +1600,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     if (!mapInstanceRef.current) return;
 
     if (rasterLayerRef.current) {
-      console.log("Removing raster layer");
+      // console.log("Removing raster layer");
       mapInstanceRef.current.removeLayer(rasterLayerRef.current);
       rasterLayerRef.current = null;
       setIsRasterDisplayed(false);
       // setLegendData((prev) => ({ ...prev, raster: undefined }));
-      console.log("Raster layer removed successfully");
+      // console.log("Raster layer removed successfully");
     }
   };
 
@@ -1601,7 +1629,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       mapInstanceRef.current.getLayers().insertAt(0, newBaseLayer);
       setSelectedBaseMap(baseMapKey);
 
-      console.log(`Changed basemap to: ${baseMapKey}`);
+      // console.log(`Changed basemap to: ${baseMapKey}`);
     } catch (error) {
       console.log("Error changing basemap:", error);
     }
@@ -1629,16 +1657,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     setInterpolationError(null);
 
     try {
-      console.log(
-        `Fetching interpolation for ${parameter}, ${analysisType}, ${season}`
-      );
+      // console.log(
+      //   `Fetching interpolation for ${parameter}, ${analysisType}, ${season}`
+      // );
 
       // Map the display parameter to backend parameter name
       const backendAttribute =
         attributeMapping[parameter as keyof typeof attributeMapping] ||
         parameter;
 
-      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
+      const url = `/django/rwm/interpolate/${encodeURIComponent(
         backendAttribute
       )}/${analysisType}/${season}/`;
 
@@ -1650,8 +1678,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         points_data: waterQualityData,
       };
 
-      console.log(`Making request to: ${url}`);
-      console.log("Request body keys:", Object.keys(requestBody));
+      // console.log(`Making request to: ${url}`);
+      // console.log("Request body keys:", Object.keys(requestBody));
 
       const response = await fetch(url, {
         method: "POST",
@@ -1669,7 +1697,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      console.log("Full API response:", data);
+      // console.log("Full API response:", data);
 
       if (data.status === "error") {
         throw new Error(data.message || "Interpolation failed on the backend");
@@ -1681,9 +1709,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
         const { wms_url, primary_layer, extent } = data;
 
-        console.log("WMS URL from backend:", wms_url);
-        console.log("Primary layer:", primary_layer);
-        console.log("Extent:", extent);
+        // console.log("WMS URL from backend:", wms_url);
+        // console.log("Primary layer:", primary_layer);
+        // console.log("Extent:", extent);
 
         // Create TileWMS source with proper URL
         const wmsSource = new TileWMS({
@@ -1703,7 +1731,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         // Add e-
         // les
         wmsSource.on("tileloaderror", (event: any) => {
-          console.log("WMS tile load error:", event);
+          // console.log("WMS tile load error:", event);
           if (event.tile && event.tile.src_) {
             console.log("Failed tile URL:", event.tile.src_);
           }
@@ -1732,7 +1760,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         interpolationLayerRef.current = interpolationLayer;
         mapInstanceRef.current.addLayer(interpolationLayer);
 
-        console.log("Interpolation layer added to map");
+        // console.log("Interpolation layer added to map");
 
         // Fit to extent if provided
         if (extent && extent.length === 4) {
@@ -1751,6 +1779,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         setIsInterpolationDisplayed(true);
         setIsInterpolationVisible(true);
         setCurrentInterpolationParam(parameter);
+        setCurrentInterpolationLayerName(primary_layer || null);
         setIsInterpolationLoading(false);
 
         // Update legend data with the response information
@@ -1770,7 +1799,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
           colors: data.color_stops || []
         });
 
-        console.log(`Interpolation layer successfully added for ${parameter}`);
+        // console.log(`Interpolation layer successfully added for ${parameter}`);
 
         // Force map refresh
         mapInstanceRef.current.render();
@@ -1778,10 +1807,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         throw new Error("Unexpected response format from interpolation API");
       }
     } catch (error) {
-      console.log("Error adding interpolation layer:", error);
+      // console.log("Error adding interpolation layer:", error);
       setInterpolationError(
-        `Failed to load interpolation: ${
-          error instanceof Error ? error.message : "Unknown error"
+        `Failed to load interpolation: ${error instanceof Error ? error.message : "Unknown error"
         }`
       );
       setIsInterpolationLoading(false);
@@ -1791,9 +1819,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   // Remove interpolation layer function
   const removeInterpolationLayer = () => {
     if (!mapInstanceRef.current) return;
+    setCurrentInterpolationLayerName(null);
 
     if (interpolationLayerRef.current) {
-      console.log("Removing interpolation layer");
+      // console.log("Removing interpolation layer");
       mapInstanceRef.current.removeLayer(interpolationLayerRef.current);
 
       // Clean up blob URL to prevent memory leaks
@@ -1811,7 +1840,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       // Remove from legend
       // setLegendData((prev) => ({ ...prev, interpolation: undefined }));
 
-      console.log("Interpolation layer removed successfully");
+      // console.log("Interpolation layer removed successfully");
     }
   };
 
@@ -1837,17 +1866,17 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   };
 
   const hideShowInterpolationLayer = () => {
-  if (!mapInstanceRef.current) return;
-  
-  if (interpolationLayerRef.current) {
-    const isVisible = interpolationLayerRef.current.getVisible();
-    interpolationLayerRef.current.setVisible(!isVisible);
-    setIsInterpolationVisible(!isVisible);
-    console.log(`Interpolation layer visibility: ${!isVisible}`);
-  } else {
-    console.warn("Interpolation layer not available to hide/show");
-  }
-};
+    if (!mapInstanceRef.current) return;
+
+    if (interpolationLayerRef.current) {
+      const isVisible = interpolationLayerRef.current.getVisible();
+      interpolationLayerRef.current.setVisible(!isVisible);
+      setIsInterpolationVisible(!isVisible);
+      // console.log(`Interpolation layer visibility: ${!isVisible}`);
+    } else {
+      console.warn("Interpolation layer not available to hide/show");
+    }
+  };
 
 
   const contextValue: MapContextType = {
@@ -1877,6 +1906,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     addInterpolationLayer,
     removeInterpolationLayer,
     currentInterpolationParam,
+    currentInterpolationLayerName,
     attributeMapping,
     interpolationOpacity,
     setInterpolationOpacity: changeInterpolationOpacity,
@@ -1886,14 +1916,17 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     toggleRiverLayer,
     toggleRiverBufferLayer,
     isSubDistrictDisplayed,
-  toggleSubDistrictLayer,
-  isInterpolationVisible,
-  hideShowInterpolationLayer,
+    toggleSubDistrictLayer,
+    isInterpolationVisible,
+    hideShowInterpolationLayer,
   };
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      riverFetchAbortRef.current?.abort();
+      riverFetchAbortRef.current = null;
+      riverFetchRequestIdRef.current += 1;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.setTarget("");
         mapInstanceRef.current = null;

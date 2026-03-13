@@ -3,10 +3,15 @@
 import React, { useState, useMemo } from "react";
 import { useStretch } from "@/contexts/riverwater_assessment/drain/LocationContext";
 import {
+  useStretchMap,
+  BACKEND_PARAMETER_MAPPING,
+} from "@/contexts/riverwater_assessment/drain/MapContext";
+import {
   useStretchChart,
   ProcessedWaterQualityData,
   ComparisonTableRow,
 } from "@/contexts/riverwater_assessment/drain/ChartContext";
+import toast from "react-hot-toast";
 import {
   LineChart,
   Line,
@@ -33,6 +38,13 @@ import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
 import LoadingOverlay from "../../components/loadingOverlay";
 import { set } from "lodash";
+import { CollapsibleSection } from "../../admin/components/chart";
+import SamplingLocationsTab from "./SamplingLocationsTab";
+import LocationTypeSummaryTab from "./LocationTypeSummaryTab";
+import SeasonalComparisonTab from "./SeasonalComparisonTab";
+import PdfReportSection from "./PdfReportSection";
+import GraphTab from "./GraphTab";
+import ChartStickyHeader from "./ChartStickyHeader";
 
 interface StretchChartProps {
   onGeneratePDF?: (parameterCount: number) => void;
@@ -65,7 +77,7 @@ ChartJS.register(
   Title,
   ChartJSTooltip,
   ChartJSLegend,
-  annotationPlugin
+  annotationPlugin,
 );
 
 // Water Quality Parameters
@@ -163,7 +175,7 @@ const attributeLabels: Record<string, string> = WQ_PARAMETERS.reduce(
     acc[param.key] = `${param.label}${param.unit ? ` (${param.unit})` : ""}`;
     return acc;
   },
-  {} as Record<string, string>
+  {} as Record<string, string>,
 );
 
 const parseValue = (value: string | number | null | undefined): number => {
@@ -198,12 +210,35 @@ const typeColors: Record<string, string> = {
   Downstream: "#84cc16",
 };
 
-const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
+const sanitizeLayerAttributeToken = (value: string): string =>
+  value.replace(/ /g, "_").replace(/[()]/g, "").replace(/\//g, "_");
+
+const extractLayerAttributeToken = (
+  layerName: string | null,
+  season: string,
+  dataType: "subdistbased" | "stretchbased",
+): string | null => {
+  if (!layerName) return null;
+  const bareLayer = layerName.includes(":")
+    ? layerName.split(":", 2)[1]
+    : layerName;
+  const prefix = "interp_";
+  const marker = `_${season}_${dataType}_`;
+
+  if (!bareLayer.startsWith(prefix)) return null;
+  const markerIndex = bareLayer.indexOf(marker);
+  if (markerIndex <= prefix.length) return null;
+  return bareLayer.slice(prefix.length, markerIndex);
+};
+
+const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
   const {
     selectedStretches,
     selectedSeason,
     areaConfirmed,
     waterQualityData,
+    riverBufferData,
+    stretchBufferData,
     isLoadingWaterQuality,
     waterQualityError,
   } = useStretch();
@@ -213,8 +248,11 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
     comparisonTableData,
     isLoadingAllSeasons,
     allSeasonsError,
+    selectedAttribute,
+    setSelectedAttribute,
   } = useStretchChart();
-  const [selectedAttribute, setSelectedAttribute] = useState("ph");
+  const { interpolationData } = useStretchMap();
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<"sampling" | "summary" | "seasonal" | "graph" | "report">("sampling");
 
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
 
@@ -225,22 +263,23 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
   >("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [completedParameters, setCompletedParameters] = useState(0);
+  const [isRasterDownloading, setIsRasterDownloading] = useState(false);
 
   // Process water quality data directly from LocationContext
 
   // Calculate statistics
   const stats = useMemo(() => {
     if (!processedChartData?.length)
-      return { avg: "0", min: "0", max: "0", count: "0" };
+      return { avg: "0", min: "0", max: "0", count: 0 };
 
     const values = processedChartData
       .map((item) => parseValue(item[selectedAttribute]))
       .filter(
-        (val) => typeof val === "number" && !isNaN(val) && val > 0
+        (val) => typeof val === "number" && !isNaN(val) && val > 0,
       ) as number[];
 
     if (values.length === 0)
-      return { avg: "0", min: "0", max: "0", count: "0" };
+      return { avg: "0", min: "0", max: "0", count: 0 };
 
     const avg = values.reduce((sum, val) => sum + val, 0) / values.length;
     const min = Math.min(...values);
@@ -250,7 +289,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
       avg: avg.toFixed(2),
       min: min.toFixed(2),
       max: max.toFixed(2),
-      count: values.length.toString(),
+      count: values.length,
     };
   }, [processedChartData, selectedAttribute]);
 
@@ -285,7 +324,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
   // NEW: Helper function to get parameter value from data point
   const getParameterValue = (
     dataPoint: ProcessedWaterQualityData | null,
-    attribute: string
+    attribute: string,
   ): string => {
     if (!dataPoint) return "-";
     const value = dataPoint[attribute];
@@ -318,12 +357,15 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
   const createRechartsData = () => {
     if (!filteredData?.length) return [];
 
-    const groupedBySampling = filteredData.reduce((acc, row) => {
-      const sampling = row.sampling || "Unknown";
-      if (!acc[sampling]) acc[sampling] = [];
-      acc[sampling].push(row);
-      return acc;
-    }, {} as Record<string, typeof filteredData>);
+    const groupedBySampling = filteredData.reduce(
+      (acc, row) => {
+        const sampling = row.sampling || "Unknown";
+        if (!acc[sampling]) acc[sampling] = [];
+        acc[sampling].push(row);
+        return acc;
+      },
+      {} as Record<string, typeof filteredData>,
+    );
 
     const samplingLocations = Object.keys(groupedBySampling);
 
@@ -331,7 +373,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
       const dataPoint: any = { sampling };
       Object.keys(typeColors).forEach((type) => {
         const matchingRow = groupedBySampling[sampling]?.find((row) =>
-          row.location?.includes(type)
+          row.location?.includes(type),
         );
         dataPoint[type] = matchingRow ? matchingRow[selectedAttribute] : null;
       });
@@ -356,7 +398,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
       const backendAttributes = selectedParameters.map(
         (param) =>
-          attributeMapping[param as keyof typeof attributeMapping] || param
+          attributeMapping[param as keyof typeof attributeMapping] || param,
       );
 
       backendAttributes.push("WQI");
@@ -368,7 +410,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
       // ==================== FETCH DATA FROM BACKEND ====================
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/start-pdf-report/`, {
+      const response = await fetch(`/django/rwm/start-pdf-report/`, {
         method: "POST",
         body: JSON.stringify({
           stretch_ids: selectedStretches,
@@ -406,7 +448,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         } else if (data.status === "processing") {
           // Real-time progress update
           console.log(
-            `🔄 ${data.attribute}: ${data.message} (${data.progress}%)`
+            `🔄 ${data.attribute}: ${data.message} (${data.progress}%)`,
           );
         } else if (data.status === "cancelled") {
           console.warn("🟥 Job was cancelled:", data.message);
@@ -471,7 +513,12 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
       const generatePDF = (result: any) => {
         // ==================== CREATE PDF DOCUMENT ====================
-        const doc = new jsPDF("p", "mm", "a4");
+        const doc = new jsPDF({
+          orientation: "p",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 15;
@@ -518,7 +565,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           headingText,
           pageWidth / 2,
           yPosition + boxPadding + textHeight / 2,
-          { align: "center" }
+          { align: "center" },
         );
 
         yPosition += boxHeight + 20;
@@ -537,7 +584,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           `Analysis Period: ${capitalizedSeason} Season`,
           pageCenter,
           yPosition,
-          { align: "center" }
+          { align: "center" },
         );
 
         doc.setFontSize(9);
@@ -562,7 +609,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           text: string,
           fontSize = 11,
           isBold = false,
-          alignment: "left" | "center" | "justify" = "left"
+          alignment: "left" | "center" | "justify" = "left",
         ) => {
           doc.setFontSize(fontSize);
           doc.setFont("times", isBold ? "bold" : "normal");
@@ -618,7 +665,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           margin,
           yPosition,
           doc.internal.pageSize.getWidth() - margin,
-          yPosition
+          yPosition,
         );
         yPosition += 10;
 
@@ -635,7 +682,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "The Water Quality Monitoring module serves as a core component of the Decision Support System for the Varuna Basin. It relies exclusively on field-based observations to assess river health and support sustainable water governance. Seasonal sampling across representative locations—upstream, midstream (urban/tributary zones), and downstream—captures spatial and temporal patterns influenced by hydrological and human factors. The study measures ten key physicochemical and microbiological parameters: Dissolved Oxygen (DO), Biological Oxygen Demand (BOD), Faecal Coliform (FC), pH, Turbidity, Electrical Conductivity (EC), Total Solids (TS), Chemical Oxygen Demand (COD), Temperature, and Nitrate. These parameters are evaluated following CPCB and BIS standards to compute a composite Water Quality Index (WQI), which summarizes the river's overall status. This ground-based framework strengthens data reliability through in-situ and laboratory assessments supported by strict QA/QC protocols, including field duplicates, calibration checks, and laboratory control samples. The resulting WQI provides an interpretable measure of water quality, helping identify critical pollution stretches and guide remedial measures. Unlike prior mixed frameworks, this version eliminates satellite dependence and focuses entirely on field data for improved precision and interpretability.",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         // ==================== 2. STUDY AREA ====================
@@ -654,7 +701,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "The Varuna River, a tributary of the Ganga, extends roughly 200 km across the districts of Varanasi and its surroundings. It experiences high seasonal variability due to monsoon flows and anthropogenic stress from urban discharge and agricultural runoff. Sampling sites were selected to represent upstream rural reaches, urban inflow points, and downstream segments to capture cumulative effects.",
           11,
           false,
-          "justify"
+          "justify",
         );
         yPosition += 5;
 
@@ -679,7 +726,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             margin,
             yPosition,
             imgWidth,
-            imgHeight
+            imgHeight,
           );
           yPosition += imgHeight + 5;
         } catch (error) {
@@ -694,7 +741,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Figure 1: Study area map showing sampling locations",
           pageWidth / 2,
           yPosition,
-          { align: "center" }
+          { align: "center" },
         );
         yPosition += 15;
 
@@ -706,7 +753,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           "3. Methodology: Ground-Based WQI Framework",
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 10;
 
@@ -723,7 +770,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Sampling was conducted during pre-monsoon, monsoon, and post-monsoon seasons. At each site, in-situ measurements included Temperature, pH, EC, DO, and Turbidity, while laboratory analysis covered BOD, COD, Nitrate, TS, and Faecal Coliform. Each parameter followed standard methods from APHA (2017) and guidelines from BIS 10500:2012 and CPCB surface water classes (A–E). Here, CPCB classifies surface water quality into five classes (A–E) based on its intended use. Class A represents water fit for drinking after disinfection, while Class E denotes water suitable only for irrigation and industrial cooling, with intermediate classes (B–D) covering uses such as bathing, drinking after treatment, and propagation of aquatic life.",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         yPosition += 5;
@@ -736,7 +783,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Table 1: Field and laboratory parameters, methods, and permissible limits (as per CPCB/BIS/WHO)",
           pageWidth / 2,
           yPosition,
-          { align: "center" }
+          { align: "center" },
         );
         yPosition += 8;
 
@@ -887,7 +934,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Data quality assurance was maintained through a combination of field and laboratory controls to ensure reliability and consistency. Field instruments were calibrated before and after sampling, with duplicate and blank samples collected to check precision and contamination. Laboratory analyses followed standard protocols with control samples and detection limit verification. Outliers and missing data were carefully reviewed, and any inconsistencies were corrected or flagged before final WQI computation.",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         // ==================== 3.3. WEIGHTING SCHEME ====================
@@ -904,7 +951,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Weights are assigned based on the relative importance of each parameter in determining overall water quality. Following the new WQI approach: DO > BOD > FC > pH > Turbidity > EC > TS > COD > Temperature > Nitrate. Your rank order (most to least important): Convert ranks to normalized weights:",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         yPosition += 2;
@@ -923,7 +970,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             (pageWidth - rankWidth) / 2,
             yPosition,
             rankWidth,
-            rankHeight
+            rankHeight,
           ); // Centered
           yPosition += rankHeight + 3;
         } catch (error) {
@@ -936,7 +983,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "(So DO gets the largest weight; Nitrate the smallest.)",
           11,
           false,
-          "justify"
+          "justify",
         );
         yPosition += 8; // Manual spacing control
 
@@ -952,7 +999,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "To keep WQI interpretable and avoid blow-ups, clamp all Q_i to [0, 300].",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         // ==================== 3.3.1.1. BENEFICIAL PARAMETER ====================
@@ -961,7 +1008,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           "3.3.1.1. Beneficial parameter (higher is better)",
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 6;
 
@@ -979,7 +1026,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             (pageWidth - doWidth) / 2,
             yPosition,
             doWidth,
-            doHeight
+            doHeight,
           );
           yPosition += doHeight + 3;
         } catch (error) {
@@ -996,7 +1043,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           "3.3.2. pH (two-sided deviation from ideal)",
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 6;
 
@@ -1012,7 +1059,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             (pageWidth - phWidth) / 2,
             yPosition,
             phWidth,
-            phHeight
+            phHeight,
           );
           yPosition += phHeight + 5;
         } catch (error) {
@@ -1030,7 +1077,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           "3.3.3. Detrimental parameters (higher is worse)",
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 8;
 
@@ -1040,7 +1087,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
 
         const detParamsText = doc.splitTextToSize(
           "Use log scaling for heavy-tailed parameters to stabilize extremely high values (FC, BOD, EC, TS, COD, Nitrate) and linear for Turbidity.",
-          contentWidth
+          contentWidth,
         );
         doc.text(detParamsText, margin, yPosition);
         yPosition += detParamsText.length * 5.5 + 5;
@@ -1069,7 +1116,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             logImageX,
             yPosition,
             logWidth,
-            logHeight
+            logHeight,
           );
           yPosition += logHeight + 5;
 
@@ -1106,7 +1153,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             turbImageX,
             yPosition,
             turbWidth,
-            turbHeight
+            turbHeight,
           );
           yPosition += turbHeight + 5;
 
@@ -1141,7 +1188,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             tempImageX,
             yPosition,
             tempWidth,
-            tempHeight
+            tempHeight,
           );
           yPosition += tempHeight + 5;
 
@@ -1161,7 +1208,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.setFont("times", "normal");
         const replaceText = doc.splitTextToSize(
           "Replace S_i (standards) if you adopt different thresholds.",
-          contentWidth
+          contentWidth,
         );
         doc.text(replaceText, margin, yPosition);
         yPosition += replaceText.length * 5 + 10;
@@ -1173,7 +1220,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           "3.3.4. Water Quality Index (WQI) computation",
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 8;
 
@@ -1197,7 +1244,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             (pageWidth - wqiWidth) / 2, // Centered
             yPosition,
             wqiWidth,
-            wqiHeight
+            wqiHeight,
           );
           yPosition += wqiHeight + 10;
         } catch (error) {
@@ -1266,7 +1313,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "Table 2: Parameter weights derived from importance ranking",
           pageWidth / 2,
           yPosition,
-          { align: "center" }
+          { align: "center" },
         );
         yPosition += 8;
 
@@ -1324,7 +1371,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
                   .replace(/₁/g, "1")
                   .replace(/₂/g, "2")
                   .replace(/₃/g, "3")
-                  .replace(/_/g, "")
+                  .replace(/_/g, ""),
               );
             }
           },
@@ -1346,7 +1393,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "The ground-based assessment shows clear seasonal and spatial variation in the Water Quality Index (WQI) across the Varuna Basin. Upstream stretches generally fall within the Good to Excellent category, reflecting minimal anthropogenic influence and better ecological balance. In contrast, the urban core and tributary inflow zones exhibit Poor to Very Poor ratings, largely driven by elevated BOD and coliform concentrations associated with domestic and industrial discharge. Downstream reaches demonstrate moderate improvement during the post-monsoon period, likely due to dilution and increased flow. The most influential parameters in determining WQI are DO, BOD, and Faecal Coliform, consistent with their higher assigned weights, while Turbidity and Electrical Conductivity peak during monsoon conditions and nitrate levels remain moderate throughout. Users may further interpret and visualize these results using either an administrative based analysis or a catchment-based approach, depending on the intended management or policy application.",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         // ==================== 4.1. STRETCH BASED ====================
@@ -1393,7 +1440,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
                 margin,
                 yPosition,
                 mapWidth,
-                mapHeight
+                mapHeight,
               );
               yPosition += mapHeight + 5;
             } catch (error) {
@@ -1411,7 +1458,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
               margin + (mapWidth - legendWidth) / 2, // center under map if you want
               yPosition, // right after the map
               legendWidth,
-              legendHeight
+              legendHeight,
             );
             yPosition += legendHeight + 6;
 
@@ -1423,11 +1470,11 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             const classification = getWQIClassification(stats.mean);
 
             const captionText = `Figure ${figureNum}: Spatial interpolation map for ${paramLabel.toLowerCase()} (Mean: ${stats.mean.toFixed(
-              2
+              2,
             )} ${paramLabel === "WQI" ? ` - ${classification}` : ""})`;
             const wrappedCaption = doc.splitTextToSize(
               captionText,
-              contentWidth
+              contentWidth,
             );
 
             // Center-align each line of the wrapped caption
@@ -1449,12 +1496,11 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             doc.setFontSize(9);
             doc.setFont("times", "bold");
             doc.text(
-              `Table: ${paramLabel} Statistics${
-                isWQI ? " and Classification" : ""
+              `Table: ${paramLabel} Statistics${isWQI ? " and Classification" : ""
               }`,
               pageWidth / 2,
               yPosition,
-              { align: "center" }
+              { align: "center" },
             );
             yPosition += 6;
 
@@ -1517,20 +1563,20 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
               },
               columnStyles: isWQI
                 ? {
-                    0: { cellWidth: 40, halign: "left" },
-                    1: { cellWidth: 25 },
-                    2: { cellWidth: 25 },
-                    3: { cellWidth: 25 },
-                    4: { cellWidth: 25 },
-                    5: { cellWidth: 40 },
-                  }
+                  0: { cellWidth: 40, halign: "left" },
+                  1: { cellWidth: 25 },
+                  2: { cellWidth: 25 },
+                  3: { cellWidth: 25 },
+                  4: { cellWidth: 25 },
+                  5: { cellWidth: 40 },
+                }
                 : {
-                    0: { cellWidth: 50, halign: "left" },
-                    1: { cellWidth: 30 },
-                    2: { cellWidth: 30 },
-                    3: { cellWidth: 30 },
-                    4: { cellWidth: 30 },
-                  },
+                  0: { cellWidth: 50, halign: "left" },
+                  1: { cellWidth: 30 },
+                  2: { cellWidth: 30 },
+                  3: { cellWidth: 30 },
+                  4: { cellWidth: 30 },
+                },
               margin: { left: margin, right: margin, top: logoHeight + 5 },
               didDrawPage: function (data) {
                 addLogosToPage();
@@ -1577,7 +1623,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
           "This Water monitoring ground-based data framework, ensuring accurate, verifiable, and locally relevant assessments. This estimation with a fully field-driven model that integrates seasonal and spatial dynamics through a transparent Water Quality Index (WQI) methodology. The system strengthens decision-making for water governance in the Varuna Basin by providing consistent WQI trends for each sampling location and season, enabling the identification of high-risk stretches that require targeted intervention, and maintaining alignment with CPCB's surface water classification standards. Overall, the approach supports adaptive management under changing hydrological and urban conditions while preserving methodological simplicity and transparency.",
           11,
           false,
-          "justify"
+          "justify",
         );
 
         // ==================== REPORT METADATA ====================
@@ -1589,13 +1635,13 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         doc.text(
           `Stretches Analyzed: ${selectedStretches.length}`,
           margin,
-          yPosition
+          yPosition,
         );
         yPosition += 5;
         doc.text(
           `Parameters Assessed: ${result.data.results.length}`,
           margin,
-          yPosition
+          yPosition,
         );
 
         // ==================== REFERENCES ====================
@@ -1645,15 +1691,14 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
             pageHeight - 10,
             {
               align: "center",
-            }
+            },
           );
         }
 
         // ==================== SAVE PDF ====================
         doc.save(
-          `Water_Quality_Report_Stretch_${
-            new Date().toISOString().split("T")[0]
-          }.pdf`
+          `Water_Quality_Report_Stretch_${new Date().toISOString().split("T")[0]
+          }.pdf`,
         );
 
         console.log("✅ PDF generated successfully!");
@@ -1681,7 +1726,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
     setSelectedParameters((prev) =>
       prev.includes(paramKey)
         ? prev.filter((key) => key !== paramKey)
-        : [...prev, paramKey]
+        : [...prev, paramKey],
     );
   };
 
@@ -1706,6 +1751,33 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
     temperature: 9,
     nitrate: 10,
   };
+
+  const handleSelectTopTen = () => {
+    const topTenKeys = reportParameters
+      .map((param) => param.key)
+      .filter((key) => TOP_TEN_PRIORITY[key] !== undefined)
+      .sort((a, b) => TOP_TEN_PRIORITY[a] - TOP_TEN_PRIORITY[b]);
+    setSelectedParameters(topTenKeys);
+  };
+
+  const handleDeselectTopTen = () => {
+    const topTenKeys = new Set(
+      reportParameters
+        .map((param) => param.key)
+        .filter((key) => TOP_TEN_PRIORITY[key] !== undefined),
+    );
+
+    setSelectedParameters((prev) =>
+      prev.filter((key) => !topTenKeys.has(key)),
+    );
+  };
+
+  const topTenKeys = reportParameters
+    .map((param) => param.key)
+    .filter((key) => TOP_TEN_PRIORITY[key] !== undefined);
+  const allTopTenSelected = topTenKeys.every((key) =>
+    selectedParameters.includes(key),
+  );
   // Add this helper function inside your component
   const getWQIInfo = (wqi: string | Number | null) => {
     const value = Number(wqi);
@@ -1724,7 +1796,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
     const wqiValues = processedChartData
       .map((item) => parseValue(item["wqi"]))
       .filter(
-        (val) => typeof val === "number" && !isNaN(val) && val > 0
+        (val) => typeof val === "number" && !isNaN(val) && val > 0,
       ) as number[];
 
     if (wqiValues.length === 0) return null;
@@ -1735,6 +1807,163 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
   }, [processedChartData]);
 
   const wqiInfo = getWQIInfo(wqiMean);
+
+  const rechartsData = useMemo(() => createRechartsData(), [createRechartsData]);
+
+  const analysisTabs: Array<{
+    key: "sampling" | "summary" | "seasonal" | "graph" | "report";
+    label: string;
+    badge?: number;
+    glow: string;
+    icon: string;
+  }> = [
+      {
+        key: "sampling",
+        label: "Sampling Locations",
+        badge: rechartsData.length,
+        glow: "59,130,246",
+        icon: "📍",
+      },
+      {
+        key: "summary",
+        label: "By Location Type",
+        glow: "16,185,129",
+        icon: "📊",
+      },
+      {
+        key: "seasonal",
+        label: "Seasonal",
+        badge: comparisonTableData?.length || 0,
+        glow: "245,158,11",
+        icon: "🔄",
+      },
+      {
+        key: "graph",
+        label: "Graph",
+        glow: "139,92,246",
+        icon: "📈",
+      },
+      {
+        key: "report",
+        label: "Report Builder",
+        glow: "219,39,119",
+        icon: "📄",
+      },
+    ];
+  const activeTabIndex = analysisTabs.findIndex((tab) => tab.key === activeAnalysisTab);
+  const tabWidthPercent = 100 / analysisTabs.length;
+  const activeTabGlow = analysisTabs[activeTabIndex]?.glow || "59,130,246";
+  const currentInterpolationLayerName =
+    typeof interpolationData?.primary_layer === "string" &&
+      interpolationData.primary_layer.trim() !== ""
+      ? interpolationData.primary_layer
+      : null;
+  const isRasterDownloadAvailable =
+    areaConfirmed &&
+    selectedStretches.length > 0 &&
+    !!waterQualityData?.features?.length;
+
+  const handleRasterDownload = async (downloadFormat: "png" | "tiff") => {
+    if (isRasterDownloading) return;
+
+    setIsRasterDownloading(true);
+    const toastId = toast.loading(
+      `Preparing ${downloadFormat.toUpperCase()} raster download...`
+    );
+
+    try {
+      const targetBackendAttribute =
+        BACKEND_PARAMETER_MAPPING[selectedAttribute] || selectedAttribute;
+      const selectedAttributeToken = sanitizeLayerAttributeToken(targetBackendAttribute);
+      const seasonForLayer = selectedSeason || "premonsoon";
+
+      let layerForDownload = currentInterpolationLayerName;
+      const currentLayerToken = extractLayerAttributeToken(
+        currentInterpolationLayerName,
+        seasonForLayer,
+        "stretchbased",
+      );
+
+      if (!layerForDownload || currentLayerToken !== selectedAttributeToken) {
+        if (selectedStretches.length === 0 || !waterQualityData?.features?.length) {
+          throw new Error(
+            "Required data is missing. Please select stretches and load water quality points first.",
+          );
+        }
+
+        const interpolationResponse = await fetch(
+          `/django/rwm/interpolate/${encodeURIComponent(targetBackendAttribute)}/stretchbased/${seasonForLayer}/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              Stretch_ID: selectedStretches,
+              points_data: waterQualityData,
+            }),
+          },
+        );
+
+        if (!interpolationResponse.ok) {
+          const interpolationError = await interpolationResponse.text();
+          throw new Error(
+            `Failed to prepare selected parameter raster (${interpolationResponse.status}): ${interpolationError}`,
+          );
+        }
+
+        const interpolationPayload = await interpolationResponse.json();
+        if (interpolationPayload?.status !== "success" || !interpolationPayload?.primary_layer) {
+          throw new Error(
+            interpolationPayload?.message || "Interpolation did not return a downloadable raster layer.",
+          );
+        }
+        layerForDownload = interpolationPayload.primary_layer;
+      }
+
+      const workspace = layerForDownload.includes(":")
+        ? layerForDownload.split(":", 1)[0]
+        : "myworkspace";
+      const fileExtension = downloadFormat === "png" ? "png" : "tif";
+      const safeParam = (selectedAttribute || "interpolation")
+        .replace(/[^a-zA-Z0-9._-]+/g, "_");
+      const safeSeason = (selectedSeason || "season").replace(/[^a-zA-Z0-9._-]+/g, "_");
+      const fileName = `${safeParam}_${safeSeason}_interpolation.${fileExtension}`;
+      const url = `/django/rwm/general/download-raster?layer_name=${encodeURIComponent(layerForDownload)}&workspace=${encodeURIComponent(workspace)}&filename=${encodeURIComponent(fileName)}&format=${encodeURIComponent(downloadFormat)}`;
+
+      const response = await fetch(url, { method: "GET" });
+      if (!response.ok) {
+        let errorMessage = `Download failed (${response.status})`;
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const payload = await response.json();
+          errorMessage = payload?.error || errorMessage;
+          if (Array.isArray(payload?.details) && payload.details.length > 0) {
+            errorMessage = `${errorMessage} ${payload.details[0]}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, {
+        id: toastId,
+      });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to download raster.", { id: toastId });
+    } finally {
+      setIsRasterDownloading(false);
+    }
+  };
 
   return (
     <>
@@ -1749,874 +1978,148 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
         />
       )}
       <div className="h-full overflow-y-auto">
-        {/* Only show chart when stretches are selected and area is confirmed */}
-        {selectedStretches.length > 0 && areaConfirmed && (
+        {(selectedStretches.length > 0 || areaConfirmed) && areaConfirmed && (
           <div className="mb-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-8 border border-blue-100 shadow-sm">
-                  <label className="block text-sm font-semibold text-gray-800 mb-3">
-                    Water Quality Parameter
-                  </label>
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                <div className="w-full lg:w-1/3">
-                  <select
-                    className="w-full p-3 border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer bg-white shadow-sm transition-all duration-200 hover:shadow-md text-gray-700 font-medium outline-none"
-                    value={selectedAttribute}
-                    onChange={(e) => setSelectedAttribute(e.target.value)}
-                  >
-                    {attributes.map((attr) => (
-                      <option key={attr} value={attr}>
-                        {attributeLabels[attr]}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 mt-4">
-                    <div className="flex items-center gap-2 my-2 mx-auto">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                      <p className="text-sm font-semibold text-gray-800">
-                        Mean WQI
-                      </p>
-                      <p className="text-xl font-bold text-green-600">
-                        {wqiMean || "N/A"}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {wqiInfo.label}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="h-full w-full lg:w-2/3">
-                  {stats && (
-                    <div className="h-full bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        <p className="text-sm font-semibold text-gray-800">
-                          {attributeLabels[selectedAttribute]} Statistics
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">
-                            Average
-                          </p>
-                          <p className="text-lg font-bold text-blue-600">
-                            {stats.avg}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">
-                            Minimum
-                          </p>
-                          <p className="text-lg font-bold text-green-600">
-                            {stats.min}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">
-                            Maximum
-                          </p>
-                          <p className="text-lg font-bold text-red-600">
-                            {stats.max}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">
-                            Count
-                          </p>
-                          <p className="text-lg font-bold text-purple-600">
-                            {stats.count}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+            <div className="sticky top-0 z-20 bg-slate-50 pb-3">
+              <ChartStickyHeader
+                selectedAttribute={selectedAttribute}
+                attributes={attributes}
+                attributeLabels={attributeLabels}
+                onAttributeChange={setSelectedAttribute}
+                stats={stats}
+                wqiMean={wqiMean}
+                wqiInfo={wqiInfo}
+                onDownloadRaster={handleRasterDownload}
+                isRasterDownloadAvailable={isRasterDownloadAvailable}
+                isRasterDownloading={isRasterDownloading}
+              />
+
+              <div className="mt-3 rounded-xl border border-slate-200/80 bg-white/95 p-2 shadow-md backdrop-blur-md">
+                <div className="relative grid grid-cols-5 items-center rounded-lg bg-gradient-to-r from-slate-50 via-white to-slate-50 p-1">
+                  {/* Animated glowing underline */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0.5 z-0 h-[3px] rounded-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    style={{
+                      left: `calc(${activeTabIndex * tabWidthPercent}% + 12px)`,
+                      width: `calc(${tabWidthPercent}% - 24px)`,
+                      background: `linear-gradient(90deg, rgba(${activeTabGlow}, 0.7), rgba(${activeTabGlow}, 1), rgba(${activeTabGlow}, 0.7))`,
+                      boxShadow: `0 0 14px rgba(${activeTabGlow}, 0.8), 0 0 6px rgba(${activeTabGlow}, 0.5)`,
+                    }}
+                  />
+                  {/* Active background highlight */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1 z-0 rounded-lg shadow-sm transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    style={{
+                      left: `calc(${activeTabIndex * tabWidthPercent}% + 4px)`,
+                      width: `calc(${tabWidthPercent}% - 8px)`,
+                      height: "calc(100% - 8px)",
+                      background: `linear-gradient(135deg, rgba(${activeTabGlow}, 0.08), rgba(${activeTabGlow}, 0.03))`,
+                    }}
+                  />
+                  {analysisTabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveAnalysisTab(tab.key)}
+                      className={`group relative z-10 flex min-h-[46px] items-center justify-center gap-1.5 rounded-lg px-1.5 text-center text-[13px] font-semibold transition-all duration-200 cursor-pointer ${activeAnalysisTab === tab.key
+                        ? "text-slate-900 scale-[1.03]"
+                        : "text-slate-500 hover:text-slate-700 hover:scale-[1.01]"
+                        }`}
+                    >
+                      <span className={`text-sm transition-transform duration-200 ${activeAnalysisTab === tab.key ? "scale-110" : "group-hover:scale-105"
+                        }`}>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                      {tab.badge !== undefined && (
+                        <span
+                          className={`ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-all duration-200 ${activeAnalysisTab === tab.key
+                            ? "text-white shadow-sm"
+                            : "text-slate-400"
+                            }`}
+                          style={activeAnalysisTab === tab.key ? { background: `rgba(${tab.glow}, 0.75)` } : undefined}
+                        >
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
-            <div className="space-y-8">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      Individual Sampling Locations
-                    </h3>
-                    <div className="ml-auto px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                      {createRechartsData().length} Locations
-                    </div>
-                  </div>
-                  <div className="h-[480px] w-full overflow-x-auto overflow-y-hidden rounded-xl bg-gray-50/50 border border-gray-100">
-                    <div
-                      style={{
-                        minWidth: `${Math.max(
-                          createRechartsData().length * 60,
-                          800
-                        )}px`,
-                        height: "480px",
-                        padding: `20px 20px 30px 20px`,
-                      }}
-                    >
-                      <ResponsiveContainer
-                        width="100%"
-                        height="100%"
-                        style={{
-                          outline: "none",
-                          border: "none",
-                          background: "transparent",
-                        }}
-                      >
-                        <LineChart
-                          data={createRechartsData()}
-                          margin={{ top: 40, right: 30, left: 60, bottom: 60 }}
-                          style={{
-                            outline: "none",
-                            border: "none",
-                            background: "transparent",
-                          }}
-                        >
-                          <defs>
-                            <style>{`.recharts-surface { outline: none !important; border: none !important; }`}</style>
-                          </defs>
 
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="#e0e4e7"
-                          />
+            <div className="space-y-8 mt-4">
+              {activeAnalysisTab === "sampling" && (
+                <SamplingLocationsTab
+                  data={rechartsData}
+                  selectedAttribute={selectedAttribute}
+                  selectedAttributeLabel={attributeLabels[selectedAttribute]?.split("(")[0].trim() || ""}
+                  selectedAttributeUnit={WQ_PARAMETERS.find(p => p.key === selectedAttribute)?.unit || ""}
+                  qualityThreshold={qualityThresholds[selectedAttribute]}
+                  borderColors={borderColors}
+                />
+              )}
 
-                          <XAxis
-                            dataKey="sampling"
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                            interval={0}
-                            tick={{ fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
+              {activeAnalysisTab === "summary" && (
+                <LocationTypeSummaryTab
+                  filteredData={filteredData}
+                  selectedAttribute={selectedAttribute}
+                  selectedAttributeLabel={attributeLabels[selectedAttribute]?.split("(")[0].trim() || ""}
+                  borderColors={borderColors}
+                  parseValue={parseValue}
+                />
+              )}
 
-                          <YAxis
-                            label={{
-                              value: `${
-                                WQ_PARAMETERS.find(
-                                  (p) => p.key === selectedAttribute
-                                )?.label
-                              }${
-                                WQ_PARAMETERS.find(
-                                  (p) => p.key === selectedAttribute
-                                )?.unit
-                                  ? ` (${
-                                      WQ_PARAMETERS.find(
-                                        (p) => p.key === selectedAttribute
-                                      )?.unit
-                                    })`
-                                  : ""
-                              }`,
-                              angle: -90,
-                              position: "insideLeft",
-                            }}
-                            tick={{ fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                          />
+              {activeAnalysisTab === "seasonal" && (
+                <SeasonalComparisonTab
+                  comparisonTableData={comparisonTableData}
+                  selectedAttribute={selectedAttribute}
+                  selectedAttributeLabel={attributeLabels[selectedAttribute]?.split("(")[0].trim() || ""}
+                  isLoadingAllSeasons={isLoadingAllSeasons}
+                  allSeasonsError={allSeasonsError}
+                  borderColors={borderColors}
+                />
+              )}
 
-                          <RechartsTooltip
-                            content={({ active, payload, label }) => {
-                              if (active && payload && payload.length) {
-                                const activeData = payload.filter(
-                                  (entry) =>
-                                    entry.value !== null &&
-                                    entry.value !== undefined
-                                );
-                                if (activeData.length > 0) {
-                                  return (
-                                    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                                      <p className="text-gray-800 mb-2">
-                                        {label}
-                                      </p>
-                                      {activeData.map((entry, index) => {
-                                        const locationType = entry.name || "";
-                                        const pointColor =
-                                          borderColors[locationType] || "#666";
+              {activeAnalysisTab === "graph" && (
+                <GraphTab
+                  filteredData={filteredData}
+                  selectedAttribute={selectedAttribute}
+                  selectedAttributeLabel={attributeLabels[selectedAttribute]?.split("(")[0].trim() || ""}
+                  selectedAttributeUnit={WQ_PARAMETERS.find(p => p.key === selectedAttribute)?.unit || ""}
+                  borderColors={borderColors}
+                  parseValue={parseValue}
+                  currentInterpolationLayerName={currentInterpolationLayerName}
+                  riverBufferData={stretchBufferData || riverBufferData || null}
+                />
+              )}
 
-                                        return (
-                                          <div
-                                            key={index}
-                                            className="flex items-center gap-2"
-                                          >
-                                            <div
-                                              className="w-3 h-3 rounded-full"
-                                              style={{
-                                                backgroundColor: pointColor,
-                                              }}
-                                            ></div>
-                                            <span
-                                              className="text-sm"
-                                              style={{ color: pointColor }}
-                                            >
-                                              {entry.name}: {entry.value}
-                                              {WQ_PARAMETERS.find(
-                                                (p) =>
-                                                  p.key === selectedAttribute
-                                              )?.unit &&
-                                                ` ${
-                                                  WQ_PARAMETERS.find(
-                                                    (p) =>
-                                                      p.key ===
-                                                      selectedAttribute
-                                                  )?.unit
-                                                }`}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                }
-                              }
-                              return null;
-                            }}
-                          />
-
-                          <RechartsLegend
-                            verticalAlign="top"
-                            height={60}
-                            wrapperStyle={{
-                              paddingBottom: "20px",
-                              paddingTop: "10px",
-                              paddingLeft: "20px",
-                              paddingRight: "20px",
-                            }}
-                            content={(props) => {
-                              return (
-                                <div className="flex justify-center items-center gap-6 mb-4">
-                                  {Object.entries(borderColors).map(
-                                    ([type, color]) => (
-                                      <div
-                                        key={type}
-                                        className="flex items-center gap-2"
-                                      >
-                                        <div
-                                          className="w-4 h-4 rounded-full border"
-                                          style={{
-                                            backgroundColor: color,
-                                            borderColor: color,
-                                          }}
-                                        />
-                                        <span className="text-sm text-black font-normal">
-                                          {type}
-                                        </span>
-                                      </div>
-                                    )
-                                  )}
-
-                                  {qualityThresholds[selectedAttribute] && (
-                                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-gray-300">
-                                      <div className="w-4 h-0 border-t-2 border-dashed border-red-500" />
-                                      <span className="text-sm text-black font-normal">
-                                        WHO/BIS Limit:{" "}
-                                        {qualityThresholds[selectedAttribute]}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }}
-                          />
-
-                          {qualityThresholds[selectedAttribute] && (
-                            <ReferenceLine
-                              y={qualityThresholds[selectedAttribute]}
-                              stroke="red"
-                              strokeDasharray="5 5"
-                            />
-                          )}
-
-                          {Object.keys(typeColors).map((type) => (
-                            <Line
-                              key={type}
-                              type="monotone"
-                              dataKey={type}
-                              stroke="transparent"
-                              strokeWidth={0}
-                              dot={{
-                                r: 6,
-                                fill: borderColors[type],
-                                stroke: borderColors[type],
-                                strokeWidth: 2,
-                                cursor: "pointer",
-                              }}
-                              activeDot={{
-                                r: 8,
-                                fill: borderColors[type],
-                                stroke: "#fff",
-                                strokeWidth: 2,
-                                cursor: "pointer",
-                              }}
-                              connectNulls={false}
-                              name={type}
-                            />
-                          ))}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
-                    <h3 className="text-xl font-bold text-gray-800">
-                      Average Values by Location Type
-                    </h3>
-                    <div className="ml-auto px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                      Aggregated Data
-                    </div>
-                  </div>
-                  <div className="h-auto w-full rounded-xl bg-gray-50/50 p-6 border border-gray-100">
-                    {/* Table Section */}
-                    <div className="mt-6">
-                      <h4 className="text-lg font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-500"></span>
-                        Statistical Summary
-                      </h4>
-                      <div className="h-auto w-full rounded-xl bg-gray-50/50 border border-gray-100">
-                        {/* Table Section */}
-                        <div className="overflow-x-auto rounded-lg border border-gray-100">
-                          <table className="min-w-full text-sm text-left border-collapse">
-                            <thead>
-                              <tr className="bg-gray-100 border-b border-gray-200">
-                                <th className="px-4 py-2 font-semibold text-gray-700">
-                                  Location Type
-                                </th>
-                                <th className="px-4 py-2 font-semibold text-gray-700 text-center">
-                                  Minimum
-                                  <br />
-                                  <span className="text-xs font-normal text-gray-600">
-                                    {attributeLabels[selectedAttribute]}
-                                  </span>
-                                </th>
-                                <th className="px-4 py-2 font-semibold text-gray-700 text-center">
-                                  Maximum
-                                  <br />
-                                  <span className="text-xs font-normal text-gray-600">
-                                    {attributeLabels[selectedAttribute]}
-                                  </span>
-                                </th>
-                                <th className="px-4 py-2 font-semibold text-gray-700 text-center">
-                                  Average
-                                  <br />
-                                  <span className="text-xs font-normal text-gray-600">
-                                    {attributeLabels[selectedAttribute]}
-                                  </span>
-                                </th>
-                                <th className="px-4 py-2 font-semibold text-gray-700 text-center">
-                                  Count
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {["Upstream", "Downstream", "Drain"].map(
-                                (locationType) => {
-                                  const locationData = filteredData.filter(
-                                    (row) => row.location === locationType
-                                  );
-                                  const values = locationData
-                                    .map((row) =>
-                                      parseValue(
-                                        row[
-                                          selectedAttribute as keyof typeof row
-                                        ] as number | string
-                                      )
-                                    )
-                                    .filter((v) => v !== 0);
-
-                                  const textColor =
-                                    borderColors[locationType] || "#333";
-                                  const bgColor = textColor
-                                    .replace("1)", "0.08)")
-                                    .replace("0.6)", "0.08)");
-
-                                  if (values.length === 0) {
-                                    return (
-                                      <tr
-                                        key={locationType}
-                                        className="border-b border-gray-100"
-                                        style={{ backgroundColor: bgColor }}
-                                      >
-                                        <td
-                                          className="px-4 py-2 font-semibold"
-                                          style={{ color: textColor }}
-                                        >
-                                          {locationType}
-                                        </td>
-                                        <td
-                                          colSpan={4}
-                                          className="px-4 py-2 text-center italic"
-                                          style={{ color: textColor }}
-                                        >
-                                          No data available
-                                        </td>
-                                      </tr>
-                                    );
-                                  }
-
-                                  const min = Math.min(...values);
-                                  const max = Math.max(...values);
-                                  const avg =
-                                    values.reduce((a, b) => a + b, 0) /
-                                    values.length;
-
-                                  return (
-                                    <tr
-                                      key={locationType}
-                                      className="border-b border-gray-100 hover:opacity-90 transition"
-                                      style={{ backgroundColor: bgColor }}
-                                    >
-                                      <td
-                                        className="px-4 py-2 font-semibold"
-                                        style={{ color: textColor }}
-                                      >
-                                        {locationType}
-                                      </td>
-                                      <td
-                                        className="px-4 py-2 text-center font-semibold"
-                                        style={{ color: textColor }}
-                                      >
-                                        {min.toFixed(2)}
-                                      </td>
-                                      <td
-                                        className="px-4 py-2 text-center font-semibold"
-                                        style={{ color: textColor }}
-                                      >
-                                        {max.toFixed(2)}
-                                      </td>
-                                      <td
-                                        className="px-4 py-2 text-center font-semibold"
-                                        style={{ color: textColor }}
-                                      >
-                                        {avg.toFixed(2)}
-                                      </td>
-                                      <td
-                                        className="px-4 py-2 text-center font-semibold"
-                                        style={{ color: textColor }}
-                                      >
-                                        {values.length}
-                                      </td>
-                                    </tr>
-                                  );
-                                }
-                              )}
-
-                              {/* Total Row */}
-                              {(() => {
-                                const allValues = filteredData
-                                  .map((row) =>
-                                    parseValue(
-                                      row[
-                                        selectedAttribute as keyof typeof row
-                                      ] as number | string
-                                    )
-                                  )
-                                  .filter((v) => v !== 0);
-
-                                if (allValues.length === 0) return null;
-
-                                const totalMin = Math.min(...allValues);
-                                const totalMax = Math.max(...allValues);
-                                const totalAvg =
-                                  allValues.reduce((a, b) => a + b, 0) /
-                                  allValues.length;
-
-                                return (
-                                  <tr
-                                    className="font-semibold border-t-2 border-blue-200"
-                                    style={{
-                                      backgroundColor: "rgba(59,130,246,0.1)",
-                                    }}
-                                  >
-                                    <td className="px-4 py-2 text-blue-700">
-                                      All Points Average
-                                    </td>
-                                    <td className="px-4 py-2 text-center text-green-700">
-                                      {totalMin.toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-2 text-center text-red-700">
-                                      {totalMax.toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-2 text-center text-blue-700">
-                                      {totalAvg.toFixed(2)}
-                                    </td>
-                                    <td className="px-4 py-2 text-center text-purple-700">
-                                      {allValues.length}
-                                    </td>
-                                  </tr>
-                                );
-                              })()}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* NEW: SEASONAL COMPARISON TABLE SECTION */}
-              {selectedStretches.length > 0 && areaConfirmed && (
-                <div className="mt-8">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300">
-                    <div className="p-6">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="w-4 h-4 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"></div>
-                        <h3 className="text-xl font-bold text-gray-800">
-                          Seasonal Comparison Table
-                        </h3>
-                        <div className="ml-auto px-3 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
-                          {comparisonTableData.length} Locations
-                        </div>
-                      </div>
-
-                      {/* Loading State */}
-                      {isLoadingAllSeasons && (
-                        <div className="flex items-center justify-center p-8">
-                          <div className="flex items-center space-x-2">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600"></div>
-                            <div className="text-lg text-gray-700">
-                              Loading seasonal comparison data...
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Error State */}
-                      {allSeasonsError && !isLoadingAllSeasons && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                          <h4 className="text-red-800 font-semibold mb-2">
-                            Error Loading Seasonal Data
-                          </h4>
-                          <p className="text-red-600">{allSeasonsError}</p>
-                        </div>
-                      )}
-
-                      {/* Data Table */}
-                      {!isLoadingAllSeasons &&
-                        !allSeasonsError &&
-                        comparisonTableData.length > 0 && (
-                          <div className="overflow-x-auto rounded-xl border border-gray-200">
-                            <table className="min-w-full text-sm">
-                              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                                <tr>
-                                  <th className="px-6 py-4 text-left font-bold text-gray-800 border-b-2 border-gray-300 sticky left-0 bg-gray-100 z-10">
-                                    Location
-                                  </th>
-                                  <th className="px-6 py-4 text-center font-bold text-blue-700 border-b-2 border-gray-300">
-                                    Pre-monsoon
-                                    <br />
-                                    <span className="text-xs font-normal text-gray-600">
-                                      {attributeLabels[selectedAttribute]}
-                                    </span>
-                                  </th>
-                                  <th className="px-6 py-4 text-center font-bold text-green-700 border-b-2 border-gray-300">
-                                    Monsoon
-                                    <br />
-                                    <span className="text-xs font-normal text-gray-600">
-                                      {attributeLabels[selectedAttribute]}
-                                    </span>
-                                  </th>
-                                  <th className="px-6 py-4 text-center font-bold text-amber-700 border-b-2 border-gray-300">
-                                    Post-monsoon
-                                    <br />
-                                    <span className="text-xs font-normal text-gray-600">
-                                      {attributeLabels[selectedAttribute]}
-                                    </span>
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {comparisonTableData.map((row, index) => {
-                                  const locationColor = getLocationColor(
-                                    row.locationType
-                                  );
-                                  const locationBgColor = getLocationBgColor(
-                                    row.locationType
-                                  );
-
-                                  const premonsoonValue = row.premonsoon
-                                    ? parseFloat(
-                                        getParameterValue(
-                                          row.premonsoon,
-                                          selectedAttribute
-                                        )
-                                      )
-                                    : null;
-                                  const postmonsoonValue = row.postmonsoon
-                                    ? parseFloat(
-                                        getParameterValue(
-                                          row.postmonsoon,
-                                          selectedAttribute
-                                        )
-                                      )
-                                    : null;
-
-                                  return (
-                                    <tr
-                                      key={index}
-                                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                                      style={{
-                                        backgroundColor: locationBgColor,
-                                      }}
-                                    >
-                                      {/* Location Column */}
-                                      <td
-                                        className="px-6 py-4 font-semibold sticky left-0 z-10"
-                                        style={{
-                                          color: locationColor,
-                                          backgroundColor: locationBgColor,
-                                        }}
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <div
-                                            className="w-3 h-3 rounded-full"
-                                            style={{
-                                              backgroundColor: locationColor,
-                                            }}
-                                          ></div>
-                                          {row.location}
-                                        </div>
-                                      </td>
-
-                                      {/* Pre-monsoon Value */}
-                                      <td
-                                        className="px-6 py-4 text-center font-medium"
-                                        style={{ color: locationColor }}
-                                      >
-                                        {getParameterValue(
-                                          row.premonsoon,
-                                          selectedAttribute
-                                        )}
-                                      </td>
-
-                                      {/* Monsoon Value */}
-                                      <td
-                                        className="px-6 py-4 text-center font-medium"
-                                        style={{ color: locationColor }}
-                                      >
-                                        {getParameterValue(
-                                          row.monsoon,
-                                          selectedAttribute
-                                        )}
-                                      </td>
-
-                                      {/* Post-monsoon Value */}
-                                      <td
-                                        className="px-6 py-4 text-center font-medium"
-                                        style={{ color: locationColor }}
-                                      >
-                                        {getParameterValue(
-                                          row.postmonsoon,
-                                          selectedAttribute
-                                        )}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-
-                      {/* Empty State */}
-                      {!isLoadingAllSeasons &&
-                        !allSeasonsError &&
-                        comparisonTableData.length === 0 && (
-                          <div className="flex items-center justify-center p-12">
-                            <div className="text-center">
-                              <div className="w-16 h-16 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <span className="text-3xl">📊</span>
-                              </div>
-                              <h4 className="text-lg font-semibold text-gray-700 mb-2">
-                                No Seasonal Data Available
-                              </h4>
-                              <p className="text-gray-500 max-w-md">
-                                Please confirm your area selection to view
-                                seasonal comparison data for the selected
-                                stretches.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </div>
+              {activeAnalysisTab === "report" && (
+                <PdfReportSection
+                  selectedParameters={selectedParameters}
+                  reportParameters={reportParameters}
+                  handleSelectAllParameters={handleSelectAllParameters}
+                  handleParameterToggle={handleParameterToggle}
+                  handleGenerateReport={handleGenerateReport}
+                  TOP_TEN_PRIORITY={TOP_TEN_PRIORITY}
+                  handleSelectTopTen={handleSelectTopTen}
+                  handleDeselectTopTen={handleDeselectTopTen}
+                  allTopTenSelected={allTopTenSelected}
+                />
               )}
             </div>
           </div>
         )}
 
-        {/* Show message when no data is available */}
+        {/* Empty State Message */}
         {(!selectedStretches.length || !areaConfirmed) && (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">📊</span>
               </div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                Water Quality Analysis
-              </h3>
-              <p className="text-gray-500 max-w-md">
-                Please select stretches and confirm your area selection to view
-                water quality charts and analysis.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Report Generation Section */}
-        {selectedStretches.length > 0 && areaConfirmed && (
-          <div className="mt-8 mb-6">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
-              <div className="p-5">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-                  <h3 className="text-lg font-bold text-gray-800">
-                    Generate PDF Report
-                  </h3>
-                </div>
-
-                {/* Water Quality Parameters Selection */}
-                <div className="mb-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-700">
-                          Select Water Quality Parameters:
-                        </label>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Choose parameters to include in the report
-                        </p>
-                      </div>
-
-                      {/* Question Mark Info Button */}
-                      <div className="relative group">
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-500 rounded-full hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 cursor-help"
-                          aria-label="Information about priority rankings"
-                        >
-                          ?
-                        </button>
-
-                        {/* Tooltip */}
-                        <div
-                          role="tooltip"
-                          className="absolute left-1/2 -translate-x-1/2 top-full mb-2 px-3 py-2 w-64 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 pointer-events-none z-50"
-                        >
-                          <p className="font-semibold mb-1">
-                            Priority Rankings
-                          </p>
-                          <p className="text-gray-300 leading-relaxed">
-                            Parameters numbered 1-10 are the most important
-                            indicators for water quality assessment, ranked by
-                            significance.
-                          </p>
-                          {/* Tooltip Arrow */}
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mt-px">
-                            <div className="border-[6px] border-transparent border-b-gray-900"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                        {selectedParameters.length} / {reportParameters.length}
-                      </div>
-                      <button
-                        onClick={handleSelectAllParameters}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium underline"
-                      >
-                        {selectedParameters.length === reportParameters.length
-                          ? "Deselect All"
-                          : "Select All"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Parameters Grid - Compact Version */}
-                  <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                    {reportParameters
-                      .slice()
-                      .sort((a, b) => {
-                        const priorityA = TOP_TEN_PRIORITY[a.key] || 999;
-                        const priorityB = TOP_TEN_PRIORITY[b.key] || 999;
-                        return priorityA - priorityB;
-                      })
-                      .map((param) => {
-                        const topTenPriority = TOP_TEN_PRIORITY[param.key];
-
-                        return (
-                          <div
-                            key={param.key}
-                            className={`flex items-center justify-between p-2 border-2 rounded-lg transition-all cursor-pointer hover:shadow-sm ${
-                              selectedParameters.includes(param.key)
-                                ? "border-blue-500 bg-blue-50"
-                                : "border-gray-200 bg-white hover:border-gray-300"
-                            }`}
-                            onClick={() => handleParameterToggle(param.key)}
-                          >
-                            {/* Left side: Checkbox + Label */}
-                            <div className="flex items-center min-w-0 flex-1">
-                              <input
-                                type="checkbox"
-                                checked={selectedParameters.includes(param.key)}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={() =>
-                                  handleParameterToggle(param.key)
-                                }
-                                className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
-                              />
-                              <div className="ml-2 text-xs min-w-0 flex-1">
-                                <label className="font-semibold text-gray-900 cursor-pointer block truncate">
-                                  {param.label}
-                                </label>
-                                {param.unit && (
-                                  <p className="text-gray-500 text-[10px] truncate">
-                                    {param.unit}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Right side: Priority Badge */}
-                            {topTenPriority && (
-                              <div className="ml-2 flex-shrink-0 bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                                {topTenPriority}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                {/* Generate Button */}
-                <button
-                  onClick={handleGenerateReport}
-                  className={`w-full py-2.5 px-5 rounded-lg font-semibold text-sm text-white transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${"bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl"}`}
-                >
-                  <span className="text-base">📄</span>
-                  Generate PDF Report
-                  {selectedParameters.length > 0 && (
-                    <span className="text-xs opacity-90">
-                      ({selectedParameters.length} parameters)
-                    </span>
-                  )}
-                </button>
-
-                {/* Info Message */}
-                <p className="text-[10px] text-gray-500 text-center mt-2">
-                  Report will include study area map, methodology, and data for
-                  selected parameters
-                </p>
-              </div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Water Quality Analysis</h3>
+              <p className="text-gray-500 max-w-md">Please select stretches and confirm your area selection to view water quality charts and analysis.</p>
             </div>
           </div>
         )}
@@ -2624,5 +2127,5 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({}) => {
     </>
   );
 };
-
 export default StretchMapComponent;
+

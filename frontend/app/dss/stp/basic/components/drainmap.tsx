@@ -6,9 +6,8 @@ import isEqual from 'lodash/isEqual';
 import { FeatureCollection } from 'geojson';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
-
 import 'leaflet.fullscreen';
-import 'leaflet.fullscreen/Control.FullScreen.css'; 
+
 
 
 

@@ -22,8 +22,50 @@ import {
   useStretchMap,
   type WaterQualityParameter,
 } from "@/contexts/riverwater_assessment/drain/MapContext";
+import { useStretchChart } from "@/contexts/riverwater_assessment/drain/ChartContext";
 import { fromLonLat, toLonLat } from "ol/proj";
 import { METERS_PER_UNIT } from "ol/proj/Units";
+
+// Mapping from frontend attribute keys to backend GeoJSON property names
+const attributeMapping: Record<string, string> = {
+  ph: "pH",
+  tds: "TDS_mg_L_",
+  ec: "EC__S_cm_",
+  temperature: "Temperatur",
+  turbidity: "Turbidity_",
+  dissolvedOxygen: "DO_mg_L_",
+  orp: "ORP",
+  tss: "TSS_mg_L_",
+  cod: "COD_mg_L_",
+  bod: "BOD_mg_L_",
+  ts: "TS_mg_L_",
+  chloride: "Chloride_m",
+  nitrate: "Nitrate_mg",
+  hardness: "Hardness_m",
+  faecalColiform: "Faecal_Col",
+  totalColiform: "Total_Coli",
+  wqi: "WQI",
+};
+
+const parameterLabels: Record<string, string> = {
+  ph: "pH",
+  tds: "TDS",
+  ec: "EC",
+  temperature: "Temperature",
+  turbidity: "Turbidity",
+  dissolvedOxygen: "Dissolved Oxygen",
+  orp: "ORP",
+  tss: "TSS",
+  cod: "COD",
+  bod: "BOD",
+  ts: "Total Solids",
+  chloride: "Chloride",
+  nitrate: "Nitrate",
+  hardness: "Hardness",
+  faecalColiform: "Faecal Coliform",
+  totalColiform: "Total Coliform",
+  wqi: "WQI",
+};
 
 const StretchMapComponent: React.FC = () => {
   const { selectedStretches, selectedSeason, areaConfirmed, waterQualityData } =
@@ -60,9 +102,11 @@ const StretchMapComponent: React.FC = () => {
     toggleRiverLayer,
     toggleRiverBufferLayer,
     toggleInterpolationLayer,
-    showLayerPanel,       
+    showLayerPanel,
     setShowLayerPanel,
   } = useStretchMap();
+
+  const { selectedAttribute } = useStretchChart();
 
   const mapRef = useRef<HTMLDivElement>(null);
   const [showBaseMapSelector, setShowBaseMapSelector] = useState(false);
@@ -75,6 +119,19 @@ const StretchMapComponent: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
+  // Tooltip state for hover over water quality points
+  const [tooltipData, setTooltipData] = useState<{
+    visible: boolean;
+    content: React.ReactNode;
+    top: number;
+    left: number;
+  }>({
+    visible: false,
+    content: null,
+    top: 0,
+    left: 0,
+  });
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -97,11 +154,16 @@ const StretchMapComponent: React.FC = () => {
     };
   }, []);
 
-  // Mouse move handler for coordinates and scale
+  // Mouse move handler for coordinates, scale, and hover tooltip
   useEffect(() => {
     if (!mapInstance) return;
 
     const handlePointerMove = (event: any) => {
+      if (event.dragging) {
+        setTooltipData(prev => ({ ...prev, visible: false }));
+        return;
+      }
+
       const coordinate = mapInstance.getEventCoordinate(event.originalEvent);
       if (coordinate) {
         const lonLat = toLonLat(coordinate);
@@ -109,6 +171,49 @@ const StretchMapComponent: React.FC = () => {
           lon: parseFloat(lonLat[0].toFixed(6)),
           lat: parseFloat(lonLat[1].toFixed(6)),
         });
+      }
+
+      // Feature hit detection for tooltips
+      const pixel = mapInstance.getEventPixel(event.originalEvent);
+      const feature = mapInstance.forEachFeatureAtPixel(pixel, (feat: any) => feat);
+
+      if (feature && feature.getGeometry()?.getType() === 'Point') {
+        const properties = feature.getProperties();
+
+        // Only show tooltip for water quality points (drain GeoJSON uses capital-L Location, S_No_)
+        if (properties.Location !== undefined || properties.S_No_ !== undefined) {
+          mapInstance.getTargetElement().style.cursor = 'pointer';
+
+          const activeParameter = selectedAttribute || "ph";
+          const backendKey =
+            attributeMapping[activeParameter as keyof typeof attributeMapping] || activeParameter;
+          const dataValue =
+            properties[backendKey] ?? properties[activeParameter] ?? "N/A";
+
+          const paramLabel = parameterLabels[activeParameter] || activeParameter;
+
+          setTooltipData({
+            visible: true,
+            top: pixel[1],
+            left: pixel[0],
+            content: (
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-gray-800 border-b pb-1 mb-1">
+                  {properties.Sampling || `Point ${properties.S_No_}`}
+                </span>
+                <span className="text-sm">
+                  <span className="font-medium text-gray-600">
+                    {paramLabel}:
+                  </span>{" "}
+                  {typeof dataValue === "number" ? dataValue.toFixed(2) : dataValue}
+                </span>
+              </div>
+            ),
+          });
+        }
+      } else {
+        mapInstance.getTargetElement().style.cursor = '';
+        setTooltipData(prev => ({ ...prev, visible: false }));
       }
     };
 
@@ -132,7 +237,7 @@ const StretchMapComponent: React.FC = () => {
       mapInstance.un("pointermove", handlePointerMove);
       mapInstance.un("moveend", handleMoveEnd);
     };
-  }, [mapInstance]);
+  }, [mapInstance, selectedAttribute]);
 
   // Set the map container when the ref is available
   useEffect(() => {
@@ -227,7 +332,7 @@ const StretchMapComponent: React.FC = () => {
       !isProcessing
     ) {
       setCurrentInterpolationParam(parameterKey);
-      await generateInterpolation(  
+      await generateInterpolation(
         selectedStretches,
         selectedSeason,
         parameterKey
@@ -245,7 +350,7 @@ const StretchMapComponent: React.FC = () => {
   };
 
   return (
-    <div className="relative h-full w-full bg-gray-100">
+    <div className="relative h-full w-full bg-gray-100 rounded-xl ">
       {/* Map container */}
       <div ref={mapRef} className="h-full w-full">
         {/* Loading Overlay - When Interpolation is Processing */}
@@ -324,11 +429,10 @@ const StretchMapComponent: React.FC = () => {
                   <button
                     onClick={() => setShowDropdown(!showDropdown)}
                     disabled={!areaConfirmed || selectedStretches.length === 0}
-                    className={`min-w-[250px] p-3 text-left rounded-lg border bg-white shadow-lg transition-all duration-200 flex items-center justify-between ${
-                      !areaConfirmed || selectedStretches.length === 0
-                        ? "opacity-50 cursor-not-allowed bg-gray-50"
-                        : "cursor-pointer hover:bg-gray-50"
-                    } ${showDropdown ? "border-blue-300" : "border-gray-200"}`}
+                    className={`min-w-[250px] p-3 text-left rounded-lg border bg-white/50 hover:bg-white shadow-lg transition-all duration-200 flex items-center justify-between ${!areaConfirmed || selectedStretches.length === 0
+                      ? "opacity-50 cursor-not-allowed bg-gray-50"
+                      : "cursor-pointer"
+                      } ${showDropdown ? "border-blue-300" : "border-gray-200"}`}
                   >
                     <span className="text-sm">
                       {selectedDropdownParam
@@ -336,9 +440,8 @@ const StretchMapComponent: React.FC = () => {
                         : "Select Parameter"}
                     </span>
                     <ChevronDown
-                      className={`w-4 h-4 text-gray-500 transition-transform ${
-                        showDropdown ? "rotate-180" : ""
-                      }`}
+                      className={`w-4 h-4 text-gray-500 transition-transform ${showDropdown ? "rotate-180" : ""
+                        }`}
                     />
                   </button>
 
@@ -349,11 +452,10 @@ const StretchMapComponent: React.FC = () => {
                           <button
                             key={param.key}
                             onClick={() => handleParameterSelect(param.key)}
-                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors border-b cursor-pointer border-gray-100 last:border-b-0 ${
-                              selectedDropdownParam === param.key
-                                ? "bg-blue-50 text-blue-700"
-                                : "text-gray-700"
-                            }`}
+                            className={`w-full p-3 text-left hover:bg-gray-50 transition-colors border-b cursor-pointer border-gray-100 last:border-b-0 ${selectedDropdownParam === param.key
+                              ? "bg-blue-50 text-blue-700"
+                              : "text-gray-700"
+                              }`}
                           >
                             <div className="font-medium text-sm">
                               {param.label}{" "}
@@ -370,7 +472,7 @@ const StretchMapComponent: React.FC = () => {
               {/* Layer Controls */}
               <button
                 onClick={() => setShowLayerPanel(!showLayerPanel)}
-                className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-lg border border-gray-200 transition-colors flex items-center gap-2 cursor-pointer"
+                className="bg-white/50 hover:bg-white text-gray-700 px-3 py-2 rounded-lg shadow-lg border border-gray-200 transition-colors flex items-center gap-2 cursor-pointer"
               >
                 <Layers size={16} />
                 <span className="font-medium">Layers</span>
@@ -385,7 +487,7 @@ const StretchMapComponent: React.FC = () => {
             {/* Base Map Button */}
             <button
               onClick={() => setShowBaseMapSelector(!showBaseMapSelector)}
-              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
+              className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
               title="Change Base Map"
             >
               <svg
@@ -405,9 +507,8 @@ const StretchMapComponent: React.FC = () => {
                 {baseMaps[selectedBaseMap]?.name}
               </span>
               <svg
-                className={`w-4 h-4 text-gray-600 transition-transform ${
-                  showBaseMapSelector ? "rotate-180" : ""
-                }`}
+                className={`w-4 h-4 text-gray-600 transition-transform ${showBaseMapSelector ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -422,7 +523,7 @@ const StretchMapComponent: React.FC = () => {
             </button>
 
             {showBaseMapSelector && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-xl z-20">
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white/50 hover:bg-white border border-gray-300 rounded-lg shadow-xl z-20">
                 <div className="p-2">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2 px-2">
                     Select Base Map
@@ -435,11 +536,10 @@ const StretchMapComponent: React.FC = () => {
                           changeBaseMap(key);
                           setShowBaseMapSelector(false);
                         }}
-                        className={`flex items-center gap-3 w-full p-3 rounded-md text-left transition-colors duration-200 ${
-                          selectedBaseMap === key
-                            ? "bg-blue-50 border border-blue-200 text-blue-700"
-                            : "hover:bg-gray-50 border border-transparent text-gray-700"
-                        }`}
+                        className={`flex items-center gap-3 w-full p-3 rounded-md text-left transition-colors duration-200 ${selectedBaseMap === key
+                          ? "bg-blue-50 border border-blue-200 text-blue-700"
+                          : "hover:bg-gray-50 border border-transparent text-gray-700"
+                          }`}
                       >
                         <svg
                           className="w-4 h-4 flex-shrink-0"
@@ -477,7 +577,7 @@ const StretchMapComponent: React.FC = () => {
 
         {/* Layer Panel */}
         {showLayerPanel && (
-          <div className="absolute top-2 right-40 bg-white rounded-lg shadow-xl border border-gray-200 w-80 z-20 cursor-pointer">
+          <div className="absolute top-2 right-40 bg-white/50 hover:bg-white rounded-lg shadow-xl border border-gray-200 w-80 z-20 cursor-pointer">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -593,24 +693,24 @@ const StretchMapComponent: React.FC = () => {
                 </div>
 
                 {currentInterpolationParam && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-red-500"></div>
-                        <span className="text-sm font-medium text-gray-700">
-                          {currentInterpolationParam} Interpolation
-                        </span>
-                      </div>
-                      <button
-                        onClick={toggleInterpolationLayer}
-                        className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                      >
-                        {isInterpolationDisplayed ? (
-                          <EyeOff size={16} />
-                        ) : (
-                          <Eye size={16} />
-                        )}
-                      </button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-red-500"></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {currentInterpolationParam} Interpolation
+                      </span>
                     </div>
+                    <button
+                      onClick={toggleInterpolationLayer}
+                      className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      {isInterpolationDisplayed ? (
+                        <EyeOff size={16} />
+                      ) : (
+                        <Eye size={16} />
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -630,15 +730,14 @@ const StretchMapComponent: React.FC = () => {
 
         {/* Map Controls - Bottom Right */}
         <div
-          className={`absolute z-10 flex flex-col gap-2 ${
-            isFullscreen ? "bottom-10 right-4" : "bottom-10 right-4"
-          }`}
+          className={`absolute z-10 flex flex-col gap-2 ${isFullscreen ? "bottom-10 right-4" : "bottom-10 right-4"
+            }`}
         >
           {/* Zoom to Selection Button */}
           {(selectedStretches.length > 0 || hasMapLayers) && (
             <button
               onClick={zoomToCurrentExtent}
-              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+              className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
               title="Zoom to Selected Area"
             >
               <svg
@@ -660,7 +759,7 @@ const StretchMapComponent: React.FC = () => {
           {/* Reset View Button */}
           <button
             onClick={resetView}
-            className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+            className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
             title="Reset to Default View"
           >
             <svg
@@ -681,7 +780,7 @@ const StretchMapComponent: React.FC = () => {
           {/* Fullscreen Toggle */}
           <button
             onClick={toggleFullscreen}
-            className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+            className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             <svg
@@ -712,11 +811,10 @@ const StretchMapComponent: React.FC = () => {
         {/* Opacity Slider Control - Enhanced Version */}
         {isInterpolationDisplayed && (
           <div
-            className={`absolute z-10 ${
-              isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
-            }`}
+            className={`absolute z-10 ${isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
+              }`}
           >
-            <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px]">
+            <div className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px] transition-colors duration-300">
               {/* Header */}
               <div className="flex items-center gap-3 mb-3">
                 <svg
@@ -760,11 +858,9 @@ const StretchMapComponent: React.FC = () => {
                     }
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                     style={{
-                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${
-                        interpolationOpacity * 100
-                      }%, #e5e7eb ${
-                        interpolationOpacity * 100
-                      }%, #e5e7eb 100%)`,
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
+                        }%, #e5e7eb ${interpolationOpacity * 100
+                        }%, #e5e7eb 100%)`,
                     }}
                   />
                   <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -780,7 +876,7 @@ const StretchMapComponent: React.FC = () => {
 
         {/* Coordinates and Scale Display - Bottom Left */}
         {coordinates && (
-          <div className="absolute z-10 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg p-3 shadow-lg bottom-2 left-2">
+          <div className="absolute z-10 bg-white/90 border border-gray-300 rounded-lg p-3 shadow-lg bottom-2 left-2">
             <div className="space-y-1 text-xs">
               {/* Coordinates */}
               <div className="flex items-center gap-2">
@@ -809,7 +905,7 @@ const StretchMapComponent: React.FC = () => {
               </div>
 
               {/* Scale */}
-              {scale && (
+              {/* {scale && (
                 <div className="flex items-center gap-2">
                   <svg
                     className="w-3 h-3 text-gray-500"
@@ -828,10 +924,21 @@ const StretchMapComponent: React.FC = () => {
                     Scale: {scale}
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         )}
+        {/* Tooltip Element */}
+        <div
+          className={`absolute bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 z-50 pointer-events-none transition-opacity duration-200 min-w-[150px] ${tooltipData.visible ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            left: tooltipData.left + 15,
+            top: tooltipData.top,
+            transform: 'translate(0, -50%)',
+          }}
+        >
+          {tooltipData.content}
+        </div>
       </div>
     </div>
   );

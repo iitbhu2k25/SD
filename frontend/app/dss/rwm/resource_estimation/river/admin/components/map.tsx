@@ -8,12 +8,11 @@ import { useMap } from "@/contexts/riverwater_assessment/admin/MapContext";
 import { useLocation } from "@/contexts/riverwater_assessment/admin/LocationContext";
 import {
   Layers,
-  ChevronDown,
   EyeOff,
-  AlertCircle,
-  Loader2,
   Eye,
+  ChevronDown,
 } from "lucide-react";
+import { useChart } from "@/contexts/riverwater_assessment/admin/ChartContext";
 import SimpleLegend from "../../drain/components/legend";
 
 type BaseMapDefinition = {
@@ -55,7 +54,7 @@ const baseLayersConfig: BaseLayersConfig = {
 const MapComponent: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const basemapPanelRef = useRef<HTMLDivElement>(null);
-  const riverPanelRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Use MapContext
   const {
@@ -67,18 +66,13 @@ const MapComponent: React.FC = () => {
     fetchedData,
     isDataLoading,
     dataError,
-    addRiverLayers,
-    removeRiverLayers,
     isWaterQualityDisplayed,
     toggleWaterQualityPoints,
     isInterpolationDisplayed,
     isInterpolationLoading,
     interpolationError,
     toggleInterpolationLayer,
-    addInterpolationLayer, // ADD THIS
     removeInterpolationLayer,
-    addRasterLayer,
-    removeRasterLayer,
     legendData,
     currentInterpolationParam,
     attributeMapping,
@@ -106,48 +100,37 @@ const MapComponent: React.FC = () => {
 
   // UI State
   const [isBasemapPanelOpen, setIsBasemapPanelOpen] = useState<boolean>(false);
-  const [isRiverPanelOpen, setIsRiverPanelOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [coordinates, setCoordinates] = useState<{
     lat: number;
     lon: number;
   } | null>(null);
   const [scale, setScale] = useState<string>("");
-  const [riverLayersVisible, setRiverLayersVisible] = useState<boolean>(true);
   const interpolationPanelRef = useRef<HTMLDivElement>(null);
   const [isInterpolationPanelOpen, setIsInterpolationPanelOpen] =
     useState<boolean>(false);
-
-  const [selectedRasterParam, setSelectedRasterParam] = useState<string | null>(
-    null
-  );
-  const [isLoadingRaster, setIsLoadingRaster] = useState(false);
-  const [rasterError, setRasterError] = useState<string | null>(null);
-
-  const [selectedDropdownParam, setSelectedDropdownParam] =
-    useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedDropdownParam, setSelectedDropdownParam] = useState("");
   const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const { selectedAttribute } = useChart();
+  const waterQualityParameters = Object.keys(attributeMapping).map((key) => {
+    const unitMatch = key.match(/\(([^)]+)\)/);
+    return {
+      key,
+      label: key.replace(/\s*\([^)]+\)\s*/g, "").trim(),
+      unit: unitMatch?.[1] || "",
+    };
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-
       // Handle basemap panel
       if (
         basemapPanelRef.current &&
         !basemapPanelRef.current.contains(event.target as Node)
       ) {
         setIsBasemapPanelOpen(false);
-      }
-
-      // Handle river panel
-      if (
-        riverPanelRef.current &&
-        !riverPanelRef.current.contains(event.target as Node)
-      ) {
-        setIsRiverPanelOpen(false);
       }
 
       // Handle interpolation panel
@@ -158,15 +141,18 @@ const MapComponent: React.FC = () => {
         setIsInterpolationPanelOpen(false);
       }
 
-      // Handle raster dropdown
-      if (showDropdown && !target.closest(".relative")) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setShowDropdown(false);
       }
+
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showDropdown]); // Only depend on showDropdown
+  }, []);
 
   // Initialize map container
   useEffect(() => {
@@ -176,11 +162,29 @@ const MapComponent: React.FC = () => {
     return () => setMapContainer(null);
   }, [setMapContainer]);
 
-  // Mouse move handler for coordinates and scale
+  // Mouse move handler for coordinates and scale, plus tooltip
+  // Add tooltip state
+  const [tooltipData, setTooltipData] = useState<{
+    visible: boolean;
+    content: React.ReactNode;
+    top: number;
+    left: number;
+  }>({
+    visible: false,
+    content: null,
+    top: 0,
+    left: 0,
+  });
+
   useEffect(() => {
     if (!mapInstance) return;
 
     const handlePointerMove = (event: any) => {
+      if (event.dragging) {
+        setTooltipData(prev => ({ ...prev, visible: false }));
+        return;
+      }
+
       const coordinate = mapInstance.getEventCoordinate(event.originalEvent);
       if (coordinate) {
         const lonLat = toLonLat(coordinate);
@@ -188,6 +192,59 @@ const MapComponent: React.FC = () => {
           lon: parseFloat(lonLat[0].toFixed(6)),
           lat: parseFloat(lonLat[1].toFixed(6)),
         });
+      }
+
+      // Feature hit detection for tooltips
+      const pixel = mapInstance.getEventPixel(event.originalEvent);
+      const feature = mapInstance.forEachFeatureAtPixel(pixel, (feat) => feat);
+
+      if (feature && feature.getGeometry()?.getType() === 'Point') {
+        const properties = feature.getProperties();
+
+        // Only show tooltip for our water quality points 
+        if (properties.location !== undefined || properties.id !== undefined) {
+          mapInstance.getTargetElement().style.cursor = 'pointer';
+
+          setTooltipData({
+            visible: true,
+            top: pixel[1],
+            left: pixel[0],
+            content: (() => {
+              // Keep point tooltip values tied to chart-selected parameter.
+              const activeParameter = selectedAttribute || "ph";
+              const backendKey =
+                attributeMapping[
+                  activeParameter as keyof typeof attributeMapping
+                ] || activeParameter;
+              const dataValue =
+                properties[backendKey] ?? properties[activeParameter] ?? "N/A";
+
+              const paramLabel =
+                activeParameter === "dissolvedOxygen"
+                  ? "Dissolved Oxygen"
+                  : activeParameter === "ph"
+                    ? "pH"
+                    : activeParameter;
+
+              return (
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-gray-800 border-b pb-1 mb-1">
+                    {properties.name || properties.originalSampling || `Point ${properties.id}`}
+                  </span>
+                  <span className="text-sm">
+                    <span className="font-medium text-gray-600">
+                      {paramLabel}:
+                    </span>{" "}
+                    {typeof dataValue === "number" ? dataValue.toFixed(2) : dataValue}
+                  </span>
+                </div>
+              );
+            })(),
+          });
+        }
+      } else {
+        mapInstance.getTargetElement().style.cursor = '';
+        setTooltipData(prev => ({ ...prev, visible: false }));
       }
     };
 
@@ -211,7 +268,11 @@ const MapComponent: React.FC = () => {
       mapInstance.un("pointermove", handlePointerMove);
       mapInstance.un("moveend", handleMoveEnd);
     };
-  }, [mapInstance]);
+  }, [
+    mapInstance,
+    selectedAttribute,
+    attributeMapping,
+  ]);
 
   // Fullscreen handling
   useEffect(() => {
@@ -253,143 +314,87 @@ const MapComponent: React.FC = () => {
     }
   };
 
-  const toggleRiverLayers = () => {
-    if (riverLayersVisible) {
-      removeRiverLayers();
-    } else {
-      addRiverLayers();
-    }
-    setRiverLayersVisible(!riverLayersVisible);
-  };
-
   const hasRiverData = fetchedData.riverData || fetchedData.riverBufferData;
-  const hasWaterQualityData =
-    Array.isArray(waterQualityData) && waterQualityData.length > 0;
+  const hasWaterQualityData = !!waterQualityData?.features?.length;
 
-  const handleGenerateInterpolation = () => {
-    if (selectedDropdownParam) {
-      toggleInterpolationLayer(
-        selectedDropdownParam,
-        "subdistbased", // Using default analysis type
-        selectedSeason || "premonsoon" // Using selectedSeason from LocationContext
-      );
-    }
-    setIsInterpolationPanelOpen(false);
-  };
+  const handleParameterSelect = (parameterKey: string) => {
+    if (!areaConfirmed || selectedSubDistricts.length === 0) return;
 
-  // Handle raster parameter selection
-  const handleRasterParameterSelect = async (parameterKey: string) => {
-    if (!areaConfirmed || selectedSubDistricts.length === 0) {
-      setRasterError(
-        "Please confirm area selection and select subdistricts first"
-      );
-      return;
-    }
-
-    setIsLoadingRaster(true);
-    setRasterError(null);
     setSelectedDropdownParam(parameterKey);
     setShowDropdown(false);
-
-    try {
-      if (isInterpolationDisplayed) {
-        console.log("Removing existing interpolation layer");
-        removeInterpolationLayer();
-      }
-      // Your GeoServer URL - adjust this to match your setup
-      const geoserverUrl =
-        `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs`;
-
-      // You can also add color scheme configuration here
-      const colorScheme = {
-        parameter: parameterKey,
-        colors: ["#blue", "#green", "#yellow", "#orange", "#red"], // Default colors
-        labels: ["Low", "Medium-Low", "Medium", "Medium-High", "High"],
-        classes: 5,
-      };
-
-      toggleInterpolationLayer(
-        parameterKey,
-        "subdistbased",
-        selectedSeason || "premonsoon"
-      );
-      console.log(`Raster layer added for ${parameterKey}`);
-    } catch (error) {
-      console.log("Error adding raster layer:", error);
-      setRasterError(`Failed to load ${parameterKey} raster layer`);
-    } finally {
-      setIsLoadingRaster(false);
-    }
+    toggleInterpolationLayer(
+      parameterKey,
+      "subdistbased",
+      selectedSeason || "premonsoon"
+    );
   };
 
-  // Handle removing raster layer
-  const handleRemoveRaster = () => {
-    removeRasterLayer();
-    setSelectedRasterParam(null);
-    setRasterError(null);
+  const getParameterLabel = (key: string) => {
+    const param = waterQualityParameters.find((item) => item.key === key);
+    return param ? `${param.label}${param.unit ? ` (${param.unit})` : ""}` : key;
   };
 
   return (
     <>
       <div
-        className={`relative ${
-          isFullscreen ? "fixed inset-0 z-50" : "w-full h-full"
-        }`}
+        className={`relative ${isFullscreen ? "fixed inset-0 z-50" : "w-full h-full"
+          }`}
       >
         <div
           className="relative w-full h-full rounded-lg overflow-hidden border border-gray-300"
           ref={mapRef}
         >
-          {/* Simple Parameter Dropdown - Top Left - Updated for fullscreen */}
           <div
-            className={`absolute z-[10] flex gap-2 ${
-              isFullscreen ? "top-2 left-10" : "top-2 left-10"
-            }`}
+            className={`absolute z-[10] flex gap-2 ${isFullscreen ? "top-2 left-10" : "top-2 left-10"
+              }`}
           >
-            <div className="relative">
-              <button
-                onClick={() => setShowDropdown(!showDropdown)}
-                disabled={!areaConfirmed || selectedSubDistricts.length === 0}
-                className={`min-w-[250px] p-3 text-left rounded-lg border bg-white shadow-lg transition-all duration-200 flex items-center justify-between ${
-                  !areaConfirmed || selectedSubDistricts.length === 0
-                    ? "opacity-50 cursor-not-allowed bg-gray-50"
-                    : "cursor-pointer hover:bg-gray-50"
-                } ${showDropdown ? "border-blue-300" : "border-gray-200"}`}
-              >
-                <span className="text-sm">
-                  {selectedDropdownParam || "Select Parameter"}
-                </span>
-                <ChevronDown
-                  className={`w-4 h-4 text-gray-500 transition-transform ${
-                    showDropdown ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+            {areaConfirmed && (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  disabled={!areaConfirmed || selectedSubDistricts.length === 0}
+                  className={`min-w-[250px] p-3 text-left rounded-lg border bg-white/50 hover:bg-white shadow-lg transition-all duration-200 flex items-center justify-between ${
+                    !areaConfirmed || selectedSubDistricts.length === 0
+                      ? "opacity-50 cursor-not-allowed bg-gray-50"
+                      : "cursor-pointer"
+                  } ${showDropdown ? "border-blue-300" : "border-gray-200"}`}
+                >
+                  <span className="text-sm">
+                    {selectedDropdownParam
+                      ? getParameterLabel(selectedDropdownParam)
+                      : "Select Parameter"}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-500 transition-transform ${showDropdown ? "rotate-180" : ""
+                      }`}
+                  />
+                </button>
 
-              {/* Dropdown Options */}
-              {showDropdown && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
-                  {Object.keys(attributeMapping).map((paramKey) => (
-                    <button
-                      key={paramKey}
-                      onClick={() => handleRasterParameterSelect(paramKey)}
-                      className={`w-full p-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                        selectedDropdownParam === paramKey
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                    {waterQualityParameters.map((param) => (
+                      <button
+                        key={param.key}
+                        onClick={() => handleParameterSelect(param.key)}
+                        className={`w-full p-3 text-left hover:bg-gray-50 transition-colors border-b cursor-pointer border-gray-100 last:border-b-0 ${selectedDropdownParam === param.key
                           ? "bg-blue-50 text-blue-700"
                           : "text-gray-700"
-                      }`}
-                    >
-                      <div className="font-medium text-sm">{paramKey}</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                          }`}
+                      >
+                        <div className="font-medium text-sm">
+                          {param.label} {param.unit ? `(${param.unit})` : ""}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Layer Controls Button */}
             <button
               onClick={() => setShowLayerPanel(!showLayerPanel)}
-              className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg shadow-lg border border-gray-200 transition-colors flex items-center gap-2 cursor-pointer"
+              className="bg-white/50 hover:bg-white text-gray-700 px-3 py-2 rounded-lg shadow-lg border border-gray-200 transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Layers size={16} />
               <span className="font-medium">Layers</span>
@@ -398,7 +403,7 @@ const MapComponent: React.FC = () => {
 
           {/* Loading Overlay */}
           {isDataLoading && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-30 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/20 z-30 flex items-center justify-center">
               <div className="bg-white rounded-lg p-6 shadow-xl flex items-center gap-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 <span className="text-gray-700 font-medium">
@@ -409,7 +414,7 @@ const MapComponent: React.FC = () => {
           )}
 
           {isInterpolationLoading && (
-            <div className="absolute inset-0 bg-black/20 backdrop-blur-sm z-40 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/20 z-40 flex items-center justify-center">
               <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4 min-w-[350px]">
                 <div className="flex items-center gap-3">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -477,57 +482,10 @@ const MapComponent: React.FC = () => {
             selectedSubDistricts.length > 0 &&
             hasWaterQualityData && (
               <div
-                className={`absolute z-10 ${
-                  isFullscreen ? "top-20 left-4" : "top-20 left-4"
-                }`}
+                className={`absolute z-10 ${isFullscreen ? "top-20 left-4" : "top-20 left-4"
+                  }`}
                 ref={interpolationPanelRef}
               >
-                <button
-                  onClick={() =>
-                    setIsInterpolationPanelOpen(!isInterpolationPanelOpen)
-                  }
-                  className={`bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2 ${
-                    isInterpolationDisplayed
-                      ? "border-l-4 border-l-green-500"
-                      : ""
-                  }`}
-                  title="Interpolation Controls"
-                >
-                  <svg
-                    className="w-5 h-5 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v4m0 0h-4m4 0l-5-5"
-                    />
-                  </svg>
-                  <span className="text-sm font-medium text-red-700">
-                    Interpolation
-                  </span>
-                  {isInterpolationDisplayed && (
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  )}
-                  <svg
-                    className={`w-4 h-4 text-gray-600 transition-transform ${
-                      isInterpolationPanelOpen ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
 
                 {isInterpolationPanelOpen && (
                   <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-300 rounded-lg shadow-xl z-20">
@@ -575,45 +533,13 @@ const MapComponent: React.FC = () => {
                             <label className="block text-xs font-medium text-gray-600 mb-1">
                               Water Quality Parameter
                             </label>
-                            <select
-                              value={selectedDropdownParam}
-                              onChange={(e) => {
-                                setSelectedDropdownParam(e.target.value);
-                                setShowDropdown(false);
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                            >
-                              <option value="">Select Parameter</option>
-                              {Object.keys(attributeMapping).map((paramKey) => (
-                                <option key={paramKey} value={paramKey}>
-                                  {paramKey}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
+                              {selectedDropdownParam
+                                ? getParameterLabel(selectedDropdownParam)
+                                : "Select parameter from top dropdown"}
+                            </div>
                           </div>
-
-                          {/* Action Buttons */}
                           <div className="flex gap-2 pt-2">
-                            <button
-                              onClick={handleGenerateInterpolation}
-                              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                                />
-                              </svg>
-                              Generate
-                            </button>
-
                             {isInterpolationDisplayed && (
                               <button
                                 onClick={() => {
@@ -638,12 +564,12 @@ const MapComponent: React.FC = () => {
                           {/* Info */}
                           <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
                             <p className="text-xs text-gray-600">
-                              Interpolation will be generated for the{" "}
+                              Interpolation auto-generates for the{" "}
                               <strong>{selectedSeason}</strong> season using{" "}
                               <strong>
                                 {selectedDropdownParam || "selected parameter"}
                               </strong>{" "}
-                              data within the river buffer zones.
+                              when you select a parameter from the top dropdown.
                             </p>
                           </div>
                         </div>
@@ -657,11 +583,10 @@ const MapComponent: React.FC = () => {
           {/* Opacity Slider Control - Add this AFTER the Interpolation Control Panel */}
           {isInterpolationDisplayed && (
             <div
-              className={`absolute z-[10] ${
-                isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
-              }`}
+              className={`absolute z-[10] ${isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
+                }`}
             >
-              <div className="bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px]">
+              <div className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px] transition-colors duration-300">
                 <div className="flex items-center gap-3 mb-3">
                   <svg
                     className="w-5 h-5 text-blue-600"
@@ -703,11 +628,9 @@ const MapComponent: React.FC = () => {
                       }
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                       style={{
-                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${
-                          interpolationOpacity * 100
-                        }%, #e5e7eb ${
-                          interpolationOpacity * 100
-                        }%, #e5e7eb 100%)`,
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
+                          }%, #e5e7eb ${interpolationOpacity * 100
+                          }%, #e5e7eb 100%)`,
                       }}
                     />
                     <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -723,14 +646,13 @@ const MapComponent: React.FC = () => {
 
           {/* Basemap Selector */}
           <div
-            className={`absolute z-10 ${
-              isFullscreen ? "top-2 right-4" : "top-2 right-4"
-            }`}
+            className={`absolute z-10 ${isFullscreen ? "top-2 right-4" : "top-2 right-4"
+              }`}
             ref={basemapPanelRef}
           >
             <button
               onClick={() => setIsBasemapPanelOpen(!isBasemapPanelOpen)}
-              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
+              className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
               title="Change Base Map"
             >
               <svg
@@ -750,9 +672,8 @@ const MapComponent: React.FC = () => {
                 {baseLayersConfig[selectedBaseMap]?.name}
               </span>
               <svg
-                className={`w-4 h-4 text-gray-600 transition-transform ${
-                  isBasemapPanelOpen ? "rotate-180" : ""
-                }`}
+                className={`w-4 h-4 text-gray-600 transition-transform ${isBasemapPanelOpen ? "rotate-180" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -767,7 +688,7 @@ const MapComponent: React.FC = () => {
             </button>
 
             {isBasemapPanelOpen && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-xl z-20">
+              <div className="absolute top-full right-0 mt-2 w-52 bg-white/50 hover:bg-white border border-gray-300 rounded-lg shadow-xl z-20">
                 <div className="p-2">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2 px-2">
                     Select Base Map
@@ -777,11 +698,10 @@ const MapComponent: React.FC = () => {
                       <button
                         key={key}
                         onClick={() => handleBaseMapChange(key)}
-                        className={`flex items-center gap-3 w-full p-3 rounded-md text-left transition-colors duration-200 ${
-                          selectedBaseMap === key
-                            ? "bg-blue-50 border border-blue-200 text-blue-700"
-                            : "hover:bg-gray-50 border border-transparent text-gray-700"
-                        }`}
+                        className={`flex items-center gap-3 w-full p-3 rounded-md text-left transition-colors duration-200 ${selectedBaseMap === key
+                          ? "bg-blue-50 border border-blue-200 text-blue-700"
+                          : "hover:bg-gray-50 border border-transparent text-gray-700"
+                          }`}
                       >
                         <svg
                           className="w-4 h-4 flex-shrink-0"
@@ -818,7 +738,7 @@ const MapComponent: React.FC = () => {
 
           {/* Layer Panel */}
           {showLayerPanel && (
-            <div className="absolute top-2 right-40 bg-white rounded-lg shadow-xl border border-gray-200 w-80 z-20">
+            <div className="absolute top-2 left-[56%] -translate-x-1/2 bg-white/50 hover:bg-white rounded-lg shadow-xl border border-gray-200 w-60 z-20">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -826,7 +746,7 @@ const MapComponent: React.FC = () => {
                   </h3>
                   <button
                     onClick={() => setShowLayerPanel(false)}
-                    className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                    className="text-gray-400 hover:text-red-600 hover:bg-red-100 w-7 h-7 flex items-center justify-center rounded-full cursor-pointer text-lg leading-none"
                   >
                     ×
                   </button>
@@ -943,40 +863,39 @@ const MapComponent: React.FC = () => {
 
           {/* Map Controls */}
           <div
-            className={`absolute z-10 flex flex-col gap-2 ${
-              isFullscreen ? "bottom-10 right-4" : "bottom-10 right-4"
-            }`}
+            className={`absolute z-10 flex flex-col gap-2 ${isFullscreen ? "bottom-10 right-4" : "bottom-10 right-4"
+              }`}
           >
             {/* Zoom to Selection Button */}
             {(selectedState ||
               selectedDistricts.length > 0 ||
               selectedSubDistricts.length > 0 ||
               hasRiverData) && (
-              <button
-                onClick={zoomToCurrentExtent}
-                className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
-                title="Zoom to Selected Area"
-              >
-                <svg
-                  className="w-5 h-5 text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                <button
+                  onClick={zoomToCurrentExtent}
+                  className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+                  title="Zoom to Selected Area"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
-                  />
-                </svg>
-              </button>
-            )}
+                  <svg
+                    className="w-5 h-5 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                    />
+                  </svg>
+                </button>
+              )}
 
             {/* Reset View Button */}
             <button
               onClick={resetView}
-              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+              className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
               title="Reset to India View"
             >
               <svg
@@ -997,7 +916,7 @@ const MapComponent: React.FC = () => {
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
-              className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
+              className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
               title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               <svg
@@ -1057,9 +976,8 @@ const MapComponent: React.FC = () => {
 
           {/* Coordinates and Scale Display */}
           <div
-            className={`absolute z-10 bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg p-3 shadow-lg ${
-              isFullscreen ? "bottom-2 left-2" : "bottom-2 left-2"
-            }`}
+            className={`absolute z-10 bg-white/90 border border-gray-300 rounded-lg p-3 shadow-lg ${isFullscreen ? "bottom-2 left-2" : "bottom-2 left-2"
+              }`}
           >
             <div className="space-y-1 text-xs">
               {coordinates && (
@@ -1084,11 +1002,11 @@ const MapComponent: React.FC = () => {
                     />
                   </svg>
                   <span className="text-gray-700 font-mono">
-                    {coordinates.lat.toFixed(6)}°, {coordinates.lon.toFixed(6)}°
+                    {coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
                   </span>
                 </div>
               )}
-              {scale && (
+              {/* {scale && (
                 <div className="flex items-center gap-2">
                   <svg
                     className="w-3 h-3 text-gray-500"
@@ -1107,7 +1025,7 @@ const MapComponent: React.FC = () => {
                     Scale: {scale}
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -1137,8 +1055,21 @@ const MapComponent: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Tooltip Element */}
+          <div
+            className={`absolute bg-white/95 backdrop-blur-sm border border-gray-200 shadow-xl rounded-lg p-3 z-50 pointer-events-none transition-opacity duration-200 min-w-[150px] ${tooltipData.visible ? 'opacity-100' : 'opacity-0'
+              }`}
+            style={{
+              left: tooltipData.left + 15,
+              top: tooltipData.top,
+              transform: 'translate(0, -50%)',
+            }}
+          >
+            {tooltipData.content}
+          </div>
         </div>
-      </div>
+      </div >
     </>
   );
 };

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 
 interface Option {
   value: string;
@@ -33,16 +33,23 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   const triggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredOptions = useMemo(
+    () =>
+      options.filter((option) =>
+        option.label.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [options, searchQuery]
   );
 
+  const allowedOptions = useMemo(
+    () => filteredOptions.filter((option) => !option.disabled),
+    [filteredOptions]
+  );
 
-  const allowedOptions = filteredOptions.filter(o => !o.disabled);
-
-  const allSelected =
-  allowedOptions.length > 0 &&
-  selectedValues.length === allowedOptions.length;
+  const allSelected = useMemo(
+    () => allowedOptions.length > 0 && selectedValues.length === allowedOptions.length,
+    [allowedOptions.length, selectedValues.length]
+  );
 
 
   // Calculate dropdown position based on available space
@@ -105,12 +112,12 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
   // Handle select all
   const handleSelectAll = () => {
-  if (allSelected) {
-    onChange([]);
-  } else {
-    onChange(allowedOptions.map(o => o.value));
-  }
-};
+    if (allSelected) {
+      onChange([]);
+    } else {
+      onChange(allowedOptions.map((option) => option.value));
+    }
+  };
 
   // Handle individual option selection
   const handleOptionSelect = (value: string) => {
@@ -122,7 +129,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   };
 
   // Format display text
-  const getDisplayText = () => {
+  const displayText = useMemo(() => {
     if (selectedValues.length === 0) {
       return placeholder;
     }
@@ -139,10 +146,10 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
     }
 
     return `${selectedValues.length} ${label}s selected`;
-  };
+  }, [selectedValues, placeholder, allSelected, label, options]);
 
   // Get dropdown positioning classes
-  const getDropdownClasses = () => {
+  const dropdownClasses = useMemo(() => {
     const baseClasses =
       "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
 
@@ -151,26 +158,26 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
     } else {
       return `${baseClasses} top-full mt-1`;
     }
-  };
+  }, [dropdownPosition]);
 
   return (
     <div className="relative" ref={dropdownRef}>
       {label && (
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
           {label}:
         </label>
       )}
       <div
         ref={triggerRef}
-        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
+        className={`flex w-full cursor-pointer items-center justify-between rounded-md border border-blue-300 px-2 py-2 text-sm shadow-sm ${
           disabled
             ? "bg-gray-100 cursor-not-allowed"
-            : "bg-white hover:border-blue-600"
+            : "bg-white hover:border-blue-500"
         }`}
         onClick={toggleDropdown}
       >
         <span className={selectedValues.length === 0 ? "text-gray-400" : ""}>
-          {getDisplayText()}
+          {displayText}
         </span>
         <svg
           className={`w-4 h-4 ml-2 transition-transform ${
@@ -190,7 +197,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
       </div>
 
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
+        <div className={dropdownClasses}>
           {/* Search box */}
           <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
             <div className="relative">
