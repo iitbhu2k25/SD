@@ -19,7 +19,7 @@
 
 /fast_m/__pycache__/
 /fast_m/temp/
-/fast_m/.env
+/fast_m/.fastmdb.env
 /fast_m/media/
 /fast_m/media.zip
 # Docker related

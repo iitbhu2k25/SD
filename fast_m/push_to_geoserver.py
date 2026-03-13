@@ -2,10 +2,10 @@ import requests
 from pathlib import Path
 
 # GeoServer config
-GEOSERVER_URL = "http://localhost:9090/geoserver/rest"
+GEOSERVER_URL = "http://geoserver:8080/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
-WORKSPACE = "myworkspace"
+WORKSPACE = "django_workspace"
 
 # Directory containing all shapefile ZIPs
 ZIP_DIR = Path("media/gwa_data/shp_zip")

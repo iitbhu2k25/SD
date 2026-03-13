@@ -1,33 +1,51 @@
-# Base image
 FROM python:3.11-slim
 
-# Set working directory
-WORKDIR /home/app
-
-# Ensure Python can find local modules
-ENV PYTHONPATH=/home/app
+ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/home/app
 
-# Install system dependencies
+
+RUN echo "deb http://deb.debian.org/debian bookworm contrib" >> /etc/apt/sources.list
+
+
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+
+
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
     gdal-bin \
     libgdal-dev \
+    libproj-dev \
+    libpq-dev \
+    binutils \
+    gcc \
+    build-essential \
     curl \
+    wget \
+    ttf-mscorefonts-installer \
+    fontconfig \
+    && fc-cache -f -v \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+ENV GDAL_CONFIG=/usr/bin/gdal-config
+
+
+WORKDIR /home/app
+
+
+RUN python -m pip install --upgrade pip setuptools wheel
+
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip
+
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
-COPY . .
 
-# Expose FastAPI port
-EXPOSE 6500
+RUN useradd -m appuser && chown -R appuser:appuser /home/app
+USER appuser
 
-# Run FastAPI app
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "6500", "--reload"]
+EXPOSE 7100
