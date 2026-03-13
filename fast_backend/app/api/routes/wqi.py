@@ -3,12 +3,11 @@ from app.dependency.token_dependency import validate_user
 from typing import List
 from app.database.config.dependency import db_dependency
 from app.api.schema.wqi import Well_input,Well_response,WQIOperation
-from app.api.service.wqi.water_quality import WQ_Index
+from app.api.service.celery.wqi.water_quality import WQ_Index
 from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
 import asyncio
-from app.conf.settings import Settings
-from app.conf.redis import get_redis
+from app.conf.redis.redis_manager import redis_manager
 from typing import Annotated
 router=APIRouter()
 connection_manager=ConnectionManager()
@@ -35,7 +34,7 @@ async def groundwater_interpolation(websocket: WebSocket, task_id: str):
         await asyncio.sleep(2)
         await safe_send(websocket, {"state": "STARTED"})
         while True:
-            data = await get_redis.get(task_id)
+            data = await redis_manager.get(task_id)
             if data is None:
                 if last_state != "NOT_FOUND":
                     await safe_send(websocket, {"state": "NOT_FOUND"})
@@ -43,7 +42,7 @@ async def groundwater_interpolation(websocket: WebSocket, task_id: str):
             else:
                 if data != last_state:
                     if data == "Done":
-                        result = await get_redis.hgetall(task_id + "_Result")
+                        result = await redis_manager.hgetall(task_id + "_Result")
                         await safe_send(websocket, {
                             "state": "completed",
                             "result": result

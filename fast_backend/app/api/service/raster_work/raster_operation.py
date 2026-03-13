@@ -42,10 +42,10 @@ from app.utils.name import Unique_name
 from app.api.exception.exceptions import CustomException
 
 from .raster_resize_test import dry_run_resample
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud
 from enum import Enum
-from app.conf.redis import get_redis
+from app.conf.redis.redis_manager import redis_manager
 
 class EPSG(Enum):
     WGS84 = 4326
@@ -61,7 +61,7 @@ class EPSG(Enum):
 class RasterOperation:
 
     def __init__(self):
-        self.get_redis=get_redis
+        self.get_redis=redis_manager
         self.temp_dir = Path(Settings().TEMP_DIR+"/raster_tools")
         self.chunk_dir=Path(Settings().TEMP_DIR+"/chunk_dir")
         os.makedirs(self.temp_dir, exist_ok=True)
@@ -70,8 +70,8 @@ class RasterOperation:
         self.geo=Geoserver()
         self.workspace="raster_work"
         self.default_sld="/home/app/media/Rajat_data/default_sld.xml"
-    def _get_file_path(self, file_id: str) -> Path:
-        file_path = self.get_redis.get(f"raster:{file_id}")
+    async def _get_file_path(self, file_id: str) -> Path:
+        file_path = await self.get_redis.get(f"raster:{file_id}")
         if not file_path:
             raise ValueError("Invalid or expired file_id")
         file_path = Path(file_path)
@@ -276,8 +276,8 @@ class RasterOperation:
         return layer_name
     
     async def _make_raster_info(self,db:Session, file_id: str, file_name: str = None, compute_stats: bool = True) -> Dict[str, Any]:
-        file_path = self._get_file_path(file_id)
-        layer_name=await self._upload_geoserver(file_path)
+        file_path = await self._get_file_path(file_id)
+        layer_name= await self._upload_geoserver(file_path)
         rasteroperSchemaObj=rasteroperSchema(
             file_id=file_id,
             layer_name=layer_name,
@@ -321,7 +321,7 @@ class RasterOperation:
             shutil.copyfileobj(file.file, buffer)
 
         # Store path in Redis for 3 hours
-        self.get_redis.setex(f"raster:{file_id}", 10800, str(file_path))
+        await self.get_redis.setex(f"raster:{file_id}", 10800, str(file_path))
         await self._make_raster_info(db,file_id,file_name.split(".")[0])
         return file_id
 
@@ -388,7 +388,7 @@ class RasterOperation:
 
 
         shutil.rmtree(chunk_dir)
-        self.get_redis.setex(f"raster:{file_id}", 10800, str(output_path)) 
+        await self.get_redis.setex(f"raster:{file_id}", 10800, str(output_path)) 
         layer_name=await self._upload_geoserver(output_path)
         return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
 
@@ -399,11 +399,11 @@ class RasterOperation:
             raise CustomException(status_code=404,detail="File not found")
         return {"raster_info":resp1,"raster_meta":resp2}
 
-    def reprojection(self,db:Session,payload:RasterReproject):
+    async def reprojection(self,db:Session,payload:RasterReproject):
         try:
-            epsg_code = EPSG[crs].value
+            epsg_code = EPSG[payload.target_epsg].value
             crs="EPSG:"+str(epsg_code)
-            file_path=self._get_file_path(payload.file_id)
+            file_path=await self._get_file_path(payload.file_id)
             output_path = self.temp_dir / f"reprojected_{crs}_{time.time()}.tif"
             return celery_reprojection.delay(str(file_path),str(output_path),crs,payload.src_nodata,payload.resampling)
         except KeyError:

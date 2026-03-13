@@ -15,8 +15,6 @@ from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from app.conf.redis import get_redis
-
 
 class AuthServiceInterface(ABC):
     @abstractmethod

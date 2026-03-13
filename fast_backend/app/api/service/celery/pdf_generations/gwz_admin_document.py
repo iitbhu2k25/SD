@@ -42,7 +42,7 @@ from reportlab.platypus import (
 from reportlab.platypus.frames import Frame
 from celery import group, chord
 from app.conf.settings import Settings
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.conf.celery import app
 from app.api.schema.stp_schema import  StpPriorityAdminReport
 import math
@@ -68,7 +68,7 @@ pdfmetrics.registerFont(TTFont('TimesNewRoman-Bold', f'{FONT_PATH}Times_New_Roma
 pdfmetrics.registerFont(TTFont('TimesNewRoman-Italic', f'{FONT_PATH}Times_New_Roman_Italic.ttf'))
 pdfmetrics.registerFont(TTFont('TimesNewRoman-BoldItalic', f'{FONT_PATH}Times_New_Roman_Bold_Italic.ttf'))
 
-from app.conf.redis import get_redis
+from app.conf.redis.redis_conf import sync_redis_client
 
 
 
@@ -1377,7 +1377,7 @@ def document_gen4(self,payload: StpPriorityAdminReport):
         )
         
      
-        get_redis.setex(
+        sync_redis_client.setex(
             f"chord:{self.request.id}",
             3600,  
             job.id
@@ -1385,7 +1385,7 @@ def document_gen4(self,payload: StpPriorityAdminReport):
         while not job.ready():
             completed_count = 0
             for i in range(total_images):
-                if get_redis.get(f"image_complete:{self.request.id}:{i}"):
+                if sync_redis_client.get(f"image_complete:{self.request.id}:{i}"):
                     completed_count += 1
             
             progress_pct = 20 + int((completed_count / total_images) * 60)
@@ -1401,8 +1401,8 @@ def document_gen4(self,payload: StpPriorityAdminReport):
         
         # Cleanup Redis keys
         for i in range(total_images):
-            get_redis.delete(f"image_complete:{self.request.id}:{i}")
-        get_redis.delete(f"chord:{self.request.id}")
+            sync_redis_client.delete(f"image_complete:{self.request.id}:{i}")
+        sync_redis_client.delete(f"chord:{self.request.id}")
         return {"chord_id": job.id}
         
     except Exception as e:
@@ -1422,7 +1422,7 @@ def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:L
             filtered_vector=clip
         )
 
-        get_redis.setex(
+        sync_redis_client.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,
             "1"
@@ -1442,7 +1442,7 @@ def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:L
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
     try:
         
-        get_redis.setex(
+        sync_redis_client.setex(
             f"pdf_generation:{parent_task_id}",
             3600,
             "started"
@@ -1455,7 +1455,7 @@ def final_step(self,results: List[dict],table_data:list,location_data:list,weigh
             weight_data=weight_data
         )
         
-        get_redis.delete(f"pdf_generation:{parent_task_id}")
+        sync_redis_client.delete(f"pdf_generation:{parent_task_id}")
         
         return pdf_path
     except Exception as e:

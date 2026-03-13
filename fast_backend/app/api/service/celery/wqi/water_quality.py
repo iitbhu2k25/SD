@@ -21,14 +21,14 @@ from scipy.spatial import cKDTree
 import geopandas as gpd
 from app.utils.network_conf import GeoConfig
 import uuid
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.conf.settings import Settings
 from pathlib import Path
 from app.utils.name import Unique_name
 from fastapi import HTTPException,status
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from app.conf.redis import get_redis
+from app.conf.redis.redis_conf import sync_redis_client
 from celery import group, chord
 from app.conf.celery import app
 
@@ -345,7 +345,7 @@ class WQ_Index:
             json.dump(payload.model_dump(), f, default=str)
         
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.location)
-        get_redis.setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
+        sync_redis_client().setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
         return task_id.id
 
 wqi_obj=WQ_Index() 
@@ -417,7 +417,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     sld_path,sld_name=raster_obj.sld_path(file_path=str(path))
     status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
     status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-    get_redis.hset(self.request.root_id+"_Result", mapping={param: layer_name})
+    sync_redis_client.hset(self.request.root_id+"_Result", mapping={param: layer_name})
 
     return {
         'parameter': param,
@@ -493,7 +493,7 @@ def celery_concentration_Index(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_Concentration_Index')
 def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
-    get_redis.setex("self.request.root_id", 3600,"finish interpolation")
+    sync_redis_client.setex("self.request.root_id", 3600,"finish interpolation")
     CI_raster=[]
     for i in result:
         CI_raster.append(
@@ -540,7 +540,7 @@ def celery_rank_raster(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_rank_raster')  
 def start_rank_raster(self,result,*args, **kwargs):
-    get_redis.setex("self.request.root_id", 3600,"finish Ranking")
+    sync_redis_client.setex("self.request.root_id", 3600,"finish Ranking")
     rank_raster=[]
     for i in result:
         rank_raster.append(
@@ -563,7 +563,7 @@ def start_rank_raster(self,result,*args, **kwargs):
 
 @app.task(bind=True,name='start_weight_raster')
 def start_weight_raster(self,result:list):
-    get_redis.setex("self.request.root_id", 3600,"overlay started")
+    sync_redis_client.setex("self.request.root_id", 3600,"overlay started")
     weight_rank=[]
     output_path=result[0]["Rank_raster"]
     for i in result:
@@ -618,8 +618,8 @@ def start_weight_raster(self,result:list):
     status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
     status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
     
-    get_redis.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
-    get_redis.setex(self.request.root_id, 3600, "Done")
+    sync_redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
+    sync_redis_client.setex(self.request.root_id, 3600, "Done")
 
    
     

@@ -3,6 +3,7 @@ from app.conf.settings import Settings
 import asyncio
 from typing import Optional
 import redis.asyncio as aioredis
+import redis
 from redis.asyncio import ConnectionPool
 from app.conf.logging import logger
 sett=Settings()
@@ -111,6 +112,13 @@ async def get_redis(
     await _singleton.initialize()
     return _singleton.client
 
-
+sync_redis_client=redis.Redis(
+        host=sett.REDIS_HOST,
+        port=sett.REDIS_PORT,
+        db = 0,
+        username= sett.REDIS_USERNAME,
+        password=sett.REDIS_PASSWORD,
+        decode_responses=True
+    )
 async def close_redis():
     await _singleton.close()

@@ -13,7 +13,7 @@ import time
 import os
 from app.conf.celery import app
 from app.conf.settings import Settings
-from app.conf.redis import get_redis
+from app.conf.redis.redis_conf import sync_redis_client
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
@@ -24,6 +24,48 @@ def _remove_duplicate(file_path: str):
     if path.exists() and path.is_file():
         path.unlink()
         logger.info(f"Removed existing file: {file_path}")
+
+def update_redis_start(id:str,channel:str):
+    data = {
+        "task_id": id,
+        "status": "started",
+        "progress": 0
+        }
+
+    sync_redis_client.setex(
+    f"opr_status:{id}",
+        3600,
+        json.dumps(data)
+    )
+    sync_redis_client.publish(channel, json.dumps(data))
+
+def update_redis_fail(id:str,channel:str):
+    data = {
+        "task_id": id,
+        "status": "failed",
+        "progress": 100
+        }
+
+    sync_redis_client.setex(
+    f"opr_status:{id}",
+        3600,
+        json.dumps(data)
+    )
+    sync_redis_client.publish(channel, json.dumps(data))
+
+def update_redis_done(id:str,channel:str):
+    data = {
+        "task_id": id,
+        "status": "completed",
+        "progress": 100
+        }
+
+    sync_redis_client.setex(
+    f"opr_status:{id}",
+        3600,
+        json.dumps(data)
+    )
+    sync_redis_client.publish(channel, json.dumps(data))
 
 def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
     input_path = Path(input_path)
@@ -385,12 +427,13 @@ def celery_reprojection(self,
     target_epsg: str,
     src_nodata: str,
     resampling: str = "near",
-):
+):  
+    time.sleep(13)
     channel = f"opr_id:{self.request.id}"
-    get_redis.publish(channel, json.dumps({
-        "status": "started",
-        "progress": 0
-    }))
+    update_redis_start(
+        id=self.request.id,
+        channel=channel,
+    )
     command = [
         "gdalwarp",
         "-t_srs", target_epsg,
@@ -417,19 +460,19 @@ def celery_reprojection(self,
 
         logger.info("Reprojection completed successfully")
         logger.debug(result.stdout)
-        get_redis.publish(channel, json.dumps({
-        "status": "completed",
-        "progress": 100
-        }))
+        update_redis_done(
+        id=self.request.id,
+        channel=channel,
+        )
         return str(output_path)
 
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")
         logger.error(e.stderr)
-        get_redis.publish(channel, json.dumps({
-            "status": "failed",
-            "progress": 100
-        }))
+        update_redis_fail(
+        id=self.request.id,
+        channel=channel,
+        )
         raise RuntimeError(f"GDAL error: {e.stderr}")
 
 

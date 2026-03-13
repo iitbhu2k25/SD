@@ -18,7 +18,7 @@ import math
 import numpy as np
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from pathlib import Path
 from app.utils.name import Unique_name
 

@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.conf.rate_limiting import RateLimiterMiddleware,AsyncSlidingWindowCounter
@@ -5,19 +7,26 @@ from app.api.routes import app_router
 from app.api.routes.token import app as token_router
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
-from app.conf.redis import get_redis,close_redis,_singleton
+from app.conf.redis.redis_manager import redis_manager
+from app.conf.redis.redis_conf import close_redis
+
+
 from app.conf.logging import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting application...")
 
-    await get_redis()
-    if not await _singleton.health_check():
-        raise RuntimeError("Redis connection failed")
-
+    await redis_manager.initialize()
     logger.info("Redis ready")
+    
+    from app.utils.redis_listner import redis_listener
+    listener = asyncio.create_task(redis_listener())
+    logger.info("Redis listener ready for websockets")
+    
     yield
+
+    listener.cancel()
 
     logger.info("Shutting down application...")
     await close_redis() 

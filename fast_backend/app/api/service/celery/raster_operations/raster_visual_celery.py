@@ -11,7 +11,7 @@ from typing import List, Optional, Protocol, Tuple
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from app.utils.name import Unique_name
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 import numpy as np
 import rasterio
 import rasterio.coords

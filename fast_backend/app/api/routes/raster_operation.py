@@ -2,10 +2,11 @@ import json
 
 from fastapi import APIRouter,status,UploadFile,File,Header
 from fastapi.responses import FileResponse
-import asyncio
+from app.conf.logging import logger
 from pathlib import Path
 from app.conf.celery import app 
-from app.conf.ws_config import ConnectionManager,safe_send
+import asyncio
+from app.conf.ws_config import connection_manager
 from fastapi import  WebSocket, WebSocketDisconnect
 from celery.result import AsyncResult
 from app.database.config.dependency import db_dependency
@@ -25,8 +26,8 @@ from app.api.schema.raster_operation import (
     RasterUploadResponse)
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
-connection_manager=ConnectionManager()
-from app.conf.redis import get_redis
+
+from app.conf.redis.redis_manager import redis_manager
 
 @router.post("/post_raster",status_code=status.HTTP_201_CREATED)
 @validate
@@ -52,7 +53,7 @@ async def complete_upload(db:db_dependency,payload:Chunkcomplete):
 
 
 
-@router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED)
+@router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterInfoResponse)
 @validate
 async def get_raster(db:db_dependency,file_id: str):
     """ return the raster details"""
@@ -68,7 +69,7 @@ async def raster_reproject(db:db_dependency):
 @validate
 async def raster_reproject(db:db_dependency,payload:RasterReproject):
     """ return the reprojected raster """
-    resp = RasterOperation().reprojection(db,payload)
+    resp = await RasterOperation().reprojection(db,payload)
     return resp.id
 
 
@@ -140,6 +141,7 @@ async def raster_reproject(db:db_dependency,payload:RasterReproject):
 @router.get("/download_output",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate
 async def get_report(chord_id:str):
+    print(chord_id)
     file_path = AsyncResult(chord_id).get()      
     file_path = Path(file_path)
     if not file_path.exists():
@@ -147,29 +149,21 @@ async def get_report(chord_id:str):
     return FileResponse(path=file_path, filename=file_path.name, media_type="image/tiff")
 
 
+
 @router.websocket("/ws/operation/{task_id}")
-async def operation_progress(websocket: WebSocket, task_id: str):
+async def task_websocket(websocket: WebSocket, task_id: str):
     await websocket.accept()
     await connection_manager.connect(websocket, task_id)
-    pubsub = await get_redis().pubsub()
-    channel = f"opr_id:{task_id}"
-    pubsub.subscribe(channel)
-    
+
+    last = await redis_manager.get(f"opr_status:{task_id}")
+
+    if last:
+        print("last",last)
+        await websocket.send_json(json.loads(last))
     try:
         while True:
-            message = pubsub.get_message(ignore_subscribe_messages=True)
-            if message:
-                data = json.loads(message["data"])
-                await websocket.send_json(data)
-                if data["status"] in ["completed", "failed"]:
-                    break
-            await asyncio.sleep(0.5)
-    
+            await websocket.receive_text() 
     except WebSocketDisconnect:
         pass
-    
-    
     finally:
-        pubsub.unsubscribe(channel)
-        pubsub.close()
         await connection_manager.disconnect(websocket, task_id)

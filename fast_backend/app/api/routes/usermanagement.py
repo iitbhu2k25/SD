@@ -7,10 +7,10 @@ from app.api.schema.auth_schema import UserDetailsOut,UserEditable
 router = APIRouter()
 
 @router.get("/userprofile",status_code=status.HTTP_201_CREATED,response_model=UserDetailsOut)
-def user_details(db:db_dependency,user: Annotated[str, Depends(get_current_user)]):
+async def user_details(db:db_dependency,user: Annotated[str, Depends(get_current_user)]):
     return user
 
 
 @router.post("/userdetails",status_code=status.HTTP_201_CREATED)
-def user_updates(db:db_dependency,user: Annotated[str, Depends(get_current_user)],payload:UserEditable):
+async def user_updates(db:db_dependency,user: Annotated[str, Depends(get_current_user)],payload:UserEditable):
     UserManagement().update_details(db=db,user_id=user.id,payload=payload.model_dump())
