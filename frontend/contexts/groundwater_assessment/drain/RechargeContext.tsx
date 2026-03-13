@@ -47,7 +47,7 @@ export const RechargeProvider: React.FC<RechargeProviderProps> = ({ children }) 
         selectedVillages,
       };
 
-      const response = await fetch('/fastm/gwa/recharge2', {
+      const response = await fetch('http://localhost:8050/gwa/recharge2', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),

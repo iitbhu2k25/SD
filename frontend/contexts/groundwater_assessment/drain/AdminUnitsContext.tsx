@@ -48,7 +48,7 @@ const AdminUnitsContext = createContext<AdminUnitsContextType>({
 
 export const AdminUnitsProvider: React.FC<AdminUnitsProviderProps> = ({
   children,
-  apiBaseUrl = "/fastm",
+  apiBaseUrl = "http://localhost:8050",
 }) => {
   const [stateCode, setStateCode] = useState<number | null>(null);
   const [districtCodes, setDistrictCodes] = useState<number[]>([]);

@@ -23,6 +23,9 @@ import { fromLonLat } from "ol/proj";
 import { Feature } from "ol";
 import { Geometry } from "ol/geom";
 
+// ✅ REPLACE THE MOCK WITH ACTUAL IMPORT
+import { useLocationContext } from '@/contexts/surfacewater_assessment/drain/LocationContext';
+
 const baseMaps: Record<string, { name: string; source: () => TileSource; icon: string }> = {
   osm: {
     name: "OpenStreetMap",
@@ -41,13 +44,6 @@ const baseMaps: Record<string, { name: string; source: () => TileSource; icon: s
   },
 };
 
-
-// Mock context hooks - replace with your actual implementations
-const useLocationContext = () => ({
-  selectedSubbasins: [],
-  toggleSubbasinByNumber: (num: number) => console.log('Toggle subbasin:', num)
-});
-
 interface MapContextType {
   mapInstance: Map | null;
   setMapContainer: (container: HTMLDivElement | null) => void;
@@ -56,7 +52,6 @@ interface MapContextType {
   selectedBaseMap: string;
   changeBaseMap: (key: string) => void;
 }
-
 
 interface MapProviderProps {
   children: ReactNode;
@@ -80,7 +75,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const basinLayerRef = useRef<VectorLayer<any> | null>(null);
   const streamsLayerRef = useRef<VectorLayer<any> | null>(null);
   
-  // NEW: Hover overlay refs
   const hoverOverlayRef = useRef<Overlay | null>(null);
   const highlightLayerRef = useRef<VectorLayer<any> | null>(null);
 
@@ -89,7 +83,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ NOW USING THE REAL CONTEXT
   const { selectedSubbasins, toggleSubbasinByNumber } = useLocationContext();
+  
+  // 🐛 DEBUG: Log when MapProvider mounts and accesses context
+  // useEffect(() => {
+  //   console.log('🗺️ MapProvider mounted, accessing LocationContext');
+  //   console.log('🗺️ Current selected subbasins:', selectedSubbasins);
+  //   return () => console.log('🗺️ MapProvider unmounting');
+  // }, []);
+  
+  // 🐛 DEBUG: Log when selectedSubbasins changes
+  // useEffect(() => {
+  //   console.log('🗺️ MapProvider received updated selection:', selectedSubbasins);
+  // }, [selectedSubbasins]);
+  
   const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const subbasinAttrNameRef = useRef<string>("Subbasin");
   const subbasinIsStringRef = useRef<boolean>(true);
@@ -130,26 +138,26 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
   );
 
   const changeBaseMap = (key: string) => {
-  if (!mapInstanceRef.current) return;
-  if (baseMaps[key] == null) return;
-  if (key === selectedBaseMap) return;
+    if (!mapInstanceRef.current) return;
+    if (baseMaps[key] == null) return;
+    if (key === selectedBaseMap) return;
 
-  const map = mapInstanceRef.current;
+    const map = mapInstanceRef.current;
 
-  if (baseLayerRef.current) {
-    map.removeLayer(baseLayerRef.current);
-  }
+    if (baseLayerRef.current) {
+      map.removeLayer(baseLayerRef.current);
+    }
 
-  const newBaseLayer = new TileLayer({
-    source: baseMaps[key].source(),
-    zIndex: 0,
-  });
-  newBaseLayer.set("name", "basemap");
-  baseLayerRef.current = newBaseLayer;
-  map.getLayers().insertAt(0, newBaseLayer);
+    const newBaseLayer = new TileLayer({
+      source: baseMaps[key].source(),
+      zIndex: 0,
+    });
+    newBaseLayer.set("name", "basemap");
+    baseLayerRef.current = newBaseLayer;
+    map.getLayers().insertAt(0, newBaseLayer);
 
-  setSelectedBaseMap(key);
-};
+    setSelectedBaseMap(key);
+  };
 
   useEffect(() => {
     if (!mapContainer) return;
@@ -171,7 +179,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+            "/geoserver/api/myworkspace/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:India" +
             "&outputFormat=application/json",
@@ -184,7 +192,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+            "/geoserver/api/myworkspace/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:varuna_subbasin_data" +
             "&outputFormat=application/json",
@@ -198,7 +206,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+            "/geoserver/api/myworkspace/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
             "&typeName=myworkspace:Streams_clipped" +
             "&outputFormat=application/json",
@@ -229,7 +237,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       mapInstanceRef.current = map;
       setMapInstance(map);
 
-      // NEW: Create hover overlay element
       const hoverElement = document.createElement('div');
       hoverElement.className = 'ol-hover-popup';
       hoverElement.style.cssText = `
@@ -257,7 +264,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       map.addOverlay(hoverOverlay);
       hoverOverlayRef.current = hoverOverlay;
 
-      // NEW: Create highlight layer
       const highlightStyle = new Style({
         fill: new Fill({
           color: 'rgba(59, 130, 246, 0.2)',
@@ -329,18 +335,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       });
 
       fullSrc?.on("featuresloaderror", (error) => {
-        console.error('Error loading Varuna features:', error);
+        // console.error('Error loading Varuna features:', error);
         setError("Failed to load Varuna basin. Check GeoServer or network.");
       });
 
       streamsSrc?.on("featuresloaderror", (error) => {
-        console.error('Error loading streams:', error);
+        // console.error('Error loading streams:', error);
         setError("Failed to load streams. Check GeoServer or network.");
       });
 
+      // ✅ THIS WILL NOW UPDATE THE REAL CONTEXT
       const handleClick = (evt: any) => {
         const fullLayer = varunaFullLayerRef.current;
         if (!fullLayer) return;
+        
         map.forEachFeatureAtPixel(
           evt.pixel,
           (feature, layer) => {
@@ -348,13 +356,17 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             const attr = subbasinAttrNameRef.current;
             const val = feature.get(attr);
             if (val === undefined || val === null) return false;
+            
             const asNum = Number(val);
             if (!Number.isNaN(asNum)) {
-              toggleSubbasinByNumber(asNum);
+              // console.log('✅ Toggling subbasin:', asNum);
+              toggleSubbasinByNumber(asNum); // Now calls the real function!
               return true;
             }
+            
             const m = String(val).match(/(\d+)$/);
             if (m) {
+              // console.log('✅ Toggling subbasin (from string):', Number(m[1]));
               toggleSubbasinByNumber(Number(m[1]));
               return true;
             }
@@ -366,7 +378,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       map.on("singleclick", handleClick);
 
-      // NEW: Handle pointer move for hover (moved inside useEffect to avoid dependency issues)
       const handlePointerMove = (event: any) => {
         const highlightSource = highlightLayerRef.current?.getSource();
         if (!highlightSource) return;
@@ -485,11 +496,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         streamsLayerRef.current = null;
       };
     } catch (err) {
-      console.error('Error initializing map:', err);
+      // console.error('Error initializing map:', err);
       setError("Failed to initialize map");
       setIsLoading(false);
     }
-  }, [mapContainer]); // Only mapContainer as dependency
+  }, [mapContainer, toggleSubbasinByNumber, boundaryLayerStyle, varunaBaseStyleNoLabel, streamsBaseStyle]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -514,7 +525,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+      `/geoserver/api/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:varuna_subbasin_data` +
       `&outputFormat=application/json` +
@@ -583,7 +594,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+      `/geoserver/api/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:Streams_clipped` +
       `&outputFormat=application/json` +
@@ -621,18 +632,17 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     };
   }, [selectedSubbasins]);
 
-const contextValue = useMemo(
-  () => ({
-    mapInstance,
-    setMapContainer,
-    isLoading,
-    error,
-    selectedBaseMap,
-    changeBaseMap,
-  }),
-  [mapInstance, isLoading, error, selectedBaseMap]
-);
-
+  const contextValue = useMemo(
+    () => ({
+      mapInstance,
+      setMapContainer,
+      isLoading,
+      error,
+      selectedBaseMap,
+      changeBaseMap,
+    }),
+    [mapInstance, isLoading, error, selectedBaseMap]
+  );
 
   return <MapContext.Provider value={contextValue}>{children}</MapContext.Provider>;
 };

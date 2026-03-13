@@ -12,11 +12,13 @@ import GeoJSON from 'ol/format/GeoJSON';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Fill, Stroke, Circle, RegularShape } from 'ol/style';
 import { Draw, Modify, Snap, Select } from 'ol/interaction';
+import { buffer as turfBuffer } from '@turf/buffer';
 import { useShapefile } from './Section1Context';
 import { Feature } from 'ol';
 import { click } from 'ol/events/condition';
 import { getLength, getArea } from 'ol/sphere';
-import { Geometry, LineString, Polygon } from 'ol/geom';
+import { LineString, Polygon } from 'ol/geom';
+import Text from 'ol/style/Text';
 import { unByKey } from 'ol/Observable';
 import { Polygon as OLPolygon } from 'ol/geom';
 
@@ -38,7 +40,7 @@ interface BaseMapDefinition {
     label: string;
 }
 
-const GEOSERVER_WFS_URL = '${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs';
+const GEOSERVER_WFS_URL = 'http://localhost:9090/geoserver/wfs';
 const WORKSPACE = 'myworkspace';
 const BASIN_BOUNDARY_LAYER = 'basin_boundary';
 
@@ -46,7 +48,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
     osm: {
         name: 'OpenStreetMap',
         source: () => new OSM({ crossOrigin: 'anonymous' }),
-        icon: '🗺️',
+        icon: '',
         label: 'Street'
     },
     satellite: {
@@ -56,7 +58,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
             maxZoom: 19,
             crossOrigin: 'anonymous',
         }),
-        icon: '🛰️',
+        icon: '',
         label: 'Satellite'
     },
     positron: {
@@ -66,7 +68,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
             maxZoom: 19,
             crossOrigin: 'anonymous',
         }),
-        icon: '☀️',
+        icon: '',
         label: 'Light'
     },
     dark: {
@@ -76,7 +78,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
             maxZoom: 19,
             crossOrigin: 'anonymous',
         }),
-        icon: '🌙',
+        icon: '',
         label: 'Dark'
     },
 };
@@ -118,10 +120,13 @@ interface MapContextType {
     drawingType: string | null;
     setDrawingType: (type: string | null) => void;
     exportGeoJSON: () => void;
+    createBuffer: (distance: number) => void;
+    resetBuffer: () => void;
     clearDrawings: () => void;
     drawingLayerVisible: boolean;
     toggleDrawingLayer: () => void;
     updateFeatureProperties: (feature: Feature, properties: Record<string, any>) => void;
+
 }
 
 interface MapProviderProps {
@@ -197,6 +202,17 @@ const SELECTION_STYLE = new Style({
             color: '#fff',
             width: 2,
         }),
+    }),
+});
+
+const BUFFER_STYLE = new Style({
+    fill: new Fill({
+        color: 'rgba(139, 0, 255, 0.2)',
+    }),
+    stroke: new Stroke({
+        color: '#8B00FF',
+        width: 2,
+        lineDash: [4, 8]
     }),
 });
 
@@ -327,28 +343,29 @@ const createLineStyle = (styleConfig: LayerStyle, isHovered: boolean = false): S
 
 const getColorForShapefile = (fid: number): LayerStyle => {
     const colors: LayerStyle[] = [
-        { color: '#E6194B', opacity: 0.6, strokeColor: '#E6194B', strokeWidth: 2 },
-        { color: '#3CB44B', opacity: 0.6, strokeColor: '#3CB44B', strokeWidth: 2 },
-        { color: '#0082C8', opacity: 0.6, strokeColor: '#0082C8', strokeWidth: 2 },
-        { color: '#F58231', opacity: 0.6, strokeColor: '#F58231', strokeWidth: 2 },
-        { color: '#911EB4', opacity: 0.6, strokeColor: '#911EB4', strokeWidth: 2 },
-        { color: '#46F0F0', opacity: 0.6, strokeColor: '#46F0F0', strokeWidth: 2 },
-        { color: '#F032E6', opacity: 0.6, strokeColor: '#F032E6', strokeWidth: 2 },
-        { color: '#D2F53C', opacity: 0.6, strokeColor: '#D2F53C', strokeWidth: 2 },
-        { color: '#008080', opacity: 0.6, strokeColor: '#008080', strokeWidth: 2 },
-        { color: '#AA6E28', opacity: 0.6, strokeColor: '#AA6E28', strokeWidth: 2 },
-        { color: '#800000', opacity: 0.6, strokeColor: '#800000', strokeWidth: 2 },
-        { color: '#808000', opacity: 0.6, strokeColor: '#808000', strokeWidth: 2 },
-        { color: '#FFD700', opacity: 0.6, strokeColor: '#FFD700', strokeWidth: 2 },
-        { color: '#9A6324', opacity: 0.6, strokeColor: '#9A6324', strokeWidth: 2 },
-        { color: '#469990', opacity: 0.6, strokeColor: '#469990', strokeWidth: 2 },
-        { color: '#DCBEFF', opacity: 0.6, strokeColor: '#DCBEFF', strokeWidth: 2 },
-        { color: '#FABEBE', opacity: 0.6, strokeColor: '#FABEBE', strokeWidth: 2 },
-        { color: '#A9A9A9', opacity: 0.6, strokeColor: '#A9A9A9', strokeWidth: 2 },
-        { color: '#BFEF45', opacity: 0.6, strokeColor: '#BFEF45', strokeWidth: 2 },
-        { color: '#000075', opacity: 0.6, strokeColor: '#000075', strokeWidth: 2 },
+        { color: '#E6194B', opacity: 0.6, strokeColor: '#E6194B', strokeWidth: 2 }, // Red
+        { color: '#3CB44B', opacity: 0.6, strokeColor: '#3CB44B', strokeWidth: 2 }, // Green
+        { color: '#0082C8', opacity: 0.6, strokeColor: '#0082C8', strokeWidth: 2 }, // Blue
+        { color: '#F58231', opacity: 0.6, strokeColor: '#F58231', strokeWidth: 2 }, // Orange
+        { color: '#911EB4', opacity: 0.6, strokeColor: '#911EB4', strokeWidth: 2 }, // Purple
+        { color: '#46F0F0', opacity: 0.6, strokeColor: '#46F0F0', strokeWidth: 2 }, // Cyan
+        { color: '#F032E6', opacity: 0.6, strokeColor: '#F032E6', strokeWidth: 2 }, // Magenta
+        { color: '#D2F53C', opacity: 0.6, strokeColor: '#D2F53C', strokeWidth: 2 }, // Lime
+        { color: '#008080', opacity: 0.6, strokeColor: '#008080', strokeWidth: 2 }, // Teal
+        { color: '#AA6E28', opacity: 0.6, strokeColor: '#AA6E28', strokeWidth: 2 }, // Brown
+        { color: '#800000', opacity: 0.6, strokeColor: '#800000', strokeWidth: 2 }, // Maroon
+        { color: '#808000', opacity: 0.6, strokeColor: '#808000', strokeWidth: 2 }, // Olive
+        { color: '#FFD700', opacity: 0.6, strokeColor: '#FFD700', strokeWidth: 2 }, // Gold
+        { color: '#9A6324', opacity: 0.6, strokeColor: '#9A6324', strokeWidth: 2 }, // Rust
+        { color: '#469990', opacity: 0.6, strokeColor: '#469990', strokeWidth: 2 }, // Sea Green
+        { color: '#DCBEFF', opacity: 0.6, strokeColor: '#DCBEFF', strokeWidth: 2 }, // Lavender
+        { color: '#FABEBE', opacity: 0.6, strokeColor: '#FABEBE', strokeWidth: 2 }, // Pink
+        { color: '#A9A9A9', opacity: 0.6, strokeColor: '#A9A9A9', strokeWidth: 2 }, // Gray
+        { color: '#BFEF45', opacity: 0.6, strokeColor: '#BFEF45', strokeWidth: 2 }, // Light Green
+        { color: '#000075', opacity: 0.6, strokeColor: '#000075', strokeWidth: 2 }, // Navy Blue
     ];
 
+    // Cycle through colors based on fid
     return colors[fid % colors.length];
 };
 
@@ -359,9 +376,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<Map | null>(null);
     const baseLayerRef = useRef<TileLayer<any> | null>(null);
+    // Change to use Record type:
     const vectorLayersRef = useRef<Record<number, any>>({});
     const basinLayerRef = useRef<any>(null);
     const drawingLayerRef = useRef<any>(null);
+    const bufferLayerRef = useRef<any>(null);
     const overlayRef = useRef<Overlay | null>(null);
     const hoveredFeatureRef = useRef<any>(null);
     const drawInteractionRef = useRef<Draw | null>(null);
@@ -369,7 +388,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const snapInteractionRef = useRef<Snap | null>(null);
     const selectInteractionRef = useRef<Select | null>(null);
     const basinLoadedRef = useRef<boolean>(false);
-    const measurementOverlayRef = useRef<Overlay | null>(null);
+
+
 
     const [mapInstance, setMapInstance] = useState<Map | null>(null);
     const [selectedBaseMap, setSelectedBaseMap] = useState('osm');
@@ -379,6 +399,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const [showLabels, setShowLabels] = useState(false);
     const [filteredFeatures, setFilteredFeatures] = useState<any[]>([]);
     const [currentFilters, setCurrentFilters] = useState<Record<string, string[]>>({});
+    // Store styles per layer (keyed by fid)
     const [layerStyles, setLayerStyles] = useState<Record<number, LayerStyle>>({});
     const [geometryType, setGeometryType] = useState<string | null>(null);
     const [hoveredFeature, setHoveredFeature] = useState<any>(null);
@@ -392,7 +413,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const toggleLabels = () => setShowLabels((s) => !s);
     const toggleBasinBoundary = () => setBasinBoundaryVisible((v) => !v);
     const toggleDrawingLayer = () => setDrawingLayerVisible((v) => !v);
+    const measurementOverlayRef = useRef<Overlay | null>(null);
 
+    // Helper function to format distance
     const formatLength = (length: number): string => {
         if (length > 1000) {
             return `${(length / 1000).toFixed(2)} km`;
@@ -400,6 +423,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         return `${length.toFixed(2)} m`;
     };
 
+    // Helper function to format area
     const formatArea = (area: number): string => {
         if (area > 1000000) {
             return `${(area / 1000000).toFixed(2)} km²`;
@@ -407,11 +431,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         return `${area.toFixed(2)} m²`;
     };
 
+    // Helper function to format coordinates
     const formatCoordinates = (coord: number[]): string => {
         const lonLat = toLonLat(coord);
         return `Lat: ${lonLat[1].toFixed(6)}, Lon: ${lonLat[0].toFixed(6)}`;
     };
 
+    // Helper function to format radius
     const formatRadius = (radius: number): string => {
         if (radius > 1000) {
             return `Radius: ${(radius / 1000).toFixed(2)} km`;
@@ -419,21 +445,21 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         return `Radius: ${radius.toFixed(2)} m`;
     };
 
-    // Initialize measurement overlay
+    // Initialize measurement overlay (add this after the popup overlay useEffect)
     useEffect(() => {
         if (!mapInstance || measurementOverlayRef.current) return;
 
         if (typeof window !== 'undefined') {
             const measurementDiv = document.createElement('div');
             measurementDiv.style.cssText = `
-                background-color: rgba(0, 0, 0, 1);
-                color: white;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 15px;
-                white-space: nowrap;
-                pointer-events: none;
-            `;
+            background-color: rgba(0, 0, 0, 1);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 15px;
+            white-space: nowrap;
+            pointer-events: none;
+        `;
 
             const measurementOverlay = new Overlay({
                 element: measurementDiv,
@@ -535,7 +561,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    // Load basin_boundary layer
+    // Load basin_boundary layer - ONLY ONCE
     useEffect(() => {
         if (!mapInstance || basinLoadedRef.current) return;
         basinLoadedRef.current = true;
@@ -597,7 +623,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         }
     };
 
-    // Initialize Drawing and Selection Layers
+    // Initialize Drawing, Buffer, and Selection Layers
     useEffect(() => {
         if (!mapInstance) return;
 
@@ -615,11 +641,26 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             console.log('✓ Drawing layer initialized');
         }
 
+        // Buffer Layer
+        if (!bufferLayerRef.current) {
+            const bufferSource = new VectorSource();
+            const bufferLayer = new VectorLayer({
+                source: bufferSource,
+                style: BUFFER_STYLE,
+                zIndex: 9,
+            });
+            bufferLayer.set('name', 'buffer-layer');
+            mapInstance.addLayer(bufferLayer);
+            bufferLayerRef.current = bufferLayer;
+            console.log('✓ Buffer layer initialized');
+        }
+
         // Selection Interaction
         if (!selectInteractionRef.current) {
             const select = new Select({
                 condition: click,
                 style: SELECTION_STYLE,
+                // 🔧 FIX: Only select from vector layers and drawing layer, NOT individual points
                 layers: (layer) => {
                     const name = layer.get('name');
                     return name && (
@@ -628,7 +669,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                         name === 'basin-boundary-layer'
                     );
                 },
-                hitTolerance: 25,
+                hitTolerance: 25, // Increased for easier line selection
+                // 🔧 ADD THIS: Filter to select only Line/Polygon features, not points
+                filter: (feature, layer) => {
+                    const geomType = feature.getGeometry()?.getType();
+                    return geomType !== 'Point'; // Exclude point selections
+                }
             });
 
             mapInstance.addInteraction(select);
@@ -698,6 +744,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         }
     }, [drawingLayerVisible]);
 
+
+
     // Handle drawing type changes with measurements
     useEffect(() => {
         if (!mapInstance || !drawingLayerRef.current) return;
@@ -711,6 +759,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             drawInteractionRef.current = null;
         }
 
+        // Hide measurement overlay when not drawing
         if (!drawingType && measurementOverlayRef.current) {
             measurementOverlayRef.current.setPosition(undefined);
         }
@@ -720,6 +769,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         const source = drawingLayerRef.current.getSource();
         if (!source) return;
 
+        // Create custom style that doesn't add tooltips
         const draw = new Draw({
             source: source,
             type: drawingType as any,
@@ -731,6 +781,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
         let measurementListener: any = null;
 
+        // Handle drawing start
         draw.on('drawstart', (evt) => {
             const sketch = evt.feature;
 
@@ -739,6 +790,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             const geom = sketch.getGeometry();
             if (!geom) return;
 
+            // Add listener ONCE for geometry changes
             measurementListener = geom.on('change', (evt: any) => {
                 const geom = evt.target;
                 let tooltipCoord: number[] | undefined;
@@ -762,9 +814,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     measurementText = formatRadius(radius);
                 }
 
+                // Update ONLY the content of the existing overlay
                 if (measurementOverlayRef.current && tooltipCoord) {
                     const element = measurementOverlayRef.current.getElement();
                     if (element) {
+                        // Just update text, don't modify DOM structure
                         element.innerHTML = measurementText;
                         measurementOverlayRef.current.setPosition(tooltipCoord);
                     }
@@ -772,16 +826,20 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             });
         });
 
+        // Handle drawing end
         draw.on('drawend', (e) => {
+            // Remove listener
             if (measurementListener) {
                 unByKey(measurementListener);
                 measurementListener = null;
             }
 
+            // Hide overlay immediately
             if (measurementOverlayRef.current) {
                 measurementOverlayRef.current.setPosition(undefined);
             }
 
+            // Set properties based on drawing type
             const geom = e.feature.getGeometry();
             let properties: Record<string, any> = {
                 isEditable: true,
@@ -832,6 +890,87 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         }
     };
 
+    // Create buffer for selected features
+    const createBuffer = (distanceInMeters: number) => {
+        if (!bufferLayerRef.current || !selectInteractionRef.current) return;
+
+        const bufferSource = bufferLayerRef.current.getSource();
+        if (!bufferSource) return;
+
+        const selectedFeatures = selectInteractionRef.current.getFeatures().getArray();
+
+        if (selectedFeatures.length === 0) {
+            alert('Please select one or more features on the map before creating a buffer.');
+            return;
+        }
+
+        const format = new GeoJSON();
+        selectedFeatures.forEach(feature => {
+            let geom = feature.getGeometry();
+            if (!geom) return;
+
+            const geomType = geom.getType();
+
+            // Convert Circle to Polygon (OpenLayers Circle is not standard GeoJSON)
+            if (geomType === 'Circle') {
+                const circle = geom as any;
+                const center = circle.getCenter();
+                const radius = circle.getRadius();
+                const sides = 64; // Number of sides for smooth circle
+
+                const coordinates: number[][] = [];
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i * 2 * Math.PI) / sides;
+                    const x = center[0] + radius * Math.cos(angle);
+                    const y = center[1] + radius * Math.sin(angle);
+                    coordinates.push([x, y]);
+                }
+
+                geom = new OLPolygon([coordinates]);
+            }
+
+            // Write geometry as GeoJSON
+            const geojson = format.writeGeometryObject(geom, {
+                featureProjection: 'EPSG:3857',
+                dataProjection: 'EPSG:4326'
+            });
+
+            const distanceInKm = distanceInMeters / 1000;
+
+            // Create proper GeoJSON feature for turf
+            const turfFeature = {
+                type: 'Feature',
+                geometry: geojson,
+                properties: {}
+            };
+
+            try {
+                const buffered = turfBuffer(turfFeature, distanceInKm, { units: 'kilometers' });
+
+                if (buffered && buffered.geometry) {
+                    const bufferFeature = format.readFeature(buffered, {
+                        dataProjection: 'EPSG:4326',
+                        featureProjection: 'EPSG:3857'
+                    });
+                    bufferSource.addFeature(bufferFeature);
+                    console.log(`✓ Buffer created for ${geomType}`);
+                }
+            } catch (error) {
+                console.error(`Buffer error for ${geomType}:`, error);
+                alert(`Failed to create buffer for ${geomType}`);
+            }
+        });
+
+        console.log(`✓ Buffer completed for ${selectedFeatures.length} features: ${distanceInMeters}m`);
+    };
+    // Reset all buffers
+    const resetBuffer = () => {
+        if (bufferLayerRef.current) {
+            bufferLayerRef.current.getSource()?.clear();
+            console.log('✓ Buffers cleared');
+        }
+    };
+
     const updateFeatureProperties = (feature: Feature, properties: Record<string, any>) => {
         feature.setProperties(properties);
         console.log('✓ Feature properties updated');
@@ -842,6 +981,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         const format = new GeoJSON();
         const features: any[] = [];
 
+        // Collect features from all layers
         if (basinLayerRef.current && basinBoundaryVisible) {
             const basinSource = basinLayerRef.current.getSource();
             if (basinSource) {
@@ -852,10 +992,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         if (vectorLayersRef.current) {
             Object.values(vectorLayersRef.current).forEach((vectorLayer: any) => {
                 if (vectorLayer) {
-                    const source = vectorLayer.getSource();
-                    if (source) {
-                        features.push(...source.getFeatures());
-                    }
+                    vectorLayer.setStyle((feature: any) => {
+                        // ... rest of code
+                    });
+                    vectorLayer.changed();
                 }
             });
         }
@@ -864,6 +1004,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             const drawingSource = drawingLayerRef.current.getSource();
             if (drawingSource) {
                 features.push(...drawingSource.getFeatures());
+            }
+        }
+
+        if (bufferLayerRef.current) {
+            const bufferSource = bufferLayerRef.current.getSource();
+            if (bufferSource) {
+                features.push(...bufferSource.getFeatures());
             }
         }
 
@@ -905,11 +1052,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     };
 
     const updateLayerStyle = (newStyle: LayerStyle, targetFid: number) => {
+        // Update the style for the specific layer
         setLayerStyles(prev => ({
             ...prev,
             [targetFid]: newStyle
         }));
 
+        // Apply style only to the target layer
         if (vectorLayersRef.current && vectorLayersRef.current[targetFid]) {
             const targetLayer = vectorLayersRef.current[targetFid];
 
@@ -936,6 +1085,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         const currentFids = new Set(selectedShapefiles.map(sf => sf.fid));
         const existingFids = new Set(Object.keys(vectorLayersRef.current).map(Number));
 
+        // Remove layers that are no longer selected
         existingFids.forEach(fid => {
             if (!currentFids.has(fid) && vectorLayersRef.current) {
                 const layer = vectorLayersRef.current[fid];
@@ -947,6 +1097,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             }
         });
 
+        // Add new layers for newly selected shapefiles
         selectedShapefiles.forEach(shapefile => {
             if (!existingFids.has(shapefile.fid) && vectorLayersRef.current) {
                 try {
@@ -964,12 +1115,14 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                         url: wfsUrl,
                     });
 
+                    // Get unique color for this shapefile
                     const shapefileColor = getColorForShapefile(shapefile.fid);
 
                     const vectorLayer = new VectorLayer({
                         source: vectorSource,
                         zIndex: 5,
                         style: (feature) => {
+                            // Use layer-specific style if available, otherwise use default color
                             const currentStyle = layerStyles[shapefile.fid] || shapefileColor;
                             const geomType = feature.getGeometry()?.getType();
                             const isHovered = hoveredFeatureRef.current === feature;
@@ -1001,6 +1154,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                                 setGeometryType(geomType || null);
                                 console.log(`✓ Geometry type detected for ${shapefile.shapefile_name}: ${geomType}`);
 
+                                // Fit map to show all selected layers
                                 const allExtents: any[] = [];
                                 if (vectorLayersRef.current) {
                                     Object.values(vectorLayersRef.current).forEach((layer: any) => {
@@ -1041,6 +1195,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             }
         });
 
+        // Clear feature info if no shapefiles are selected
         if (selectedShapefiles.length === 0) {
             setFeatureInfo(null);
             overlayRef.current?.setPosition(undefined);
@@ -1051,14 +1206,15 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     }, [mapInstance, selectedShapefiles, layerStyles]);
 
-    // Handle cursor and hover effects (visual only, no tooltip)
+
+    // Handle hover effects with measurement tooltips for drawn features
     useEffect(() => {
         if (!mapInstance || !vectorLayersRef.current) return;
 
         const handlePointerMove = (evt: any) => {
             const pixel = mapInstance.getEventPixel(evt.originalEvent);
             const features = mapInstance.getFeaturesAtPixel(pixel, {
-                layerFilter: (layer) => layer.get('name') !== 'basemap'
+                layerFilter: (layer) => layer.get('name') !== 'buffer-layer' && layer.get('name') !== 'basemap'
             });
 
             if (features && features.length > 0) {
@@ -1069,10 +1225,51 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     setHoveredFeature(feature);
                     mapInstance.getTargetElement().style.cursor = 'pointer';
 
+                    // Update all vector layers
                     if (vectorLayersRef.current) {
                         Object.values(vectorLayersRef.current).forEach((layer: any) => {
                             layer.changed();
                         });
+                    }
+
+                    // Show measurement tooltip for drawn features
+                    const geom = feature.getGeometry();
+                    if (geom && measurementOverlayRef.current) {
+                        const geomType = geom.getType();
+                        let tooltipCoord: number[] | undefined;
+                        let measurementText = '';
+
+                        // Check if feature is from drawing layer
+                        const drawingSource = drawingLayerRef.current?.getSource();
+                        const isDrawnFeature = drawingSource?.getFeatures().includes(feature);
+
+                        if (isDrawnFeature) {
+                            if (geomType === 'Point') {
+                                const coords = (geom as any).getCoordinates();
+                                tooltipCoord = coords;
+                                measurementText = formatCoordinates(coords);
+                            } else if (geomType === 'LineString') {
+                                const length = getLength(geom as LineString);
+                                tooltipCoord = (geom as LineString).getLastCoordinate();
+                                measurementText = formatLength(length);
+                            } else if (geomType === 'Polygon') {
+                                const area = getArea(geom as Polygon);
+                                tooltipCoord = (geom as Polygon).getInteriorPoint().getCoordinates();
+                                measurementText = formatArea(area);
+                            } else if (geomType === 'Circle') {
+                                const radius = (geom as any).getRadius();
+                                tooltipCoord = (geom as any).getCenter();
+                                measurementText = formatRadius(radius);
+                            }
+
+                            if (tooltipCoord && measurementText) {
+                                const element = measurementOverlayRef.current.getElement();
+                                if (element) {
+                                    element.innerHTML = measurementText;
+                                    measurementOverlayRef.current.setPosition(tooltipCoord);
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -1081,6 +1278,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     setHoveredFeature(null);
                     mapInstance.getTargetElement().style.cursor = '';
 
+                    // Hide measurement tooltip when not hovering
+                    if (measurementOverlayRef.current) {
+                        measurementOverlayRef.current.setPosition(undefined);
+                    }
+
+                    // Update all vector layers
                     if (vectorLayersRef.current) {
                         Object.values(vectorLayersRef.current).forEach((layer: any) => {
                             layer.changed();
@@ -1092,7 +1295,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
         mapInstance.on('pointermove', handlePointerMove);
         return () => mapInstance.un('pointermove', handlePointerMove);
-    }, [mapInstance, layerStyles, selectedShapefiles]);
+    }, [mapInstance, layerStyles]);
 
     const applyFilterToWMS = (filters: Record<string, string[]>, targetFid?: number) => {
         if (!vectorLayersRef.current || Object.keys(vectorLayersRef.current).length === 0) {
@@ -1102,11 +1305,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
         setCurrentFilters(filters);
 
+        // If no targetFid is provided, do nothing (or you can apply to all layers like before)
         if (targetFid === undefined) {
             console.warn('⚠️ No target shapefile specified for filtering');
             return;
         }
 
+        // Get the specific layer for the target shapefile
         const targetLayer = vectorLayersRef.current[targetFid];
 
         if (!targetLayer) {
@@ -1120,8 +1325,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         const allFeatures = vectorSource.getFeatures();
 
         if (Object.keys(filters).length === 0) {
+            // Reset all features to default style
             allFeatures.forEach((f: any) => f.setStyle(undefined));
         } else {
+            // Apply filter only to this layer
             allFeatures.forEach((feature: any) => {
                 const props = feature.getProperties();
                 let matches = true;
@@ -1137,8 +1344,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                 }
 
                 if (!matches) {
+                    // Hide non-matching features
                     feature.setStyle(new Style({}));
                 } else {
+                    // Reset to default style for matching features
                     feature.setStyle(undefined);
                 }
             });
@@ -1179,6 +1388,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             drawingType,
             setDrawingType,
             exportGeoJSON,
+            createBuffer,
+            resetBuffer,
             clearDrawings,
             drawingLayerVisible,
             toggleDrawingLayer,

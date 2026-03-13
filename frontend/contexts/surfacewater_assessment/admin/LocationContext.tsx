@@ -173,7 +173,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/state`, {
+        const response = await fetch('/django/state', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -209,7 +209,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/district/`, {
+        const response = await fetch('/django/district/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ state_code: selectedState }),
@@ -247,7 +247,7 @@ export const LocationProvider: React.FC<{ children: ReactNode }> = ({ children }
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/subdistrict/`, {
+        const response = await fetch('/django/subdistrict/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ district_code: selectedDistricts }),

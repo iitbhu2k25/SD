@@ -167,7 +167,7 @@ function MapLayers({
 
   // Helper function to create WFS URL
   const createWFSUrl = (layerName: string, cqlFilter?: string) => {
-    const baseUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs`;
+    const baseUrl = '/geoserver/api/myworkspace/wfs';
     const params = new URLSearchParams({
       service: 'WFS',
       version: '1.0.0',
@@ -395,7 +395,7 @@ function MapLayers({
 
         // GeoServer WFS endpoint for India layer (GeoJSON output)
         const WFS_URL =
-          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`;
+          '/geoserver/api/myworkspace/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json';
 
         const response = await fetch(WFS_URL, {
           method: 'GET',
@@ -786,7 +786,7 @@ useEffect(() => {
       });
 
       if (!response.ok) {
-        console.log("Failed to fetch village data:", response.status);
+        console.error("Failed to fetch village data:", response.status);
         setIsLoadingVillages(false);
         return;
       }
@@ -871,12 +871,12 @@ useEffect(() => {
             currentZoomLevelRef.current = map.getZoom();
           }
         } catch (error) {
-          console.log("Error fitting map to village layer bounds:", error);
+          console.error("Error fitting map to village layer bounds:", error);
         }
         setIsLoadingVillages(false);
       });
     } catch (error) {
-      console.log("Error fetching or rendering village data:", error);
+      console.error("Error fetching or rendering village data:", error);
       setIsLoadingVillages(false);
     }
   };

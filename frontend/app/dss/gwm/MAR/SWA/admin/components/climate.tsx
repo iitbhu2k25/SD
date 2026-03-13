@@ -221,7 +221,7 @@ export default function ClimateAdmin() {
       end_year: Number(selectedEndYear),
     };
 
-    const res = await fetch(`${apiBase}/${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminclimateimage`, {
+    const res = await fetch(`${apiBase}/django/swa/adminclimateimage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
@@ -240,44 +240,7 @@ export default function ClimateAdmin() {
     return { rec, b64: payload.image_base64 };
   }, [apiBase, getSelectedRecord, selectedSourceId, selectedStartYear, selectedEndYear]);
 
-  const downloadServerPng = useCallback(async () => {
-    try {
-      const out = await fetchServerPng();
-      if (!out) return;
 
-      const { rec, b64 } = out;
-
-      let bytes: Uint8Array;
-      if ((Uint8Array as any).fromBase64) {
-        bytes = (Uint8Array as any).fromBase64(b64);
-      } else {
-        const byteChars = atob(b64);
-        const byteNums = new Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
-        bytes = new Uint8Array(byteNums);
-      }
-
-      const blob = new Blob([new Uint8Array(bytes)], { type: 'image/png' });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement('a');
-      const sd = sanitizeFilenamePart(rec.subdistrict_code);
-      const src = sanitizeFilenamePart(rec.source_id);
-      const vl = sanitizeFilenamePart(rec.vlcode);
-      const vn = sanitizeFilenamePart(rec.village || 'village');
-      const sY = rec.start_year ?? selectedStartYear;
-      const eY = rec.end_year ?? selectedEndYear;
-      a.href = url;
-      a.download = `ClimateAdmin_${sd}_${src}_${vl}_${vn}_${sY}-${eY}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('Download PNG error', e);
-      alert((e as Error)?.message || 'Failed to download PNG');
-    }
-  }, [fetchServerPng, selectedStartYear, selectedEndYear]);
 
   const downloadTableAsCSV = useCallback(() => {
     if (tableRows.length === 0) return;
@@ -466,18 +429,7 @@ export default function ClimateAdmin() {
                 </svg>
                 <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
               </button>
-              <button
-                onClick={downloadServerPng}
-                title="Download PNG"
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                disabled={!selectedCombo || !current}
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                    d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                </svg>
-                <span>Download PNG</span>
-              </button>
+             
               <button
                 onClick={downloadTableAsCSV}
                 title="Download data as CSV"

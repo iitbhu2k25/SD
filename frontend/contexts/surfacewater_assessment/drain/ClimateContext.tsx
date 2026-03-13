@@ -94,7 +94,7 @@ export const ClimateProvider: React.FC<React.PropsWithChildren> = ({ children })
   const [selectedEndYear, setSelectedEndYear] = useState<number>(2023);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const selectedSubs = useMemo(
     () =>
@@ -139,7 +139,7 @@ export const ClimateProvider: React.FC<React.PropsWithChildren> = ({ children })
           end_year,
         };
 
-        const res = await fetch(`${apiBase}/climate`, {
+        const res = await fetch(`${apiBase}/swa/climate`, {
           method: 'POST',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
@@ -174,15 +174,7 @@ export const ClimateProvider: React.FC<React.PropsWithChildren> = ({ children })
     setResults(null);
   }, [cancelInFlight]);
 
-  // NEW: Synchronize with LocationContext changes
-  useEffect(() => {
-    // Reset state when selectedSubbasins or selectionConfirmed changes
-    reset();
-    // Optionally re-run analysis if selection is confirmed and valid
-    if (canRun) {
-      run(); // Run with default params (selectedScenario, selectedStartYear, selectedEndYear)
-    }
-  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
+
 
   const value: Ctx = useMemo(
     () => ({

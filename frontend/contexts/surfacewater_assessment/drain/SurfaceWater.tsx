@@ -68,7 +68,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
 
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const selectedSubs = useMemo(
     () =>
@@ -100,7 +100,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
     setError(null);
 
     try {
-      const res = await fetch(`${apiBase}/surfacewater`, {
+      const res = await fetch(`${apiBase}/swa/surfacewater`, {
         method: 'POST',
         cache: 'no-store',
         headers: { 'Content-Type': 'application/json' },
@@ -133,15 +133,7 @@ export const SurfaceWaterProvider: React.FC<React.PropsWithChildren> = ({ childr
     setResults(null);
   }, [cancelInFlight]);
 
-  // NEW: Synchronize with LocationContext changes
-  useEffect(() => {
-    // Reset state when selectedSubbasins or selectionConfirmed changes
-    reset();
-    // Optionally re-run analysis if selection is confirmed and valid
-    if (canRun) {
-      run();
-    }
-  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
+
 
   const value: SurfaceWaterContextValue = useMemo(
     () => ({

@@ -211,7 +211,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swrunoff`, {
+      const response = await fetch('http://localhost:8050/basic/swrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +271,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/stormwaterrunoff`, {
+      const response = await fetch('http://localhost:8050/basic/stormwaterrunoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -667,7 +667,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
 
     try {
       const responses = await Promise.all(payloads.map(payload =>
-        fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/sewage_calculation/`, {
+        fetch('http://localhost:8050/basic/sewage_calculation/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1538,62 +1538,13 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
   );
 
 
-  const convertOklchToRgb = (element: HTMLElement) => {
-    // Create a temporary element for color parsing
-    const tempDiv = document.createElement('div');
-    document.body.appendChild(tempDiv);
-
-    const elements = [element, ...element.querySelectorAll('*')];
-    elements.forEach((el: any) => {
-      const style = window.getComputedStyle(el);
-      const colorProps = [
-        'color',
-        'backgroundColor',
-        'borderColor',
-        'borderTopColor',
-        'borderRightColor',
-        'borderBottomColor',
-        'borderLeftColor',
-        'fill',
-        'stroke',
-      ];
-
-      colorProps.forEach(prop => {
-        const value = style.getPropertyValue(prop);
-        if (value && value.includes('oklch')) {
-          try {
-            // Use the browser to parse oklch to rgb
-            tempDiv.style.backgroundColor = value;
-            const computedColor = window.getComputedStyle(tempDiv).backgroundColor;
-
-            // Validate and format with Colorizr
-            const color = new Colorizr(computedColor);
-            const rgb = computedColor; // Get rgb string, e.g., "rgb(59, 130, 246)"
-
-            // Apply the converted color
-            el.style.setProperty(prop, rgb);
-
-            // Log for debugging
-            //console.log(`Converted ${prop} from ${value} to ${rgb} on element`, el);
-          } catch (err) {
-            //console.warn(`Failed to convert color ${value} for property ${prop}:`, err);
-            // Fallback to a safe color
-            el.style.setProperty(prop, 'rgb(0, 0, 0)');
-          }
-        }
-      });
-    });
-
-    // Clean up temporary element
-    document.body.removeChild(tempDiv);
-  };
 
 
   const fetchMapFromAPI = async (villageCodes: number[]): Promise<string | null> => {
     try {
       //console.log('Fetching map from API with village codes:', villageCodes);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/studyareamap`, {
+      const response = await fetch('http://localhost:8050/basic/studyareamap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3500,7 +3451,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             //console.log('FormData created, uploading to API...');
 
             // Upload to your API
-            const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/pdf`, {
+            const uploadResponse = await fetch('http://localhost:8050/basic/pdf', {
               method: 'POST',
               body: formData,
             });

@@ -325,7 +325,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
       setCropsLoading(prev => ({ ...prev, [season]: true }));
       setCropsError(prev => ({ ...prev, [season]: null }));
 
-      const response = await fetch('/fastm/gwa/crops', {
+      const response = await fetch('http://localhost:8050/gwa/crops', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -423,7 +423,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
 
       // console.log('Computing domestic demand via forecast-population with payload:', requestPayload);
 
-      const response = await fetch('/fastm/gwa/forecast-population', {
+      const response = await fetch('http://localhost:8050/gwa/forecast-population', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -485,7 +485,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
 
       // console.log('Computing agricultural demand with payload:', requestPayload);
 
-      const response = await fetch('/fastm/gwa/agricultural', {
+      const response = await fetch('http://localhost:8050/gwa/agricultural', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -573,7 +573,7 @@ export const DemandProvider: React.FC<DemandProviderProps> = ({ children }) => {
 
       // console.log('Computing industrial demand with payload:', requestPayload);
 
-      const response = await fetch('/fastm/gwa/industrial', {
+      const response = await fetch('http://localhost:8050/gwa/industrial', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

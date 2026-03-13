@@ -63,7 +63,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const [dailyBySub, setDailyBySub] = useState<Record<number, DailyPoint[] | undefined>>({});
 
   const controllerRef = useRef<AbortController | null>(null);
-  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const selectedSubs = useMemo(
     () =>
@@ -99,7 +99,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       try {
         // Backend expects sub_ids; response is a map keyed by sub_id
         const body = { sub_ids: selectedSubs, ...(params ?? {}) };
-        const res = await fetch(`${apiBase}/eflow`, {
+        const res = await fetch(`${apiBase}/swa/eflow`, {
           method: 'POST',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
@@ -140,15 +140,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
     return null;
   }, []);
 
-  // NEW: Synchronize with LocationContext changes
-  useEffect(() => {
-    // Reset state when selectedSubbasins or selectionConfirmed changes
-    reset();
-    // Optionally re-run analysis if selection is confirmed and valid
-    if (canRun) {
-      run(); // Run with default params; adjust if specific params are needed
-    }
-  }, [selectedSubbasins, selectionConfirmed, canRun, reset, run]);
+
 
   const value: Ctx = useMemo(
     () => ({

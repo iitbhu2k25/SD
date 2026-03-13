@@ -240,7 +240,7 @@ export const GroundwaterTrendProvider = ({
     if (!trendMapFilename) {
       return null;
     }
-    return `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${trendMapFilename}`;
+    return `/django/media/temp/${trendMapFilename}`;
   };
 
   const getTrendMapFilename = (): string | null => {
@@ -336,7 +336,7 @@ export const GroundwaterTrendProvider = ({
 
       console.log("Sending trend analysis request:", payload);
 
-      const response = await fetch("/fastm/gwa/trends", {
+      const response = await fetch("http://localhost:8050/gwa/trends", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -460,7 +460,7 @@ export const GroundwaterTrendProvider = ({
             seasonal: data.summary_stats?.file_info?.timeseries_seasonal_csv_filename,
           },
           trendMapFilename: mapFilename,
-          trendMapUrl: mapFilename ? `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${mapFilename}` : null,
+          trendMapUrl: mapFilename ? `/django/media/temp/${mapFilename}` : null,
           trendMapBase64: mapBase64,
         },
       }));

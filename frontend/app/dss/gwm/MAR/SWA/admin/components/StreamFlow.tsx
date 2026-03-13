@@ -155,20 +155,7 @@ export default function StreamFlowPlotly() {
     }
   }, [isFullscreen]);
 
-  const downloadServerPng = useCallback(async () => {
-    if (!selectedVillage) return;
-    const itm = series.find((s) => s.vlcode === selectedVillage);
-    if (!itm) return;
-    const b64 = await fetchFdcPng(selectedVillage);
-    if (!b64) return;
-    const safeVillage = (itm.village || 'Village').replace(/[^a-z0-9-_]+/gi, '_');
-    const a = document.createElement('a');
-    a.href = `data:image/png;base64,${b64}`;
-    a.download = `${safeVillage}_FlowDurationCurve.png`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }, [selectedVillage, series, fetchFdcPng]);
+
 
   const defaultLayout: Partial<Plotly.Layout> = useMemo(
     () => ({
@@ -242,18 +229,7 @@ export default function StreamFlowPlotly() {
     ];
   }, [selectedVillage, chartData, series]);
 
-  const resetAxes = useCallback(() => {
-    setXRange(null);
-    setYRange(null);
-    if (plotRef.current && plotRef.current.relayout) {
-      plotRef.current
-        .relayout({
-          'xaxis.autorange': true,
-          'yaxis.autorange': true,
-        })
-        .catch(() => {});
-    }
-  }, []);
+
 
   const zoomTo = useCallback(
     (x0: number, x1: number, y0?: number, y1?: number) => {
@@ -269,30 +245,7 @@ export default function StreamFlowPlotly() {
     []
   );
 
-  const downloadClientPng = useCallback(async () => {
-    try {
-      if (!plotRef.current) return;
-      const gd = plotRef.current.getPlotly ? plotRef.current : plotRef.current.container;
-      // @ts-ignore
-      const imgData = await (window as any).Plotly.toImage(gd, {
-        format: 'png',
-        height: 800,
-        width: 1200,
-      });
-      const a = document.createElement('a');
-      a.href = imgData;
-      const safeName = (series.find((s) => s.vlcode === selectedVillage)?.village || 'FlowCurve').replace(
-        /[^a-z0-9-_]+/gi,
-        '_'
-      );
-      a.download = `${safeName}_FlowDurationCurve_plot.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (err) {
-      console.error('Plotly export error', err);
-    }
-  }, [plotRef, selectedVillage, series]);
+
 
   if (!selectionConfirmed) {
     return (
@@ -458,33 +411,10 @@ export default function StreamFlowPlotly() {
               <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
             </button>
 
-            <button
-              onClick={() => {
-                resetAxes();
-              }}
-              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              title="Reset axes / autoscale"
-            >
-              Reset axes
-            </button>
+     
 
-            <button
-              onClick={downloadClientPng}
-              className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              title="Download PNG (client-rendered)"
-            >
-              Download PNG
-            </button>
 
-            {selectedVillage && (
-              <button
-                onClick={downloadServerPng}
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                title="Download PNG (server-rendered)"
-              >
-                Server PNG
-              </button>
-            )}
+            
           </div>
         </div>
 

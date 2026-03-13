@@ -44,7 +44,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const [lastFetchedSubbasins, setLastFetchedSubbasins] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = `${process.env.NEXT_PUBLIC_DJANGO_URL}/swa`;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const selectedSubs = useMemo(
     () =>
@@ -67,7 +67,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
     setError(null);
 
     try {
-      const res = await fetch(`${apiBase}/fdc`, {
+      const res = await fetch(`${apiBase}/swa/fdc`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',

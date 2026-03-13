@@ -89,7 +89,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const [stressDataMap, setStressDataMap] = useState<Map<number, VillageStressData>>(new Map());
   const [stressColumns, setStressColumns] = useState<string[]>([]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   // Load stress data from localStorage if present (keeps earlier behavior)
   useEffect(() => {
@@ -151,7 +151,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/eflowadmin`, {
+        const res = await fetch(`${apiBase}/swa/eflowadmin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -231,7 +231,7 @@ export const EflowProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const fetchMethodPng = useCallback(
     async (vlcode: number, methodKey: MethodKey): Promise<MethodPngResponse | null> => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/eflowadminimage`, {
+        const res = await fetch(`${apiBase}/swa/eflowadminimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode, method_key: methodKey }),

@@ -16,30 +16,30 @@ const statisticsOptions: StatisticsOption[] = [
   {
     id: "state-distribution",
     label: "Statewise Distribution of Districts",
-    apiEndpoint: `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/rainfall_stats/statewise`,
+    apiEndpoint: "http://localhost:8050/extract/rainfall_stats/statewise",
   },
   {
     id: "district-cumulative-departures",
     label: "District - Week by Week Departures (Cumulative)",
-    apiEndpoint: `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/rainfall_stats/district/weekcumm`,
+    apiEndpoint: "http://localhost:8050/extract/rainfall_stats/district/weekcumm",
     isZip: true,
   },
   {
     id: "district-departures",
     label: "District - Week by Week Departures",
-    apiEndpoint:  `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/rainfall_stats/district/weekly`,
+    apiEndpoint: "http://localhost:8050/extract/rainfall_stats/district/weekly",
     isZip: true,
   },
   {
     id: "district-distribution",
     label: "District-wise Rainfall Distribution (Daily and Cumulative)",
-    apiEndpoint: `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/rainfall_stats/district/D&C`,
+    apiEndpoint: "http://localhost:8050/extract/rainfall_stats/district/D&C",
     isZip: true,
   },
   {
     id: "state-distribution-rainfall",
     label: "State-wise Rainfall Distribution (Daily and Cumulative)",
-    apiEndpoint: `${process.env.NEXT_PUBLIC_DJANGO_URL}/extract/rainfall_stats/statewiseDC`,
+    apiEndpoint: "http://localhost:8050/extract/rainfall_stats/statewiseDC",
   },
 ];
 

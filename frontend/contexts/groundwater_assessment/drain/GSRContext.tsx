@@ -79,7 +79,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
 
   const getMapImageUrl = (): string | null => {
     if (!mapImageFilename) return null;
-    return `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${mapImageFilename}`;
+    return `/django/media/temp/${mapImageFilename}`;
   };
 
   const getMapImageSrc = (): string | null => {
@@ -196,7 +196,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       console.log(`   Compressed size: ${base64Compressed.length} bytes`);
 
       // Send compressed data
-      const response = await fetch('/fastm/gwa/gsr', {
+      const response = await fetch('http://localhost:8050/gwa/gsr', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       console.log(`   Years: ${yearsCount}`);
       console.log(`   GSR Records: ${gsrTableData.length}`);
 
-      const response = await fetch('/fastm/gwa/stress', {
+      const response = await fetch('http://localhost:8050/gwa/stress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),

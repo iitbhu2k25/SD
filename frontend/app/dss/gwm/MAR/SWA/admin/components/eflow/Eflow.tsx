@@ -112,20 +112,7 @@ export default function Eflow() {
     URL.revokeObjectURL(a.href);
   }, [mergedItems, stressColumns, methodsOrder]);
 
-  const handleDownloadPNG = useCallback(
-    async (vlcode: number, method: MethodKey) => {
-      const rec = items.find((r) => r.vlcode === vlcode);
-      if (!rec) return;
-      const payload = await fetchMethodPng(vlcode, method);
-      if (!payload || !payload.image_base64) return;
-      const villageName = rec.village.replace(/[^a-z0-9-_]+/gi, '_');
-      const a = document.createElement('a');
-      a.href = `data:image/png;base64,${payload.image_base64}`;
-      a.download = `eflow_${villageName}_${method}.png`;
-      a.click();
-    },
-    [items, fetchMethodPng]
-  );
+
 
   // Fullscreen refs
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
@@ -353,7 +340,7 @@ export default function Eflow() {
 
             <button onClick={toggleFullscreen} className={`inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border ${isFullscreen ? 'bg-purple-600 text-white' : 'bg-white'}`}>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</button>
 
-            {currentVillage && <button onClick={()=>selectedVillage && handleDownloadPNG(selectedVillage, selectedMethod)} className="ml-2 inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white">Download PNG</button>}
+           
           </div>
         </div>
 

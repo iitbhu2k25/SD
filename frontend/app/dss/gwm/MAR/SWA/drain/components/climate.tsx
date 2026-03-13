@@ -178,28 +178,7 @@ export default function Climate() {
   const [xRange, setXRange] = useState<[number, number] | null>(null);
   const [yRange, setYRange] = useState<[number, number] | null>(null);
 
-  const downloadClientPng = useCallback(async () => {
-    try {
-      if (!plotRef.current) return;
-      const gd = (plotRef.current as any).getPlotly
-        ? plotRef.current
-        : (plotRef.current as any).container;
-      const imgData = await (window as any).Plotly.toImage(gd, {
-        format: 'png',
-        height: 800,
-        width: 1200,
-      });
-      const a = document.createElement('a');
-      a.href = imgData;
-      a.download = `Climate_${current?.subbasin_id ?? 'sub'}_${current?.scenario ?? 'sc'}_plot.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (err) {
-      console.error('Plotly export error', err);
-    }
-  }, [current]);
-
+ 
 
 
   // Numeric inputs with 2021–2100 constraints
@@ -509,13 +488,7 @@ export default function Climate() {
               {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             </button>
             
-            <button
-              onClick={downloadClientPng}
-              title="Download PNG (client)"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-            >
-              PNG (client)
-            </button>
+            
             <button
               onClick={downloadServerPng}
               title="Download PNG (server)"

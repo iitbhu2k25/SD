@@ -79,7 +79,7 @@ export const ClimateAdminProvider: React.FC<React.PropsWithChildren> = ({ childr
   const [selectedEndYear, setSelectedEndYear] = useState<number>(2023);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const selectedSubdistrictIds = useMemo(() => getConfirmedSubdistrictIds(), [getConfirmedSubdistrictIds]);
 
@@ -120,7 +120,7 @@ export const ClimateAdminProvider: React.FC<React.PropsWithChildren> = ({ childr
     setResults(null);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminclimate`, {
+      const res = await fetch(`${apiBase}/swa/adminclimate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',

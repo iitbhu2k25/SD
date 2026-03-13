@@ -217,40 +217,6 @@ export default function EFlow() {
     a.remove();
   }, [selectedSub, results, method]);
 
-  const downloadClientPng = useCallback(async () => {
-    try {
-      if (!plotRef.current) return;
-      const gd = plotRef.current.getPlotly ? plotRef.current : plotRef.current.container;
-      // @ts-ignore
-      const imgData = await (window as any).Plotly.toImage(gd, {
-        format: 'png',
-        height: 800,
-        width: 1200,
-      });
-      const a = document.createElement('a');
-      a.href = imgData;
-      const safeMethod = method.replace(/[^A-Za-z0-9%-]+/g, '_');
-      a.download = `Subbasin-${selectedSub}_${safeMethod}_plot.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (err) {
-      console.error('Plotly export error', err);
-    }
-  }, [plotRef, selectedSub, method]);
-
-  const resetAxes = useCallback(() => {
-    setXRange(null);
-    setYRange(null);
-    if (plotRef.current && plotRef.current.relayout) {
-      plotRef.current
-        .relayout({
-          'xaxis.autorange': true,
-          'yaxis.autorange': true,
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   const defaultLayout: Partial<Plotly.Layout> = useMemo(
     () => ({
@@ -668,25 +634,7 @@ export default function EFlow() {
                 <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
               </button>
 
-              <button
-                onClick={resetAxes}
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                title="Reset axes / autoscale"
-              >
-                Reset axes
-              </button>
-
-              <button
-                onClick={downloadClientPng}
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                title="Download PNG (client-rendered)"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                      d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
-                </svg>
-                <span>Download PNG</span>
-              </button>
+            
 
               {selectedSub !== null && (
                 <button

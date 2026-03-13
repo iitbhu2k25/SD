@@ -45,7 +45,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
 
   const fetchSurplusBulk = useCallback(
     async (subdistrictIds: number[]) => {
@@ -57,7 +57,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
       setError(null);
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminsurfacewater`, {
+        const res = await fetch(`${apiBase}/swa/adminsurfacewater`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -207,7 +207,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const fetchVillagePng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminsurfacewaterimage`, {
+        const res = await fetch(`${apiBase}/swa/adminsurfacewaterimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),

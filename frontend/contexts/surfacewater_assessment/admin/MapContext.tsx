@@ -305,7 +305,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            '${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs' +
+            '/geoserver/api/myworkspace/wfs' +
             '?service=WFS&version=1.0.0&request=GetFeature' +
             '&typeName=myworkspace:B_State&outputFormat=application/json',
         }),
@@ -558,7 +558,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `STATE_CODE='${selectedState}'`;
     const wfsUrl =
-      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+      `/geoserver/api/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:B_district` +
       `&outputFormat=application/json` +
@@ -605,7 +605,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const districtCodes = selectedDistricts.map((d) => `'${d}'`).join(',');
     const cql = `DISTRICT_C IN (${districtCodes})`;
     const wfsUrl =
-      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+      `/geoserver/api/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:B_subdistrict` +
       `&outputFormat=application/json` +
@@ -651,7 +651,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const subCodes = selectedSubDistricts.map((s) => `'${s}'`).join(',');
     const cql = `SUBDIS_COD IN (${subCodes})`;
     const wfsUrl =
-      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs` +
+      `/geoserver/api/myworkspace/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
       `&typeName=myworkspace:Village` +
       `&outputFormat=application/json` +
