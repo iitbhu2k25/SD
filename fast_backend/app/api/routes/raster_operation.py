@@ -26,7 +26,7 @@ from app.api.schema.raster_operation import (
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
 connection_manager=ConnectionManager()
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 @router.post("/post_raster",status_code=status.HTTP_201_CREATED)
 @validate
@@ -151,7 +151,7 @@ async def get_report(chord_id:str):
 async def operation_progress(websocket: WebSocket, task_id: str):
     await websocket.accept()
     await connection_manager.connect(websocket, task_id)
-    pubsub = redis_client.pubsub()
+    pubsub = await get_redis().pubsub()
     channel = f"opr_id:{task_id}"
     pubsub.subscribe(channel)
     

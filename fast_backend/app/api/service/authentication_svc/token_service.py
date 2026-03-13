@@ -4,7 +4,7 @@ from app.conf.settings import Settings
 from app.api.exception.exceptions import TokenNone,InternalServerError,Invalid_Token
 from app.database.crud.user_crud import UserCrud
 from sqlalchemy.orm import Session 
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 class TokenManager:
     
@@ -32,7 +32,7 @@ class TokenManager:
             Settings().SECRET_KEY,
             algorithm=Settings().ALGORITHM
         )
-        redis_client.set(f"refresh:dss_{user_id}", refresh_token, ex=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400)
+        get_redis.set(f"refresh:dss_{user_id}", refresh_token, ex=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400)
         return refresh_token
     @staticmethod
     def regenerate_access_token(db:Session,token:str,expire_time:timedelta|None=None):
@@ -42,7 +42,7 @@ class TokenManager:
             payload=TokenManager.validate_token(token)
             if payload.get('sub@x') is None:
                 raise Invalid_Token(CustomExceptionDetail="refresh token failed")
-            stored_token = redis_client.get(f"refresh:dss_{payload.get('sub@x')}") == token
+            stored_token = get_redis.get(f"refresh:dss_{payload.get('sub@x')}") == token
             if not stored_token:
                 raise Invalid_Token(CustomExceptionDetail="refresh token is invalid")
             obj =UserCrud(db).get_user(id=payload.get('sub@x'))

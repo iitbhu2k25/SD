@@ -15,7 +15,7 @@ from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 
 class AuthServiceInterface(ABC):
@@ -147,7 +147,7 @@ class AuthService(AuthServiceInterface):
                 print(f"Token validation error: {e}")
             if payload and payload.get("user_id"):
                 user = UserCrud(db).get_user(id=payload.get("user_id"))
-                redis_client.delete(f"refresh:dss_{user.id}")
+                # await get_redis.delete(f"refresh:dss_{user.id}")
             
             # Delete cookies anyway
             response.delete_cookie(key="refresh_token")

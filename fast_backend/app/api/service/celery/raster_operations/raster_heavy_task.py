@@ -13,7 +13,7 @@ import time
 import os
 from app.conf.celery import app
 from app.conf.settings import Settings
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
@@ -387,7 +387,7 @@ def celery_reprojection(self,
     resampling: str = "near",
 ):
     channel = f"opr_id:{self.request.id}"
-    redis_client.publish(channel, json.dumps({
+    get_redis.publish(channel, json.dumps({
         "status": "started",
         "progress": 0
     }))
@@ -417,7 +417,7 @@ def celery_reprojection(self,
 
         logger.info("Reprojection completed successfully")
         logger.debug(result.stdout)
-        redis_client.publish(channel, json.dumps({
+        get_redis.publish(channel, json.dumps({
         "status": "completed",
         "progress": 100
         }))
@@ -426,7 +426,7 @@ def celery_reprojection(self,
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")
         logger.error(e.stderr)
-        redis_client.publish(channel, json.dumps({
+        get_redis.publish(channel, json.dumps({
             "status": "failed",
             "progress": 100
         }))

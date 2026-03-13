@@ -8,7 +8,7 @@ from app.conf.ws_config import ConnectionManager,safe_send
 from fastapi import  WebSocket, WebSocketDisconnect
 import asyncio
 from app.conf.settings import Settings
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 from typing import Annotated
 router=APIRouter()
 connection_manager=ConnectionManager()
@@ -35,7 +35,7 @@ async def groundwater_interpolation(websocket: WebSocket, task_id: str):
         await asyncio.sleep(2)
         await safe_send(websocket, {"state": "STARTED"})
         while True:
-            data = redis_client.get(task_id)
+            data = await get_redis.get(task_id)
             if data is None:
                 if last_state != "NOT_FOUND":
                     await safe_send(websocket, {"state": "NOT_FOUND"})
@@ -43,7 +43,7 @@ async def groundwater_interpolation(websocket: WebSocket, task_id: str):
             else:
                 if data != last_state:
                     if data == "Done":
-                        result = redis_client.hgetall(task_id + "_Result")
+                        result = await get_redis.hgetall(task_id + "_Result")
                         await safe_send(websocket, {
                             "state": "completed",
                             "result": result

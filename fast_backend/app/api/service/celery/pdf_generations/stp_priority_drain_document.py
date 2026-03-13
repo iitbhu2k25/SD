@@ -80,7 +80,7 @@ registerFontFamily(
     boldItalic='TimesNewRoman-BoldItalic'
 )
 
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
 class STRPReportError(Exception):
@@ -1293,7 +1293,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
         )
         
      
-        redis_client.setex(
+        get_redis.setex(
             f"chord:{self.request.id}",
             3600,  
             job.id
@@ -1301,7 +1301,7 @@ def document_gen1(self,payload: StpPriorityDrainReport):
         while not job.ready():
             completed_count = 0
             for i in range(total_images):
-                if redis_client.get(f"image_complete:{self.request.id}:{i}"):
+                if get_redis.get(f"image_complete:{self.request.id}:{i}"):
                     completed_count += 1
             
             progress_pct = 20 + int((completed_count / total_images) * 60)
@@ -1317,8 +1317,8 @@ def document_gen1(self,payload: StpPriorityDrainReport):
         
         # Cleanup Redis keys
         for i in range(total_images):
-            redis_client.delete(f"image_complete:{self.request.id}:{i}")
-        redis_client.delete(f"chord:{self.request.id}")
+            get_redis.delete(f"image_complete:{self.request.id}:{i}")
+        get_redis.delete(f"chord:{self.request.id}")
         return {"chord_id": job.id}
         
     except Exception as e:
@@ -1338,7 +1338,7 @@ def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:
             filtered_vector=clip
         )
 
-        redis_client.setex(
+        get_redis.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,
             "1"
@@ -1358,7 +1358,7 @@ def celery_currency_image1(self,file_path:str,raster_path:str,sld_path:str,clip:
 def final_step1(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
     try:
         
-        redis_client.setex(
+        get_redis.setex(
             f"pdf_generation:{parent_task_id}",
             3600,
             "started"
@@ -1371,7 +1371,7 @@ def final_step1(self,results: List[dict],table_data:list,location_data:list,weig
             weight_data=weight_data
         )
         
-        redis_client.delete(f"pdf_generation:{parent_task_id}")
+        get_redis.delete(f"pdf_generation:{parent_task_id}")
         
         return pdf_path
     except Exception as e:

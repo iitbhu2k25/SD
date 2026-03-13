@@ -81,7 +81,7 @@ registerFontFamily(
     boldItalic='TimesNewRoman-BoldItalic'
 )
 
-from app.conf.redis import redis_client
+from app.conf.redis import get_redis
 
 PILImage.MAX_IMAGE_PIXELS = 500000000
 class STRPReportError(Exception):
@@ -1486,7 +1486,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
         job = chord(group(tasks))(
             final_step.s(table_data=table_data,location_data=location_data,
                         weight_data=weight_data,parent_task_id=self.request.id))
-        redis_client.setex(
+        get_redis.setex(
             f"chord:{self.request.id}",
             3600,  
             job.id
@@ -1494,7 +1494,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
         while not job.ready():
             completed_count = 0
             for i in range(total_images):
-                if redis_client.get(f"image_complete:{self.request.id}:{i}"):
+                if get_redis.get(f"image_complete:{self.request.id}:{i}"):
                     completed_count += 1
             
             progress_pct = 20 + int((completed_count / total_images) * 60)
@@ -1508,8 +1508,8 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
                
         progress_recorder.set_progress(100, total, description="Complete")
         for i in range(total_images):
-            redis_client.delete(f"image_complete:{self.request.id}:{i}")
-        redis_client.delete(f"chord:{self.request.id}")
+            get_redis.delete(f"image_complete:{self.request.id}:{i}")
+        get_redis.delete(f"chord:{self.request.id}")
         return {"chord_id": job.id}
         
     except Exception as e:
@@ -1522,7 +1522,7 @@ def document_gen2(self,payload: StpsuitabilityAdminReport):
 def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:List[str], task_index: int, total_tasks: int, parent_task_id: str) -> dict:
     try:
         file_path=MapGenerator(dpi=100).make_image(file_path=file_path,raster_path=raster_path,sld_path=sld_path,filtered_vector=clip)
-        redis_client.setex(
+        get_redis.setex(
             f"image_complete:{parent_task_id}:{task_index}",
             3600,
             "1"
@@ -1540,14 +1540,14 @@ def celery_currency_image(self,file_path:str,raster_path:str,sld_path:str,clip:L
 def final_step(self,results: List[dict],table_data:list,location_data:list,weight_data:list, parent_task_id: str) -> str:
     try:
         
-        redis_client.setex(
+        get_redis.setex(
             f"pdf_generation:{parent_task_id}",
             3600,
             "started"
         )
         
         pdf_path=StpDocument().report_generator(layer_names=results, csv_data=table_data,location_data=location_data,weight_data=weight_data)
-        redis_client.delete(f"pdf_generation:{parent_task_id}")
+        get_redis.delete(f"pdf_generation:{parent_task_id}")
         return pdf_path
     except Exception as e:
         logger.error(f"PDF generation failed: {e}")
