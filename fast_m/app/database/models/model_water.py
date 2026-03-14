@@ -10,9 +10,9 @@ class Stretches(Base):
     id = None 
     
     # 2. Mark Stretch_ID as the primary key for SQLAlchemy mapping
-    GRID_CODE: Mapped[int] = mapped_column(Integer, nullable=False)
     Stretch_ID: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     River_Code: Mapped[int] = mapped_column(Integer, nullable=False)
+    GRID_CODE: Mapped[int] = mapped_column(Integer, nullable=False)
 
 class Drain(Base):
     __tablename__ = "WA_drain"
@@ -22,5 +22,5 @@ class Drain(Base):
     
     # 2. Map the actual columns
     River_Code: Mapped[int] = mapped_column(Integer, nullable=False)
-    Drain_No: Mapped[int] = mapped_column(Integer, primary_key=True, unique=True, nullable=False)
-    Stretch_ID: Mapped[int] = mapped_column(ForeignKey("WA_stretches.Stretch_ID"), nullable=False)
+    Drain_No: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    Stretch_ID: Mapped[int] = mapped_column(ForeignKey("WA_stretches.Stretch_ID"),primary_key=True, nullable=False)

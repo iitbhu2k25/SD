@@ -24,4 +24,14 @@ urlpatterns = [
     path('job-status/<str:job_id>', views.get_job_status, name='get_job_status'),
     path('job-result/<str:job_id>', views.get_job_result, name='get_job_result'),
     path("cancel-job/<str:job_id>", views.cancel_job, name='cancel_job'),
+
+# GENERAL RIVER UPLOAD API
+    path('general/upload', views.upload_river_shapefile, name='upload_river_shapefile'),
+    path('general/upload-csv', views.upload_wqi_csv, name='upload_wqi_csv'),
+    path('general/wqi-params', views.get_wqi_params_info, name='get_wqi_params_info'),
+    path('general/interpolate-wqi', views.general_interpolate_wqi, name='general_interpolate_wqi'),
+    path('general/download-raster', views.general_download_raster, name='general_download_raster'),
+    path('wqi-profile', views.admin_wqi_profile, name='admin_wqi_profile'),
 ]
+
+

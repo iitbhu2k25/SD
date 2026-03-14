@@ -1,9 +1,13 @@
 import datetime
 from django.http import JsonResponse
-from django.views.decorators.csrf import  csrf_exempt
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import (
+    api_view,
+    permission_classes,
+    authentication_classes,
+)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -72,7 +76,7 @@ GEOSERVER_URL = "http://geoserver:8080/geoserver"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "myworkspace"
-wms_base_url = "/geoserver/api" # Frontend fetches rasters from geoserver
+wms_base_url = "/geoserver/api"  # Frontend fetches rasters from geoserver
 
 # Add this at the top of your file
 BACKEND_PARAMETER_DISPLAY_NAMES = {
@@ -98,7 +102,7 @@ BACKEND_PARAMETER_DISPLAY_NAMES = {
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
+@permission_classes([AllowAny])  # <-- removes 401
 @authentication_classes([])
 def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
     """
@@ -113,17 +117,20 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
         return response
 
     try:
-        # Determine the model based on data_type
-        if season == "premonsoon":
+        normalized_season = (season or "").strip().lower()
+
+        # Determine the model based on season.
+        # All seasonal datasets currently resolve to the same model.
+        if normalized_season in {"premonsoon", "pre_monsoon"}:
             model = WaterQuality_sampling_point_data
-        elif season == "during_monsoon":
+        elif normalized_season in {"monsoon", "during_monsoon", "duringmonsoon"}:
             model = WaterQuality_sampling_point_data
-        # elif season == 'post_monsoon':
-        #     model = WaterQuality_sampling_point_data_post_monsoon
+        elif normalized_season in {"postmonsoon", "post_monsoon", "post-monsoon"}:
+            model = WaterQuality_sampling_point_data
         else:
             return JsonResponse(
                 {
-                    "error": 'Invalid data type. Use "overall", "upstream", or "downstream"'
+                    "error": 'Invalid season. Use "premonsoon", "monsoon", or "postmonsoon".'
                 },
                 status=400,
             )
@@ -272,7 +279,6 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
             if not df.empty:
                 df = WQI(df, pcm, labels)  # Process WQI and get DataFrame
 
-
             def safe_json_convert(dataframe):
                 """Convert DataFrame to JSON-safe dictionary"""
                 data_dict = dataframe.to_dict(orient="records")
@@ -389,8 +395,8 @@ def water_quality_data(request, data_type="subdistbased", season="premonsoon"):
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
-@authentication_classes([])   
+@permission_classes([AllowAny])  # <-- removes 401
+@authentication_classes([])
 def River(request):
     """
     Enhanced river endpoint with regional clipping
@@ -508,7 +514,6 @@ def load_stretch_linesAPI(request):
                             },
                             status=404,
                         )
-                
 
             except json.JSONDecodeError as e:
                 return JsonResponse(
@@ -686,7 +691,6 @@ def River_100m_buffer(request, data_type="subdistbased"):
         )
 
 
-
 def get_points_shapefile_gdf(
     *,
     data_type: str,
@@ -702,22 +706,49 @@ def get_points_shapefile_gdf(
     - Safe for Celery & API use
     """
 
+    normalized_season = (season or "").strip().lower()
+
     # -----------------------------
     # Shapefile selection
     # -----------------------------
-    if season == "premonsoon":
+    if normalized_season in {"premonsoon", "pre_monsoon"}:
         shp_path = os.path.join(
             settings.MEDIA_ROOT,
             "rwm_data",
             "DRAINS_Final_point",
             "DRAINS_Final_point.shp",
         )
-    elif season == "monsoon":
+    elif normalized_season in {"monsoon", "during_monsoon", "duringmonsoon"}:
         shp_path = os.path.join(
             settings.MEDIA_ROOT,
             "rwm_data",
             "monsoon",
             "monsoon.shp",
+        )
+    elif normalized_season in {"postmonsoon", "post_monsoon", "post-monsoon"}:
+        post_monsoon_candidates = [
+            os.path.join(
+                settings.MEDIA_ROOT,
+                "rwm_data",
+                "Post Monsoon",
+                "Postmonsoon.shp",
+            ),
+            os.path.join(
+                settings.MEDIA_ROOT,
+                "rwm_data",
+                "post_monsoon",
+                "post_monsoon.shp",
+            ),
+            os.path.join(
+                settings.MEDIA_ROOT,
+                "rwm_data",
+                "Post Monsoon",
+                "post_monsoon.shp",
+            ),
+        ]
+        shp_path = next(
+            (path for path in post_monsoon_candidates if os.path.exists(path)),
+            post_monsoon_candidates[0],
         )
     else:
         raise ValueError("Invalid season")
@@ -749,7 +780,7 @@ def get_points_shapefile_gdf(
     # -----------------------------
     if not gdf.empty:
         df_for_wqi = gdf.copy()
-        
+
         # Create field mapping dictionary for consistent naming
         field_mapping = {
             "S_No_": "s_no",
@@ -779,34 +810,31 @@ def get_points_shapefile_gdf(
             "Total_Coli": "total_coliform",
             "Stretch_ID": "Stretch_ID",
         }
-        
-        
+
         # Rename columns that exist in the dataframe
         existing_mappings = {
-            old: new
-            for old, new in field_mapping.items()
-            if old in df_for_wqi.columns
+            old: new for old, new in field_mapping.items() if old in df_for_wqi.columns
         }
         df_for_wqi = df_for_wqi.rename(columns=existing_mappings)
 
         numeric_columns = [
-                "ph",
-                "temperature",
-                "tds",
-                "ec",
-                "tss",
-                "ts",
-                "do",
-                "turbidity",
-                "orp",
-                "cod",
-                "bod",
-                "chloride",
-                "nitrate",
-                "hardness",
-                "faecal_coliform",
-                "total_coliform",
-            ]
+            "ph",
+            "temperature",
+            "tds",
+            "ec",
+            "tss",
+            "ts",
+            "do",
+            "turbidity",
+            "orp",
+            "cod",
+            "bod",
+            "chloride",
+            "nitrate",
+            "hardness",
+            "faecal_coliform",
+            "total_coliform",
+        ]
 
         for col in numeric_columns:
             if col in df_for_wqi.columns:
@@ -836,8 +864,6 @@ def get_points_shapefile_gdf(
     return gdf
 
 
-
-
 @csrf_exempt
 def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
     # """
@@ -855,7 +881,6 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
     #         shp_path = os.path.join(
     #             settings.MEDIA_ROOT, "rwm_data", "monsoon", "monsoon.shp"
     #         )
-        
 
     #     # shp_path = os.path.join(settings.MEDIA_ROOT, 'rwm_data', 'DRAINS_Final_point', 'DRAINS_Final_point.shp')
     #     if not os.path.exists(shp_path):
@@ -895,7 +920,7 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
     #                         # print(
     #                         #     f"SUBDISTRICT Filtered shapefile to {len(gdf)} features for subdistricts: {sub_district_codes}"
     #                         # )
-                        
+
     #             elif data_type == "stretchbased":
     #                 if Stretch_IDs:
     #                     # Filter by subdistrict codes if provided
@@ -911,7 +936,6 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
     #                         # print(
     #                         #     f"STRETCH Filtered shapefile to {len(gdf)} features for subdistricts: {Stretch_IDs}"
     #                         # )
-                        
 
     #         except json.JSONDecodeError:
     #             pass  # Continue h unfiltered data if JSON is invalid
@@ -1008,7 +1032,6 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
 
     #             gdf["WQI_Class"] = gdf["WQI"].apply(get_wqi_class)
 
-
     #     geojson_str = gdf.to_json()
     #     geojson_dict = json.loads(geojson_str)
 
@@ -1025,8 +1048,7 @@ def shapefile_data(request, data_type="subdistbased", season="premonsoon"):
     #     )
     #     response["Access-Control-Allow-Origin"] = "*"
     #     return response
-    
-    
+
     try:
         body = json.loads(request.body) if request.method == "POST" else {}
 
@@ -1494,7 +1516,6 @@ def shapefile_data_with_wqi(request, data_type="overall"):
 import requests
 import json
 import xml.etree.ElementTree as ET
-import numpy as np
 from django.conf import settings
 import os
 
@@ -2259,7 +2280,7 @@ def create_proper_transform_from_bounds(bounds, width, height, crs="EPSG:4326"):
         from rasterio.transform import from_bounds
 
         transform = from_bounds(minx, miny, maxx, maxy, width, height)
-        
+
         return transform
 
     except Exception as e:
@@ -2279,7 +2300,7 @@ def validate_and_fix_bounds(bounds, fallback_bounds=None):
 
         # Check if bounds are reasonable
         if minx >= maxx or miny >= maxy:
-           
+
             if fallback_bounds is not None:
                 return validate_and_fix_bounds(fallback_bounds)  # Recursive validation
             raise ValueError("Invalid bounds: min >= max")
@@ -2334,7 +2355,6 @@ def create_color_stops_with_boundaries(attribute_name, stats):
 
 
 from pykrige.ok import OrdinaryKriging  # Added for Kriging interpolation
-import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 from rasterio.features import geometry_mask
@@ -2407,7 +2427,7 @@ def create_multi_resolution_idw(
         processing_geometry = river_gdf.geometry.unary_union.buffer(100 / 111000)
         bounds = processing_geometry.bounds
         bounds = validate_and_fix_bounds(bounds, point_gdf.total_bounds)
-        
+
         # Prepare interpolation data (same as original)
         points_clean = point_gdf.dropna(subset=["geometry", decoded_attribute])
         numeric_values = pd.to_numeric(points_clean[decoded_attribute], errors="coerce")
@@ -2546,7 +2566,6 @@ def create_multi_resolution_idw(
                         traceback.print_exc()
                         continue
 
-
                 valid_pixels = np.sum(~np.isnan(raster))
                 if valid_pixels == 0:
                     continue
@@ -2672,7 +2691,6 @@ def create_multi_resolution_idw(
                         ]
                     )
 
-
             except Exception as e:
                 import traceback
 
@@ -2722,14 +2740,13 @@ def interpolate_idw_advanced(
     """
 
     from scipy.spatial import cKDTree
-    import numpy as np
 
     # Build KDTree for fast neighbor queries
     tree = cKDTree(coords)
 
     if search_mode == "variable":
         # Use N nearest neighbors (ArcGIS-like default)
-        
+
         dists, idxs = tree.query(grid_points, k=min(n_neighbors, len(coords)))
 
         # Handle exact matches (distance = 0)
@@ -2932,7 +2949,7 @@ def create_and_apply_style_fixed(
                 f"{geoserver_url}/workspaces", headers=headers_auth, timeout=10
             )
             if test_response.status_code != 200:
-                
+
                 return apply_fallback_style(
                     workspace, layer_name, attribute_name, raster_data, auth
                 )
@@ -2945,7 +2962,6 @@ def create_and_apply_style_fixed(
         stats = calculate_raster_statistics(raster_data)
         if stats is None:
             return {"success": False, "message": "No valid data for statistics"}
-
 
         # Create style name
         safe_attribute = (
@@ -3174,7 +3190,6 @@ def force_delete_all_related_styles(attribute_name, auth):
                 response = requests.delete(style_url, headers=headers_auth)
             except Exception as delete_error:
                 print(f"Failed deleting style {style_name}: {delete_error}")
-                    
 
     except Exception as e:
         print(f"Error in cleanup: {e}")
@@ -3418,7 +3433,7 @@ def convert_raster_to_web_mercator(memfile, target_crs="EPSG:3857"):
                     dst.write_mask((test_data != nodata).astype("uint8"))
 
         output_memfile.seek(0)
-        
+
         return output_memfile
 
     except Exception as e:
@@ -3707,7 +3722,6 @@ def geoserver_health_check(request):
 # --------------------------------------------------------------------RAJKUMAR-----------------------------------------------------------------------------------------
 
 import geopandas as gpd
-import numpy as np
 import rasterio
 from rasterio.transform import from_bounds
 from rasterio.features import rasterize
@@ -3975,7 +3989,6 @@ def perform_interpolation(
         points_gdf[attribute] = pd.to_numeric(points_gdf[attribute], errors="coerce")
         points_gdf = points_gdf[points_gdf[attribute].notna()].copy()
 
-
         # Step 3: CRS handling
         if river_gdf.crs is None:
             river_gdf.set_crs("EPSG:4326", inplace=True)
@@ -4129,7 +4142,7 @@ def perform_interpolation(
                             raise Exception(
                                 f"Failed to upload to GeoServer after trying all methods"
                             )
-        
+
         # SLD Styling
         vmin = float(np.nanmin(interpolated_grid))
         vmax = float(np.nanmax(interpolated_grid))
@@ -4143,7 +4156,7 @@ def perform_interpolation(
         try:
             delete_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles/{style_name}?recurse=true&purge=true"
             delete_response = requests.delete(delete_style_url, auth=auth)
-            
+
             time.sleep(0.5)
             create_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles"
             style_json = {
@@ -4252,6 +4265,224 @@ def perform_interpolation(
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def admin_wqi_profile(request):
+    """
+    Extract a WQI longitudinal profile by sampling an already-published
+    interpolation raster along the centerline of the river buffer polygon.
+    """
+    import rasterio
+    from shapely.ops import linemerge
+    from shapely.geometry import (
+        LineString,
+        MultiLineString,
+        Polygon,
+        MultiPolygon,
+    )
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON payload."}, status=400
+        )
+
+    layer_name = data.get("layer_name", "")
+    river_buffer_data = data.get("river_buffer_data")
+    profile_step_m = int(data.get("profile_step_m", 100))
+
+    if not layer_name:
+        return JsonResponse(
+            {"success": False, "error": "layer_name is required."}, status=400
+        )
+    if not river_buffer_data:
+        return JsonResponse(
+            {"success": False, "error": "river_buffer_data is required."}, status=400
+        )
+
+    # ── 1. Parse buffer GeoJSON → GeoDataFrame ──
+    try:
+        if "type" in river_buffer_data and river_buffer_data["type"] == "FeatureCollection":
+            buffer_gdf = gpd.GeoDataFrame.from_features(
+                river_buffer_data["features"], crs="EPSG:4326"
+            )
+        else:
+            buffer_gdf = gpd.GeoDataFrame.from_features(
+                river_buffer_data, crs="EPSG:4326"
+            )
+        if buffer_gdf.crs is None:
+            buffer_gdf = buffer_gdf.set_crs("EPSG:4326")
+        elif str(buffer_gdf.crs) != "EPSG:4326":
+            buffer_gdf = buffer_gdf.to_crs("EPSG:4326")
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Invalid river_buffer_data: {str(e)}"},
+            status=400,
+        )
+
+    # ── 2. Determine UTM CRS ──
+    centroid = buffer_gdf.geometry.unary_union.centroid
+    utm_zone = int((centroid.x + 180) / 6) + 1
+    utm_crs = (
+        f"EPSG:{32600 + utm_zone}" if centroid.y >= 0 else f"EPSG:{32700 + utm_zone}"
+    )
+    buffer_proj = buffer_gdf.to_crs(utm_crs)
+
+    # ── 3. Download raster from GeoServer via WCS ──
+    workspace = WORKSPACE
+    bare_layer = layer_name
+    if ":" in layer_name:
+        ws, bare_layer = layer_name.split(":", 1)
+        if ws:
+            workspace = ws
+    qualified = f"{workspace}:{bare_layer}"
+    auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+    tiff_bytes = None
+
+    wcs_candidates = [
+        (f"{GEOSERVER_URL}/{workspace}/wcs", {
+            "service": "WCS", "version": "2.0.1", "request": "GetCoverage",
+            "coverageId": qualified, "format": "image/tiff",
+        }),
+        (f"{GEOSERVER_URL}/{workspace}/wcs", {
+            "service": "WCS", "version": "1.0.0", "request": "GetCoverage",
+            "coverage": qualified, "format": "GeoTIFF",
+        }),
+        (f"{GEOSERVER_URL}/ows", {
+            "service": "WCS", "version": "2.0.1", "request": "GetCoverage",
+            "coverageId": qualified, "format": "image/tiff",
+        }),
+    ]
+    for url, params in wcs_candidates:
+        try:
+            resp = requests.get(url, params=params, auth=auth, timeout=30)
+            if resp.status_code == 200 and resp.content:
+                ct = (resp.headers.get("Content-Type") or "").lower()
+                body_start = resp.content[:120].lower()
+                if not any(tag in ct for tag in ["xml", "text/", "html", "json"]) \
+                        and not body_start.startswith(b"<?xml"):
+                    tiff_bytes = resp.content
+                    break
+        except Exception:
+            continue
+
+    if tiff_bytes is None:
+        return JsonResponse(
+            {"success": False, "error": "Could not download raster from GeoServer. Generate interpolation first."},
+            status=404,
+        )
+
+    temp_dir = tempfile.gettempdir()
+    tiff_path = os.path.join(temp_dir, f"admin_profile_{bare_layer}.tif")
+    with open(tiff_path, "wb") as f:
+        f.write(tiff_bytes)
+
+    # ── 4. Extract centerline from buffer polygon ──
+    try:
+        def polygon_to_centerline(poly):
+            bminx, bminy, bmaxx, bmaxy = poly.bounds
+            if (bmaxx - bminx) >= (bmaxy - bminy):
+                xs = np.linspace(bminx, bmaxx, 200)
+                pts = []
+                for x in xs:
+                    vertical = LineString([(x, bminy), (x, bmaxy)])
+                    inter = poly.intersection(vertical)
+                    if not inter.is_empty:
+                        pts.append(inter.centroid)
+            else:
+                ys = np.linspace(bminy, bmaxy, 200)
+                pts = []
+                for y in ys:
+                    horizontal = LineString([(bminx, y), (bmaxx, y)])
+                    inter = poly.intersection(horizontal)
+                    if not inter.is_empty:
+                        pts.append(inter.centroid)
+            if len(pts) < 2:
+                raise ValueError("Failed to derive centerline from buffer.")
+            return LineString(pts)
+
+        geom = buffer_proj.geometry.unary_union
+        if isinstance(geom, Polygon):
+            river_line = polygon_to_centerline(geom)
+        elif isinstance(geom, MultiPolygon):
+            largest = max(geom.geoms, key=lambda g: g.area)
+            river_line = polygon_to_centerline(largest)
+        elif isinstance(geom, LineString):
+            river_line = geom
+        elif isinstance(geom, MultiLineString):
+            merged = linemerge(geom)
+            if isinstance(merged, LineString):
+                river_line = merged
+            else:
+                river_line = max(merged.geoms, key=lambda g: g.length)
+        else:
+            raise ValueError(f"Unsupported geometry type: {type(geom).__name__}")
+        if river_line.is_empty:
+            raise ValueError("Centerline generation failed.")
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Centerline extraction failed: {str(e)}"},
+            status=500,
+        )
+
+    # ── 5. Sample raster along centerline ──
+    try:
+        river_length_m = float(river_line.length)
+        step_m = max(1, profile_step_m)
+        sample_distances = np.arange(0, river_length_m + step_m, step_m)
+        sample_points = [
+            (dist, river_line.interpolate(dist)) for dist in sample_distances
+        ]
+
+        profile_data = []
+        with rasterio.open(tiff_path) as src:
+            nodata = src.nodata
+            raster_crs = str(src.crs)
+            sample_gdf = gpd.GeoDataFrame(
+                {"distance_m": [d for d, _ in sample_points]},
+                geometry=[p for _, p in sample_points],
+                crs=utm_crs,
+            )
+            if raster_crs and raster_crs != utm_crs:
+                sample_gdf = sample_gdf.to_crs(raster_crs)
+            coords = [(g.x, g.y) for g in sample_gdf.geometry]
+            sampled_vals = list(src.sample(coords))
+            for idx, val_arr in enumerate(sampled_vals):
+                val = float(val_arr[0])
+                if nodata is not None and val == nodata:
+                    continue
+                if np.isnan(val):
+                    continue
+                profile_data.append({
+                    "distance_m": float(sample_gdf.iloc[idx]["distance_m"]),
+                    "wqi": round(val, 2),
+                })
+
+        profile_meta = {
+            "resolution_m": float(step_m),
+            "river_length_m": river_length_m,
+            "river_length_km": round(river_length_m / 1000.0, 2),
+            "total_points": len(sample_points),
+            "valid_points": len(profile_data),
+        }
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Raster sampling failed: {str(e)}"},
+            status=500,
+        )
+    finally:
+        try:
+            os.remove(tiff_path)
+        except Exception:
+            pass
+
+    return JsonResponse(
+        {"success": True, "profile_data": profile_data, "profile_meta": profile_meta},
+        status=200,
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def optimized_idw_interpolation(request, attribute, data_type, season):
     """
     Enhanced interpolation with internal data fetching for stretch-based analysis
@@ -4264,7 +4495,7 @@ def optimized_idw_interpolation(request, attribute, data_type, season):
 
         # Branch based on data_type
         if data_type == "stretchbased":
-            
+
             # For stretch-based: expect Stretch_ID and points_data only
             stretch_ids = data.get("Stretch_ID", [])
             points_data = data.get("points_data")
@@ -4305,7 +4536,6 @@ def optimized_idw_interpolation(request, attribute, data_type, season):
                     {"status": "error", "message": "Failed to fetch river buffer data"},
                     status=500,
                 )
-
 
         else:
             # For subdist-based: expect all data from frontend (existing logic)
@@ -4473,7 +4703,6 @@ def batch_interpolation_internal(
         failed_count = 0
 
         for idx, attribute in enumerate(attributes):
-           
 
             try:
                 # Step 1: Run interpolation (creates raster, saves to temp file)
@@ -4572,9 +4801,9 @@ def generate_map_from_raster(
             Resampling,
             calculate_default_transform,
         )
-        import matplotlib.pyplot as plt
-        import numpy as np
         import io, base64
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
         from matplotlib import patheffects
 
         # 1. Read raster
@@ -4620,7 +4849,9 @@ def generate_map_from_raster(
         fig_width = 10
         fig_height = 8  # Fixed height for consistency
 
-        fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=50)
+        fig = Figure(figsize=(fig_width, fig_height), dpi=50)
+        canvas = FigureCanvas(fig)
+        ax = fig.add_subplot(111)
 
         font_scale = 1.0  # Keep fonts consistent
         base_tick_size = 8
@@ -4628,9 +4859,9 @@ def generate_map_from_raster(
         scaled_tick_size = base_tick_size
         scaled_label_size = base_label_size
 
-        # Add extra bottom margin for colorbar/legend
-        bottom_pad = 0.22
-        plt.subplots_adjust(bottom=bottom_pad, left=0.12, right=0.93, top=0.95)
+        # Bottom margin for axis labels only (colorbar is a separate image)
+        bottom_pad = 0.10
+        fig.subplots_adjust(bottom=bottom_pad, left=0.12, right=0.93, top=0.95)
 
         fig.patch.set_facecolor("white")
 
@@ -4728,7 +4959,7 @@ def generate_map_from_raster(
 
             # NEW (USE THIS):
             if color_stops and len(color_stops) > 0:
-               
+
                 colors = [stop["color"] for stop in color_stops]
                 cmap = LinearSegmentedColormap.from_list(
                     f"{attribute}_cmap", colors, N=256
@@ -4783,22 +5014,23 @@ def generate_map_from_raster(
         # Save image cleanly
         # Save the map (without colorbar)
         buffer_io_map = io.BytesIO()
-        plt.savefig(
+        fig.savefig(
             buffer_io_map,
-            format="png",
-            dpi=300,
-            bbox_inches="tight",
+            format="jpeg",
+            dpi=150,
             facecolor="white",
             pad_inches=0.2,
+            pil_kwargs={"quality": 75, "optimize": True},
         )
         buffer_io_map.seek(0)
         image_base64_map = base64.b64encode(buffer_io_map.read()).decode("utf-8")
 
         import matplotlib as mpl
 
-        fig_leg, ax_leg = plt.subplots(
-            figsize=(6, 0.8)
-        )  # wide & short box for colorbar
+        fig_leg = Figure(figsize=(6, 0.8))  # wide & short box for colorbar
+        canvas_leg = FigureCanvas(fig_leg)
+        ax_leg = fig_leg.add_subplot(111)
+
         fig_leg.patch.set_facecolor("white")
         fig_leg.subplots_adjust(bottom=0.45, top=0.65, left=0.1, right=0.9)
 
@@ -4839,20 +5071,19 @@ def generate_map_from_raster(
         buffer_io_leg = io.BytesIO()
         fig_leg.savefig(
             buffer_io_leg,
-            format="png",
-            dpi=300,
-            bbox_inches="tight",
+            format="jpeg",
+            dpi=150,
             facecolor="white",
             pad_inches=0.1,
+            pil_kwargs={"quality": 80, "optimize": True},
         )
         buffer_io_leg.seek(0)
         image_base64_leg = base64.b64encode(buffer_io_leg.read()).decode("utf-8")
-        plt.close(fig_leg)
 
         return {
             "success": True,
-            "map_image": f"data:image/png;base64,{image_base64_map}",
-            "legend_image": f"data:image/png;base64,{image_base64_leg}",
+            "map_image": f"data:image/jpeg;base64,{image_base64_map}",
+            "legend_image": f"data:image/jpeg;base64,{image_base64_leg}",
             "attribute": display_name,
             "statistics": {"min": vmin, "max": vmax, "mean": vmean},
         }
@@ -4862,8 +5093,6 @@ def generate_map_from_raster(
         import traceback
 
         traceback.print_exc()
-        if "fig" in locals():
-            plt.close(fig)
         return {"success": False, "error": str(e), "attribute": display_name}
 
 
@@ -4882,8 +5111,8 @@ from celery.result import AsyncResult
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
-@authentication_classes([])       
+@permission_classes([AllowAny])  # <-- removes 401
+@authentication_classes([])
 def start_pdf_report_job(request):
     """
     NEW ASYNC ENDPOINT - Replaces synchronous generate_pdf_report_data()
@@ -4893,7 +5122,7 @@ def start_pdf_report_job(request):
     Request body: Same as before (attributes, points_data, season, data_type, etc.)
     Response: 202 Accepted with job_id
     """
-    
+
     try:
         data = json.loads(request.body)
 
@@ -4902,8 +5131,7 @@ def start_pdf_report_job(request):
         # points_data = data.get("points_data")
         season = data.get("season", "premonsoon")
         data_type = data.get("data_type", "subdistbased")
-            
-            
+
         # Load river data based on data_type
         if data_type == "subdistbased":
             subdistrict_codes = data.get("subdistrict_codes", [])
@@ -4966,17 +5194,18 @@ def start_pdf_report_job(request):
             )
 
             identifier_codes = stretch_ids
-            
-            
+
         points_gdf = get_points_shapefile_gdf(
-        data_type=data_type,
-        season=season,
-        sub_district_codes=subdistrict_codes if data_type == "subdistbased" else None,
-        stretch_ids=stretch_ids if data_type == "stretchbased" else None,
+            data_type=data_type,
+            season=season,
+            sub_district_codes=(
+                subdistrict_codes if data_type == "subdistbased" else None
+            ),
+            stretch_ids=stretch_ids if data_type == "stretchbased" else None,
         )
-        
+
         points_data = json.loads(points_gdf.to_json())
-            
+
         # SUBMIT CELERY JOB (non-blocking, returns immediately)
         celery_result = submit_batch_interpolation_job.delay(
             attributes=attributes,
@@ -4988,7 +5217,7 @@ def start_pdf_report_job(request):
             data_type=data_type,
             identifier_codes=identifier_codes,
         )
-        
+
         chord_job_id = celery_result.id
 
         return Response(
@@ -5016,8 +5245,8 @@ def start_pdf_report_job(request):
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
-@authentication_classes([])       
+@permission_classes([AllowAny])  # <-- removes 401
+@authentication_classes([])
 def get_job_status(request, job_id):
     """
     Poll job status and progress
@@ -5067,8 +5296,8 @@ def get_job_status(request, job_id):
 
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
-@authentication_classes([])       
+@permission_classes([AllowAny])  # <-- removes 401
+@authentication_classes([])
 def get_job_result(request, job_id):
     """
     Get final results once job is completed
@@ -5097,20 +5326,18 @@ def get_job_result(request, job_id):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 @csrf_exempt
 @api_view(["POST", "GET"])
-@permission_classes([AllowAny])          # <-- removes 401
-@authentication_classes([])      
+@permission_classes([AllowAny])  # <-- removes 401
+@authentication_classes([])
 def cancel_job(request, job_id):
     cache.set(f"user_active_{job_id}", False, timeout=3600)
     revoke_remaining_tasks(job_id)
     return JsonResponse({"status": "cancelled", "job_id": job_id})
 
 
-
-
 from django.core.cache import cache
+
 
 def revoke_remaining_tasks(job_id):
     """
@@ -5134,3 +5361,2351 @@ def revoke_remaining_tasks(job_id):
             # logger.error(f"Failed to revoke task {t.id}: {e}")
             pass
 
+
+def _sanitize_token(value, fallback="item", max_len=32):
+    import re
+
+    token = re.sub(r"[^a-zA-Z0-9_]+", "_", str(value or "")).strip("_").lower()
+    if not token:
+        token = fallback
+    return token[:max_len]
+
+
+def _general_base_dir():
+    return os.path.join(settings.MEDIA_ROOT, "river_general")
+
+
+def _general_buffer_shapefile_path(layer_name):
+    safe_layer = _sanitize_token(layer_name, fallback="layer", max_len=64)
+    return os.path.join(
+        _general_base_dir(),
+        "source_buffers",
+        safe_layer,
+        f"{safe_layer}.shp",
+    )
+
+
+def _build_wqi_summary(wqi_scores):
+    if not wqi_scores:
+        return None
+
+    classes = {
+        "Excellent": 0,
+        "Good": 0,
+        "Poor": 0,
+        "Very Poor": 0,
+        "Unsuitable": 0,
+        "Invalid": 0,
+    }
+
+    for item in wqi_scores:
+        cls = item.get("wqi_class", "Invalid")
+        classes[cls] = classes.get(cls, 0) + 1
+
+    values = [
+        float(item["wqi_score"])
+        for item in wqi_scores
+        if item.get("wqi_score") is not None
+    ]
+    if not values:
+        return None
+
+    return {
+        "min": round(float(np.min(values)), 2),
+        "max": round(float(np.max(values)), 2),
+        "mean": round(float(np.mean(values)), 2),
+        "count_by_class": classes,
+    }
+
+
+def _extract_request_user_key(request):
+    django_request = getattr(request, "_request", request)
+    if getattr(getattr(django_request, "user", None), "is_authenticated", False):
+        return f"user:{django_request.user.pk}"
+
+    session_obj = getattr(django_request, "session", None)
+    if session_obj is not None:
+        if not session_obj.session_key:
+            session_obj.save()
+        if session_obj.session_key:
+            return f"session:{session_obj.session_key}"
+
+    return "anonymous"
+
+
+def _upload_geotiff_to_geoserver(tiff_path, layer_name):
+    auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+    headers = {"Content-Type": "image/tiff"}
+    upload_url = (
+        f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/"
+        f"{layer_name}/file.geotiff?configure=all"
+    )
+
+    with open(tiff_path, "rb") as f:
+        resp = requests.put(upload_url, data=f, headers=headers, auth=auth, timeout=120)
+
+    if resp.status_code in [200, 201]:
+        return True, ""
+
+    delete_store_url = (
+        f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/"
+        f"{layer_name}?recurse=true"
+    )
+    requests.delete(delete_store_url, auth=auth, timeout=30)
+
+    with open(tiff_path, "rb") as f:
+        retry_resp = requests.put(
+            upload_url, data=f, headers=headers, auth=auth, timeout=120
+        )
+
+    if retry_resp.status_code in [200, 201]:
+        return True, ""
+
+    return (
+        False,
+        f"GeoServer upload failed ({retry_resp.status_code}): {retry_resp.text[:300]}",
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def upload_river_shapefile(request):
+    from tempfile import NamedTemporaryFile
+    from .services.zip_sanitizer import ZipSanitizer
+    from .services.shapefile_validator import ShapefileValidator
+    from .services.geometry_processor import GeometryProcessor, GeometryType
+    from .services.geoserver_publisher import GeoServerPublisher
+
+    uploaded_file = request.FILES.get("file")
+    if not uploaded_file:
+        return JsonResponse(
+            {"success": False, "error": "No file uploaded."}, status=400
+        )
+
+    if not uploaded_file.name.lower().endswith(".zip"):
+        return JsonResponse(
+            {"success": False, "error": "Only ZIP files are allowed."}, status=400
+        )
+
+    temp_zip_path = None
+    extracted_path = None
+    try:
+        with NamedTemporaryFile(delete=False, suffix=".zip") as temp_zip:
+            for chunk in uploaded_file.chunks():
+                temp_zip.write(chunk)
+            temp_zip_path = temp_zip.name
+
+        sanitizer = ZipSanitizer()
+        sanitize_result = sanitizer.sanitize(temp_zip_path)
+        if not sanitize_result.success:
+            return JsonResponse(
+                {"success": False, "error": sanitize_result.error_message}, status=400
+            )
+
+        extracted_path = sanitize_result.extracted_path
+
+        validator = ShapefileValidator(target_crs="EPSG:4326")
+        validation = validator.validate(extracted_path)
+        if not validation.success:
+            return JsonResponse(
+                {"success": False, "error": validation.error_message}, status=400
+            )
+
+        gdf = validator.load_geodataframe(validation.shapefile_path, reproject=True)
+        if gdf.empty:
+            return JsonResponse(
+                {"success": False, "error": "Shapefile has no valid features."},
+                status=400,
+            )
+
+        file_stem = os.path.splitext(uploaded_file.name)[0]
+        safe_base = _sanitize_token(file_stem, fallback="river", max_len=40)
+        layer_name = f"{safe_base}_{uuid.uuid4().hex[:6]}"
+
+        base_dir = _general_base_dir()
+        source_buffers_dir = os.path.join(base_dir, "source_buffers")
+        source_lines_dir = os.path.join(base_dir, "source_lines")
+        os.makedirs(source_buffers_dir, exist_ok=True)
+        os.makedirs(source_lines_dir, exist_ok=True)
+
+        processor = GeometryProcessor(output_dir=source_buffers_dir)
+        process_result = processor.process(gdf, output_name=layer_name)
+        if not process_result.success:
+            return JsonResponse(
+                {"success": False, "error": process_result.error_message}, status=400
+            )
+
+        if process_result.geometry_type == GeometryType.RIVER:
+            centerline_name = f"{layer_name}_centerline"
+            centerline_dir = os.path.join(source_lines_dir, centerline_name)
+            os.makedirs(centerline_dir, exist_ok=True)
+            centerline_path = os.path.join(centerline_dir, f"{centerline_name}.shp")
+            centerline_gdf = gdf.to_crs("EPSG:4326")
+            centerline_gdf.to_file(centerline_path, driver="ESRI Shapefile")
+
+        zip_path = processor.create_zip_from_shapefile(process_result.output_path)
+
+        publisher = GeoServerPublisher(
+            geoserver_url=GEOSERVER_URL,
+            workspace=WORKSPACE,
+            username=GEOSERVER_USER,
+            password=GEOSERVER_PASSWORD,
+        )
+        publish_result = publisher.publish(zip_path, layer_name=layer_name)
+        if not publish_result.success:
+            return JsonResponse(
+                {"success": False, "error": publish_result.error_message}, status=500
+            )
+
+        style_name = "river_buffer_yellow_transparent"
+        sld_body = """<?xml version="1.0" encoding="UTF-8"?>
+<StyledLayerDescriptor version="1.0.0" 
+  xmlns="http://www.opengis.net/sld" 
+  xmlns:ogc="http://www.opengis.net/ogc" 
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <NamedLayer>
+    <Name>river_buffer</Name>
+    <UserStyle>
+      <Title>Yellow Buffer</Title>
+      <FeatureTypeStyle>
+        <Rule>
+          <PolygonSymbolizer>
+            <Fill>
+              <CssParameter name="fill">#eab308</CssParameter>
+              <CssParameter name="fill-opacity">0.18</CssParameter>
+            </Fill>
+            <Stroke>
+              <CssParameter name="stroke">#eab308</CssParameter>
+              <CssParameter name="stroke-width">2</CssParameter>
+            </Stroke>
+          </PolygonSymbolizer>
+        </Rule>
+      </FeatureTypeStyle>
+    </UserStyle>
+  </NamedLayer>
+</StyledLayerDescriptor>"""
+
+        auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+        style_errors = []
+        try:
+            create_resp = requests.post(
+                f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles",
+                json={"style": {"name": style_name, "filename": f"{style_name}.sld"}},
+                auth=auth,
+                timeout=30,
+            )
+            if create_resp.status_code not in [200, 201, 409]:
+                style_errors.append(
+                    f"create style returned {create_resp.status_code}: {create_resp.text[:160]}"
+                )
+
+            # Keep SLD content up to date even when style already exists.
+            style_upload_resp = requests.put(
+                f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles/{style_name}",
+                data=sld_body,
+                headers={"Content-Type": "application/vnd.ogc.sld+xml"},
+                auth=auth,
+                timeout=30,
+            )
+            if style_upload_resp.status_code not in [200, 201]:
+                style_errors.append(
+                    f"upload style returned {style_upload_resp.status_code}: {style_upload_resp.text[:160]}"
+                )
+
+            # Apply style reliably; layer creation can be slightly delayed after publish.
+            apply_payloads = [
+                {
+                    "layer": {
+                        "defaultStyle": {"name": style_name, "workspace": WORKSPACE}
+                    }
+                },
+                {"layer": {"defaultStyle": {"name": f"{WORKSPACE}:{style_name}"}}},
+                {"layer": {"defaultStyle": {"name": style_name}}},
+            ]
+            apply_ok = False
+            for payload in apply_payloads:
+                for _ in range(3):
+                    apply_resp = requests.put(
+                        f"{GEOSERVER_URL}/rest/layers/{WORKSPACE}:{layer_name}.json",
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        auth=auth,
+                        timeout=30,
+                    )
+                    if apply_resp.status_code in [200, 201]:
+                        apply_ok = True
+                        break
+                    if apply_resp.status_code == 404:
+                        time.sleep(0.4)
+                        continue
+                    break
+                if apply_ok:
+                    break
+
+            if not apply_ok:
+                style_errors.append(
+                    f"failed to apply style to {WORKSPACE}:{layer_name}"
+                )
+        except Exception as e:
+            style_errors.append(str(e))
+
+        if style_errors:
+            logger.warning(
+                "Style assignment warnings for layer %s: %s",
+                f"{WORKSPACE}:{layer_name}",
+                " | ".join(style_errors),
+            )
+
+        geometry_type = (
+            process_result.geometry_type.value
+            if process_result.geometry_type is not None
+            else "unknown"
+        )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Shapefile uploaded and processed successfully.",
+                "layer_name": layer_name,
+                "wms_url": publish_result.wms_url,
+                "wfs_url": publish_result.wfs_url,
+                "geometry_type": geometry_type,
+                "buffer_created": bool(process_result.buffer_created),
+                "feature_count": int(process_result.feature_count),
+                "bbox": process_result.bbox,
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+    finally:
+        try:
+            if extracted_path:
+                ZipSanitizer().cleanup(extracted_path)
+        except Exception:
+            pass
+        try:
+            if temp_zip_path and os.path.exists(temp_zip_path):
+                os.remove(temp_zip_path)
+        except Exception:
+            pass
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def upload_wqi_csv(request):
+    from .services.csv_validator import CSVValidator
+    from .services.spatial_filter import SpatialFilter
+    from .services.wqi_calculator import WQICalculator
+
+    csv_file = request.FILES.get("file")
+    layer_name = request.POST.get("layer_name")
+
+    if not csv_file:
+        return JsonResponse(
+            {"success": False, "error": "CSV file is required."}, status=400
+        )
+
+    if not layer_name:
+        return JsonResponse(
+            {"success": False, "error": "layer_name is required."}, status=400
+        )
+
+    try:
+        csv_bytes = csv_file.read()
+        try:
+            csv_content = csv_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            csv_content = csv_bytes.decode("latin-1")
+
+        validator = CSVValidator()
+        validation = validator.validate(csv_content)
+        if not validation.success:
+            payload = {"success": False, "error": validation.error_message}
+            if validation.missing_columns:
+                payload["missing_columns"] = validation.missing_columns
+            if validation.row_errors:
+                payload["row_errors"] = validation.row_errors[:10]
+            return JsonResponse(payload, status=400)
+
+        buffer_shp_path = _general_buffer_shapefile_path(layer_name)
+        if not os.path.exists(buffer_shp_path):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Buffer shapefile not found for layer '{layer_name}'. Upload shapefile again.",
+                },
+                status=404,
+            )
+
+        spatial_filter = SpatialFilter()
+        filter_result = spatial_filter.filter_points(validation.data, buffer_shp_path)
+        if not filter_result.success:
+            return JsonResponse(
+                {"success": False, "error": filter_result.error_message}, status=400
+            )
+
+        calculator = WQICalculator()
+        wqi_results = []
+        for point in filter_result.valid_points:
+            result = calculator.calculate(point)
+            wqi_results.append(
+                {
+                    "wqi_score": result.wqi_score if result.is_valid else None,
+                    "wqi_class": result.wqi_class if result.is_valid else "Invalid",
+                    "wqi_color": result.wqi_color if result.is_valid else "#9ca3af",
+                    "used_params": result.used_params,
+                }
+            )
+
+        geojson = spatial_filter.points_to_geojson(
+            valid_points=filter_result.valid_points,
+            rejected_points=filter_result.rejected_points,
+            wqi_results=wqi_results,
+        )
+        summary = _build_wqi_summary(wqi_results)
+
+        return JsonResponse(
+            {
+                "success": True,
+                "total_points": int(filter_result.total_count),
+                "valid_points": int(filter_result.valid_count),
+                "rejected_points": int(filter_result.rejected_count),
+                "geojson": geojson,
+                "columns_found": {
+                    "required": sorted(validation.required_columns),
+                    "optional": sorted(validation.optional_columns),
+                },
+                "wqi_summary": summary,
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_wqi_params_info_basic(request):
+    from .services.csv_validator import CSVValidator
+    from .services.wqi_calculator import WQICalculator
+
+    return JsonResponse(
+        {
+            "success": True,
+            "required_columns": sorted(CSVValidator.REQUIRED_COLUMNS),
+            "optional_columns": sorted(CSVValidator.OPTIONAL_COLUMNS),
+            "weights": WQICalculator.get_weights_info(),
+        },
+        status=200,
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def general_interpolate_wqi(request):
+    from rasterio.transform import from_origin
+    from rasterio.features import rasterize
+    import rasterio.mask
+    from shapely.geometry import mapping
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "Invalid JSON payload."}, status=400
+        )
+
+    layer_name = data.get("layer_name")
+    wqi_geojson = data.get("wqi_geojson")
+    source_file_name = data.get("source_file_name", "dataset.csv")
+    upload_id = data.get("upload_id")
+    resolution = float(data.get("resolution", 30))
+    profile_step_m = int(data.get("profile_step_m", 100))
+
+    if not layer_name:
+        return JsonResponse(
+            {"success": False, "error": "layer_name is required."}, status=400
+        )
+    if not wqi_geojson or "features" not in wqi_geojson:
+        return JsonResponse(
+            {"success": False, "error": "wqi_geojson is required."}, status=400
+        )
+
+    buffer_shp_path = _general_buffer_shapefile_path(layer_name)
+    if not os.path.exists(buffer_shp_path):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": f"Buffer shapefile not found for layer '{layer_name}'.",
+            },
+            status=404,
+        )
+
+    try:
+        buffer_gdf = gpd.read_file(buffer_shp_path)
+        if buffer_gdf.crs is None:
+            buffer_gdf = buffer_gdf.set_crs("EPSG:4326")
+        elif str(buffer_gdf.crs) != "EPSG:4326":
+            buffer_gdf = buffer_gdf.to_crs("EPSG:4326")
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Failed to read buffer layer: {str(e)}"},
+            status=500,
+        )
+
+    valid_features = [
+        f
+        for f in wqi_geojson.get("features", [])
+        if f.get("properties", {}).get("type") == "valid"
+    ]
+    if not valid_features:
+        valid_features = wqi_geojson.get("features", [])
+
+    if not valid_features:
+        return JsonResponse(
+            {"success": False, "error": "No point features found for interpolation."},
+            status=400,
+        )
+
+    try:
+        points_gdf = gpd.GeoDataFrame.from_features(valid_features, crs="EPSG:4326")
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Invalid GeoJSON data: {str(e)}"}, status=400
+        )
+
+    if points_gdf.empty:
+        return JsonResponse(
+            {"success": False, "error": "No valid points available."}, status=400
+        )
+
+    excluded_cols = {
+        "lat",
+        "lon",
+        "latitude",
+        "longitude",
+        "type",
+        "inside_buffer",
+        "geometry",
+        "wqi_class",
+        "wqi_color",
+        "used_params",
+        "sourceFileName",
+        "dataset_label",
+        "source_file_name",
+    }
+
+    for col in points_gdf.columns:
+        if col not in excluded_cols:
+            points_gdf[col] = pd.to_numeric(points_gdf[col], errors="coerce")
+
+    centroid = buffer_gdf.geometry.unary_union.centroid
+    utm_zone = int((centroid.x + 180) / 6) + 1
+    utm_crs = (
+        f"EPSG:{32600 + utm_zone}" if centroid.y >= 0 else f"EPSG:{32700 + utm_zone}"
+    )
+
+    points_proj = points_gdf.to_crs(utm_crs)
+    buffer_proj = buffer_gdf.to_crs(utm_crs)
+
+    minx, miny, maxx, maxy = buffer_proj.total_bounds
+    if not np.isfinite([minx, miny, maxx, maxy]).all():
+        return JsonResponse(
+            {"success": False, "error": "Invalid buffer bounds."}, status=400
+        )
+
+    if maxx - minx <= 0 or maxy - miny <= 0:
+        return JsonResponse(
+            {"success": False, "error": "Buffer bounds are degenerate."}, status=400
+        )
+
+    x_coords = np.arange(minx, maxx, resolution)
+    y_coords = np.arange(miny, maxy, resolution)
+    if len(x_coords) < 2:
+        x_coords = np.array([minx, maxx], dtype=float)
+    if len(y_coords) < 2:
+        y_coords = np.array([miny, maxy], dtype=float)
+
+    grid_x, grid_y = np.meshgrid(x_coords, y_coords[::-1])
+    xi = np.column_stack([grid_x.ravel(), grid_y.ravel()])
+
+    transform = from_origin(minx, maxy, resolution, resolution)
+    mask = rasterize(
+        [(mapping(buffer_proj.unary_union), 1)],
+        out_shape=grid_x.shape,
+        transform=transform,
+        fill=0,
+        dtype=np.uint8,
+    ).astype(bool)
+
+    file_token = _sanitize_token(source_file_name, fallback="file", max_len=12)
+    layer_token = _sanitize_token(layer_name, fallback="layer", max_len=10)
+    owner_key = _extract_request_user_key(request)
+    owner_hash = hashlib.sha1(owner_key.encode("utf-8")).hexdigest()[:10]
+    upload_seed = upload_id or f"{time.time_ns()}_{uuid.uuid4().hex}"
+    upload_nonce = hashlib.sha1(str(upload_seed).encode("utf-8")).hexdigest()[:8]
+    base_raster_name = f"wqi_{layer_token}_{file_token}_{owner_hash[:6]}_{upload_nonce}"
+
+    temp_dir = tempfile.gettempdir()
+    parameter_layers = {}
+    parameter_statistics = {}
+    wqi_response_data = {}
+    row_profile_data = []
+    row_profile_meta = None
+
+    available_params = []
+    if "wqi_score" in points_proj.columns:
+        available_params.append("wqi_score")
+
+    for col in points_proj.columns:
+        if col in excluded_cols or col == "wqi_score":
+            continue
+        try:
+            valid_vals = points_proj[col].dropna()
+            if len(valid_vals) > 0:
+                valid_vals.astype(float)
+                available_params.append(col)
+        except (ValueError, TypeError):
+            continue
+
+    if "wqi_score" not in available_params:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "wqi_score is missing from uploaded dataset. Upload CSV first.",
+            },
+            status=400,
+        )
+
+    for param in available_params:
+        try:
+            valid_rows = points_proj[points_proj[param].notna()]
+            if len(valid_rows) < 1:
+                continue
+
+            coords = np.array([(geom.x, geom.y) for geom in valid_rows.geometry])
+            values = valid_rows[param].astype(float).values
+
+            if len(coords) == 1:
+                idw_grid = np.full(grid_x.shape, values[0], dtype=np.float32)
+            else:
+                k = min(12, len(coords))
+                tree = cKDTree(coords)
+                dists, idxs = tree.query(xi, k=k)
+                if k == 1:
+                    dists = dists[:, np.newaxis]
+                    idxs = idxs[:, np.newaxis]
+                dists[dists == 0] = 1e-10
+                weights = 1 / (dists**2)
+                interpolated_values = np.sum(weights * values[idxs], axis=1) / np.sum(
+                    weights, axis=1
+                )
+                idw_grid = interpolated_values.reshape(grid_x.shape).astype(np.float32)
+
+            interpolated_grid = np.where(mask, idw_grid, np.nan).astype(np.float32)
+
+            param_token = _sanitize_token(param, fallback="param", max_len=24)
+            raster_layer_name = (
+                base_raster_name
+                if param == "wqi_score"
+                else f"{base_raster_name}_{param_token}"
+            )
+
+            tiff_path = os.path.join(temp_dir, f"{raster_layer_name}.tif")
+            with rasterio.open(
+                tiff_path,
+                "w",
+                driver="GTiff",
+                height=interpolated_grid.shape[0],
+                width=interpolated_grid.shape[1],
+                count=1,
+                dtype=rasterio.float32,
+                crs=utm_crs,
+                transform=transform,
+                nodata=-9999,
+                compress="lzw",
+            ) as dst:
+                output_array = np.where(
+                    np.isnan(interpolated_grid), -9999, interpolated_grid
+                ).astype(np.float32)
+                dst.write(output_array, 1)
+
+            with rasterio.open(tiff_path) as src:
+                out_image, out_transform = rasterio.mask.mask(
+                    src,
+                    buffer_proj.geometry,
+                    crop=True,
+                    filled=True,
+                    nodata=-9999,
+                )
+                out_meta = src.meta.copy()
+                out_meta.update(
+                    {
+                        "driver": "GTiff",
+                        "height": out_image.shape[1],
+                        "width": out_image.shape[2],
+                        "transform": out_transform,
+                        "dtype": rasterio.float32,
+                        "nodata": -9999,
+                        "compress": "lzw",
+                    }
+                )
+
+            clipped_tiff_path = os.path.join(
+                temp_dir, f"{raster_layer_name}_clipped.tif"
+            )
+            with rasterio.open(clipped_tiff_path, "w", **out_meta) as dest:
+                dest.write(out_image)
+
+            uploaded, upload_error = _upload_geotiff_to_geoserver(
+                clipped_tiff_path, raster_layer_name
+            )
+            if not uploaded:
+                if param == "wqi_score":
+                    return JsonResponse(
+                        {"success": False, "error": upload_error}, status=500
+                    )
+                continue
+
+            with rasterio.open(clipped_tiff_path) as src:
+                final_array = src.read(1)
+                masked_array = np.ma.masked_equal(final_array, -9999)
+                masked_array = np.ma.masked_invalid(masked_array)
+                vmin = float(np.min(masked_array))
+                vmax = float(np.max(masked_array))
+                vmean = float(np.mean(masked_array))
+
+            if param == "wqi_score":
+                explicit_min = data.get("min_value")
+                explicit_max = data.get("max_value")
+                if explicit_min is not None:
+                    vmin = float(explicit_min)
+                if explicit_max is not None:
+                    vmax = float(explicit_max)
+
+                # --- PROFILE EXTRACTION START (BUFFER → CENTERLINE PROFILE) ---
+                try:
+                    row_profile_data.clear()
+
+                    from shapely.ops import linemerge
+                    from shapely.geometry import (
+                        LineString,
+                        MultiLineString,
+                        Polygon,
+                        MultiPolygon,
+                    )
+
+                    # ---------------------------------------------------------
+                    # 1️⃣ Create centerline from buffer polygon
+                    # ---------------------------------------------------------
+                    def polygon_to_centerline(poly):
+                        """
+                        Pilot-safe centerline approximation.
+                        Works without external heavy dependencies.
+                        """
+                        minx, miny, maxx, maxy = poly.bounds
+
+                        # sample along long axis of polygon
+                        if (maxx - minx) >= (maxy - miny):
+                            xs = np.linspace(minx, maxx, 200)
+                            pts = []
+                            for x in xs:
+                                vertical = LineString([(x, miny), (x, maxy)])
+                                inter = poly.intersection(vertical)
+                                if not inter.is_empty:
+                                    pts.append(inter.centroid)
+                        else:
+                            ys = np.linspace(miny, maxy, 200)
+                            pts = []
+                            for y in ys:
+                                horizontal = LineString([(minx, y), (maxx, y)])
+                                inter = poly.intersection(horizontal)
+                                if not inter.is_empty:
+                                    pts.append(inter.centroid)
+
+                        if len(pts) < 2:
+                            raise ValueError("Failed to derive centerline from buffer.")
+
+                        return LineString(pts)
+
+                    # ---------------------------------------------------------
+                    # 2️⃣ Extract usable geometry
+                    # ---------------------------------------------------------
+                    geom = buffer_proj.geometry.unary_union
+
+                    if isinstance(geom, Polygon):
+                        river_line = polygon_to_centerline(geom)
+
+                    elif isinstance(geom, MultiPolygon):
+                        largest = max(geom.geoms, key=lambda g: g.area)
+                        river_line = polygon_to_centerline(largest)
+
+                    elif isinstance(geom, LineString):
+                        river_line = geom
+
+                    elif isinstance(geom, MultiLineString):
+                        merged = linemerge(geom)
+                        river_line = max(merged.geoms, key=lambda g: g.length)
+
+                    else:
+                        raise ValueError("Unsupported geometry type")
+
+                    if river_line.is_empty:
+                        raise ValueError("Centerline generation failed.")
+
+                    # ---------------------------------------------------------
+                    # 3️⃣ TRUE river length → X axis
+                    # ---------------------------------------------------------
+                    river_length_m = float(river_line.length)
+                    step_m = max(1, int(profile_step_m))
+
+                    sample_distances = np.arange(0, river_length_m + step_m, step_m)
+
+                    sample_points = [
+                        (dist, river_line.interpolate(dist))
+                        for dist in sample_distances
+                    ]
+
+                    # ---------------------------------------------------------
+                    # 4️⃣ Sample raster values along centerline
+                    # ---------------------------------------------------------
+                    with rasterio.open(clipped_tiff_path) as src:
+                        nodata = src.nodata
+
+                        coords = [(p.x, p.y) for _, p in sample_points]
+                        sampled_vals = list(src.sample(coords))
+
+                        for (dist, _), val_arr in zip(sample_points, sampled_vals):
+                            val = float(val_arr[0])
+
+                            if nodata is not None and val == nodata:
+                                continue
+                            if np.isnan(val):
+                                continue
+
+                            row_profile_data.append(
+                                {
+                                    "distance_m": float(dist),
+                                    "wqi": float(val),
+                                }
+                            )
+
+                    # ---------------------------------------------------------
+                    # 5️⃣ Metadata for legend + axis
+                    # ---------------------------------------------------------
+                    row_profile_meta = {
+                        "resolution_m": float(step_m),
+                        "river_length_m": river_length_m,
+                        "river_length_km": round(river_length_m / 1000.0, 2),
+                        "total_points": int(len(sample_points)),
+                        "valid_points": int(len(row_profile_data)),
+                    }
+
+                except Exception as e:
+                    print(f"Profile generation failed: {str(e)}")
+                    row_profile_data = []
+                    row_profile_meta = None
+
+                # --- PROFILE EXTRACTION END ---
+
+                range_val = vmax - vmin if (vmax - vmin) != 0 else 1
+            else:
+                range_val = vmax - vmin if (vmax - vmin) != 0 else 1
+
+            color_stops = [
+                {"color": "#22c55e", "value": vmin, "label": f"Min ({round(vmin, 1)})"},
+                {"color": "#a3e635", "value": vmin + range_val * 0.25, "label": ""},
+                {"color": "#eab308", "value": vmin + range_val * 0.50, "label": "Avg"},
+                {"color": "#f97316", "value": vmin + range_val * 0.75, "label": ""},
+                {"color": "#ef4444", "value": vmax, "label": f"Max ({round(vmax, 1)})"},
+            ]
+
+            # --- SLD GENERATION AND APPLICATION ---
+            style_name = f"wqi_style_{owner_hash[:6]}_{upload_nonce}_{_sanitize_token(param, max_len=10)}"
+            style_error_str = ""
+            try:
+                sld_entries = '<ColorMapEntry color="#000000" quantity="-9999" opacity="0.0" label="NoData"/>\n'
+                for stop in color_stops:
+                    label_attr = f' label="{stop["label"]}"' if stop["label"] else ""
+                    sld_entries += (
+                        f'<ColorMapEntry color="{stop["color"]}" '
+                        f'quantity="{stop["value"]}"{label_attr} opacity="0.85"/>\n'
+                    )
+
+                sld_body = (
+                    '<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<StyledLayerDescriptor version="1.0.0" '
+                    'xmlns="http://www.opengis.net/sld" '
+                    'xmlns:ogc="http://www.opengis.net/ogc" '
+                    'xmlns:xlink="http://www.w3.org/1999/xlink" '
+                    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+                    "  <NamedLayer>\n"
+                    f"    <Name>{raster_layer_name}</Name>\n"
+                    "    <UserStyle>\n"
+                    f"      <Title>{param} Continuous Gradient</Title>\n"
+                    "      <FeatureTypeStyle>\n"
+                    "        <Rule>\n"
+                    "          <RasterSymbolizer>\n"
+                    '            <ColorMap type="ramp">\n'
+                    f"{sld_entries}"
+                    "            </ColorMap>\n"
+                    "          </RasterSymbolizer>\n"
+                    "        </Rule>\n"
+                    "      </FeatureTypeStyle>\n"
+                    "    </UserStyle>\n"
+                    "  </NamedLayer>\n"
+                    "</StyledLayerDescriptor>"
+                )
+
+                auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+                create_resp = requests.post(
+                    f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles",
+                    json={
+                        "style": {"name": style_name, "filename": f"{style_name}.sld"}
+                    },
+                    auth=auth,
+                    timeout=30,
+                )
+                if create_resp.status_code not in [200, 201, 409]:
+                    raise RuntimeError(
+                        f"Create style failed: {create_resp.status_code}"
+                    )
+
+                sld_resp = requests.put(
+                    f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles/{style_name}",
+                    data=sld_body,
+                    headers={"Content-Type": "application/vnd.ogc.sld+xml"},
+                    auth=auth,
+                    timeout=30,
+                )
+                if sld_resp.status_code not in [200, 201]:
+                    raise RuntimeError(f"Upload SLD failed: {sld_resp.status_code}")
+
+                apply_resp = requests.put(
+                    f"{GEOSERVER_URL}/rest/layers/{WORKSPACE}:{raster_layer_name}.json",
+                    json={
+                        "layer": {
+                            "defaultStyle": {"name": style_name, "workspace": WORKSPACE}
+                        }
+                    },
+                    headers={"Content-Type": "application/json"},
+                    auth=auth,
+                    timeout=30,
+                )
+                if apply_resp.status_code not in [200, 201]:
+                    style_error_str = f"Apply style warning: {apply_resp.status_code}"
+            except Exception as style_error:
+                style_error_str = str(style_error)
+                style_name = ""
+
+            # --- MAP IMAGE GENERATION ---
+            map_image = None
+            legend_image = None
+            try:
+                map_result = generate_map_from_raster(
+                    tiff_path=clipped_tiff_path,
+                    attribute=param.upper(),
+                    river_gdf=None,
+                    buffer_gdf=buffer_gdf,
+                    subdist_gdf=buffer_gdf,
+                    utm_crs=utm_crs,
+                    color_stops=color_stops,
+                )
+                map_image = map_result.get("map_image")
+                legend_image = map_result.get("legend_image")
+            except Exception:
+                map_image = None
+                legend_image = None
+
+            # --- POPULATE RESPONSE DICTIONARIES ---
+            if param == "wqi_score":
+                wqi_response_data = {
+                    "layer_name": raster_layer_name,
+                    "style_name": style_name,
+                    "style_error": style_error_str,
+                    "workspace": WORKSPACE,
+                    "source_file_name": source_file_name,
+                    "owner_hash": owner_hash,
+                    "upload_nonce": upload_nonce,
+                    "statistics": {
+                        "min": round(vmin, 2),
+                        "max": round(vmax, 2),
+                        "mean": round(vmean, 2),
+                        "points_used": int(len(valid_rows)),
+                    },
+                    "bbox": list(buffer_gdf.total_bounds),
+                    "map_image": map_image,
+                    "legend_image": legend_image,
+                    "profile_available": len(row_profile_data) > 0,
+                    "profile_data": row_profile_data,
+                    "profile_meta": row_profile_meta,
+                }
+            else:
+                # Frontend contract expects {param: layer_name}
+                parameter_layers[param] = raster_layer_name
+                parameter_statistics[param] = {
+                    "min": round(vmin, 2),
+                    "max": round(vmax, 2),
+                    "mean": round(vmean, 2),
+                    "points_used": int(len(valid_rows)),
+                }
+
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
+            continue
+
+    if not wqi_response_data:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Failed to generate WQI raster layer.",
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            **wqi_response_data,
+            "parameter_layers": parameter_layers,
+            "parameter_statistics": parameter_statistics,
+            "row_profile_data": row_profile_data,
+            "row_profile_meta": row_profile_meta,
+        },
+        status=200,
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def general_download_raster(request):
+    from django.http import HttpResponse
+
+    layer_name = request.GET.get("layer_name")
+    workspace = request.GET.get("workspace") or WORKSPACE
+    filename = request.GET.get("filename")
+    format_param = (request.GET.get("format") or "tiff").strip().lower()
+
+    if not layer_name:
+        return JsonResponse({"error": "layer_name is required."}, status=400)
+
+    format_aliases = {
+        "tif": "tiff",
+        "tiff": "tiff",
+        "tifff": "tiff",
+        "png": "png",
+    }
+    raster_format = format_aliases.get(format_param)
+    if raster_format is None:
+        return JsonResponse(
+            {"error": "format must be one of: tiff, tif, png"},
+            status=400,
+        )
+
+    # Accept either "workspace:layer" or bare "layer"
+    if ":" in layer_name:
+        ns, bare_layer = layer_name.split(":", 1)
+        if ns:
+            workspace = ns
+        layer_name = bare_layer
+    qualified_layer_name = f"{workspace}:{layer_name}"
+    safe_filename = _sanitize_token(
+        filename or qualified_layer_name, fallback="raster", max_len=80
+    )
+    if raster_format == "png":
+        if safe_filename.lower().endswith(".tif"):
+            safe_filename = safe_filename[:-4]
+        elif safe_filename.lower().endswith(".tiff"):
+            safe_filename = safe_filename[:-5]
+        if not safe_filename.lower().endswith(".png"):
+            safe_filename = f"{safe_filename}.png"
+        default_content_type = "image/png"
+    else:
+        if safe_filename.lower().endswith(".png"):
+            safe_filename = safe_filename[:-4]
+        if not safe_filename.lower().endswith((".tif", ".tiff")):
+            safe_filename = f"{safe_filename}.tif"
+        default_content_type = "image/tiff"
+    auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+    fast_timeout = 12
+    full_timeout = 22
+
+    def _build_download_response(content, content_type):
+        response = HttpResponse(
+            content, content_type=content_type or default_content_type
+        )
+        response["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
+        response["Content-Length"] = str(len(content))
+        return response
+
+    def _is_binary_download(resp):
+        if resp.status_code not in [200, 201] or not resp.content:
+            return False
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        if any(tag in content_type for tag in ["xml", "text/", "html", "json"]):
+            return False
+        body_start = resp.content[:120].lower()
+        if body_start.startswith(b"<?xml") or b"<ows:exceptionreport" in body_start:
+            return False
+        return True
+
+    def _get_layer_bbox():
+        """
+        Fetch coverage bounds from GeoServer REST so WCS 1.0 requests can include
+        mandatory CRS/BBOX/WIDTH/HEIGHT parameters.
+        """
+        default_bbox = (-180.0, -90.0, 180.0, 90.0, "EPSG:4326")
+        try:
+            layer_url = f"{GEOSERVER_URL}/rest/layers/{workspace}:{layer_name}.json"
+            layer_resp = requests.get(layer_url, auth=auth, timeout=fast_timeout)
+            if layer_resp.status_code != 200:
+                return default_bbox
+
+            layer_json = layer_resp.json()
+            resource_href = layer_json.get("layer", {}).get("resource", {}).get("href")
+            if not resource_href:
+                return default_bbox
+
+            cov_resp = requests.get(resource_href, auth=auth, timeout=fast_timeout)
+            if cov_resp.status_code != 200:
+                return default_bbox
+
+            cov_json = cov_resp.json().get("coverage", {})
+            ll_bbox = cov_json.get("latLonBoundingBox") or {}
+            nat_bbox = cov_json.get("nativeBoundingBox") or {}
+
+            if all(k in ll_bbox for k in ("minx", "miny", "maxx", "maxy")):
+                return (
+                    float(ll_bbox["minx"]),
+                    float(ll_bbox["miny"]),
+                    float(ll_bbox["maxx"]),
+                    float(ll_bbox["maxy"]),
+                    "EPSG:4326",
+                )
+
+            if all(k in nat_bbox for k in ("minx", "miny", "maxx", "maxy")):
+                return (
+                    float(nat_bbox["minx"]),
+                    float(nat_bbox["miny"]),
+                    float(nat_bbox["maxx"]),
+                    float(nat_bbox["maxy"]),
+                    str(nat_bbox.get("crs") or "EPSG:4326"),
+                )
+        except Exception:
+            pass
+
+        return default_bbox
+
+    errors = []
+
+    def _request_candidate(url, params=None, timeout=fast_timeout):
+        try:
+            resp = requests.get(
+                url,
+                params=params,
+                auth=auth,
+                timeout=timeout,
+            )
+        except requests.RequestException as e:
+            errors.append(f"{url}: request error {str(e)}")
+            return None
+
+        if _is_binary_download(resp):
+            return _build_download_response(
+                resp.content,
+                resp.headers.get("Content-Type", default_content_type),
+            )
+
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        details = resp.text[:180] if resp.text else ""
+        errors.append(f"{url}: HTTP {resp.status_code}, {content_type}, {details}")
+        return None
+
+    if raster_format == "tiff":
+        # 1) Fast-path WCS candidates (workspace endpoint first).
+        fast_candidates = [
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "2.0.1",
+                    "request": "GetCoverage",
+                    "coverageId": qualified_layer_name,
+                    "format": "image/tiff",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified_layer_name,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "2.0.1",
+                    "request": "GetCoverage",
+                    "coverageId": qualified_layer_name,
+                    "format": "image/tiff",
+                },
+            ),
+        ]
+        for url, params in fast_candidates:
+            result = _request_candidate(url, params=params, timeout=fast_timeout)
+            if result is not None:
+                return result
+
+        # 2) Try direct GeoServer REST coveragestore file download (short timeout).
+        direct_store_urls = [
+            f"{GEOSERVER_URL}/rest/workspaces/{workspace}/coveragestores/{layer_name}/file.geotiff",
+            f"{GEOSERVER_URL}/rest/workspaces/{workspace}/coveragestores/{layer_name}/file.tif",
+        ]
+        for store_url in direct_store_urls:
+            result = _request_candidate(store_url, timeout=8)
+            if result is not None:
+                return result
+
+    # 3) Fallback to extent-aware OGC requests (WCS/WMS).
+    minx, miny, maxx, maxy, bbox_crs = _get_layer_bbox()
+    bbox_str = f"{minx},{miny},{maxx},{maxy}"
+    width = 2048
+    span_x = max(maxx - minx, 1e-9)
+    span_y = max(maxy - miny, 1e-9)
+    height = int(round(width * (span_y / span_x)))
+    height = max(256, min(4096, height))
+
+    if raster_format == "png":
+        candidates = [
+            (
+                f"{GEOSERVER_URL}/wms",
+                {
+                    "service": "WMS",
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "layers": qualified_layer_name,
+                    "styles": "",
+                    "srs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "image/png",
+                    "transparent": "true",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WMS",
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "layers": qualified_layer_name,
+                    "styles": "",
+                    "srs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "image/png",
+                    "transparent": "true",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/wms",
+                {
+                    "service": "WMS",
+                    "version": "1.3.0",
+                    "request": "GetMap",
+                    "layers": qualified_layer_name,
+                    "styles": "",
+                    "crs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "image/png",
+                    "transparent": "true",
+                },
+            ),
+        ]
+    else:
+        candidates = [
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified_layer_name,
+                    "crs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified_layer_name,
+                    "CRS": bbox_crs,
+                    "BBOX": bbox_str,
+                    "WIDTH": width,
+                    "HEIGHT": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "2.0.1",
+                    "request": "GetCoverage",
+                    "coverageId": qualified_layer_name,
+                    "format": "image/tiff",
+                },
+            ),
+            # WCS 1.0 full extent request (many GeoServer setups require CRS+BBOX+size)
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified_layer_name,
+                    "crs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified_layer_name,
+                    "CRS": bbox_crs,
+                    "BBOX": bbox_str,
+                    "WIDTH": width,
+                    "HEIGHT": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            # Final fallback via WMS GetMap as GeoTIFF
+            (
+                f"{GEOSERVER_URL}/wms",
+                {
+                    "service": "WMS",
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "layers": qualified_layer_name,
+                    "styles": "",
+                    "srs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "image/geotiff",
+                    "transparent": "true",
+                },
+            ),
+        ]
+
+    for wcs_url, params in candidates:
+        result = _request_candidate(wcs_url, params=params, timeout=full_timeout)
+        if result is not None:
+            return result
+
+    return JsonResponse(
+        {
+            "error": "Failed to fetch raster from GeoServer.",
+            "details": errors[:12],
+        },
+        status=500,
+    )
+
+
+# =============================================================================
+# GENERAL RIVER UPLOAD API
+# =============================================================================
+
+from pathlib import Path
+import tempfile
+import shutil
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def upload_river_shapefile_recovered_duplicate(request):
+    """
+    Upload a river or buffer shapefile (ZIP format).
+
+    - Automatically detects geometry type (LineString = river, Polygon = buffer)
+    - Rivers: Creates 200m buffer automatically
+    - Buffers: Uses as-is (with validation)
+    - Publishes to GeoServer and returns WMS URL
+
+    Request:
+        POST with multipart/form-data
+        - file: ZIP file containing shapefile components
+
+    Response:
+        {
+            "success": true,
+            "geometry_type": "river" | "buffer",
+            "buffer_created": true | false,
+            "layer_name": "...",
+            "wms_url": "...",
+            "wfs_url": "...",
+            "feature_count": N
+        }
+    """
+    from .services.zip_sanitizer import ZipSanitizer
+    from .services.shapefile_validator import ShapefileValidator
+    from .services.geometry_processor import GeometryProcessor, GeometryType
+    from .services.geoserver_publisher import GeoServerPublisher
+
+    # Check if file was uploaded
+    if "file" not in request.FILES:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "No file uploaded. Please upload a ZIP file containing shapefile.",
+            },
+            status=400,
+        )
+
+    uploaded_file = request.FILES["file"]
+
+    # Check file extension
+    if not uploaded_file.name.lower().endswith(".zip"):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Only ZIP files are accepted. Please upload a ZIP containing shapefile components.",
+            },
+            status=400,
+        )
+
+    # Create temp directory for processing
+    temp_dir = Path(tempfile.mkdtemp(prefix="river_upload_"))
+    temp_zip_path = temp_dir / uploaded_file.name
+
+    try:
+        # Save uploaded file to temp location
+        with open(temp_zip_path, "wb+") as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+
+        # =================================
+        # STEP 1 & 2: ZIP SANITIZATION
+        # =================================
+        sanitizer = ZipSanitizer()
+        sanitize_result = sanitizer.sanitize(temp_zip_path)
+
+        if not sanitize_result.success:
+            return JsonResponse(
+                {"success": False, "error": sanitize_result.error_message}, status=400
+            )
+
+        extracted_dir = sanitize_result.extracted_path
+
+        # =================================
+        # STEP 3: SHAPEFILE VALIDATION
+        # =================================
+        validator = ShapefileValidator()
+        validation_result = validator.validate(extracted_dir)
+
+        if not validation_result.success:
+            sanitizer.cleanup(extracted_dir)
+            return JsonResponse(
+                {"success": False, "error": validation_result.error_message}, status=400
+            )
+
+        # Load the shapefile as GeoDataFrame
+        gdf = validator.load_geodataframe(validation_result.shapefile_path)
+
+        # =================================
+        # STEP 4 & 5: GEOMETRY PROCESSING
+        # =================================
+        # Output directory for processed shapefiles
+        output_dir = Path(settings.MEDIA_ROOT) / "river_general" / "processed"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique layer name
+        import uuid
+
+        layer_name = f"river_buffer_{uuid.uuid4().hex[:8]}"
+
+        processor = GeometryProcessor(output_dir=output_dir)
+        process_result = processor.process(gdf, output_name=layer_name)
+
+        if not process_result.success:
+            sanitizer.cleanup(extracted_dir)
+            return JsonResponse(
+                {"success": False, "error": process_result.error_message}, status=400
+            )
+
+        # =================================
+        # STEP 6: GEOSERVER PUBLISHING
+        # =================================
+        # Create ZIP for GeoServer upload
+        zip_for_geoserver = processor.create_zip_from_shapefile(
+            process_result.output_path
+        )
+
+        publisher = GeoServerPublisher(
+            geoserver_url=GEOSERVER_URL,  # Use the global: http://geoserver:8080/geoserver
+            workspace=WORKSPACE,  # Use same workspace as raster upload (myworkspace)
+        )
+
+        publish_result = publisher.publish(zip_for_geoserver, layer_name)
+
+        # Cleanup temp files
+        sanitizer.cleanup(extracted_dir)
+
+        if not publish_result.success:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Failed to publish to GeoServer: {publish_result.error_message}",
+                },
+                status=500,
+            )
+
+        # =================================
+        # SUCCESS RESPONSE
+        # =================================
+        return JsonResponse(
+            {
+                "success": True,
+                "geometry_type": (
+                    process_result.geometry_type.value
+                    if process_result.geometry_type
+                    else None
+                ),
+                "buffer_created": process_result.buffer_created,
+                "layer_name": publish_result.layer_name,
+                "wms_url": publish_result.wms_url,
+                "wfs_url": publish_result.wfs_url,
+                "feature_count": process_result.feature_count,
+                "bbox": process_result.bbox,  # [minx, miny, maxx, maxy] for frontend zoom
+                "message": (
+                    "River shapefile uploaded. 200m buffer created and published."
+                    if process_result.buffer_created
+                    else "Buffer shapefile uploaded and published."
+                ),
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        logger.error(f"Error in upload_river_shapefile: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+
+        return JsonResponse(
+            {"success": False, "error": f"Internal server error: {str(e)}"}, status=500
+        )
+
+    finally:
+        # Cleanup temp upload directory
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def upload_wqi_csv_recovered_duplicate(request):
+    """
+    Upload CSV file with water quality data for WQI calculation.
+
+    Requires a previous shapefile upload (buffer geometry stored in session/request).
+
+    Request:
+        POST with multipart/form-data
+        - file: CSV file with water quality data
+        - layer_name: Name of the previously uploaded buffer layer
+
+    Response:
+        {
+            "success": true,
+            "total_points": N,
+            "valid_points": N,
+            "rejected_points": N,
+            "geojson": { ... },  # GeoJSON with points and WQI scores
+            "wqi_summary": { ... }
+        }
+    """
+    from .services.csv_validator import CSVValidator
+    from .services.wqi_calculator import WQICalculator
+    from .services.spatial_filter import SpatialFilter
+
+    # Check if file was uploaded
+    if "file" not in request.FILES:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "No CSV file uploaded. Please upload a CSV file with water quality data.",
+            },
+            status=400,
+        )
+
+    uploaded_file = request.FILES["file"]
+
+    # Check file extension
+    if not uploaded_file.name.lower().endswith(".csv"):
+        return JsonResponse(
+            {"success": False, "error": "Only CSV files are accepted."}, status=400
+        )
+
+    # Get the buffer layer name from request
+    layer_name = request.POST.get("layer_name") or request.data.get("layer_name")
+
+    if not layer_name:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Missing 'layer_name' parameter. Please upload a shapefile first.",
+            },
+            status=400,
+        )
+
+    try:
+        # =================================
+        # STEP 1: CSV VALIDATION
+        # =================================
+        csv_content = uploaded_file.read().decode("utf-8")
+
+        validator = CSVValidator()
+        validation_result = validator.validate(csv_content)
+
+        if not validation_result.success:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": validation_result.error_message,
+                    "missing_columns": validation_result.missing_columns,
+                    "row_errors": validation_result.row_errors[:5],  # First 5 errors
+                },
+                status=400,
+            )
+
+        # =================================
+        # STEP 2: LOAD BUFFER GEOMETRY
+        # =================================
+        # Look for the processed buffer shapefile
+        # Note: GeometryProcessor saves to: {output_dir}/{layer_name}/{layer_name}.shp
+        buffer_dir = (
+            Path(settings.MEDIA_ROOT) / "river_general" / "processed" / layer_name
+        )
+        buffer_shp = buffer_dir / f"{layer_name}.shp"
+
+        if not buffer_shp.exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Buffer shapefile not found for layer '{layer_name}'. Please upload shapefile first.",
+                },
+                status=400,
+            )
+
+        # =================================
+        # STEP 3: SPATIAL FILTERING
+        # =================================
+        spatial_filter = SpatialFilter()
+        filter_result = spatial_filter.filter_points(validation_result.data, buffer_shp)
+
+        if not filter_result.success:
+            return JsonResponse(
+                {"success": False, "error": filter_result.error_message}, status=500
+            )
+
+        # =================================
+        # STEP 4: WQI CALCULATION
+        # =================================
+        wqi_calculator = WQICalculator()
+        wqi_results = []
+
+        for point in filter_result.valid_points:
+            wqi_result = wqi_calculator.calculate(point)
+            wqi_results.append(
+                {
+                    "wqi_score": wqi_result.wqi_score,
+                    "wqi_class": wqi_result.wqi_class,
+                    "wqi_color": wqi_result.wqi_color,
+                    "used_params": wqi_result.used_params,
+                }
+            )
+
+        # =================================
+        # STEP 5: CREATE GEOJSON RESPONSE
+        # =================================
+        geojson = spatial_filter.points_to_geojson(
+            filter_result.valid_points, filter_result.rejected_points, wqi_results
+        )
+
+        # Calculate WQI summary statistics
+        if wqi_results:
+            wqi_scores = [r["wqi_score"] for r in wqi_results]
+            wqi_summary = {
+                "min": round(min(wqi_scores), 2),
+                "max": round(max(wqi_scores), 2),
+                "mean": round(sum(wqi_scores) / len(wqi_scores), 2),
+                "count_by_class": {},
+            }
+            for r in wqi_results:
+                cls = r["wqi_class"]
+                wqi_summary["count_by_class"][cls] = (
+                    wqi_summary["count_by_class"].get(cls, 0) + 1
+                )
+        else:
+            wqi_summary = None
+
+        # =================================
+        # SUCCESS RESPONSE
+        # =================================
+        return JsonResponse(
+            {
+                "success": True,
+                "total_points": filter_result.total_count,
+                "valid_points": filter_result.valid_count,
+                "rejected_points": filter_result.rejected_count,
+                "columns_found": {
+                    "required": validation_result.required_columns,
+                    "optional": validation_result.optional_columns,
+                },
+                "wqi_summary": wqi_summary,
+                "geojson": geojson,
+                "message": (
+                    f"Processed {filter_result.total_count} points. "
+                    f"{filter_result.valid_count} inside buffer (WQI calculated), "
+                    f"{filter_result.rejected_count} outside buffer (rejected)."
+                ),
+            },
+            status=200,
+        )
+
+    except UnicodeDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Invalid CSV file encoding. Please use UTF-8 encoding.",
+            },
+            status=400,
+        )
+
+    except Exception as e:
+        logger.error(f"Error in upload_wqi_csv: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+
+        return JsonResponse(
+            {"success": False, "error": f"Internal server error: {str(e)}"}, status=500
+        )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def get_wqi_params_info(request):
+    """
+    Get WQI parameter information for frontend display.
+
+    Returns:
+        {
+            "required_columns": [...],
+            "optional_columns": [...],
+            "weights": {...},
+            "classifications": [...]
+        }
+    """
+    from .services.csv_validator import CSVValidator
+    from .services.wqi_calculator import WQICalculator
+
+    return JsonResponse(
+        {
+            "success": True,
+            "required_columns": [
+                {
+                    "name": "lat",
+                    "description": "Latitude",
+                    "unit": "Decimal degrees",
+                    "type": "float",
+                },
+                {
+                    "name": "lon",
+                    "description": "Longitude",
+                    "unit": "Decimal degrees",
+                    "type": "float",
+                },
+                {"name": "pH", "description": "pH Value", "unit": "-", "type": "float"},
+                {
+                    "name": "DO",
+                    "description": "Dissolved Oxygen",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+                {
+                    "name": "BOD",
+                    "description": "Biochemical Oxygen Demand",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+                {
+                    "name": "FC",
+                    "description": "Fecal Coliform",
+                    "unit": "MPN/100mL",
+                    "type": "float",
+                },
+            ],
+            "optional_columns": [
+                {
+                    "name": "Temperature",
+                    "description": "Water Temperature",
+                    "unit": "°C",
+                    "type": "float",
+                },
+                {
+                    "name": "Turbidity",
+                    "description": "Turbidity",
+                    "unit": "NTU",
+                    "type": "float",
+                },
+                {
+                    "name": "TDS",
+                    "description": "Total Dissolved Solids",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+                {
+                    "name": "EC",
+                    "description": "Electrical Conductivity",
+                    "unit": "µS/cm",
+                    "type": "float",
+                },
+                {
+                    "name": "TSS",
+                    "description": "Total Suspended Solids",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+                {
+                    "name": "COD",
+                    "description": "Chemical Oxygen Demand",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+                {
+                    "name": "Nitrate",
+                    "description": "Nitrate (NO₃)",
+                    "unit": "mg/L",
+                    "type": "float",
+                },
+            ],
+            "wqi_note": "WQI can exceed 100. Classifications: Excellent (≤50), Good (51-100), Poor (101-200), Very Poor (201-300), Unsuitable (>300)",
+            "weights": WQICalculator.get_weights_info(),
+            "classifications": WQICalculator.get_classification_info(),
+        },
+        status=200,
+    )
+
+
+# ==================== GENERAL WQI INTERPOLATION ====================
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def general_interpolate_wqi_recovered_duplicate(request):
+    """
+    Perform IDW interpolation on WQI scores and create a raster layer.
+
+    Request body:
+        - layer_name: Name of the buffer layer in GeoServer (for clipping)
+        - wqi_geojson: GeoJSON FeatureCollection with valid WQI points
+        - resolution: Grid cell size in meters (default: 30)
+
+    Returns:
+        - wms_url: URL for the WMS layer
+        - layer_name: Name of the created layer
+        - statistics: min, max, mean WQI values
+        - map_image: Base64 encoded map image
+        - legend_image: Base64 encoded legend image
+    """
+    import time as time_module
+    import tempfile
+    import os
+    import geopandas as gpd
+    import rasterio
+    import rasterio.mask
+    from rasterio.transform import from_origin
+    from rasterio.features import rasterize
+    from shapely.geometry import mapping
+    from scipy.spatial import cKDTree
+
+    try:
+        # Extract request data
+        layer_name = request.data.get("layer_name")
+        wqi_geojson = request.data.get("wqi_geojson")
+        resolution = request.data.get("resolution", 30)
+
+        if not layer_name:
+            return JsonResponse(
+                {"success": False, "error": "layer_name is required"}, status=400
+            )
+
+        if not wqi_geojson:
+            return JsonResponse(
+                {"success": False, "error": "wqi_geojson is required"}, status=400
+            )
+
+        # Step 1: Extract valid points with WQI scores
+        features = wqi_geojson.get("features", [])
+        valid_points = [
+            f
+            for f in features
+            if f.get("properties", {}).get("type") == "valid"
+            and f.get("properties", {}).get("wqi_score") is not None
+        ]
+
+        if len(valid_points) < 3:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Need at least 3 valid points for interpolation, got {len(valid_points)}",
+                },
+                status=400,
+            )
+
+        # Create GeoDataFrame from valid points
+        points_gdf = gpd.GeoDataFrame.from_features(valid_points, crs="EPSG:4326")
+        points_gdf["wqi_score"] = points_gdf["wqi_score"].astype(float)
+
+        # Step 2: Fetch buffer polygon from GeoServer WFS
+        # Both buffer and raster use same workspace (myworkspace)
+        wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
+        params = {
+            "service": "WFS",
+            "version": "1.1.0",
+            "request": "GetFeature",
+            "typeName": f"{WORKSPACE}:{layer_name}",
+            "outputFormat": "application/json",
+        }
+
+        auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+        wfs_response = requests.get(wfs_url, params=params, auth=auth, timeout=30)
+
+        if wfs_response.status_code != 200:
+            # Log more details for debugging
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Failed to fetch buffer polygon from GeoServer: {wfs_response.status_code}",
+                    "details": (
+                        wfs_response.text[:500]
+                        if wfs_response.text
+                        else "No response body"
+                    ),
+                },
+                status=500,
+            )
+
+        # Parse WFS response with error handling
+        try:
+            buffer_geojson = wfs_response.json()
+        except Exception as json_err:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": f"Failed to parse GeoServer WFS response as JSON: {str(json_err)}",
+                    "response_text": (
+                        wfs_response.text[:500]
+                        if wfs_response.text
+                        else "Empty response"
+                    ),
+                },
+                status=500,
+            )
+
+        if (
+            "features" not in buffer_geojson
+            or len(buffer_geojson.get("features", [])) == 0
+        ):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Buffer layer has no features in GeoServer",
+                    "layer_name": layer_name,
+                },
+                status=400,
+            )
+
+        buffer_gdf = gpd.GeoDataFrame.from_features(
+            buffer_geojson["features"], crs="EPSG:4326"
+        )
+
+        if len(buffer_gdf) == 0:
+            return JsonResponse(
+                {"success": False, "error": "Buffer polygon is empty"}, status=400
+            )
+
+        # Step 3: Project to UTM for accurate distance calculations
+        centroid = buffer_gdf.geometry.unary_union.centroid
+        utm_zone = int((centroid.x + 180) / 6) + 1
+        utm_hemisphere = "north" if centroid.y >= 0 else "south"
+        utm_crs = (
+            f"EPSG:326{utm_zone}"
+            if utm_hemisphere == "north"
+            else f"EPSG:327{utm_zone}"
+        )
+
+        buffer_proj = buffer_gdf.to_crs(utm_crs)
+        points_proj = points_gdf.to_crs(utm_crs)
+
+        # Step 4: IDW Interpolation
+        minx, miny, maxx, maxy = buffer_proj.total_bounds
+        cell_size = resolution
+
+        x_coords = np.arange(minx, maxx, cell_size)
+        y_coords = np.arange(miny, maxy, cell_size)
+        grid_x, grid_y = np.meshgrid(x_coords, y_coords[::-1])
+
+        # Extract point coordinates and WQI values
+        coords = np.array([(geom.x, geom.y) for geom in points_proj.geometry])
+        values = points_proj["wqi_score"].astype(float).values
+
+        # IDW with k nearest neighbors
+        k = min(12, len(coords))
+        power = 2
+        tree = cKDTree(coords)
+        xi = np.column_stack([grid_x.ravel(), grid_y.ravel()])
+        dists, idxs = tree.query(xi, k=k)
+
+        # Handle zero distances
+        dists[dists == 0] = 1e-10
+        weights = 1 / (dists**power)
+        interpolated_values = np.sum(weights * values[idxs], axis=1) / np.sum(
+            weights, axis=1
+        )
+        idw_grid = interpolated_values.reshape(grid_x.shape)
+
+        # Step 5: Mask/clip to buffer polygon
+        transform = from_origin(minx, maxy, cell_size, cell_size)
+        mask = rasterize(
+            [(mapping(buffer_proj.unary_union), 1)],
+            out_shape=idw_grid.shape,
+            transform=transform,
+            fill=0,
+            dtype=np.uint8,
+        ).astype(bool)
+
+        interpolated_grid = np.where(mask, idw_grid, np.nan)
+
+        # Step 6: Save as GeoTIFF
+        temp_dir = tempfile.gettempdir()
+        unique_id = str(int(time_module.time()))
+        raster_layer_name = f"wqi_raster_{layer_name}_{unique_id}"
+        tiff_path = os.path.join(temp_dir, f"{raster_layer_name}.tif")
+
+        with rasterio.open(
+            tiff_path,
+            "w",
+            driver="GTiff",
+            height=interpolated_grid.shape[0],
+            width=interpolated_grid.shape[1],
+            count=1,
+            dtype=interpolated_grid.dtype,
+            crs=utm_crs,
+            transform=transform,
+            nodata=-9999,
+        ) as dst:
+            output_array = np.where(
+                np.isnan(interpolated_grid), -9999, interpolated_grid
+            )
+            dst.write(output_array, 1)
+
+        # Step 7: Clip raster with buffer polygon
+        with rasterio.open(tiff_path) as src:
+            out_image, out_transform = rasterio.mask.mask(
+                src, buffer_proj.geometry, crop=True, filled=True, nodata=-9999
+            )
+            out_meta = src.meta.copy()
+            out_meta.update(
+                {
+                    "driver": "GTiff",
+                    "height": out_image.shape[1],
+                    "width": out_image.shape[2],
+                    "transform": out_transform,
+                    "nodata": -9999,
+                }
+            )
+
+        clipped_tiff_path = os.path.join(temp_dir, f"{raster_layer_name}_clipped.tif")
+        with rasterio.open(clipped_tiff_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+
+        tiff_path = clipped_tiff_path
+
+        # Step 8: Upload to GeoServer (to myworkspace)
+        upload_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{raster_layer_name}/file.geotiff?configure=all"
+        with open(tiff_path, "rb") as f:
+            headers = {"Content-Type": "image/tiff"}
+            response = requests.put(upload_url, data=f, headers=headers, auth=auth)
+
+            if response.status_code not in [200, 201]:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": f"Failed to upload raster to GeoServer: {response.status_code} - {response.text}",
+                    },
+                    status=500,
+                )
+
+        # Extract explicit min/max from request if provided (to match frontend data)
+        explicit_min = request.data.get("min_value")
+        explicit_max = request.data.get("max_value")
+
+        # Step 9: Create WQI-specific SLD style (5 classes)
+        # Re-calculate statistics from final clipped raster to match map visual exactly
+        with rasterio.open(tiff_path) as src:
+            final_array = src.read(1)
+            # Mask nodata values (-9999)
+            masked_array = np.ma.masked_equal(final_array, -9999)
+
+            # Use explicit values if provided, otherwise calculate from raster
+            vmin = (
+                float(explicit_min)
+                if explicit_min is not None
+                else float(np.min(masked_array))
+            )
+            vmax = (
+                float(explicit_max)
+                if explicit_max is not None
+                else float(np.max(masked_array))
+            )
+            vmean = float(np.mean(masked_array))
+
+        # Continuous ramp stretched from min to max
+        range_val = vmax - vmin
+        if range_val == 0:
+            range_val = 1  # Avoid division by zero
+
+        # WQI Gradient: Green (Min) -> Yellow -> Orange -> Red (Max)
+        stops = [
+            (vmin, "#22c55e", f"Min ({round(vmin, 1)})"),
+            (vmin + range_val * 0.25, "#a3e635", ""),
+            (vmin + range_val * 0.50, "#eab308", "Avg"),
+            (vmin + range_val * 0.75, "#f97316", ""),
+            (vmax, "#ef4444", f"Max ({round(vmax, 1)})"),
+        ]
+
+        # Construct color_stops for map generation
+        color_stops = [
+            {"color": "#22c55e", "value": vmin, "label": f"Min ({round(vmin, 1)})"},
+            {"color": "#a3e635", "value": vmin + range_val * 0.25, "label": ""},
+            {"color": "#eab308", "value": vmin + range_val * 0.50, "label": "Avg"},
+            {"color": "#f97316", "value": vmin + range_val * 0.75, "label": ""},
+            {"color": "#ef4444", "value": vmax, "label": f"Max ({round(vmax, 1)})"},
+        ]
+
+        # Create SLD
+        style_name = f"{raster_layer_name}_style"
+        sld_entries = ""
+        for val, color, label in stops:
+            label_attr = f'label="{label}"' if label else ""
+            sld_entries += f'<ColorMapEntry color="{color}" quantity="{val}" {label_attr} opacity="0.8"/>\n'
+
+        sld_body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<StyledLayerDescriptor version="1.0.0"
+    xmlns="http://www.opengis.net/sld"
+    xmlns:ogc="http://www.opengis.net/ogc"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NamedLayer>
+    <Name>{raster_layer_name}</Name>
+    <UserStyle>
+      <Title>WQI Continuous Gradient</Title>
+      <FeatureTypeStyle>
+        <Rule>
+          <RasterSymbolizer>
+            <ColorMap type="ramp">
+              {sld_entries}
+            </ColorMap>
+          </RasterSymbolizer>
+        </Rule>
+      </FeatureTypeStyle>
+    </UserStyle>
+  </NamedLayer>
+</StyledLayerDescriptor>"""
+
+        # Create and apply style
+        try:
+            # Create style
+            create_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles"
+            style_json = {
+                "style": {"name": style_name, "filename": f"{style_name}.sld"}
+            }
+            requests.post(create_style_url, json=style_json, auth=auth)
+
+            # Upload SLD content
+            upload_sld_url = (
+                f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles/{style_name}"
+            )
+            requests.put(
+                upload_sld_url,
+                data=sld_body,
+                headers={"Content-Type": "application/vnd.ogc.sld+xml"},
+                auth=auth,
+            )
+
+            # Apply style to layer
+            apply_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coverages/{raster_layer_name}"
+            style_xml = f"""<coverage>
+                <defaultStyle>
+                    <name>{style_name}</name>
+                    <workspace>{WORKSPACE}</workspace>
+                </defaultStyle>
+            </coverage>"""
+            requests.put(
+                apply_style_url,
+                data=style_xml,
+                headers={"Content-Type": "application/xml"},
+                auth=auth,
+            )
+        except Exception as style_error:
+            # Style application is non-critical, continue
+            pass
+
+        # ==========================================================
+        # Step 10: GENERATE MAP IMAGE FOR PDF
+        # ==========================================================
+        map_image = None
+        legend_image = None
+
+        try:
+            # Generate map using the shared utility
+            # For general WQI, we might not have a river layer, so pass None or fetch a generic one
+            # The function handles None gracefully for river_gdf
+
+            # We use the buffer as the primary geometry for extent
+
+            map_result = generate_map_from_raster(
+                tiff_path=tiff_path,
+                attribute="WQI",
+                river_gdf=None,  # No river network for general module yet
+                buffer_gdf=buffer_gdf,
+                subdist_gdf=buffer_gdf,  # Reuse buffer as "subdistrict" context/boundary
+                utm_crs=utm_crs,
+                color_stops=color_stops,
+            )
+
+            map_image = map_result.get("map_image")
+            legend_image = map_result.get("legend_image")
+
+        except Exception as map_err:
+            print(f"Error generating map image: {map_err}")
+            import traceback
+
+            traceback.print_exc()
+            # Non-critical, just log
+
+        return JsonResponse(
+            {
+                "success": True,
+                "layer_name": raster_layer_name,
+                "style_name": style_name,
+                "workspace": WORKSPACE,
+                "statistics": {
+                    "min": round(vmin, 2),
+                    "max": round(vmax, 2),
+                    "mean": round(vmean, 2),
+                    "points_used": len(valid_points),
+                },
+                "bbox": list(buffer_gdf.total_bounds),
+                "map_image": map_image,
+                "legend_image": legend_image,
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def general_download_raster_recovered_duplicate(request):
+    import requests
+    from django.http import HttpResponse, JsonResponse
+
+    layer_name = request.GET.get("layer_name")
+    workspace = request.GET.get("workspace", WORKSPACE)
+    filename = request.GET.get("filename", "raster.tif")
+
+    if not layer_name:
+        return JsonResponse({"error": "layer_name is required"}, status=400)
+
+    # GeoServer WCS request to download GeoTIFF
+    if ":" in layer_name:
+        coverage_id = layer_name
+    else:
+        coverage_id = f"{workspace}:{layer_name}"
+
+    url = f"{GEOSERVER_URL}/{workspace}/wcs"
+    params = {
+        "service": "WCS",
+        "version": "2.0.1",
+        "request": "GetCoverage",
+        "coverageId": coverage_id,
+        "format": "image/tiff",
+    }
+
+    try:
+        response = requests.get(
+            url,
+            params=params,
+            auth=(GEOSERVER_USER, GEOSERVER_PASSWORD),
+            stream=True,
+            timeout=30,
+        )
+
+        if response.status_code == 200:
+            django_res = HttpResponse(response.content, content_type="image/tiff")
+            django_res["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return django_res
+        else:
+            return JsonResponse(
+                {"error": f"GeoServer error: {response.status_code}"},
+                status=response.status_code,
+            )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

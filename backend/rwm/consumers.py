@@ -90,7 +90,7 @@ class TaskProgressConsumer(AsyncWebsocketConsumer):
         )
 
         print("\n📤 WS OUTGOING EVENT (from CELERY):")
-        print(event["data"])
+        # print(event["data"])
         print("--------------------------------------------------\n")
         """Receive progress updates from Celery tasks"""
         await self.send(text_data=json.dumps(event['data']))

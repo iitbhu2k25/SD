@@ -32,16 +32,10 @@ def send_task_update(job_id, data):
     if not channel_layer:
         # ❌ No channel layer configured
         error_msg = "WebSocket layer not configured - cannot send updates"
-        # logger.error(error_msg)
         raise RuntimeError(error_msg)
     
     group_name = f"task_{job_id}"
 
-    # logger.info("🔵 DEBUG: Preparing WebSocket message")
-    # logger.info(f"     job_id: {job_id}")
-    # logger.info(f"     group: {group_name}")
-    # logger.info(f"     data: {data}")
-    
     cache_key = f"task:{job_id}:state"
     cache.set(cache_key, data, timeout=60 * 60)
 
@@ -344,14 +338,22 @@ def submit_batch_interpolation_job(self,
             for attr in attributes
         ])
         
-        # Use CHORD to run all tasks in parallel, then finalize
-        job_chain = chord(parallel_tasks)(finalize_interpolation_job.s(
+        # 1. Define the callback signature (The Blueprint)
+        finalize_signature = finalize_interpolation_job.s(
             attributes=attributes,
             season=season,
             data_type=data_type,
             identifier_codes=identifier_codes,
-            job_id=job_id 
-        )).on_error(group_error_handler)
+            job_id=job_id
+        )
+
+        # 2. Attach the error handler TO THE SIGNATURE
+        # Note: We use .s() on the handler too to make it a signature
+        finalize_signature.link_error(group_error_handler.s(job_id=job_id))
+
+        # 3. Fire the chord (The Execution)
+        # Now we pass the "signature with error handling" into the chord
+        job_chain = chord(parallel_tasks)(finalize_signature)
         
         # 🔹 NEW: map outer job_id → Celery group_id
         try:
@@ -397,19 +399,22 @@ def finalize_interpolation_job(self,
     Chord callback - runs AFTER all interpolation tasks complete
     Aggregates results and prepares response for frontend
     """
+    
+    user_is_active = cache.get(f"user_active_{job_id}")
+    
+    if user_is_active is None:
+        return {
+            "status": "cancelled",
+            "job_id": job_id,
+            "message": "Finalization skipped — user disconnected",
+        }
+        
+        
     task_id = self.request.id
-    # logger.info(f"WS_DEBUG → finalize sending using JOB_ID = {job_id}")
-    # logger.warning(f"[CELERY BEFORE DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
-
-    # cache.delete("pdf_job_lock")
     cache.delete(f"user_active_{job_id}")
     cache.delete(f"group_for_{job_id}")
     
-    # logger.warning(f"[CELERY AFTER DELETE] pdf_job_lock = {cache.get('pdf_job_lock')}")
-    # logger.info(f"🧹 Cleanup done for job {job_id}")
-    # At start of finalize_interpolation_job
     if not cache.get(f"user_active_{job_id}", True):
-        # logger.warning(f"🚫 Finalization cancelled for job {job_id}")
 
         send_task_update(job_id, {
             "status": "cancelled",
@@ -425,9 +430,6 @@ def finalize_interpolation_job(self,
         }
 
     try:
-        # logger.info(f"\n{'='*80}")
-        # logger.info(f"🎯 FINALIZATION: Aggregating {len(all_results)} results")
-        # logger.info(f"{'='*80}\n")
         
         successful = 0
         failed = 0
@@ -438,15 +440,12 @@ def finalize_interpolation_job(self,
             if result['status'] == 'success':
                 successful += 1
                 results_list.append(result)
-                # logger.info(f"✅ {result['attribute']}")
             elif result['status'] == 'cancelled':
                 cancelled += 1
                 results_list.append(result)
-                # logger.warning(f"🚫 CANCELLED {result['attribute']}: {result.get('message')}")
             else:
                 failed += 1
                 results_list.append(result)
-                # logger.warning(f"❌ {result['attribute']}: {result.get('message')}")
         
         total = len(attributes)
         
@@ -522,16 +521,9 @@ def finalize_interpolation_job(self,
             }
         }
         
-        # logger.info(f"\n{'='*80}")
-        # logger.info(f"✅ JOB COMPLETE")
-        # logger.info(f"   Successful: {successful}/{len(attributes)}")
-        # logger.info(f"   Failed: {failed}/{len(attributes)}")
-        # logger.info(f"{'='*80}\n")
-        
         return final_response
         
     except Exception as exc:
-        # logger.error(f"❌ Finalization failed: {str(exc)}")
         import traceback
         traceback.print_exc()
         
@@ -550,6 +542,11 @@ def finalize_interpolation_job(self,
             'message': f'Finalization error: {str(exc)}',
             'partial_results': all_results
         }
+        
+    finally:
+        # 2. DELETE LAST (In a finally block to ensure cleanup happens even if code crashes)
+        cache.delete(f"user_active_{job_id}")
+        cache.delete(f"group_for_{job_id}")
 
 
 
@@ -641,7 +638,7 @@ def get_job_progress(job_id):
 
 
 
-
+@shared_task(ignore_result=True)
 def group_error_handler(request, exc, traceback):
     job_id = request.kwargs.get("job_id") or request.id
     try:
