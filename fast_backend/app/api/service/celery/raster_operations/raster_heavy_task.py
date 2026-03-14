@@ -428,7 +428,9 @@ def celery_reprojection(self,
     src_nodata: str,
     resampling: str = "near",
 ):  
-    time.sleep(13)
+    
+    channel = f"opr_id:{self.request.id}"
+    time.sleep(33)
     channel = f"opr_id:{self.request.id}"
     update_redis_start(
         id=self.request.id,
@@ -642,8 +644,8 @@ def _run_flow_accumulation(
 
     elif algorithm == "dinf":
 
-        ret = wbt.dinf_flow_accumulation(
-            dem=dem_path,
+        ret = wbt.d_inf_flow_accumulation(
+            i=dem_path,
             output=output_path,
             out_type=output_type,
             log=log_transform,
@@ -828,7 +830,6 @@ def compute_flow_direction_task(
     algorithm:str,
     fill_depressions: bool,
     src_nodata: str,
-    max_slope:      Optional[float] = None,
     
 ) -> str:
     
@@ -843,8 +844,7 @@ def compute_flow_direction_task(
             _run_flow_direction(
                 dem_path=dem_path,
                 output_path=output_path,
-                algorithm=algorithm,
-                max_slope=max_slope,
+                algorithm=algorithm
             )
 
         _update_stats(float(src_nodata),output_path)
@@ -946,9 +946,6 @@ def _run_resample(
         "-tr",         str(cell_size), str(cell_size), 
         "-r",          algorithm,                
         "-of",         "GTiff",
-        "-co",         "COMPRESS=LZW",
-        "-co",         "TILED=YES",
-        "-co",         "BIGTIFF=IF_SAFER",
         "-overwrite",
     ]
 
@@ -968,17 +965,18 @@ def _run_resample(
             f"gdalwarp failed (exit {result.returncode}):\n{result.stderr}"
         )
 
-
+@app.task(bind=True,name='celery_resample_tools',queue='heavy_task')
 def resample_raster_task(
+    self,
     input_path:   str,
     output_path:  str,
     cell_size:int,
     algorithm:    str,
+    src_nodata: str
 
 ) -> str:
     try:
        
-        input_path,src_nodata = _normalize_nodata(input_path)
         _run_resample(
             input_path=input_path,
             output_path=output_path,

@@ -416,44 +416,44 @@ class RasterOperation:
         output_path = self.temp_dir / f"reclassified_{time.time()}.tif"
         return reclassify_raster(payload,str(file_path),str(output_path))
 
-    def edludian(self,db:Session,payload:Edliudian):
-        file_path=self._get_file_path(payload.file_id)
+    async def edludian(self,db:Session,payload:Edliudian):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"ecludian_{time.time()}.tif"
         return celery_euclidean_distance(str(file_path),str(output_path),payload.target_values,payload.max_distance,payload.distance_units)
     
-    def flow_direction(self,db:Session,payload:FlowDirectionParams):
-        file_path=self._get_file_path(payload.file_id)
+    async def flow_direction(self,db:Session,payload:FlowDirectionParams):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"flow_direction_{time.time()}.tif"
-        return compute_flow_direction_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata,payload.max_slope)
+        return compute_flow_direction_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
     
-    def flow_accumulation(self,db:Session,payload:FlowAccumulationParams):
-        file_path=self._get_file_path(payload.file_id)
+    async def flow_accumulation(self,db:Session,payload:FlowAccumulationParams):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"flow_accumulation_{time.time()}.tif"
         return compute_flow_accumulation_task.delay(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,str(file_path),str(output_path),payload.src_nodata)
 
-    def slope(self,db:Session,payload:SlopeParams):
-        file_path=self._get_file_path(payload.file_id)
+    async def slope(self,db:Session,payload:SlopeParams):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"slope_{time.time()}.tif"
         return compute_slope_task.delay(str(file_path),str(output_path),payload.units,payload.src_nodata)
 
-    def tpi(self,db:Session,payload:TpiParams):
-        file_path=self._get_file_path(payload.file_id)
+    async def tpi(self,db:Session,payload:TpiParams):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"tpi_{time.time()}.tif"
-        return compute_tpi_task.delay(str(file_path),str(output_path),payload.neighbourhood,payload.radius,payload.src_nodata)
+        return compute_tpi_task.delay(str(file_path),str(output_path),payload.radius,payload.src_nodata)
 
-    def twi(self,db:Session,payload:TwiParams):
-        file_path=self._get_file_path(payload.file_id)
+    async def twi(self,db:Session,payload:TwiParams):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"twi_{time.time()}.tif"
         return compute_twi_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
 
-    def test_resolution(self,db:Session,payload:CellResize):
-        file_path=self._get_file_path(payload.file_id)
+    async def test_resolution(self,db:Session,payload:CellResize):
+        file_path=await self._get_file_path(payload.file_id)
         return dry_run_resample(file_path,payload.target_cell,payload.algorithm)
     
-    def execute_resolution(self,db:Session,payload:CellResize):
-        file_path=self._get_file_path(payload.file_id)
+    async def execute_resolution(self,db:Session,payload:CellResize):
+        file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"resolution_{time.time()}.tif"
-        return resample_raster_task(str(file_path),str(output_path),payload.target_cell,payload.algorithm)
+        return resample_raster_task.delay(str(file_path),str(output_path),payload.target_cell,payload.algorithm,payload.src_nodata)
        
 
     

@@ -126,7 +126,6 @@ class FlowDirectionParams(BaseModel):
     file_id:        str
     algorithm:      FlowAlgorithm = "d8"
     fill_depressions: bool        = True
-    max_slope:      Optional[float] = None   # only for dinf/mfd
     src_nodata: str
 
     @model_validator(mode="after")
@@ -167,13 +166,14 @@ class SlopeParams(BaseModel):
 
 class TpiParams(BaseModel):
     file_id:          str
-    neighbourhood:    TpiNeighbourhood = "circle"
     radius:           int              = 3      
     src_nodata: str
     @model_validator(mode="after")
     def validate_radius(self):
         if self.radius < 1:
             raise ValueError("radius must be >= 1")
+        if self.radius >500:
+            raise ValueError("radius must be <= 500")
         return self
 
 
@@ -187,10 +187,16 @@ class TwiParams(BaseModel):
 
 class CellResize(BaseModel):
     file_id:      str
-    target_cell:  float
+    target_cell:  int
     algorithm:    cell_resize_algorithms="near"
-    dtype_override: Optional[str] = None
+    dtype_override: Optional[RasterType] = "float32"
     src_nodata: str
+
+    @model_validator(mode="after")
+    def validate_params(self):
+        if self.target_cell < 1 :
+            raise ValueError("target_cell must be >= 1")
+        return self
 
 
 class FileSize(BaseModel):
