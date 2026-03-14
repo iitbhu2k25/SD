@@ -14,18 +14,14 @@ import os
 from app.conf.celery import app
 from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
+from app.database.config.dependency import db_dependency
+from app.database.crud.raster_operations import rasterOperCrud
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
 wbt.set_working_dir("/tmp")
 
-def _remove_duplicate(file_path: str):
-    path = Path(file_path)
-    if path.exists() and path.is_file():
-        path.unlink()
-        logger.info(f"Removed existing file: {file_path}")
-
-def update_redis_start(id:str,channel:str):
+def update_redis_start(id:str,channel:str,file_id:str):
     data = {
         "task_id": id,
         "status": "started",
@@ -38,6 +34,9 @@ def update_redis_start(id:str,channel:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
+    with db_dependency() as db:
+        rasterOperCrud(db).start(task_id=id,file_id=file_id)
+        
 
 def update_redis_fail(id:str,channel:str):
     data = {
@@ -52,8 +51,11 @@ def update_redis_fail(id:str,channel:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
+    with db_dependency() as db:
+        rasterOperCrud(db).update(task_id=id,status="failed")
 
-def update_redis_done(id:str,channel:str):
+
+def update_redis_done(id:str,channel:str,layer_name:str,result_path:str):
     data = {
         "task_id": id,
         "status": "completed",
@@ -66,6 +68,9 @@ def update_redis_done(id:str,channel:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
+    with db_dependency() as db:
+        rasterOperCrud(db).update(task_id=id,status="completed",layer_name=layer_name,result_path=result_path)
+
 
 def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
     input_path = Path(input_path)
@@ -435,6 +440,7 @@ def celery_reprojection(self,
     update_redis_start(
         id=self.request.id,
         channel=channel,
+        file_id=input_path
     )
     command = [
         "gdalwarp",
@@ -465,8 +471,10 @@ def celery_reprojection(self,
         update_redis_done(
         id=self.request.id,
         channel=channel,
+        result_path=str(output_path),
+        layer_name="geoserver"
         )
-        return str(output_path)
+
 
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")

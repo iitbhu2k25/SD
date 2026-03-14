@@ -1,8 +1,8 @@
-"""fix the new update 
+"""new update 
 
-Revision ID: db25d4101ebe
+Revision ID: efe3beba3588
 Revises: 
-Create Date: 2026-03-04 20:24:48.725943
+Create Date: 2026-03-14 04:44:51.211902
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'db25d4101ebe'
+revision: str = 'efe3beba3588'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -29,6 +29,19 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('celery_task',
+    sa.Column('file_id', sa.String(), nullable=False),
+    sa.Column('task_id', sa.String(), nullable=False),
+    sa.Column('task_name', sa.String(), nullable=False),
+    sa.Column('task_status', sa.String(), nullable=False),
+    sa.Column('file_path', sa.String(), nullable=True),
+    sa.Column('layer_name', sa.String(), nullable=True),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_celery_task_id'), 'celery_task', ['id'], unique=False)
     op.create_table('groundwater_Identification_visual',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -40,7 +53,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_groundwater_Identification_visual_id'), 'groundwater_Identification_visual', ['id'], unique=True)
+    op.create_index(op.f('ix_groundwater_Identification_visual_id'), 'groundwater_Identification_visual', ['id'], unique=False)
     op.create_table('groundwater_identification_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -53,7 +66,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_groundwater_identification_raster_id'), 'groundwater_identification_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_groundwater_identification_raster_id'), 'groundwater_identification_raster', ['id'], unique=False)
     op.create_table('groundwater_zone_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -65,7 +78,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_groundwater_zone_raster_id'), 'groundwater_zone_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_groundwater_zone_raster_id'), 'groundwater_zone_raster', ['id'], unique=False)
     op.create_table('groundwater_zone_visual_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -76,7 +89,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_groundwater_zone_visual_raster_id'), 'groundwater_zone_visual_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_groundwater_zone_visual_raster_id'), 'groundwater_zone_visual_raster', ['id'], unique=False)
     op.create_table('mar_raster_details',
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
@@ -86,7 +99,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_mar_raster_details_id'), 'mar_raster_details', ['id'], unique=True)
+    op.create_index(op.f('ix_mar_raster_details_id'), 'mar_raster_details', ['id'], unique=False)
     op.create_table('mar_suitability_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -100,7 +113,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_mar_suitability_raster_id'), 'mar_suitability_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_mar_suitability_raster_id'), 'mar_suitability_raster', ['id'], unique=False)
     op.create_table('mar_suitability_visual_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -112,7 +125,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_mar_suitability_visual_raster_id'), 'mar_suitability_visual_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_mar_suitability_visual_raster_id'), 'mar_suitability_visual_raster', ['id'], unique=False)
     op.create_table('rainwater_raster',
     sa.Column('layer_name', sa.String(), nullable=False),
     sa.Column('file_path', sa.String(), nullable=False),
@@ -124,34 +137,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_rainwater_raster_id'), 'rainwater_raster', ['id'], unique=True)
-    op.create_table('raster_metadata',
-    sa.Column('file_id', sa.String(), nullable=False),
-    sa.Column('driver', sa.String(), nullable=False),
-    sa.Column('width', sa.Integer(), nullable=False),
-    sa.Column('height', sa.Integer(), nullable=False),
-    sa.Column('band_count', sa.Integer(), nullable=False),
-    sa.Column('dtypes', sa.String(), nullable=False),
-    sa.Column('nodata', sa.Float(), nullable=True),
-    sa.Column('crs', sa.String(), nullable=False),
-    sa.Column('crs_unit', sa.String(), nullable=False),
-    sa.Column('compression', sa.String(), nullable=True),
-    sa.Column('is_tiled', sa.Boolean(), nullable=False),
-    sa.Column('block_shapes', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('is_cog_like', sa.Boolean(), nullable=False),
-    sa.Column('file_size', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('bounds', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('bounds_wgs84', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('resolution', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('bands', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
-    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('modified_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('file_id')
-    )
-    op.create_index(op.f('ix_raster_metadata_id'), 'raster_metadata', ['id'], unique=True)
+    op.create_index(op.f('ix_rainwater_raster_id'), 'rainwater_raster', ['id'], unique=False)
     op.create_table('raster_storage',
     sa.Column('file_id', sa.String(), nullable=False),
     sa.Column('file_name', sa.String(), nullable=False),
@@ -166,7 +152,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('file_id')
     )
-    op.create_index(op.f('ix_raster_storage_id'), 'raster_storage', ['id'], unique=True)
+    op.create_index(op.f('ix_raster_storage_id'), 'raster_storage', ['id'], unique=False)
     op.create_table('stp_priority_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -178,7 +164,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_stp_priority_raster_id'), 'stp_priority_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_priority_raster_id'), 'stp_priority_raster', ['id'], unique=False)
     op.create_table('stp_priority_visual_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -189,7 +175,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_stp_priority_visual_raster_id'), 'stp_priority_visual_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_priority_visual_raster_id'), 'stp_priority_visual_raster', ['id'], unique=False)
     op.create_table('stp_river',
     sa.Column('River_Code', sa.Integer(), nullable=False),
     sa.Column('River_Name', sa.String(), nullable=False),
@@ -199,7 +185,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('River_Code', 'id'),
     sa.UniqueConstraint('River_Code')
     )
-    op.create_index(op.f('ix_stp_river_id'), 'stp_river', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_river_id'), 'stp_river', ['id'], unique=False)
     op.create_table('stp_state',
     sa.Column('state_code', sa.Integer(), nullable=False),
     sa.Column('state_name', sa.String(), nullable=False),
@@ -209,7 +195,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('state_code', 'id'),
     sa.UniqueConstraint('state_code')
     )
-    op.create_index(op.f('ix_stp_state_id'), 'stp_state', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_state_id'), 'stp_state', ['id'], unique=False)
     op.create_table('stp_suitability_area',
     sa.Column('tech_name', sa.String(), nullable=False),
     sa.Column('tech_value', sa.Float(), nullable=False),
@@ -218,7 +204,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_stp_suitability_area_id'), 'stp_suitability_area', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_suitability_area_id'), 'stp_suitability_area', ['id'], unique=False)
     op.create_table('stp_suitability_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -231,7 +217,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_stp_suitability_raster_id'), 'stp_suitability_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_suitability_raster_id'), 'stp_suitability_raster', ['id'], unique=False)
     op.create_table('stp_suitability_visual_raster',
     sa.Column('file_name', sa.String(), nullable=False),
     sa.Column('layer_name', sa.String(), nullable=False),
@@ -243,7 +229,7 @@ def upgrade() -> None:
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_stp_suitability_visual_raster_id'), 'stp_suitability_visual_raster', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_suitability_visual_raster_id'), 'stp_suitability_visual_raster', ['id'], unique=False)
     op.create_table('users',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('fullname', sa.String(length=50), nullable=False),
@@ -295,7 +281,35 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_email_reports_id'), 'email_reports', ['id'], unique=True)
+    op.create_index(op.f('ix_email_reports_id'), 'email_reports', ['id'], unique=False)
+    op.create_table('raster_metadata',
+    sa.Column('file_id', sa.String(), nullable=False),
+    sa.Column('driver', sa.String(), nullable=False),
+    sa.Column('width', sa.Integer(), nullable=False),
+    sa.Column('height', sa.Integer(), nullable=False),
+    sa.Column('band_count', sa.Integer(), nullable=False),
+    sa.Column('dtypes', sa.String(), nullable=False),
+    sa.Column('nodata', sa.Float(), nullable=True),
+    sa.Column('crs', sa.String(), nullable=False),
+    sa.Column('crs_unit', sa.String(), nullable=False),
+    sa.Column('compression', sa.String(), nullable=True),
+    sa.Column('is_tiled', sa.Boolean(), nullable=False),
+    sa.Column('block_shapes', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('is_cog_like', sa.Boolean(), nullable=False),
+    sa.Column('file_size', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bounds', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bounds_wgs84', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('resolution', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('bands', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('tags', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['raster_storage.file_id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('file_id')
+    )
+    op.create_index(op.f('ix_raster_metadata_id'), 'raster_metadata', ['id'], unique=False)
     op.create_table('stp_district',
     sa.Column('district_code', sa.Integer(), nullable=False),
     sa.Column('district_name', sa.String(), nullable=False),
@@ -307,7 +321,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('district_code', 'id'),
     sa.UniqueConstraint('district_code')
     )
-    op.create_index(op.f('ix_stp_district_id'), 'stp_district', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_district_id'), 'stp_district', ['id'], unique=False)
     op.create_table('stp_stretches',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('Stretch_ID', sa.Integer(), nullable=False),
@@ -339,7 +353,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('Drain_No', 'id'),
     sa.UniqueConstraint('Drain_No')
     )
-    op.create_index(op.f('ix_stp_drain_id'), 'stp_drain', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_drain_id'), 'stp_drain', ['id'], unique=False)
     op.create_table('stp_drain_suitability',
     sa.Column('Drain_No', sa.Integer(), nullable=False),
     sa.Column('stretch_id', sa.Integer(), nullable=False),
@@ -355,7 +369,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('Drain_No', 'id'),
     sa.UniqueConstraint('Drain_No')
     )
-    op.create_index(op.f('ix_stp_drain_suitability_id'), 'stp_drain_suitability', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_drain_suitability_id'), 'stp_drain_suitability', ['id'], unique=False)
     op.create_table('stp_subdistrict',
     sa.Column('subdistrict_code', sa.Integer(), nullable=False),
     sa.Column('subdistrict_name', sa.String(), nullable=False),
@@ -367,7 +381,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('subdistrict_code', 'id'),
     sa.UniqueConstraint('subdistrict_code')
     )
-    op.create_index(op.f('ix_stp_subdistrict_id'), 'stp_subdistrict', ['id'], unique=True)
+    op.create_index(op.f('ix_stp_subdistrict_id'), 'stp_subdistrict', ['id'], unique=False)
     op.create_table('stp_catchment',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('GRIDCODE', sa.Integer(), nullable=False),
@@ -420,6 +434,8 @@ def downgrade() -> None:
     op.drop_table('stp_stretches')
     op.drop_index(op.f('ix_stp_district_id'), table_name='stp_district')
     op.drop_table('stp_district')
+    op.drop_index(op.f('ix_raster_metadata_id'), table_name='raster_metadata')
+    op.drop_table('raster_metadata')
     op.drop_index(op.f('ix_email_reports_id'), table_name='email_reports')
     op.drop_table('email_reports')
     op.drop_table('water_quality_assessment')
@@ -440,8 +456,6 @@ def downgrade() -> None:
     op.drop_table('stp_priority_raster')
     op.drop_index(op.f('ix_raster_storage_id'), table_name='raster_storage')
     op.drop_table('raster_storage')
-    op.drop_index(op.f('ix_raster_metadata_id'), table_name='raster_metadata')
-    op.drop_table('raster_metadata')
     op.drop_index(op.f('ix_rainwater_raster_id'), table_name='rainwater_raster')
     op.drop_table('rainwater_raster')
     op.drop_index(op.f('ix_mar_suitability_visual_raster_id'), table_name='mar_suitability_visual_raster')
@@ -458,5 +472,7 @@ def downgrade() -> None:
     op.drop_table('groundwater_identification_raster')
     op.drop_index(op.f('ix_groundwater_Identification_visual_id'), table_name='groundwater_Identification_visual')
     op.drop_table('groundwater_Identification_visual')
+    op.drop_index(op.f('ix_celery_task_id'), table_name='celery_task')
+    op.drop_table('celery_task')
     op.drop_table('GWQI_param_Index')
     # ### end Alembic commands ###

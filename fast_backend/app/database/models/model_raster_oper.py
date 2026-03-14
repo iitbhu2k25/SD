@@ -73,3 +73,12 @@ class RasterMetadata(Base):
         "RasterStorage",
         back_populates="metadata_record"
     )
+
+class CeleryTask(Base):
+    __tablename__ = "celery_task"
+    file_id: Mapped[str] = mapped_column(String, nullable=False)
+    task_id: Mapped[str] = mapped_column(String, nullable=False)
+    task_name: Mapped[str] = mapped_column(String, nullable=False)
+    task_status: Mapped[str] = mapped_column(String, nullable=False)
+    file_path: Mapped[str] = mapped_column(String, nullable=True)
+    layer_name: Mapped[str] = mapped_column(String, nullable=True)
