@@ -144,7 +144,7 @@ services:
       - /bin/sh
       - -c
       - |
-        celery -A app.conf.celery worker -n low_worker -c 2 --pool=prefork   --autoscale=4,2
+        celery -A app.conf.celery worker -n low_worker -c 2 --pool=prefork  -Q default  --autoscale=4,2
 
     env_file:
       - ./fast_backend/.fastdb.env

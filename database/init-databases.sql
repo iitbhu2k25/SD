@@ -1,3 +1,3 @@
 CREATE DATABASE slcr;
-CREATE DATABASE fast_m_db;
+CREATE DATABASE slcr_fastm;
 CREATE DATABASE slcr_cloud;

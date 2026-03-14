@@ -34,8 +34,8 @@ def update_redis_start(id:str,channel:str,file_id:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
-    with db_dependency() as db:
-        rasterOperCrud(db).start(task_id=id,file_id=file_id)
+    # with db_dependency() as db:
+    #     rasterOperCrud(db).start(task_id=id,file_id=file_id)
         
 
 def update_redis_fail(id:str,channel:str):
@@ -51,8 +51,8 @@ def update_redis_fail(id:str,channel:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
-    with db_dependency() as db:
-        rasterOperCrud(db).update(task_id=id,status="failed")
+    # with db_dependency() as db:
+    #     rasterOperCrud(db).update(task_id=id,status="failed")
 
 
 def update_redis_done(id:str,channel:str,layer_name:str,result_path:str):
@@ -68,8 +68,8 @@ def update_redis_done(id:str,channel:str,layer_name:str,result_path:str):
         json.dumps(data)
     )
     sync_redis_client.publish(channel, json.dumps(data))
-    with db_dependency() as db:
-        rasterOperCrud(db).update(task_id=id,status="completed",layer_name=layer_name,result_path=result_path)
+    # with db_dependency() as db:
+    #     rasterOperCrud(db).update(task_id=id,status="completed",layer_name=layer_name,result_path=result_path)
 
 
 def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
@@ -435,7 +435,6 @@ def celery_reprojection(self,
 ):  
     
     channel = f"opr_id:{self.request.id}"
-    time.sleep(33)
     channel = f"opr_id:{self.request.id}"
     update_redis_start(
         id=self.request.id,
@@ -457,7 +456,6 @@ def celery_reprojection(self,
         str(output_path),
     ]
     logger.info(f"Running GDAL command: {' '.join(command)}")
-    time.sleep(30) 
     try:
         result = subprocess.run(
             command,
