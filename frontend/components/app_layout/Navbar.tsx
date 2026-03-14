@@ -1294,7 +1294,7 @@ const Navbar = (): JSX.Element => {
                       href="/dss/Tools/seawage_infrastructure"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                       onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "seawage_infrastructure", href: "/dss/Tools/seawage_infrastructure" }])}>
-                      NMCG
+                      Seawage Infra
                     </Link>
                   </li>
                   <li>
