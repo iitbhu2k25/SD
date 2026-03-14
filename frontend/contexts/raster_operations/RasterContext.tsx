@@ -11,6 +11,7 @@ import { toast } from "react-toastify";
 import { uploadFileInChunks } from "@/utils/chunkUpload";
 import {
   RasterDetails,
+  RasterDetailsApiResponse,
   RasterLayer,
   OperationType,
   OperationStatus,
@@ -18,6 +19,7 @@ import {
   Operation,
   ColorStop,
   SLDConfig,
+  normaliseRasterDetails,
 } from "@/interface/raster_operations";
 import { api } from "@/services/api";
 
@@ -42,9 +44,6 @@ export type BaseMapKey = keyof typeof BASE_MAPS;
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONTEXT VALUE
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface CtxValue {
   uploading: boolean;
@@ -63,6 +62,8 @@ interface CtxValue {
   sidebarOpen: boolean;
   error: string | null;
   rasterFileName: string | null;
+  sldConfig: SLDConfig | null;
+  setSldConfig: (sldConfig: SLDConfig | null) => void; 
 
   setRasterFileName: (name: string | null) => void;
 
@@ -82,9 +83,7 @@ interface CtxValue {
 
 const Ctx = createContext<CtxValue | null>(null);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PROVIDER
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 export function RasterProvider({ children }: { children: ReactNode }) {
   const [uploading, setUploading] = useState(false);
@@ -110,12 +109,16 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const loadDetails = useCallback(async (fileId: string) => {
     setDetailsLoading(true);
     try {
-      const resp = await api.get<RasterDetails>(`/tools/raster/${fileId}/details`);
+      // The API returns { raster_info, raster_meta } — use RasterDetailsApiResponse
+      const resp = await api.get<RasterDetailsApiResponse>(
+        `/tools/raster/${fileId}/details`
+      );
       if (resp.status > 201) {
         toast.error("Failed to load metadata");
         return;
       }
-      setDetails(resp.message);
+      // Normalise into the flat RasterDetails shape the UI expects
+      setDetails(normaliseRasterDetails(resp.message as RasterDetailsApiResponse));
     } catch {
       toast.error("Failed to load metadata");
     } finally {
@@ -202,7 +205,9 @@ export function RasterProvider({ children }: { children: ReactNode }) {
 
         setOperations((prev) =>
           prev.map((o) =>
-            o.id === op.id ? { ...o, status: "success" as OperationStatus, result } : o,
+            o.id === op.id
+              ? { ...o, status: "success" as OperationStatus, result }
+              : o,
           ),
         );
         toast.success(`${type.replace(/_/g, " ")} completed`);
@@ -220,7 +225,9 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         const msg = err instanceof Error ? err.message : "Operation failed";
         setOperations((prev) =>
           prev.map((o) =>
-            o.id === op.id ? { ...o, status: "error" as OperationStatus, error: msg } : o,
+            o.id === op.id
+              ? { ...o, status: "error" as OperationStatus, error: msg }
+              : o,
           ),
         );
         toast.error(msg);
@@ -246,6 +253,8 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         isFullscreen,
         sidebarTab,
         sidebarOpen,
+        setSldConfig,
+        sldConfig,
         error,
         rasterFileName,
         setRasterFileName,

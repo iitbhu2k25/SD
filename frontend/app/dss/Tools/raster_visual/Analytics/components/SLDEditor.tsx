@@ -7,9 +7,6 @@ import { toast } from 'react-toastify';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SLDEditor — TerraOps Light Theme
-//
-// Visual SLD symbology editor for GeoServer raster layers.
-// Generates SLD XML and applies via WMS SLD_BODY parameter.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ColorSchemeOption {
@@ -20,15 +17,15 @@ interface ColorSchemeOption {
 }
 
 const COLOR_SCHEMES: ColorSchemeOption[] = [
-  { id: 'sequential-blue',         name: 'Blues',    scheme: 'sequential',               preview: ['#f7fbff', '#6baed6', '#08306b'] },
-  { id: 'sequential-red',          name: 'Reds',     scheme: 'sequential_red',            preview: ['#fff5f0', '#fb6a4a', '#67000d'] },
-  { id: 'sequential-green',        name: 'Greens',   scheme: 'sequential_green',           preview: ['#f7fcf5', '#74c476', '#00441b'] },
-  { id: 'diverging-red-blue',      name: 'RdBu',     scheme: 'diverging',                  preview: ['#d73027', '#ffffbf', '#4575b4'] },
-  { id: 'diverging-purple-green',  name: 'PuGn',     scheme: 'diverging_purple_green',     preview: ['#8e0152', '#fde0ef', '#4d9221'] },
-  { id: 'rainbow',                 name: 'Spectral', scheme: 'rainbow',                    preview: ['#9e0142', '#fee08b', '#5e4fa2'] },
-  { id: 'terrain',                 name: 'Terrain',  scheme: 'terrain',                    preview: ['#333399', '#FFFF99', '#993333'] },
-  { id: 'viridis',                 name: 'Viridis',  scheme: 'viridis',                    preview: ['#440154', '#31688e', '#fde724'] },
-  { id: 'plasma',                  name: 'Plasma',   scheme: 'plasma',                     preview: ['#0d0887', '#d8576b', '#f0f921'] },
+  { id: 'sequential-blue',        name: 'Blues',    scheme: 'sequential',              preview: ['#f7fbff', '#6baed6', '#08306b'] },
+  { id: 'sequential-red',         name: 'Reds',     scheme: 'sequential_red',           preview: ['#fff5f0', '#fb6a4a', '#67000d'] },
+  { id: 'sequential-green',       name: 'Greens',   scheme: 'sequential_green',          preview: ['#f7fcf5', '#74c476', '#00441b'] },
+  { id: 'diverging-red-blue',     name: 'RdBu',     scheme: 'diverging',                 preview: ['#d73027', '#ffffbf', '#4575b4'] },
+  { id: 'diverging-purple-green', name: 'PuGn',     scheme: 'diverging_purple_green',    preview: ['#8e0152', '#fde0ef', '#4d9221'] },
+  { id: 'rainbow',                name: 'Spectral', scheme: 'rainbow',                   preview: ['#9e0142', '#fee08b', '#5e4fa2'] },
+  { id: 'terrain',                name: 'Terrain',  scheme: 'terrain',                   preview: ['#333399', '#FFFF99', '#993333'] },
+  { id: 'viridis',                name: 'Viridis',  scheme: 'viridis',                   preview: ['#440154', '#31688e', '#fde724'] },
+  { id: 'plasma',                 name: 'Plasma',   scheme: 'plasma',                    preview: ['#0d0887', '#d8576b', '#f0f921'] },
 ];
 
 type RenderMode = 'singleband_pseudocolor' | 'singleband_gray';
@@ -38,7 +35,6 @@ interface SLDEditorProps {
   onClose: () => void;
 }
 
-/* ── Reusable label ─────────────────────────────────────────────────────── */
 const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span
     className="text-[9px] font-bold uppercase block mb-2"
@@ -49,46 +45,66 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
-  const { layer, setSldConfig } = useRaster();
+  // Pull both layer (identity) and details (band stats) from context
+  const { layer, details, setSldConfig } = useRaster();
+
+  // Derive raster stats from details.bands[0] (band stats live there after normalisation)
+  const band0       = details?.bands?.[0];
+  const rasterMin   = band0?.min   ?? 0;
+  const rasterMax   = band0?.max   ?? 100;
+  // GeoServer layer name comes from details.layer_name (the UUID workspace name)
+  const geoName     = details?.layer_name ?? layer?.layer_name ?? '';
 
   // Core state
-  const [renderMode, setRenderMode] = useState<RenderMode>('singleband_pseudocolor');
-  const [colorStops, setColorStops] = useState<ColorStop[]>([]);
-  const [numClasses, setNumClasses] = useState<number>(5);
-  const [selectedScheme, setSelectedScheme] = useState<ColorSchemeOption>(COLOR_SCHEMES[0]);
-  const [interpolation, setInterpolation] = useState<'linear' | 'discrete'>('linear');
+  const [renderMode, setRenderMode]               = useState<RenderMode>('singleband_pseudocolor');
+  const [colorStops, setColorStops]               = useState<ColorStop[]>([]);
+  const [numClasses, setNumClasses]               = useState<number>(5);
+  const [selectedScheme, setSelectedScheme]       = useState<ColorSchemeOption>(COLOR_SCHEMES[0]);
+  const [interpolation, setInterpolation]         = useState<'linear' | 'discrete'>('linear');
   const [classificationMethod, setClassificationMethod] = useState<string>('equal_interval');
 
   // Value range
-  const [minValue, setMinValue] = useState<number>(0);
-  const [maxValue, setMaxValue] = useState<number>(100);
+  const [minValue, setMinValue]   = useState<number>(rasterMin);
+  const [maxValue, setMaxValue]   = useState<number>(rasterMax);
   const [autoMinMax, setAutoMinMax] = useState<boolean>(true);
 
   // Advanced
-  const [invertColors, setInvertColors] = useState<boolean>(false);
-  const [opacity, setOpacity] = useState<number>(1);
-  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [invertColors, setInvertColors]   = useState<boolean>(false);
+  const [opacity, setOpacity]             = useState<number>(1);
+  const [showAdvanced, setShowAdvanced]   = useState<boolean>(false);
 
-  // ── Initialize from layer stats ────────────────────────────────────────
+  // ── Sync min/max when details arrive or change ─────────────────────────
   useEffect(() => {
-    if (layer) {
-      setMinValue(layer.min_value);
-      setMaxValue(layer.max_value);
-      regenerateStops();
+    if (band0) {
+      setMinValue(band0.min);
+      setMaxValue(band0.max);
     }
-  }, [layer]);
+  }, [band0?.min, band0?.max]);
 
+  // ── Generate colour stops ──────────────────────────────────────────────
   const regenerateStops = () => {
-    const min = autoMinMax ? (layer?.min_value || 0) : minValue;
-    const max = autoMinMax ? (layer?.max_value || 100) : maxValue;
+    const min = autoMinMax ? rasterMin : minValue;
+    const max = autoMinMax ? rasterMax : maxValue;
     let stops = SLDGenerator.generateColorStops(min, max, numClasses, selectedScheme.scheme, undefined);
     if (invertColors) stops = SLDGenerator.invertColors(stops);
     setColorStops(stops);
   };
 
+  // Re-generate whenever any relevant input changes
   useEffect(() => {
     regenerateStops();
-  }, [numClasses, selectedScheme, autoMinMax, minValue, maxValue, interpolation, classificationMethod, invertColors]);
+  }, [
+    numClasses,
+    selectedScheme,
+    autoMinMax,
+    minValue,
+    maxValue,
+    interpolation,
+    classificationMethod,
+    invertColors,
+    rasterMin,
+    rasterMax,
+  ]);
 
   // ── Stop mutations ─────────────────────────────────────────────────────
   const updateColorStop = (id: string, updates: Partial<ColorStop>) =>
@@ -99,8 +115,13 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     const sorted = [...colorStops].sort((a, b) => a.value - b.value);
     const last = sorted[sorted.length - 1];
     const prev = sorted[sorted.length - 2];
-    const val = last.value + (last.value - prev.value);
-    setColorStops(p => [...p, { id: `stop-${Date.now()}`, value: parseFloat(val.toFixed(6)), color: last.color, label: val.toFixed(2) }]);
+    const val  = last.value + (last.value - prev.value);
+    setColorStops(p => [...p, {
+      id: `stop-${Date.now()}`,
+      value: parseFloat(val.toFixed(6)),
+      color: last.color,
+      label: val.toFixed(2),
+    }]);
   };
 
   const removeColorStop = (id: string) => {
@@ -116,29 +137,24 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
     let sldXml: string | null = null;
     if (renderMode === 'singleband_pseudocolor') {
-      sldXml = SLDGenerator.generateSLD({
-        layerName: layer.geo_name,
-        colorStops,
-        interpolation,
-        opacity,
-      });
-      setSldConfig({ layerName: layer.geo_name, colorStops, interpolation, opacity });
+      sldXml = SLDGenerator.generateSLD({ layerName: geoName, colorStops, interpolation, opacity });
+      setSldConfig({ layerName: geoName, colorStops, interpolation, opacity });
     }
     onApply(sldXml);
   };
 
-  // ── Export SLD file ────────────────────────────────────────────────────
+  // ── Export SLD ─────────────────────────────────────────────────────────
   const handleExportSLD = () => {
     if (!layer) return;
     const validation = SLDGenerator.validateColorStops(colorStops);
     if (!validation.valid) { toast.error(validation.errors[0]); return; }
 
-    const sldXml = SLDGenerator.generateSLD({ layerName: layer.geo_name, colorStops, interpolation, opacity });
+    const sldXml = SLDGenerator.generateSLD({ layerName: geoName, colorStops, interpolation, opacity });
     const blob = new Blob([sldXml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${layer.geo_name}_style.sld`;
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${geoName}_style.sld`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -167,25 +183,59 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     );
   }
 
+  // Show a gentle loading state while details are still fetching
+  if (!details) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 animate-pulse">
+        <div className="w-14 h-14 rounded-xl mb-3" style={{ background: 'var(--surface-sunken)' }} />
+        <div className="h-3 w-28 rounded" style={{ background: 'var(--border-subtle)' }} />
+        <div className="h-2.5 w-20 rounded mt-2" style={{ background: 'var(--border-muted)' }} />
+      </div>
+    );
+  }
+
   const sortedStops = [...colorStops].sort((a, b) => a.value - b.value);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
-
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Scrollable content ──────────────────────────────────────────── */}
+      {/* ── Scrollable body ─────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-4 pb-2">
 
-        {/* Render Type */}
+        {/* ── Raster stats banner ─────────────────────────────────────── */}
+        <div
+          className="grid grid-cols-3 gap-1"
+          style={{
+            background: 'var(--surface-card)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-subtle)',
+            padding: '10px 12px',
+          }}
+        >
+          {[
+            { label: 'Min',  value: band0?.min.toFixed(4)  ?? '—' },
+            { label: 'Mean', value: band0?.mean.toFixed(4) ?? '—' },
+            { label: 'Max',  value: band0?.max.toFixed(4)  ?? '—' },
+          ].map(({ label, value }) => (
+            <div key={label} className="text-center">
+              <p className="text-[8px] uppercase font-semibold" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+                {label}
+              </p>
+              <p className="text-[11px] font-bold mt-0.5" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
+                {value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Render Type ─────────────────────────────────────────────── */}
         <div>
           <SectionLabel>Render Type</SectionLabel>
           <div className="grid grid-cols-2 gap-2">
             {([
               { key: 'singleband_pseudocolor' as RenderMode, label: 'Pseudocolor', desc: 'Color ramp' },
-              { key: 'singleband_gray' as RenderMode, label: 'Grayscale', desc: 'Single band' },
+              { key: 'singleband_gray'         as RenderMode, label: 'Grayscale',   desc: 'Single band' },
             ]).map(({ key, label, desc }) => (
               <button
                 key={key}
@@ -209,13 +259,13 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
         {renderMode === 'singleband_pseudocolor' && (
           <>
-            {/* Mode */}
+            {/* ── Mode ──────────────────────────────────────────────── */}
             <div>
               <SectionLabel>Mode</SectionLabel>
               <div className="grid grid-cols-2 gap-2">
                 {([
-                  { key: 'linear' as const, label: 'Continuous', desc: 'Smooth ramp' },
-                  { key: 'discrete' as const, label: 'Classified', desc: 'Intervals' },
+                  { key: 'linear'   as const, label: 'Continuous', desc: 'Smooth ramp' },
+                  { key: 'discrete' as const, label: 'Classified',  desc: 'Intervals' },
                 ]).map(({ key, label, desc }) => (
                   <button
                     key={key}
@@ -237,7 +287,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
               </div>
             </div>
 
-            {/* Classification Method */}
+            {/* ── Classification method ──────────────────────────────── */}
             {interpolation === 'discrete' && (
               <div>
                 <SectionLabel>Classification</SectionLabel>
@@ -263,27 +313,19 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
               </div>
             )}
 
-            {/* Classes slider */}
+            {/* ── Classes slider ─────────────────────────────────────── */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <SectionLabel>Classes</SectionLabel>
                 <span
                   className="text-[11px] font-bold px-2 py-0.5"
-                  style={{
-                    background: 'var(--accent-bg)',
-                    color: 'var(--accent)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontFamily: 'var(--font-mono)',
-                  }}
+                  style={{ background: 'var(--accent-bg)', color: 'var(--accent)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)' }}
                 >
                   {numClasses}
                 </span>
               </div>
               <input
-                type="range"
-                min="2"
-                max="20"
-                value={numClasses}
+                type="range" min="2" max="20" value={numClasses}
                 onChange={(e) => setNumClasses(parseInt(e.target.value))}
                 className="w-full terra-slider"
                 style={{
@@ -292,7 +334,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
               />
             </div>
 
-            {/* Value range */}
+            {/* ── Value range ────────────────────────────────────────── */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <SectionLabel>Value Range</SectionLabel>
@@ -309,7 +351,34 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                 </label>
               </div>
 
-              {!autoMinMax && (
+              {/* Always show the effective range as read-only hint when auto is on */}
+              {autoMinMax ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: 'Min', value: rasterMin },
+                    { label: 'Max', value: rasterMax },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <span className="text-[8px] font-medium uppercase block mb-1"
+                        style={{ color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+                        {label}
+                      </span>
+                      <div
+                        className="text-[11px] font-bold px-2.5 py-1.5"
+                        style={{
+                          background: 'var(--surface-sunken)',
+                          border: '1px solid var(--border-muted)',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--accent)',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {value.toFixed(4)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { label: 'Min', value: minValue, set: setMinValue },
@@ -321,20 +390,15 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                         {label}
                       </span>
                       <input
-                        type="number"
-                        value={value}
+                        type="number" value={value} step="0.0001"
                         onChange={(e) => set(parseFloat(e.target.value))}
-                        step="0.01"
                         style={{
-                          width: '100%',
-                          padding: '7px 10px',
+                          width: '100%', padding: '7px 10px',
                           background: 'var(--surface-input)',
                           border: '1px solid var(--border-subtle)',
                           borderRadius: 'var(--radius-sm)',
                           color: 'var(--text-primary)',
-                          fontSize: 11,
-                          fontFamily: 'var(--font-mono)',
-                          outline: 'none',
+                          fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none',
                         }}
                       />
                     </div>
@@ -343,7 +407,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
               )}
             </div>
 
-            {/* Color ramp picker */}
+            {/* ── Color ramp picker ──────────────────────────────────── */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <SectionLabel>Color Ramp</SectionLabel>
@@ -355,9 +419,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                     border: `1px solid ${invertColors ? 'var(--amber)' : 'var(--border-subtle)'}`,
                     background: invertColors ? 'var(--amber-bg)' : 'var(--surface-card)',
                     color: invertColors ? 'var(--amber)' : 'var(--text-muted)',
-                    fontSize: 9,
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-mono)',
+                    fontSize: 9, fontWeight: 600, fontFamily: 'var(--font-mono)',
                   }}
                 >
                   <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -366,7 +428,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                   Invert
                 </button>
               </div>
-
               <div className="grid grid-cols-3 gap-1.5">
                 {COLOR_SCHEMES.map((scheme) => (
                   <button
@@ -394,7 +455,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
               </div>
             </div>
 
-            {/* Ramp preview */}
+            {/* ── Ramp preview ───────────────────────────────────────── */}
             <div>
               <SectionLabel>Preview</SectionLabel>
               <div
@@ -412,25 +473,25 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                       key={stop.id}
                       className="flex-1 transition-all hover:opacity-80"
                       style={{ background: stop.color }}
-                      title={`${stop.value.toFixed(2)} — ${stop.color}`}
+                      title={`${stop.value.toFixed(4)} — ${stop.color}`}
                     />
                   ))}
                 </div>
                 <div className="flex justify-between mt-2">
                   <span className="text-[9px] font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                    {sortedStops[0]?.value.toFixed(2)}
+                    {sortedStops[0]?.value.toFixed(4)}
                   </span>
                   <span className="text-[9px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {interpolation === 'linear' ? 'Continuous' : 'Classified'} · {numClasses} classes
                   </span>
                   <span className="text-[9px] font-bold" style={{ color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>
-                    {sortedStops[sortedStops.length - 1]?.value.toFixed(2)}
+                    {sortedStops[sortedStops.length - 1]?.value.toFixed(4)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Advanced toggle */}
+            {/* ── Advanced toggle ────────────────────────────────────── */}
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="w-full flex items-center justify-between px-3 py-2.5 transition-all"
@@ -448,13 +509,16 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                 </svg>
                 Advanced Options
               </span>
-              <svg className="w-3 h-3 transition-transform" style={{ transform: showAdvanced ? 'rotate(180deg)' : '' }}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-3 h-3 transition-transform"
+                style={{ transform: showAdvanced ? 'rotate(180deg)' : '' }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
-            {/* Advanced section */}
+            {/* ── Advanced section ───────────────────────────────────── */}
             {showAdvanced && (
               <div
                 className="space-y-3 p-3 terra-fade-in"
@@ -467,7 +531,8 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                 {/* Opacity */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+                    <span className="text-[9px] font-bold uppercase"
+                      style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
                       Opacity
                     </span>
                     <span className="text-[10px] font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
@@ -475,8 +540,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                     </span>
                   </div>
                   <input
-                    type="range" min="0" max="1" step="0.05"
-                    value={opacity}
+                    type="range" min="0" max="1" step="0.05" value={opacity}
                     onChange={(e) => setOpacity(parseFloat(e.target.value))}
                     className="w-full terra-slider"
                     style={{
@@ -488,7 +552,8 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                 {/* Color stops editor */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
+                    <span className="text-[9px] font-bold uppercase"
+                      style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
                       Color Stops ({colorStops.length})
                     </span>
                     <button
@@ -528,8 +593,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                           }}
                         >
                           <input
-                            type="color"
-                            value={stop.color}
+                            type="color" value={stop.color}
                             onChange={(e) => updateColorStop(stop.id, { color: e.target.value })}
                             className="sr-only"
                           />
@@ -537,10 +601,8 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
                         {/* Value */}
                         <input
-                          type="number"
-                          value={stop.value}
+                          type="number" value={stop.value} step="0.0001"
                           onChange={(e) => updateColorStop(stop.id, { value: parseFloat(e.target.value) })}
-                          step="0.01"
                           className="flex-1 min-w-0"
                           style={{
                             padding: '4px 6px',
@@ -548,19 +610,14 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                             border: '1px solid var(--border-muted)',
                             borderRadius: 'var(--radius-sm)',
                             color: 'var(--text-primary)',
-                            fontSize: 10,
-                            fontFamily: 'var(--font-mono)',
-                            outline: 'none',
-                            width: '100%',
+                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none', width: '100%',
                           }}
                         />
 
                         {/* Label */}
                         <input
-                          type="text"
-                          value={stop.label || ''}
+                          type="text" value={stop.label || ''} placeholder="Label"
                           onChange={(e) => updateColorStop(stop.id, { label: e.target.value })}
-                          placeholder="Label"
                           className="flex-1 min-w-0"
                           style={{
                             padding: '4px 6px',
@@ -568,10 +625,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                             border: '1px solid var(--border-muted)',
                             borderRadius: 'var(--radius-sm)',
                             color: 'var(--text-secondary)',
-                            fontSize: 10,
-                            fontFamily: 'var(--font-mono)',
-                            outline: 'none',
-                            width: '100%',
+                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none', width: '100%',
                           }}
                         />
 

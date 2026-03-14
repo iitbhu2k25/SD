@@ -35,6 +35,7 @@ from app.api.schema.raster_operation import(
     SlopeParams,
     TpiParams,
     TwiParams,
+    SLDUpdate,
     CellResize,
     rasterMetaSchame,
     rasteroperSchema)
@@ -363,7 +364,7 @@ class RasterOperation:
 
         return "Chunk uploaded successfully"
     
-    async def merge_chunks(self, upload_id: str,filename: str,total_chunks: int) -> str:
+    async def merge_chunks(self, db:Session,upload_id: str,filename: str,total_chunks: int) -> str:
         file_ext = Path(filename).suffix.lower()
         if file_ext not in (".tif", ".tiff"):
             raise HTTPException(status_code=404, detail="Invalid file format — only .tif / .tiff accepted")
@@ -389,8 +390,11 @@ class RasterOperation:
 
         shutil.rmtree(chunk_dir)
         await self.get_redis.setex(f"raster:{file_id}", 10800, str(output_path)) 
-        layer_name=await self._upload_geoserver(output_path)
-        return {"file_id": file_id,"layer_name":layer_name,"filename":filename.split(".")[0]}
+        await self._make_raster_info(db,file_id,filename.split(".")[0])
+        return {"file_id": file_id,"layer_name":file_id,"filename":filename.split(".")[0]}
+
+    async def updatesld(self,payload:SLDUpdate):
+        await Geoserver().apply_sld_content(self.workspace,payload.layername,payload.sld)
 
     async def get_info(self,db:Session,file_id:str):
         resp1=rasterstorecrud(db).get_details(file_id)

@@ -16,6 +16,7 @@ from app.api.schema.raster_operation import (
     RasterReproject,
     RasterReclassify,
     Edliudian,
+    SLDUpdate,
     FlowDirectionParams,
     FlowAccumulationParams,
     SlopeParams,
@@ -37,7 +38,7 @@ async def post_raster(db:db_dependency,file: UploadFile = File(...)):
 
 @router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
 @validate
-async def post_raster(db:db_dependency, file: UploadFile = File(...),
+async def post_raster(file: UploadFile = File(...),
     upload_id: str = Header(...),
     chunk_index: int = Header(...),
 ):
@@ -49,7 +50,15 @@ async def complete_upload(db:db_dependency,payload:Chunkcomplete):
     """
     Merge all chunks into final file.
     """
-    return await RasterOperation().merge_chunks(payload.upload_id,payload.filename,payload.total_chunks)
+    return await RasterOperation().merge_chunks(db,payload.upload_id,payload.filename,payload.total_chunks)
+
+@router.post("/sldupdate",status_code=status.HTTP_201_CREATED)
+async def sldupdate(payload:SLDUpdate):
+    """
+    Merge all chunks into final file.
+    """
+    return await RasterOperation().updatesld(payload)
+
 
 
 

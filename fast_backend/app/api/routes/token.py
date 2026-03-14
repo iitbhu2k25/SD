@@ -23,7 +23,7 @@ async def login_for_access_token(response:Response,db:db_dependency,
 async def regenerate_access_token(
     db:db_dependency,refresh_token: Annotated[str, Cookie()] = None,
 ):  
-    return TokenManager.regenerate_access_token(db,token=refresh_token)
+    return await TokenManager.regenerate_access_token(db,token=refresh_token)
 
 #TODO
 # generate the refreshh token

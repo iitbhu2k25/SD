@@ -154,7 +154,9 @@ class FlowAccumulationParams(BaseModel):
         return self
 
 
-
+class SLDUpdate(BaseModel):
+    sld: str
+    layername: str
 
 
 

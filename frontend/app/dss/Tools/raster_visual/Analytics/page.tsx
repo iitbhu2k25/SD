@@ -12,6 +12,8 @@ import {
 } from "@/contexts/raster_operations/RasterContext";
 
 import "@/styles/terraops-theme.css";
+import { api } from "@/services/api";
+import { toast } from "react-toastify";
 
 
 type RightTab = "details" | "symbology";
@@ -55,14 +57,26 @@ const AnalyticsInner: React.FC = () => {
     mapViewRef.current?.removeRasterLayer();
   };
 
-  // ── SLD apply callback ─────────────────────────────────────────────────
-  // When the user hits "Apply Style" in the SLD Editor, we reload the WMS
-  // layer with the SLD_BODY parameter so GeoServer renders it with the
-  // custom symbology.
-  const handleSLDApply = (sldXml: string | null) => {
-    if (!layer) return;
-    mapViewRef.current?.applySLD(sldXml);
-  };
+  const handleSLDApply = async (sldXml: string | null) => {
+  if (!layer || !sldXml) return;
+
+  try {
+    const resp = await api.post(`/tools/sldupdate`, {
+      body:{
+        layername: layer.layer_name,
+        sld: sldXml
+
+      }
+    });
+    if (resp.status !=201){
+      toast.error("Failed to apply SLD");
+      return 
+    }
+    toast.success("SLD applied successfully");
+  } catch (error) {
+    console.error("Error applying SLD:", error);
+  }
+};
 
   // ── Tab config ─────────────────────────────────────────────────────────
   const tabs: { key: RightTab; label: string; icon: string; color: string; bg: string; border: string }[] = [

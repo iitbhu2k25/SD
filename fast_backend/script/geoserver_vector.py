@@ -4,10 +4,12 @@ from app.api.service.script_svc.geoserver_svc import create_workspace,create_vec
 from app.api.service.geoserver_svc.geoserver import Geoserver
 import pandas as pd
 import uuid
+import asyncio
+
+
 BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIRR = os.path.join(BASE_DIR,'media', 'Rajat_data')
 sys.path.append(BASE_DIRR)
-
 state_zip = os.path.join(BASE_DIRR, 'shape_stp', 'state', 'STP_State.zip')
 district_zip = os.path.join(BASE_DIRR,  'shape_stp', 'district', 'STP_district.zip')
 subdistrict_zip = os.path.join(BASE_DIRR,  'shape_stp', 'subdistrict', 'STP_subdistrict.zip')
@@ -67,3 +69,7 @@ async def geoserverScript():
 
     except Exception as e:
         print(e)
+
+
+if __name__ == "__main__":
+    asyncio.run(geoserverScript())

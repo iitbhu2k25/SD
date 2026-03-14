@@ -3,6 +3,7 @@ from app.api.schema.auth_schema import signup_input,login_input,OTPVerify, UserO
 from app.api.service.authentication_svc.auth_service import AuthService
 from app.database.config.dependency import db_dependency
 from fastapi import Depends
+from fastapi.responses import HTMLResponse
 from typing import Annotated
 from app.api.schema.auth_schema import Token,Useroutput
 from app.dependency.token_dependency import get_current_user,get_current_user_cookie,validate_user
@@ -58,7 +59,7 @@ async def logout(db:db_dependency,request:Request,response:Response):
 async  def delete_account(db:db_dependency,user: Annotated[str, Depends(get_current_user)])->bool:
     return AuthService().delete_account(db,user.email)
 
-@router.get("/admin/approve")
+@router.get("/admin/approve",  response_class=HTMLResponse)
 @validate
 async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
@@ -77,7 +78,7 @@ async def approve_user(db:db_dependency,bg:BackgroundTasks,token: str):
     return AuthService().verify_by_admin(db,bg,email=email,status="approved")
 
 
-@router.get("/admin/reject")
+@router.get("/admin/reject",response_class=HTMLResponse)  
 @validate
 async def reject_user(db:db_dependency,bg:BackgroundTasks,token: str):
     email_service = EmailService()
@@ -92,5 +93,5 @@ async def reject_user(db:db_dependency,bg:BackgroundTasks,token: str):
     if data["action"] != "reject":
         raise CustomException(403, "Invalid action")
 
-    email = "saxenarajat499@gmail.com"
+    email = data["email"]
     return AuthService().verify_by_admin(db,bg,email=email,status="rejected")
