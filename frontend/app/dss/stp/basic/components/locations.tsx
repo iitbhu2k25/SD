@@ -153,7 +153,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({ onConfirm, onReset,
 useEffect(() => {
     const fetchStates = async (): Promise<void> => {
       try {
-        const response = await fetch('http://localhost:8050/basic/state/');
+        
+        const response = await fetch( `${process.env.NEXT_PUBLIC_FAST_URL}/basic/state/`);
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }

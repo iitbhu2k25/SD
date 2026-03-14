@@ -8,7 +8,11 @@ BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIR_NEW = os.path.join(BASE_DIR,'media', 'Gaurav_Data')
 sys.path.append(BASE_DIR_NEW)
 
-
+state_zip = os.path.join(BASE_DIR_NEW, 'shape_stp', 'state', 'STP_State.zip')
+district_zip = os.path.join(BASE_DIR_NEW,  'shape_stp', 'district', 'STP_district.zip')
+subdistrict_zip = os.path.join(BASE_DIR_NEW,  'shape_stp', 'subdistrict', 'STP_subdistrict.zip')
+river_zip = os.path.join(BASE_DIR_NEW,  'shape_stp','Drain_stp', 'River', 'Rivers.zip')
+boundry_zip = os.path.join(BASE_DIR_NEW,  'shape_stp','Drain_stp', 'Boundary', 'Boundary.zip')
 catchment_zip = os.path.join(BASE_DIR_NEW,  'shape_file','Catchments', 'Catchment.zip')
 stretch_zip = os.path.join(BASE_DIR_NEW,  'shape_file', 'Stretches', 'Stretches.zip')
 drain_zip = os.path.join(BASE_DIR_NEW,  'shape_file','Drains', 'Drain.zip')
@@ -20,12 +24,16 @@ csv_files_new = [
 
 visual_raster=Geoserver()
 try:
-    create_workspace("vector_files")
-    create_workspace("water_Availability")
-    create_vector_stores("vector_files","vector_store")
-    upload_shapefile("vector_files","vector_store",stretch_zip,"Stretches")
-    upload_shapefile("vector_files","vector_store",drain_zip,"Drain")
-    upload_shapefile("vector_files","vector_store",catchment_zip,"Catchment")
+    create_workspace("dss_vector")
+    create_workspace("dss_raster")
+    create_vector_stores("dss_vector","vector_store")
+    upload_shapefile("dss_vector","vector_store",state_zip,"States")
+    upload_shapefile("dss_vector","vector_store",district_zip,"Districts")
+    upload_shapefile("dss_vector","vector_store",subdistrict_zip,"Subdistricts")
+    upload_shapefile("dss_vector","vector_store",river_zip,"Rivers")
+    upload_shapefile("dss_vector","vector_store",stretch_zip,"Stretches")
+    upload_shapefile("dss_vector","vector_store",drain_zip,"Drain")
+    upload_shapefile("dss_vector","vector_store",catchment_zip,"Catchment")
 
     all_layers = pd.concat(
     (
@@ -40,8 +48,8 @@ try:
     )
     all_layers = all_layers.drop_duplicates(subset=["layer_name"], keep="first")
     for i in all_layers.iterrows():
-        visual_raster.publish_raster(workspace_name="water_Availability", store_name=uuid.uuid4().hex, raster_path=i[1]["file_path"],layer_name=i[1]["layer_name"])
-        visual_raster.apply_sld_to_layer(workspace_name="water_Availability", layer_name=i[1]["layer_name"], sld_content=i[1]["sld_path"], sld_name=uuid.uuid4().hex)
+        visual_raster.publish_raster(workspace_name="dss_raster", store_name=uuid.uuid4().hex, raster_path=i[1]["file_path"],layer_name=i[1]["layer_name"])
+        visual_raster.apply_sld_to_layer(workspace_name="dss_raster", layer_name=i[1]["layer_name"], sld_content=i[1]["sld_path"], sld_name=uuid.uuid4().hex)
 
 except Exception as e:
     print(e)

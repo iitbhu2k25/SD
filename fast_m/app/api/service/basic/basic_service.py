@@ -20,7 +20,6 @@ class BasicService:
         self.db = db
         self.crud = BasicCrud(db)
         self.temp_dir = Settings().TEMP_DIR
-        os.makedirs(self.temp_dir, exist_ok=True)
 
     def get_states(self):
         rows = self.crud.get_states()

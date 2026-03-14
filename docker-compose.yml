@@ -30,7 +30,7 @@ services:
   #     dockerfile: docker/dockerfile.backend
   #   image: backend:latest
   #   ports:
-  #     - "9000:9000"
+  #     - "9200:9000"
   #   env_file:
   #     - .env
   #   volumes:
@@ -74,22 +74,22 @@ services:
   #       celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
 
 
-  fast_m:
-    build:
-      context: ./fast_m
-      dockerfile: Dockerfile
-    image: fast_m:latest
-    ports:
-      - "7100:7100"
-    env_file:
-      - ./fast_m/.fastmdb.env
-    volumes:
-      - ./fast_m:/home/app:z
-    command: uvicorn app.main:app --host 0.0.0.0 --port 7100 --reload
-    restart: always
-    depends_on:
-      - database
-      - geoserver     
+  # fast_m:
+  #   build:
+  #     context: ./fast_m
+  #     dockerfile: Dockerfile
+  #   image: fast_m:latest
+  #   ports:
+  #     - "6500:6500"
+  #   env_file:
+  #     - .fastmdb.env
+  #   volumes:
+  #     - ./fast_m:/home/app:z
+  #   command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
+  #   restart: always
+  #   depends_on:
+  #     - database
+  #     - geoserver     
     
 
 
@@ -104,6 +104,8 @@ services:
       - ./fast_backend/.fastdb.env
     volumes:
       - ./fast_backend:/home/app:z
+    environment:
+      - SERVICE_TYPE=app
 
     #command: gunicorn app.main:app --config gunicorn.conf.py --reload
     command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload 
@@ -136,37 +138,49 @@ services:
       - redis
       - fast_backend
       - geoserver
+    environment:
+      - SERVICE_TYPE=celery
     command:  
       - /bin/sh
       - -c
       - |
-        celery -A app.conf.celery worker -n low_worker -c 2 --pool=prefork   --autoscale=4,2
+        celery -A app.conf.celery worker -n low_worker -c 2 --pool=prefork  -Q default  --autoscale=4,2
 
     env_file:
       - ./fast_backend/.fastdb.env
 
-  # celery_high:
-  #   build:
-  #     context: ./fast_backend
-  #     dockerfile: Dockerfile
-  #   image: celery_high:latest
-  #   volumes:
-  #     - ./fast_backend:/home/app:z 
-  #   depends_on:
-  #     - redis
-  #     - fast_backend
-  #     - geoserver
-  #   command:  
-  #     - /bin/sh
-  #     - -c
-  #     - |
-  #       celery -A app.conf.celery worker -n heavy_worker -c 2 --pool=prefork -Q heavy_tasks --autoscale=4,2
+  celery_high:
+    build:
+      context: ./fast_backend
+      dockerfile: Dockerfile
+    image: celery_high:latest
+    volumes:
+      - ./fast_backend:/home/app:z 
+    depends_on:
+      - redis
+      - fast_backend
+      - geoserver
+    environment:
+      - SERVICE_TYPE=celery
+    command:  
+      - /bin/sh
+      - -c
+      - |
+        celery -A app.conf.celery worker -n heavy_worker -c 2 --pool=prefork -Q heavy_task --autoscale=4,2
 
-  #   env_file:
-  #     - .fastdb.env
+    env_file:
+      - ./fast_backend/.fastdb.env
   
       
-  
+  flower:
+    image: mher/flower:latest
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery_low
+      - celery_high
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
 
   geoserver:
     image: kartoza/geoserver:latest

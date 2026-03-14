@@ -831,7 +831,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
         return;
       }
 
-      const response = await fetch("/api/water/process_water_raster", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/water/process_water_raster`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

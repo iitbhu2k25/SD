@@ -13,7 +13,7 @@ import time
 
 input_path=f"{Settings().BASE_DIR}"+"/temp/input"
 output_path=f"{Settings().BASE_DIR}"+"/temp/output"
-raster_workspace="vector_files"
+raster_workspace="dss_vector"
 raster_store="stp_raster_store"
 
 

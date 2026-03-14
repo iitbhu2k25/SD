@@ -5,7 +5,7 @@ from app.conf.settings import Settings
 GEOSERVER_URL = "http://geoserver:8080/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
-WORKSPACE = "django_workspace"
+WORKSPACE = "dss_vector"
 BASE_DIR= Settings().BASE_DIR
 # Directory containing all shapefile ZIPs
 ZIP_DIR = Path(BASE_DIR, "media", "gwa_data", "shp_zip")

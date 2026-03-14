@@ -242,7 +242,7 @@ class RasterProcess(VectorProcess):
 class WQ_Index:
     def __init__(self):
        
-        self.dss_vector=VectorProcess()
+        self.vector_work=VectorProcess()
         self.idw_cell_size = 30.0
 
     def get_well(self,db: session,payload:Well_input):
@@ -311,7 +311,7 @@ class WQ_Index:
         coords_xy_utm = np.array([(geom.x, geom.y) for geom in points_utm.geometry], dtype=np.float64)
         
         
-        selected_area=self.dss_vector.get_basin()
+        selected_area=self.vector_work.get_basin()
         bounds_original = selected_area.total_bounds
         selected_area_utm = selected_area.to_crs("EPSG:32644")
         bounds_utm = selected_area_utm.total_bounds
@@ -381,7 +381,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     reproject(Z_utm, Z_4326, src_transform=transform, src_crs='EPSG:32644',
             dst_transform=dst_transform, dst_crs='EPSG:4326',
             resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
-    selected_area=wqi_obj.dss_vector.get_sub_village(clip=sub_dis).to_crs('EPSG:4326')
+    selected_area=wqi_obj.vector_work.get_sub_village(clip=sub_dis).to_crs('EPSG:4326')
     with MemoryFile() as memfile:
         with memfile.open(
             driver='GTiff',

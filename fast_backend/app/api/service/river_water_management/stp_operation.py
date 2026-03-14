@@ -667,7 +667,7 @@ class RasterProcess(VectorProcess):
 
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
 
-        upload_shapefile("dss_vector", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
         return name_only
 
 class STPPriorityMapper:
@@ -706,7 +706,7 @@ class STPPriorityMapper:
 
             name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
 
-            upload_shapefile("dss_vector", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+            upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
             data = [
                 {
                     "id": village_id,  # Now using village_id instead of ID
@@ -845,7 +845,7 @@ class STPsuitabilityMapper:
 
             name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
 
-            upload_shapefile("dss_vector", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+            upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
 
             # Update data array to use the new column name
             data = [
@@ -937,7 +937,7 @@ class STPsuitabilityMapper:
                     zipf.write(file, file.name)
 
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-        upload_shapefile("dss_vector", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
         return name_only
     
     def _get_operations_raster(self,db:db_dependency,payload:List):

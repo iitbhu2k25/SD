@@ -96,7 +96,7 @@ const MapContext = createContext<MapContextType>({
   syncLayersWithRiverSystem: () => {},
   isMapLoading: false,
   geoServerUrl: "/geoserver/api",
-  defaultWorkspace: "vector_files",
+  defaultWorkspace: "dss_vector",
   DRAIN_LAYER_NAMES,
   loading: false,
   setLoading: () => {},
@@ -120,7 +120,7 @@ const MapContext = createContext<MapContextType>({
 export const MapProvider: React.FC<MapProviderProps> = ({
   children,
   geoServerUrl = "/geoserver/api",
-  defaultWorkspace = "vector_files",
+  defaultWorkspace = "dss_vector",
 }) => {
   // State for layer management
   const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);

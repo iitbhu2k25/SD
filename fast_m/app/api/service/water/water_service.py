@@ -57,7 +57,7 @@ class WaterAvailabilityMapper:
         self.processor = GeospatialProcessor(self.output_path)
         
         # GeoServer configuration
-        self.vector_workspace = "vector_files"
+        self.vector_workspace = "dss_vector"
         self.raster_workspace = "water_Availability"
         self.vector_store_name = "vector_store"
         
