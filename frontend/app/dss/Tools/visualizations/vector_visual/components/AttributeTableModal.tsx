@@ -309,6 +309,8 @@ export default function AttributeTableModal({
 
   if (!isOpen || !mounted) return null;
 
+  const portalTarget = (document.fullscreenElement as Element | null) ?? document.body;
+
   return createPortal(
     <div
       style={{
@@ -738,6 +740,6 @@ export default function AttributeTableModal({
         </div>
       </div>
     </div>,
-    (typeof document !== 'undefined' ? (document.fullscreenElement as Element ?? document.body) : document.body)
+    portalTarget
   );
 }

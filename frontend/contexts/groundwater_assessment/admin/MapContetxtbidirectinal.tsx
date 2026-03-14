@@ -1614,23 +1614,26 @@ useEffect(() => {
     if (!shouldHandle) return;
 
     // Find administrative boundary feature
-    let foundFeature = null;
-    mapInstanceRef.current?.forEachFeatureAtPixel(
+    const foundFeature = mapInstanceRef.current?.forEachFeatureAtPixel(
       pixel,
       (feature, layer) => {
         const layerName = layer?.get('name');
-        if (['india', 'state', 'district', 'villages', 'village-overlay'].includes(layerName)) {
-          foundFeature = { feature, layerName };
-          return true;
+        if (
+          feature instanceof Feature &&
+          typeof layerName === 'string' &&
+          ['india', 'state', 'district', 'villages', 'village-overlay'].includes(layerName)
+        ) {
+          return { feature, layerName };
         }
+        return undefined;
       },
       { hitTolerance: 5 }
-    );
+    ) as { feature: Feature; layerName: string } | undefined;
 
     if (!foundFeature) return;
 
-    const { feature, layerName } = foundFeature;
-    const properties = feature.getProperties();
+    const { layerName, feature: clickedFeature } = foundFeature;
+    const properties = clickedFeature.getProperties();
 
     console.log('📍 Map click - Layer:', layerName, 'Properties:', properties);
 
@@ -1668,15 +1671,16 @@ useEffect(() => {
         const districtId = parseInt(districtCode);
         console.log('✅ Toggling district:', districtId);
         
-        locationContext.setSelectedDistricts((prev: number[]) => {
-          if (prev.includes(districtId)) {
-            console.log('🔴 Deselecting district:', districtId);
-            return prev.filter(id => id !== districtId);
-          } else {
-            console.log('🟢 Adding district:', districtId);
-            return [...prev, districtId];
-          }
-        });
+        const nextDistricts = locationContext.selectedDistricts.includes(districtId)
+          ? locationContext.selectedDistricts.filter((id) => id !== districtId)
+          : [...locationContext.selectedDistricts, districtId];
+        console.log(
+          locationContext.selectedDistricts.includes(districtId)
+            ? '🔴 Deselecting district:'
+            : '🟢 Adding district:',
+          districtId
+        );
+        locationContext.setSelectedDistricts(nextDistricts);
         
         // Refresh the layer to show highlight
         if (stateLayerRef.current) {
@@ -1694,15 +1698,16 @@ useEffect(() => {
         const subdistrictId = parseInt(subdistrictCode);
         console.log('✅ Toggling subdistrict:', subdistrictId);
         
-        locationContext.setSelectedSubDistricts((prev: number[]) => {
-          if (prev.includes(subdistrictId)) {
-            console.log('🔴 Deselecting subdistrict:', subdistrictId);
-            return prev.filter(id => id !== subdistrictId);
-          } else {
-            console.log('🟢 Adding subdistrict:', subdistrictId);
-            return [...prev, subdistrictId];
-          }
-        });
+        const nextSubdistricts = locationContext.selectedSubDistricts.includes(subdistrictId)
+          ? locationContext.selectedSubDistricts.filter((id) => id !== subdistrictId)
+          : [...locationContext.selectedSubDistricts, subdistrictId];
+        console.log(
+          locationContext.selectedSubDistricts.includes(subdistrictId)
+            ? '🔴 Deselecting subdistrict:'
+            : '🟢 Adding subdistrict:',
+          subdistrictId
+        );
+        locationContext.setSelectedSubDistricts(nextSubdistricts);
         
         // Refresh the layer to show highlight
         if (districtLayerRef.current) {
@@ -1720,13 +1725,10 @@ useEffect(() => {
         const subdistrictId = parseInt(subdistrictCode);
         console.log('✅ Toggling subdistrict from village:', subdistrictId);
         
-        locationContext.setSelectedSubDistricts((prev: number[]) => {
-          if (prev.includes(subdistrictId)) {
-            return prev.filter(id => id !== subdistrictId);
-          } else {
-            return [...prev, subdistrictId];
-          }
-        });
+        const nextVillageSubdistricts = locationContext.selectedSubDistricts.includes(subdistrictId)
+          ? locationContext.selectedSubDistricts.filter((id) => id !== subdistrictId)
+          : [...locationContext.selectedSubDistricts, subdistrictId];
+        locationContext.setSelectedSubDistricts(nextVillageSubdistricts);
         
         // Refresh the layer to show highlight
         if (subdistrictLayerRef.current) {

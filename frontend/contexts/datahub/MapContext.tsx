@@ -21,6 +21,7 @@ import { LineString, Polygon } from 'ol/geom';
 import Text from 'ol/style/Text';
 import { unByKey } from 'ol/Observable';
 import { Polygon as OLPolygon } from 'ol/geom';
+import type { Feature as GeoJSONFeature, Geometry as GeoJSONGeometry } from 'geojson';
 
 
 
@@ -938,16 +939,16 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
             const distanceInKm = distanceInMeters / 1000;
 
             // Create proper GeoJSON feature for turf
-            const turfFeature = {
+            const turfFeature: GeoJSONFeature<GeoJSONGeometry> = {
                 type: 'Feature',
-                geometry: geojson,
+                geometry: geojson as GeoJSONGeometry,
                 properties: {}
             };
 
             try {
                 const buffered = turfBuffer(turfFeature, distanceInKm, { units: 'kilometers' });
 
-                if (buffered && buffered.geometry) {
+                if (buffered) {
                     const bufferFeature = format.readFeature(buffered, {
                         dataProjection: 'EPSG:4326',
                         featureProjection: 'EPSG:3857'

@@ -440,6 +440,8 @@ export default function SpatialAnalysisModal({
     ...extra,
   });
 
+  const portalTarget = (document.fullscreenElement as Element | null) ?? document.body;
+
   return createPortal(
     <div style={{ position:'fixed', inset:0, zIndex:99998, pointerEvents:'all',
       background:'rgba(2,6,23,0.55)' }}
@@ -980,6 +982,6 @@ export default function SpatialAnalysisModal({
         </div>
       </div>
     </div>,
-    (typeof document !== 'undefined' ? (document.fullscreenElement as Element ?? document.body) : document.body)
+    portalTarget
   );
 }

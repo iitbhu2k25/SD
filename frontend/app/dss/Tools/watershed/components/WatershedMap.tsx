@@ -9,7 +9,7 @@ import {
 } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
-import L, { LatLng, Icon, Map as LeafletMap, FeatureGroup } from 'leaflet';
+import L, { LatLng, Icon, Map as LeafletMap } from 'leaflet';
 import 'leaflet-draw';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
@@ -63,6 +63,13 @@ function DrawingControls({
 }) {
   const map = useMapEvents({});
   const drawnItemsRef = useRef<L.FeatureGroup>(new L.FeatureGroup());
+  const DRAW_EVENTS = {
+    DRAWSTART: 'draw:drawstart',
+    DRAWSTOP: 'draw:drawstop',
+    CREATED: 'draw:created',
+    EDITED: 'draw:edited',
+    DELETED: 'draw:deleted',
+  } as const;
 
   useEffect(() => {
     if (!map) return;
@@ -71,7 +78,7 @@ function DrawingControls({
     map.addLayer(drawnItems);
 
     // Initialize drawing controls
-    const drawControl = new L.Control.Draw({
+    const drawControl = new (L.Control as any).Draw({
       position: 'topright',
       draw: {
         polyline: {
@@ -116,16 +123,16 @@ function DrawingControls({
     map.addControl(drawControl);
 
     // Track drawing state
-    map.on(L.Draw.Event.DRAWSTART, () => {
+    map.on(DRAW_EVENTS.DRAWSTART, () => {
       onDrawingStateChange(true);
     });
 
-    map.on(L.Draw.Event.DRAWSTOP, () => {
+    map.on(DRAW_EVENTS.DRAWSTOP, () => {
       onDrawingStateChange(false);
     });
 
     // Handle drawing events
-    map.on(L.Draw.Event.CREATED, (e: any) => {
+    map.on(DRAW_EVENTS.CREATED, (e: any) => {
       const layer = e.layer;
       drawnItems.addLayer(layer);
       
@@ -137,7 +144,7 @@ function DrawingControls({
       onDrawnItemsChange(items);
     });
 
-    map.on(L.Draw.Event.EDITED, (e: any) => {
+    map.on(DRAW_EVENTS.EDITED, (e: any) => {
       const items: any[] = [];
       drawnItems.eachLayer((layer: any) => {
         items.push(layer.toGeoJSON());
@@ -145,7 +152,7 @@ function DrawingControls({
       onDrawnItemsChange(items);
     });
 
-    map.on(L.Draw.Event.DELETED, (e: any) => {
+    map.on(DRAW_EVENTS.DELETED, (e: any) => {
       const items: any[] = [];
       drawnItems.eachLayer((layer: any) => {
         items.push(layer.toGeoJSON());
@@ -156,8 +163,8 @@ function DrawingControls({
     return () => {
       map.removeControl(drawControl);
       map.removeLayer(drawnItems);
-      map.off(L.Draw.Event.DRAWSTART);
-      map.off(L.Draw.Event.DRAWSTOP);
+      map.off(DRAW_EVENTS.DRAWSTART);
+      map.off(DRAW_EVENTS.DRAWSTOP);
     };
   }, [map, onDrawnItemsChange, onDrawingStateChange]);
 
