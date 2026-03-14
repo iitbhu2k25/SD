@@ -61,17 +61,18 @@ const AnalyticsInner: React.FC = () => {
   if (!layer || !sldXml) return;
   try {
     const resp = await api.post(`/tools/sldupdate`, {
-      body:{
+      body: {
         layername: layer.layer_name,
-        sld: sldXml
-
-      }
+        sld: sldXml,
+      },
     });
-    if (resp.status !=201){
+    if (resp.status !== 201) {
       toast.error("Failed to apply SLD");
-      return 
+      return;
     }
     toast.success("SLD applied successfully");
+    mapViewRef.current?.applySLD(sldXml);
+
   } catch (error) {
     console.error("Error applying SLD:", error);
   }

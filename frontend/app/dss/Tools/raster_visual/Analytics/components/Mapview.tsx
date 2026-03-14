@@ -37,7 +37,6 @@ const FIXED_VECTOR_LAYER = "STP_State";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-
 export interface MapViewHandle {
   loadRasterLayer: (layerName: string, fileName: string) => void;
   removeRasterLayer: () => void;
@@ -62,7 +61,6 @@ interface MapViewProps {
 
 // ── Parse WMS JSON legend from GeoServer ──────────────────────────────────────
 
-
 // ── NativeLegend ──────────────────────────────────────────────────────────────
 const NativeLegend: React.FC<{
   entries: LegendEntry[];
@@ -70,8 +68,7 @@ const NativeLegend: React.FC<{
 }> = ({ entries, onClose }) => {
   const stops = entries
     .map((e, i) => {
-      const pct =
-        entries.length <= 1 ? 50 : (i / (entries.length - 1)) * 100;
+      const pct = entries.length <= 1 ? 50 : (i / (entries.length - 1)) * 100;
       return `${e.color} ${pct.toFixed(1)}%`;
     })
     .join(", ");
@@ -91,12 +88,7 @@ const NativeLegend: React.FC<{
             Legend
           </span>
         </div>
-        <button
-          onClick={onClose}
-          className="w-4 h-4 rounded-full flex items-center justify-center text-slate-300 hover:text-slate-500 hover:bg-slate-100 transition text-[9px]"
-        >
-          ✕
-        </button>
+        
       </div>
 
       {entries.length === 0 ? (
@@ -293,7 +285,14 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activePanel, setActivePanel] = useState<string | null>(null);
 
-    const { rasterFileName, removeLayer,legendEntries, legendEntriesLoading, fetchLegendEntries,setLegendEntries } = useRaster();
+    const {
+      rasterFileName,
+      removeLayer,
+      legendEntries,
+      legendEntriesLoading,
+      fetchLegendEntries,
+      setLegendEntries,
+    } = useRaster();
 
     useEffect(() => {
       if (rasterFileName) setActivePanel("layers");
@@ -453,7 +452,6 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
 
           // Fetch rich JSON legend entries — drives NativeLegend
           setLegendEntries([]);
-         
 
           map.addLayer(rasterLayer);
           rasterLayerRef.current = rasterLayer;
@@ -504,20 +502,31 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
 
       applySLD(sldXml: string | null) {
         if (!rasterLayerRef.current) return;
-        const source = rasterLayerRef.current.getSource();
-        if (!source) return;
-        const currentParams = source.getParams();
+        const layer = rasterLayerRef.current;
+        const oldSource = layer.getSource();
+        if (!oldSource) return;
+
+        const currentParams = { ...oldSource.getParams() };
         if (sldXml) {
-          source.updateParams({
-            ...currentParams,
-            SLD_BODY: sldXml,
-            STYLES: "",
-          });
+          currentParams.SLD_BODY = sldXml;
+          delete currentParams.STYLES;
         } else {
-          const { SLD_BODY, ...rest } = currentParams;
-          source.updateParams({ ...rest, STYLES: "" });
+          delete currentParams.SLD_BODY;
+          currentParams.STYLES = "";
         }
-        source.updateParams({ _t: Date.now() });
+        currentParams._t = Date.now();
+
+        layer.setSource(
+          new ImageWMS({
+            url: GEOSERVER_URL,
+            params: currentParams,
+            ratio: 1,
+            serverType: "geoserver",
+          }),
+        );
+
+       
+        
       },
     }));
 

@@ -45,17 +45,13 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 );
 
 export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
-  // Pull both layer (identity) and details (band stats) from context
-  const { layer, details, setSldConfig,fetchLegendEntries } = useRaster();
+  const { layer, details, setSldConfig, fetchLegendEntries } = useRaster();
 
-  // Derive raster stats from details.bands[0] (band stats live there after normalisation)
   const band0       = details?.bands?.[0];
   const rasterMin   = band0?.min   ?? 0;
   const rasterMax   = band0?.max   ?? 100;
-  // GeoServer layer name comes from details.layer_name (the UUID workspace name)
   const geoName     = details?.layer_name ?? layer?.layer_name ?? '';
 
-  // Core state
   const [renderMode, setRenderMode]               = useState<RenderMode>('singleband_pseudocolor');
   const [colorStops, setColorStops]               = useState<ColorStop[]>([]);
   const [numClasses, setNumClasses]               = useState<number>(5);
@@ -63,17 +59,14 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
   const [interpolation, setInterpolation]         = useState<'linear' | 'discrete'>('linear');
   const [classificationMethod, setClassificationMethod] = useState<string>('equal_interval');
 
-  // Value range
   const [minValue, setMinValue]   = useState<number>(rasterMin);
   const [maxValue, setMaxValue]   = useState<number>(rasterMax);
   const [autoMinMax, setAutoMinMax] = useState<boolean>(true);
 
-  // Advanced
   const [invertColors, setInvertColors]   = useState<boolean>(false);
   const [opacity, setOpacity]             = useState<number>(1);
   const [showAdvanced, setShowAdvanced]   = useState<boolean>(false);
 
-  // ── Sync min/max when details arrive or change ─────────────────────────
   useEffect(() => {
     if (band0) {
       setMinValue(band0.min);
@@ -81,7 +74,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     }
   }, [band0?.min, band0?.max]);
 
-  // ── Generate colour stops ──────────────────────────────────────────────
   const regenerateStops = () => {
     const min = autoMinMax ? rasterMin : minValue;
     const max = autoMinMax ? rasterMax : maxValue;
@@ -90,23 +82,13 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     setColorStops(stops);
   };
 
-  // Re-generate whenever any relevant input changes
   useEffect(() => {
     regenerateStops();
   }, [
-    numClasses,
-    selectedScheme,
-    autoMinMax,
-    minValue,
-    maxValue,
-    interpolation,
-    classificationMethod,
-    invertColors,
-    rasterMin,
-    rasterMax,
+    numClasses, selectedScheme, autoMinMax, minValue, maxValue,
+    interpolation, classificationMethod, invertColors, rasterMin, rasterMax,
   ]);
 
-  // ── Stop mutations ─────────────────────────────────────────────────────
   const updateColorStop = (id: string, updates: Partial<ColorStop>) =>
     setColorStops(prev => prev.map(s => (s.id === id ? { ...s, ...updates } : s)));
 
@@ -129,7 +111,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     setColorStops(p => p.filter(s => s.id !== id));
   };
 
-  // ── Apply ──────────────────────────────────────────────────────────────
   const handleApply = () => {
     if (!layer) { toast.error('No active layer'); return; }
     const validation = SLDGenerator.validateColorStops(colorStops);
@@ -144,7 +125,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     setTimeout(() => fetchLegendEntries(), 900);
   };
 
-  // ── Export SLD ─────────────────────────────────────────────────────────
   const handleExportSLD = () => {
     if (!layer) return;
     const validation = SLDGenerator.validateColorStops(colorStops);
@@ -163,7 +143,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     toast.success('SLD exported');
   };
 
-  // ── Empty state ────────────────────────────────────────────────────────
   if (!layer) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -184,7 +163,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
     );
   }
 
-  // Show a gentle loading state while details are still fetching
   if (!details) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 animate-pulse">
@@ -197,7 +175,11 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
   const sortedStops = [...colorStops].sort((a, b) => a.value - b.value);
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // Each stop row is 34px tall (24px content + 5px padding top + 5px padding bottom)
+  const ROW_HEIGHT = 34;
+  const VISIBLE_ROWS = 6;
+  const listHeight = Math.min(colorStops.length, VISIBLE_ROWS) * ROW_HEIGHT;
+
   return (
     <div className="flex flex-col h-full">
 
@@ -352,7 +334,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                 </label>
               </div>
 
-              {/* Always show the effective range as read-only hint when auto is on */}
               {autoMinMax ? (
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -529,9 +510,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                   border: '1px solid var(--border-muted)',
                 }}
               >
-                
-                
-
                 {/* Color stops editor */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -548,6 +526,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                         background: colorStops.length >= 20 ? 'var(--border-subtle)' : 'var(--accent)',
                         color: colorStops.length >= 20 ? 'var(--text-faint)' : '#fff',
                         fontFamily: 'var(--font-mono)',
+                        border: 'none',
                         cursor: colorStops.length >= 20 ? 'not-allowed' : 'pointer',
                       }}
                     >
@@ -555,12 +534,34 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                     </button>
                   </div>
 
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+                  {/*
+                    FIX: Use a fixed-height scrollable container.
+                    - Each row is ROW_HEIGHT px (padding 5+5 + content 24 = 34px).
+                    - Show up to VISIBLE_ROWS at once, then scroll.
+                    - `flex-shrink: 0` on each row prevents rows from being squashed.
+                    - No `space-y` / `gap` classes — spacing is handled by gap in the flex container.
+                  */}
+                  <div
+                    className="custom-scrollbar"
+                    style={{
+                      height: `${listHeight}px`,
+                     
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}
+                  >
                     {sortedStops.map((stop) => (
                       <div
                         key={stop.id}
-                        className="flex items-center gap-2 p-2"
                         style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '5px 7px',
+                          flexShrink: 0,
+                          height: `${ROW_HEIGHT}px`,
+                          boxSizing: 'border-box',
                           background: 'var(--surface-card)',
                           borderRadius: 'var(--radius-sm)',
                           border: '1px solid var(--border-muted)',
@@ -568,8 +569,9 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                       >
                         {/* Color swatch */}
                         <label
-                          className="w-7 h-7 rounded-md flex-shrink-0 cursor-pointer"
                           style={{
+                            width: 24, height: 24, borderRadius: 4,
+                            flexShrink: 0, cursor: 'pointer', display: 'block',
                             background: stop.color,
                             border: '2px solid var(--surface-card)',
                             boxShadow: '0 0 0 1px var(--border-subtle)',
@@ -586,14 +588,13 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                         <input
                           type="number" value={stop.value} step="0.0001"
                           onChange={(e) => updateColorStop(stop.id, { value: parseFloat(e.target.value) })}
-                          className="flex-1 min-w-0"
                           style={{
-                            padding: '4px 6px',
+                            flex: 1, minWidth: 0, padding: '4px 6px',
                             background: 'var(--surface-sunken)',
                             border: '1px solid var(--border-muted)',
                             borderRadius: 'var(--radius-sm)',
                             color: 'var(--text-primary)',
-                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none', width: '100%',
+                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none',
                           }}
                         />
 
@@ -601,32 +602,49 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                         <input
                           type="text" value={stop.label || ''} placeholder="Label"
                           onChange={(e) => updateColorStop(stop.id, { label: e.target.value })}
-                          className="flex-1 min-w-0"
                           style={{
-                            padding: '4px 6px',
+                            flex: 1, minWidth: 0, padding: '4px 6px',
                             background: 'var(--surface-sunken)',
                             border: '1px solid var(--border-muted)',
                             borderRadius: 'var(--radius-sm)',
                             color: 'var(--text-secondary)',
-                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none', width: '100%',
+                            fontSize: 10, fontFamily: 'var(--font-mono)', outline: 'none',
                           }}
                         />
 
-                        {/* Delete */}
-                        {colorStops.length > 2 && (
+                        {/* Delete — keep layout stable with a spacer when hidden */}
+                        {colorStops.length > 2 ? (
                           <button
                             onClick={() => removeColorStop(stop.id)}
-                            className="p-1 rounded-md flex-shrink-0 transition-colors"
-                            style={{ color: 'var(--red)' }}
+                            style={{
+                              flexShrink: 0, width: 20, height: 20,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              borderRadius: 4, background: 'transparent', border: 'none',
+                              color: 'var(--text-faint)', cursor: 'pointer',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
+                        ) : (
+                          <div style={{ flexShrink: 0, width: 20 }} />
                         )}
                       </div>
                     ))}
                   </div>
+
+                  {/* Subtle scroll hint when list overflows */}
+                  {colorStops.length > VISIBLE_ROWS && (
+                    <p style={{
+                      marginTop: 4, fontSize: 8, textAlign: 'center',
+                      color: 'var(--text-faint)', fontFamily: 'var(--font-mono)',
+                    }}>
+                      ↕ scroll · {colorStops.length - VISIBLE_ROWS} more below
+                    </p>
+                  )}
                 </div>
               </div>
             )}
@@ -639,7 +657,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
         className="flex-shrink-0 flex items-center gap-2 px-0 pt-3"
         style={{ borderTop: '1px solid var(--border-subtle)' }}
       >
-        {/* Export */}
         <button
           onClick={handleExportSLD}
           className="p-2.5 transition-all"
@@ -656,7 +673,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
           </svg>
         </button>
 
-        {/* Reset */}
         <button
           onClick={regenerateStops}
           className="p-2.5 transition-all"
@@ -674,7 +690,6 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
           </svg>
         </button>
 
-        {/* Apply */}
         <button
           onClick={handleApply}
           className="flex-1 py-2.5 flex items-center justify-center gap-2 transition-all"
