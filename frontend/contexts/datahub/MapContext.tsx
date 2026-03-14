@@ -12,6 +12,7 @@ import GeoJSON from 'ol/format/GeoJSON';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { Style, Fill, Stroke, Circle, RegularShape } from 'ol/style';
 import { Draw, Modify, Snap, Select } from 'ol/interaction';
+import type { Extent } from 'ol/extent';
 import { buffer as turfBuffer } from '@turf/buffer';
 import { useShapefile } from './Section1Context';
 import { Feature } from 'ol';
@@ -591,11 +592,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     const features = basinSource.getFeatures();
                     if (features.length > 0) {
                         const extent = basinSource.getExtent();
-                        mapInstance.getView().fit(extent, {
-                            padding: [50, 50, 50, 50],
-                            maxZoom: 16,
-                            duration: 1000
-                        });
+                        if (extent) {
+                            mapInstance.getView().fit(extent, {
+                                padding: [50, 50, 50, 50],
+                                maxZoom: 16,
+                                duration: 1000
+                            });
+                        }
                         console.log('✓ Basin boundary layer loaded and zoomed');
                     }
                 }
@@ -1156,25 +1159,27 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                                 console.log(`✓ Geometry type detected for ${shapefile.shapefile_name}: ${geomType}`);
 
                                 // Fit map to show all selected layers
-                                const allExtents: any[] = [];
+                                const allExtents: Extent[] = [];
                                 if (vectorLayersRef.current) {
                                     Object.values(vectorLayersRef.current).forEach((layer: any) => {
                                         const source = layer.getSource();
                                         if (source && source.getFeatures().length > 0) {
-                                            allExtents.push(source.getExtent());
+                                            const layerExtent = source.getExtent();
+                                            if (layerExtent) {
+                                                allExtents.push(layerExtent);
+                                            }
                                         }
                                     });
                                 }
 
                                 if (allExtents.length > 0) {
                                     const combinedExtent = allExtents.reduce((acc, extent) => {
-                                        if (!acc) return extent;
                                         return [
                                             Math.min(acc[0], extent[0]),
                                             Math.min(acc[1], extent[1]),
                                             Math.max(acc[2], extent[2]),
                                             Math.max(acc[3], extent[3])
-                                        ];
+                                        ] as Extent;
                                     });
 
                                     mapInstance.getView().fit(combinedExtent, {

@@ -473,7 +473,12 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <Tooltip formatter={(value: number) => [`${value} villages`, "Villages"]} />
+                        <Tooltip
+                          formatter={(value) => {
+                            const numericValue = Array.isArray(value) ? value[0] : value;
+                            return [`${numericValue ?? 0} villages`, "Villages"];
+                          }}
+                        />
                         <Bar dataKey="value">
                           {trendDistributionData.map((entry, index) => (
                             <Cell key={`bar-${index}`} fill={entry.color} />
@@ -664,7 +669,12 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
                                 domain={['auto', 'auto']}
                               />
                               <Tooltip
-                                formatter={(value: number) => [`${value.toFixed(2)} m`, 'Depth']}
+                                formatter={(value) => {
+                                  const rawValue = Array.isArray(value) ? value[0] : value;
+                                  const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+                                  const displayValue = Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
+                                  return [`${displayValue} m`, 'Depth'];
+                                }}
                                 labelFormatter={(label) => `Year: ${label}`}
                               />
                               <Legend />

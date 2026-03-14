@@ -1200,7 +1200,7 @@ useEffect(() => {
         mapInstanceRef.current.addLayer(groundwaterLayer);
 
         const extent = vectorSource.getExtent();
-        if (extent[0] < extent[2]) {
+        if (extent && extent[0] < extent[2]) {
           mapInstanceRef.current.getView().fit(extent, {
             duration: 1000,
             padding: [60, 60, 60, 60],

@@ -241,7 +241,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         // Fit map to groundwater layer extent
         const extent = vectorSource.getExtent();
-        if (extent[0] < extent[2]) {
+        if (extent && extent[0] < extent[2]) {
           mapRef.current.getView().fit(extent, {
             duration: 1000,
             padding: [60, 60, 60, 60],
@@ -460,7 +460,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     layer.getSource()?.once("featuresloadend", () => {
       const ext = layer.getSource()!.getExtent();
-      if (ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
+      if (ext && ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
     });
   }, [selectedState]);
 
@@ -497,7 +497,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     layer.getSource()?.once("featuresloadend", () => {
       const ext = layer.getSource()!.getExtent();
-      if (ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
+      if (ext && ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
     });
   }, [selectedDistricts]);
 
@@ -535,7 +535,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     layer.getSource()?.once("featuresloadend", () => {
       const ext = layer.getSource()!.getExtent();
-      if (ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
+      if (ext && ext[0] < ext[2]) mapRef.current!.getView().fit(ext, { duration: 800, padding: [50, 50, 50, 50] });
     });
   }, [selectedBlocks]);
 
@@ -583,7 +583,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     layer.getSource()?.once("featuresloadend", () => {
       const ext = layer.getSource()!.getExtent();
-      if (ext[0] < ext[2]) {
+      if (ext && ext[0] < ext[2]) {
         mapRef.current!.getView().fit(ext, {
           duration: 1000,
           padding: [60, 60, 60, 60],
