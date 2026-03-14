@@ -30,7 +30,7 @@ async  def user_verification(user: Annotated[str, Depends(get_current_user_cooki
 @router.post("/login",status_code=status.HTTP_201_CREATED,response_model=UserOut)
 @validate
 async def login(response:Response,db:db_dependency,payload:login_input):
-    return AuthService().login(db,payload,response)
+    return await AuthService().login(db,payload,response)
 
 @router.post("/signup",status_code=status.HTTP_201_CREATED)
 @validate

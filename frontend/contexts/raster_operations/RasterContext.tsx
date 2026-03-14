@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useCallback,
+  useEffect,
   ReactNode,
 } from "react";
 import { toast } from "react-toastify";
@@ -22,6 +23,7 @@ import {
   normaliseRasterDetails,
 } from "@/interface/raster_operations";
 import { api } from "@/services/api";
+import { LegendEntry } from "@/interface/raster_operations";
 
 export type SidebarTab = "layers" | "basemap" | "details" | "operations";
 
@@ -44,7 +46,6 @@ export type BaseMapKey = keyof typeof BASE_MAPS;
 
 const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
-
 interface CtxValue {
   uploading: boolean;
   uploadProgress: number;
@@ -63,13 +64,20 @@ interface CtxValue {
   error: string | null;
   rasterFileName: string | null;
   sldConfig: SLDConfig | null;
-  setSldConfig: (sldConfig: SLDConfig | null) => void; 
+  setSldConfig: (sldConfig: SLDConfig | null) => void;
+  legendEntries: LegendEntry[];
+  setLegendEntries: (entries: LegendEntry[]) => void;
+  legendEntriesLoading: boolean;
+  fetchLegendEntries: () => Promise<LegendEntry[]>;
 
   setRasterFileName: (name: string | null) => void;
 
   handleUpload: (file: File) => Promise<void>;
   removeLayer: () => void;
-  executeOperation: (type: OperationType, params: Record<string, unknown>) => Promise<void>;
+  executeOperation: (
+    type: OperationType,
+    params: Record<string, unknown>,
+  ) => Promise<void>;
   setOpacity: (v: number) => void;
   setLegendUrl: (url: string | null) => void;
   setShowLegend: (v: boolean) => void;
@@ -82,8 +90,6 @@ interface CtxValue {
 }
 
 const Ctx = createContext<CtxValue | null>(null);
-
-
 
 export function RasterProvider({ children }: { children: ReactNode }) {
   const [uploading, setUploading] = useState(false);
@@ -102,23 +108,83 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rasterFileName, setRasterFileName] = useState<string | null>(null);
-
   const [sldConfig, setSldConfig] = useState<SLDConfig | null>(null);
+  const [legendEntries, setLegendEntries] = useState<LegendEntry[]>([]);
+  const [legendEntriesLoading, setLegendEntriesLoading] = useState(false);
+
+  const geoserverUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
+
+  // ── Fetch Legend Entries ──────────────────────────────────────────────────
+  const fetchLegendEntries = useCallback(async (): Promise<LegendEntry[]> => {
+    if (!layer) return [];
+
+    setLegendEntriesLoading(true);
+    try {
+      const url =
+        `${geoserverUrl}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetLegendGraphic` +
+        `&FORMAT=application/json&LAYER=${encodeURIComponent(layer.layer_name)}`;
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        setLegendEntries([]);
+        return [];
+      }
+
+      const json = await res.json();
+      const rules: any[] = json?.Legend?.[0]?.rules ?? [];
+      const entries: LegendEntry[] = [];
+
+      for (const rule of rules) {
+        for (const sym of rule.symbolizers ?? []) {
+          const raster = sym.Raster ?? sym.raster;
+          if (raster?.colormap?.entries) {
+            for (const e of raster.colormap.entries) {
+              entries.push({
+                label: e.label ?? String(e.quantity ?? ""),
+                color: e.color ?? "#cccccc",
+                opacity: parseFloat(e.opacity ?? "1"),
+              });
+            }
+            setLegendEntries(entries);
+            return entries;
+          }
+        }
+      }
+
+      setLegendEntries(entries);
+      return entries;
+    } catch {
+      setLegendEntries([]);
+      return [];
+    } finally {
+      setLegendEntriesLoading(false);
+    }
+  }, [layer, geoserverUrl]);
+
+  // ── Auto-fetch legend entries when sldConfig changes ──────────────────────
+  useEffect(() => {
+    if (!sldConfig) return;
+    // Wait for GeoServer to commit the new style before fetching the updated legend
+    const timer = setTimeout(() => {
+      fetchLegendEntries();
+    }, 1500); // 800 ms is enough for local GeoServer; raise to 1500 on slow servers
+    return () => clearTimeout(timer);
+  }, [sldConfig]);
 
   // ── Load details ──────────────────────────────────────────────────────────
   const loadDetails = useCallback(async (fileId: string) => {
     setDetailsLoading(true);
     try {
-      // The API returns { raster_info, raster_meta } — use RasterDetailsApiResponse
       const resp = await api.get<RasterDetailsApiResponse>(
-        `/tools/raster/${fileId}/details`
+        `/tools/raster/${fileId}/details`,
       );
       if (resp.status > 201) {
         toast.error("Failed to load metadata");
         return;
       }
-      // Normalise into the flat RasterDetails shape the UI expects
-      setDetails(normaliseRasterDetails(resp.message as RasterDetailsApiResponse));
+      setDetails(
+        normaliseRasterDetails(resp.message as RasterDetailsApiResponse),
+      );
     } catch {
       toast.error("Failed to load metadata");
     } finally {
@@ -173,6 +239,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     setRasterFileName(null);
     setLegendUrl(null);
     setShowLegend(false);
+    setLegendEntries([]);
     toast.info("Layer removed");
   }, []);
 
@@ -255,6 +322,10 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         sidebarOpen,
         setSldConfig,
         sldConfig,
+        setLegendEntries,
+        legendEntries,
+        legendEntriesLoading,
+        fetchLegendEntries,
         error,
         rasterFileName,
         setRasterFileName,

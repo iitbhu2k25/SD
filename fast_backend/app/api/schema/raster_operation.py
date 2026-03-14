@@ -236,6 +236,7 @@ class BandStatistics(BaseModel):
 
 # raster data info schema 
 class RasterdataResponse(BaseModel):
+    file_name: str
     file_id: str
     layer_name: str
     raster_type: str #uploaded or operated

@@ -69,13 +69,13 @@ class AuthService(AuthServiceInterface):
             raise PasswordFail()
         else:
             return {"fullname":obj.fullname,"email":obj.email,"user_id":obj.id,"is_verified":obj.is_verified}
-    def _generate_token(self,user:UserOut)->Tuple[str, str]:
+    async def _generate_token(self,user:UserOut)->Tuple[str, str]:
         access_token=TokenManager.generate_access_token(user,timedelta(minutes=Settings().ACCESS_TOKEN_EXPIRE_MINUTES))
-        refresh_token=TokenManager.generate_refresh_token(user["user_id"]) 
+        refresh_token=await TokenManager.generate_refresh_token(user["user_id"]) 
         return access_token,refresh_token
     
-    def _generate_token_response(self,user:UserOut,response:Response):
-        access_token,refresh_token=self._generate_token(user=user)
+    async def _generate_token_response(self,user:UserOut,response:Response):
+        access_token,refresh_token=await self._generate_token(user=user)
         if user["is_verified"]:
             response.set_cookie(key="verified_token",value=Settings().VERIFY_KEY,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
         response.set_cookie(key="refresh_token",value=refresh_token,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
@@ -116,10 +116,10 @@ class AuthService(AuthServiceInterface):
             else:
                 raise InternalServerError()
     
-    def login(self,db:Session,payload:login_input,response:Response)->UserOut:
+    async def login(self,db:Session,payload:login_input,response:Response)->UserOut:
         try:
             objects= self._authenticate_user(db,payload) 
-            access_token= self._generate_token_response(user=objects,response=response)
+            access_token= await self._generate_token_response(user=objects,response=response)
             return{
                 "access_token":access_token,
                 "token_type":"Bearer",

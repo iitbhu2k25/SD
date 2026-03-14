@@ -59,7 +59,6 @@ const AnalyticsInner: React.FC = () => {
 
   const handleSLDApply = async (sldXml: string | null) => {
   if (!layer || !sldXml) return;
-
   try {
     const resp = await api.post(`/tools/sldupdate`, {
       body:{
@@ -100,7 +99,7 @@ const AnalyticsInner: React.FC = () => {
 
   return (
     <div
-      className="terraops relative w-full h-screen flex flex-col md:flex-row overflow-hidden"
+      className="terraops relative w-full h-180 flex flex-col md:flex-row overflow-hidden"
       style={{ background: 'var(--surface-base)', fontFamily: 'var(--font-body)' }}
     >
       {/* ── Mobile toggle ──────────────────────────────────────────────── */}
@@ -154,11 +153,11 @@ const AnalyticsInner: React.FC = () => {
                 letterSpacing: '-1px',
               }}
             >
-              TO
+              RO
             </div>
             <div>
               <h1 className="text-[14px] font-bold leading-none" style={{ color: 'var(--text-primary)' }}>
-                TERRA<span style={{ color: 'var(--accent)' }}>OPS</span>
+                RASTER<span style={{ color: 'var(--accent)' }}>OPS</span>
               </h1>
               <p className="text-[8px] font-semibold uppercase mt-0.5"
                 style={{ color: 'var(--text-muted)', letterSpacing: '2px', fontFamily: 'var(--font-mono)' }}>

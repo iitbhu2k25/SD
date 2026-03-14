@@ -1,6 +1,6 @@
 
-export const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
-export const INITIAL_ZOOM = 4.7;
+export const INDIA_CENTER = { lon: 78.9629, lat: 24.5937 };
+export const INITIAL_ZOOM = 4.5;
 
 export interface RasterMetadata {
   id: string;

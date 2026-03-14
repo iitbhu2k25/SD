@@ -38,12 +38,19 @@ export interface BandInfo {
 // ─── Raw API response shape ───────────────────────────────────────────────────
 
 export interface RasterInfoRaw {
+  file_name: string;
   file_id: string;
   layer_name: string;
   raster_type: string;
   modified_at: string;        // ISO datetime string
   id: number;
   parent_id: number | null;
+}
+
+export interface LegendEntry {
+  label: string;
+  color: string;   // hex
+  opacity: number; // 0-1
 }
 
 export interface RasterMetaRaw {
@@ -84,6 +91,7 @@ export interface RasterDetailsApiResponse {
 
 export interface RasterDetails {
   // from raster_info
+  file_name: string;
   file_id: string;
   layer_name: string;
   raster_type: string;
@@ -131,6 +139,7 @@ export function normaliseRasterDetails(
   const { raster_info: info, raster_meta: meta } = raw;
   return {
     // info fields
+    file_name: info.file_name,
     file_id: info.file_id,
     layer_name: info.layer_name,
     raster_type: info.raster_type,

@@ -20,10 +20,26 @@ function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string 
       >
         {title}
       </span>
-      <div className="flex-1 h-px" style={{ background: "var(--border-subtle)" }} />
+      <div
+        className="flex-1 h-px"
+        style={{ background: "linear-gradient(to right, var(--border-subtle), transparent)" }}
+      />
     </div>
   );
 }
+
+/* ── Cell color map ───────────────────────────────────────────────────────── */
+
+type CellColor = "blue" | "teal" | "purple" | "amber" | "coral" | "gray";
+
+const CELL_STYLES: Record<CellColor, { border: string; bg: string; textColor: string }> = {
+  blue:   { border: "rgba(24,95,165,0.30)",  bg: "rgba(24,95,165,0.06)",   textColor: "#0C447C" },
+  teal:   { border: "rgba(13,155,122,0.30)", bg: "rgba(13,155,122,0.06)",  textColor: "#085041" },
+  purple: { border: "rgba(83,74,183,0.30)",  bg: "rgba(83,74,183,0.06)",   textColor: "#3C3489" },
+  amber:  { border: "rgba(186,117,23,0.30)", bg: "rgba(186,117,23,0.06)",  textColor: "#633806" },
+  coral:  { border: "rgba(216,90,48,0.30)",  bg: "rgba(216,90,48,0.06)",   textColor: "#712B13" },
+  gray:   { border: "var(--border-subtle)",  bg: "var(--surface-card)",    textColor: "var(--text-primary)" },
+};
 
 /* ── Data cell ────────────────────────────────────────────────────────────── */
 
@@ -31,22 +47,27 @@ function Cell({
   label,
   value,
   sub,
-  accent = false,
+  color = "gray",
   mono = true,
+  span2 = false,
 }: {
   label: string;
   value: string;
   sub?: string;
-  accent?: boolean;
+  color?: CellColor;
   mono?: boolean;
+  span2?: boolean;
 }) {
+  const s = CELL_STYLES[color];
   return (
     <div
       className="p-2.5"
       style={{
         borderRadius: "var(--radius-lg)",
-        border: `1px solid ${accent ? "var(--accent-border)" : "var(--border-subtle)"}`,
-        background: accent ? "var(--accent-bg)" : "var(--surface-card)",
+        border: `1px solid ${s.border}`,
+        background: s.bg,
+        gridColumn: span2 ? "span 2" : undefined,
+        transition: "box-shadow 0.15s",
       }}
     >
       <p
@@ -63,7 +84,7 @@ function Cell({
         className="text-[11px] font-bold truncate"
         style={{
           fontFamily: mono ? "var(--font-mono)" : "var(--font-body)",
-          color: accent ? "var(--accent)" : "var(--text-primary)",
+          color: s.textColor,
         }}
       >
         {value}
@@ -81,8 +102,10 @@ function Cell({
 
 function BoundsGrid({
   bounds,
+  color = "blue",
 }: {
   bounds: { west: number; south: number; east: number; north: number; unit?: string };
+  color?: "blue" | "amber";
 }) {
   const fmt = (n: number) => n.toFixed(5);
   const items: [string, string][] = [
@@ -91,13 +114,19 @@ function BoundsGrid({
     ["South", fmt(bounds.south)],
     ["North", fmt(bounds.north)],
   ];
+
+  const palette =
+    color === "blue"
+      ? { border: "rgba(24,95,165,0.25)", bg: "rgba(24,95,165,0.05)", divider: "rgba(24,95,165,0.15)", label: "#185FA5", value: "#0C447C", foot: "rgba(24,95,165,0.08)", unit: "#185FA5" }
+      : { border: "rgba(186,117,23,0.28)", bg: "rgba(186,117,23,0.05)", divider: "rgba(186,117,23,0.18)", label: "#BA7517", value: "#633806", foot: "rgba(186,117,23,0.08)", unit: "#BA7517" };
+
   return (
     <div
       className="overflow-hidden"
       style={{
         borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--border-subtle)",
-        background: "var(--surface-card)",
+        border: `1px solid ${palette.border}`,
+        background: palette.bg,
       }}
     >
       <div className="grid grid-cols-2" style={{ gap: 0 }}>
@@ -106,23 +135,19 @@ function BoundsGrid({
             key={l}
             className="px-3 py-2.5"
             style={{
-              borderRight: i % 2 === 0 ? "1px solid var(--border-muted)" : "none",
-              borderBottom: i < 2 ? "1px solid var(--border-muted)" : "none",
+              borderRight: i % 2 === 0 ? `1px solid ${palette.divider}` : "none",
+              borderBottom: i < 2 ? `1px solid ${palette.divider}` : "none",
             }}
           >
             <p
               className="text-[8px] uppercase"
-              style={{
-                letterSpacing: "0.08em",
-                color: "var(--text-muted)",
-                fontFamily: "var(--font-mono)",
-              }}
+              style={{ letterSpacing: "0.08em", color: palette.label, fontFamily: "var(--font-mono)" }}
             >
               {l}
             </p>
             <p
               className="text-[11px] font-bold mt-0.5"
-              style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+              style={{ color: palette.value, fontFamily: "var(--font-mono)" }}
             >
               {v}
             </p>
@@ -133,14 +158,11 @@ function BoundsGrid({
         <div
           className="px-3 py-1.5"
           style={{
-            borderTop: "1px solid var(--border-muted)",
-            background: "var(--surface-raised)",
+            borderTop: `1px solid ${palette.divider}`,
+            background: palette.foot,
           }}
         >
-          <p
-            className="text-[9px]"
-            style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
-          >
+          <p className="text-[9px]" style={{ color: palette.unit, fontFamily: "var(--font-mono)" }}>
             Unit: {bounds.unit}
           </p>
         </div>
@@ -151,7 +173,14 @@ function BoundsGrid({
 
 /* ── Band card ────────────────────────────────────────────────────────────── */
 
-function BandCard({ band }: { band: BandInfo }) {
+const BAND_COLORS = [
+  { border: "rgba(83,74,183,0.25)",  bg: "rgba(83,74,183,0.05)",  num: { bg: "rgba(83,74,183,0.12)",  text: "#3C3489" }, title: "#26215C", dtype: { bg: "rgba(83,74,183,0.10)", border: "rgba(83,74,183,0.22)", text: "#3C3489" }, bar: "#534AB7", barTrack: "rgba(83,74,183,0.12)", stat: "rgba(83,74,183,0.08)", statBorder: "rgba(83,74,183,0.14)", statLabel: "#534AB7", statVal: "#26215C", mean: "#534AB7" },
+  { border: "rgba(13,155,122,0.25)", bg: "rgba(13,155,122,0.05)", num: { bg: "rgba(13,155,122,0.12)", text: "#085041" }, title: "#04342C", dtype: { bg: "rgba(13,155,122,0.10)", border: "rgba(13,155,122,0.22)", text: "#085041" }, bar: "#0D9B7A", barTrack: "rgba(13,155,122,0.12)", stat: "rgba(13,155,122,0.08)", statBorder: "rgba(13,155,122,0.14)", statLabel: "#0F6E56", statVal: "#04342C", mean: "#0F6E56" },
+  { border: "rgba(24,95,165,0.25)",  bg: "rgba(24,95,165,0.05)",  num: { bg: "rgba(24,95,165,0.12)",  text: "#0C447C" }, title: "#042C53", dtype: { bg: "rgba(24,95,165,0.10)", border: "rgba(24,95,165,0.22)", text: "#0C447C" }, bar: "#185FA5", barTrack: "rgba(24,95,165,0.12)", stat: "rgba(24,95,165,0.08)", statBorder: "rgba(24,95,165,0.14)", statLabel: "#185FA5", statVal: "#042C53", mean: "#185FA5" },
+];
+
+function BandCard({ band, index }: { band: BandInfo; index: number }) {
+  const c = BAND_COLORS[index % BAND_COLORS.length];
   const range = band.max - band.min || 1;
   const meanPct = Math.min(Math.max(((band.mean - band.min) / range) * 100, 1), 99);
 
@@ -160,47 +189,36 @@ function BandCard({ band }: { band: BandInfo }) {
       className="p-3 space-y-2.5"
       style={{
         borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--border-subtle)",
-        background: "var(--surface-card)",
+        border: `1px solid ${c.border}`,
+        background: c.bg,
         boxShadow: "var(--shadow-sm)",
+        transition: "box-shadow 0.15s",
       }}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div
             className="w-5 h-5 rounded-md flex items-center justify-center"
-            style={{ background: "var(--blue-bg)", border: "1px solid var(--blue-border)" }}
+            style={{ background: c.num.bg }}
           >
-            <span
-              className="text-[9px] font-bold"
-              style={{ color: "var(--blue)", fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-[9px] font-bold" style={{ color: c.num.text, fontFamily: "var(--font-mono)" }}>
               {band.band_number}
             </span>
           </div>
-          <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+          <span className="text-xs font-semibold" style={{ color: c.title }}>
             Band {band.band_number}
           </span>
         </div>
         <div className="flex items-center gap-1">
           <span
             className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
-            style={{
-              background: "var(--purple-bg)",
-              border: "1px solid rgba(139, 92, 246, 0.18)",
-              color: "var(--purple)",
-              fontFamily: "var(--font-mono)",
-            }}
+            style={{ background: c.dtype.bg, border: `1px solid ${c.dtype.border}`, color: c.dtype.text, fontFamily: "var(--font-mono)" }}
           >
             {band.dtype}
           </span>
           <span
             className="px-1.5 py-0.5 rounded-full text-[9px]"
-            style={{
-              background: "var(--surface-raised)",
-              color: "var(--text-tertiary)",
-              fontFamily: "var(--font-mono)",
-            }}
+            style={{ background: "var(--surface-raised)", color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}
           >
             {band.color_interpretation}
           </span>
@@ -214,18 +232,12 @@ function BandCard({ band }: { band: BandInfo }) {
           <div
             key={l}
             className="text-center py-2"
-            style={{ background: "var(--surface-sunken)", borderRadius: "var(--radius-md)" }}
+            style={{ background: c.stat, borderRadius: "var(--radius-md)", border: `1px solid ${c.statBorder}` }}
           >
-            <p
-              className="text-[8px] uppercase"
-              style={{ letterSpacing: "0.08em", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
-            >
+            <p className="text-[8px] uppercase" style={{ letterSpacing: "0.08em", color: c.statLabel, fontFamily: "var(--font-mono)" }}>
               {l}
             </p>
-            <p
-              className="text-[11px] font-bold mt-0.5"
-              style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-            >
+            <p className="text-[11px] font-bold mt-0.5" style={{ color: c.statVal, fontFamily: "var(--font-mono)" }}>
               {v.toFixed(4)}
             </p>
           </div>
@@ -234,26 +246,13 @@ function BandCard({ band }: { band: BandInfo }) {
 
       <div>
         <div className="flex justify-between text-[9px] mb-1">
-          <span style={{ color: "var(--text-muted)" }}>Mean</span>
-          <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-            {band.mean.toFixed(4)}
-          </span>
+          <span style={{ color: c.mean }}>Mean</span>
+          <span style={{ color: c.mean, fontFamily: "var(--font-mono)" }}>{band.mean.toFixed(4)}</span>
         </div>
-        <div
-          className="relative h-[6px] rounded-full overflow-hidden"
-          style={{ background: "var(--surface-sunken)" }}
-        >
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{ background: "linear-gradient(to right, var(--accent-bg), var(--surface-sunken))" }}
-          />
+        <div className="relative h-[5px] rounded-full overflow-hidden" style={{ background: c.barTrack }}>
           <div
             className="absolute top-0 h-full w-[3px] rounded-full transition-all duration-500"
-            style={{
-              left: `${meanPct}%`,
-              background: "var(--accent)",
-              boxShadow: "0 0 6px rgba(13, 155, 122, 0.4)",
-            }}
+            style={{ left: `${meanPct}%`, background: c.bar }}
           />
         </div>
         <div className="flex justify-between mt-0.5">
@@ -295,7 +294,7 @@ function BandSection({ bands }: { bands: BandInfo[] }) {
 
   return (
     <div className="space-y-2.5">
-      {visible.map((b) => <BandCard key={b.band_number} band={b} />)}
+      {visible.map((b, i) => <BandCard key={b.band_number} band={b} index={i} />)}
       {bands.length > 2 && (
         <button
           onClick={() => setExpanded(!expanded)}
@@ -328,28 +327,22 @@ function BandSection({ bands }: { bands: BandInfo[] }) {
   );
 }
 
-/* ── Key-value row (tags + file info) ─────────────────────────────────────── */
+/* ── Key-value row ────────────────────────────────────────────────────────── */
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div
-      className="flex items-center justify-between px-2.5 py-2"
+      className="flex items-center justify-between px-2.5 py-2 mb-1"
       style={{
         background: "var(--surface-card)",
         borderRadius: "var(--radius-md)",
         border: "1px solid var(--border-muted)",
       }}
     >
-      <span
-        className="text-[10px] truncate max-w-[45%]"
-        style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
-      >
+      <span className="text-[10px] truncate max-w-[45%]" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
         {label}
       </span>
-      <span
-        className="text-[10px] truncate max-w-[50%] text-right"
-        style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
-      >
+      <span className="text-[10px] truncate max-w-[50%] text-right" style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
         {value}
       </span>
     </div>
@@ -368,24 +361,12 @@ const RasterDetails: React.FC = () => {
           className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
           style={{ background: "var(--surface-sunken)", border: "1px solid var(--border-subtle)" }}
         >
-          <svg
-            className="w-6 h-6"
-            style={{ color: "var(--text-muted)" }}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
+          <svg className="w-6 h-6" style={{ color: "var(--text-muted)" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </div>
-        <p className="text-xs font-semibold" style={{ color: "var(--text-tertiary)" }}>
-          No layer selected
-        </p>
+        <p className="text-xs font-semibold" style={{ color: "var(--text-tertiary)" }}>No layer selected</p>
         <p className="text-[10px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
           Upload a raster file to view its metadata.
         </p>
@@ -396,48 +377,41 @@ const RasterDetails: React.FC = () => {
   if (detailsLoading) return <Skeleton />;
   if (!d) return null;
 
-  const fmt = (n: number, dec = 2) =>
-    n.toLocaleString("en-IN", { maximumFractionDigits: dec });
-
+  const fmt = (n: number, dec = 2) => n.toLocaleString("en-IN", { maximumFractionDigits: dec });
   const fmtDate = (iso: string) => {
     try {
       return new Date(iso).toLocaleString("en-IN", {
         day: "2-digit", month: "short", year: "numeric",
         hour: "2-digit", minute: "2-digit",
       });
-    } catch {
-      return iso;
-    }
+    } catch { return iso; }
   };
 
   const badges = [
-    { t: d.driver,
-      style: { color: "var(--blue)", background: "var(--blue-bg)", borderColor: "var(--blue-border)" } },
-    { t: `${d.file_size.value} ${d.file_size.unit}`,
-      style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
-    { t: `${d.band_count} band${d.band_count > 1 ? "s" : ""}`,
-      style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
-    ...(d.is_tiled
-      ? [{ t: "tiled", style: { color: "var(--accent)", background: "var(--accent-bg)", borderColor: "var(--accent-border)" } }]
-      : []),
-    ...(d.is_cog_like
-      ? [{ t: "COG", style: { color: "var(--amber)", background: "var(--amber-bg)", borderColor: "rgba(217,119,6,0.18)" } }]
-      : []),
-    { t: d.raster_type,
-      style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
+    { t: d.driver,        style: { color: "#0C447C",  background: "#E6F1FB",        borderColor: "#85B7EB" } },
+    { t: `${d.file_size.value} ${d.file_size.unit}`, style: { color: "#633806", background: "#FAEEDA", borderColor: "#EF9F27" } },
+    { t: `${d.band_count} band${d.band_count > 1 ? "s" : ""}`, style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
+    ...(d.is_tiled ? [{ t: "tiled", style: { color: "#085041", background: "#E1F5EE", borderColor: "#5DCAA5" } }] : []),
+    ...(d.is_cog_like ? [{ t: "COG",  style: { color: "#085041", background: "#E1F5EE", borderColor: "#5DCAA5" } }] : []),
+    { t: d.raster_type,   style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
   ];
 
   return (
-    <div className="pb-8 space-y-0.5">
-
+    /* Subtle multi-stop gradient panel background */
+    <div
+      className="pb-8 space-y-0.5 rounded-xl px-0.5"
+      style={{
+        background: "linear-gradient(160deg, rgba(13,155,122,0.04) 0%, rgba(24,95,165,0.03) 50%, rgba(83,74,183,0.04) 100%)",
+      }}
+    >
       {/* ── File header card ─────────────────────────────────────────────── */}
       <div
         className="p-3 mt-1"
         style={{
           borderRadius: "var(--radius-lg)",
           background: "var(--surface-card)",
-          border: "1px solid var(--border-subtle)",
-          boxShadow: "var(--shadow-sm)",
+          border: "1px solid var(--accent-border)",
+          boxShadow: "0 1px 8px rgba(13,155,122,0.07), var(--shadow-sm)",
         }}
       >
         <div className="flex items-start gap-2.5">
@@ -475,77 +449,49 @@ const RasterDetails: React.FC = () => {
       {/* ── File Info ────────────────────────────────────────────────────── */}
       <SectionHeading
         title="File Info"
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
       />
-      <div className="space-y-1">
-        <InfoRow label="file_id"     value={d.file_id} />
-        <InfoRow label="id"          value={String(d.id)} />
-        {d.parent_id !== null && <InfoRow label="parent_id" value={String(d.parent_id)} />}
-        <InfoRow label="modified_at" value={fmtDate(d.modified_at)} />
-      </div>
+      <InfoRow label="file_name"   value={d.file_name} />
+      {d.parent_id !== null && <InfoRow label="parent_id" value={String(d.parent_id)} />}
+      <InfoRow label="modified_at" value={fmtDate(d.modified_at)} />
 
       {/* ── Dimensions & Projection ──────────────────────────────────────── */}
       <SectionHeading
         title="Dimensions & Projection"
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>}
       />
       <div className="grid grid-cols-2 gap-1.5">
-        <Cell label="Width"       value={`${fmt(d.width, 0)} px`} />
-        <Cell label="Height"      value={`${fmt(d.height, 0)} px`} />
-        <Cell label="CRS"         value={d.crs} sub={d.crs_unit} accent />
-        <Cell label="Compression" value={d.compression ?? "None"} />
-        <Cell label="Res X"       value={`${d.resolution.x.value} ${d.resolution.x.unit}`} />
-        <Cell label="Res Y"       value={`${d.resolution.y.value} ${d.resolution.y.unit}`} />
+        <Cell label="Width"       value={`${fmt(d.width, 0)} px`}               color="blue" />
+        <Cell label="Height"      value={`${fmt(d.height, 0)} px`}              color="blue" />
+        <Cell label="CRS"         value={d.crs} sub={d.crs_unit}                color="teal" span2 />
+        <Cell label="Compression" value={d.compression ?? "None"}               color="gray" />
+        <Cell label="Res X"       value={`${d.resolution.x.value} ${d.resolution.x.unit}`} color="amber" />
+        <Cell label="Res Y"       value={`${d.resolution.y.value} ${d.resolution.y.unit}`} color="amber" />
       </div>
 
       {/* ── WGS84 Bounds ─────────────────────────────────────────────────── */}
       <SectionHeading
         title="WGS84 Bounds"
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064"/></svg>}
       />
-      <BoundsGrid bounds={d.bounds_wgs84} />
+      <BoundsGrid bounds={d.bounds_wgs84} color="blue" />
 
       {/* ── Native Bounds ────────────────────────────────────────────────── */}
       <SectionHeading
         title="Native Bounds"
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>}
       />
-      <BoundsGrid bounds={d.bounds} />
+      <BoundsGrid bounds={d.bounds} color="amber" />
 
       {/* ── Data Info ────────────────────────────────────────────────────── */}
       <SectionHeading
         title="Data Info"
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18"/></svg>}
       />
       <div className="grid grid-cols-2 gap-1.5">
-        <Cell label="Dtype"  value={d.dtypes.join(", ")} />
-        <Cell label="NoData" value={d.nodata !== null ? d.nodata.toExponential(2) : "None"} />
-        <Cell label="Block"  value={d.block_shapes[0]?.join("×") ?? "N/A"} sub="pixels" />
+        <Cell label="Dtype"  value={d.dtypes.join(", ")}                                          color="purple" />
+        <Cell label="NoData" value={d.nodata !== null ? d.nodata.toExponential(2) : "None"}       color="coral" />
+        <Cell label="Block"  value={d.block_shapes[0]?.join("×") ?? "N/A"} sub="pixels"          color="gray" />
       </div>
 
       {/* ── Tags ─────────────────────────────────────────────────────────── */}
@@ -553,30 +499,18 @@ const RasterDetails: React.FC = () => {
         <>
           <SectionHeading
             title="Tags"
-            icon={
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            }
+            icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>}
           />
-          <div className="space-y-1">
-            {Object.entries(d.tags).map(([k, v]) => (
-              <InfoRow key={k} label={k} value={v} />
-            ))}
-          </div>
+          {Object.entries(d.tags).map(([k, v]) => (
+            <InfoRow key={k} label={k} value={v} />
+          ))}
         </>
       )}
 
       {/* ── Band Statistics ──────────────────────────────────────────────── */}
       <SectionHeading
         title={`Band Statistics (${d.bands.length})`}
-        icon={
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-          </svg>
-        }
+        icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>}
       />
       <BandSection bands={d.bands} />
     </div>

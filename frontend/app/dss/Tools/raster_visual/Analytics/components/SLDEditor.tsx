@@ -46,7 +46,7 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
   // Pull both layer (identity) and details (band stats) from context
-  const { layer, details, setSldConfig } = useRaster();
+  const { layer, details, setSldConfig,fetchLegendEntries } = useRaster();
 
   // Derive raster stats from details.bands[0] (band stats live there after normalisation)
   const band0       = details?.bands?.[0];
@@ -141,6 +141,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
       setSldConfig({ layerName: geoName, colorStops, interpolation, opacity });
     }
     onApply(sldXml);
+    setTimeout(() => fetchLegendEntries(), 900);
   };
 
   // ── Export SLD ─────────────────────────────────────────────────────────
@@ -528,26 +529,8 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
                   border: '1px solid var(--border-muted)',
                 }}
               >
-                {/* Opacity */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[9px] font-bold uppercase"
-                      style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', letterSpacing: '1px' }}>
-                      Opacity
-                    </span>
-                    <span className="text-[10px] font-bold" style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
-                      {Math.round(opacity * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range" min="0" max="1" step="0.05" value={opacity}
-                    onChange={(e) => setOpacity(parseFloat(e.target.value))}
-                    className="w-full terra-slider"
-                    style={{
-                      background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${opacity * 100}%, var(--border-subtle) ${opacity * 100}%, var(--border-subtle) 100%)`,
-                    }}
-                  />
-                </div>
+                
+                
 
                 {/* Color stops editor */}
                 <div>
