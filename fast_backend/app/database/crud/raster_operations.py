@@ -31,7 +31,7 @@ class rasterOperCrud(CrudBase):
         super().__init__(db,Model)
         self.obj=None
     
-    def start(self,task_id:str,file_id:str):
+    def start_task(self,task_id:str,file_id:str):
         return self.create({
             "task_id":task_id,
             "file_id":file_id,
@@ -40,12 +40,16 @@ class rasterOperCrud(CrudBase):
             })
 
 
-    def update(self,task_id:str,status:str,layer_name:str=None,result_path:str=None):
+    def update_task(self,task_id:str,status:str,layer_name:str=None,result_path:str=None):
         db_obj=self.db.query(self.Model).filter(self.Model.task_id==task_id).first()
-        db_obj.task_status=status
-        db_obj.layer_name=layer_name
-        db_obj.file_path=result_path
-        return self.update(db_obj.model_dump())
+        new_dir={
+            "id":db_obj.id,
+            "task_status":status,
+            "layer_name":layer_name,
+            "file_path":result_path
+
+        }
+        return self.update(data=new_dir)
     
-    def get(self,task_id:str):
+    def get_task(self,task_id:str):
         return self.db.query(self.Model).filter(self.Model.task_id==task_id).first()

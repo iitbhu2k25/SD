@@ -19,14 +19,11 @@ async def lifespan(app: FastAPI):
 
     await redis_manager.initialize()
     logger.info("Redis ready")
-    
-    from app.utils.redis_listner import redis_listener
-    listener = asyncio.create_task(redis_listener())
+
     logger.info("Redis listener ready for websockets")
     
     yield
 
-    listener.cancel()
 
     logger.info("Shutting down application...")
     await close_redis() 

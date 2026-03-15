@@ -73,34 +73,31 @@ const NativeLegend: React.FC<{
     })
     .join(", ");
 
-  const barHeight = Math.max(entries.length * 24, 72);
+  const barHeight = Math.max(entries.length * 28, 80);
 
   return (
     <div
-      className="bg-white/96 backdrop-blur-sm rounded-2xl border border-slate-200/80 shadow-2xl overflow-hidden"
-      style={{ width: 220 }}
+      className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+      style={{ width: "100%", minWidth: 150, maxWidth: 260 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
-        <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-400">
-            Legend
-          </span>
-        </div>
-        
+      <div className="flex items-center px-3 py-2 border-b border-slate-100 bg-slate-50">
+        <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 flex-shrink-0" />
+        <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Legend
+        </span>
       </div>
 
       {entries.length === 0 ? (
-        <div className="px-3 py-5 text-center">
-          <p className="text-[11px] text-slate-400">No legend data</p>
+        <div className="px-4 py-6 text-center">
+          <p className="text-sm text-slate-400">No legend data</p>
         </div>
       ) : (
-        <div className="px-3 pb-3 pt-1 flex gap-3 items-stretch">
+        <div className="px-3 pb-3 pt-2 flex gap-3 items-stretch w-full">
           {/* Gradient bar */}
-          <div className="flex-shrink-0 flex flex-col" style={{ width: 14 }}>
+          <div className="flex-shrink-0" style={{ width: 16 }}>
             <div
-              className="rounded-full border border-slate-200/50 shadow-inner w-full"
+              className="rounded-full border border-slate-200"
               style={{
                 height: barHeight,
                 background:
@@ -111,28 +108,28 @@ const NativeLegend: React.FC<{
             />
           </div>
 
-          {/* Labels — pinned to match gradient positions */}
+          {/* Labels */}
           <div
-            className="flex flex-col justify-between flex-1"
-            style={{ height: barHeight }}
+            className="flex flex-col justify-between"
+            style={{ height: barHeight, flex: 1, minWidth: 0 }}
           >
             {entries.map((entry, i) => (
-              <div key={i} className="flex items-center gap-1.5 min-h-0">
+              <div key={i} className="flex items-center gap-2 min-h-0">
                 {/* Swatch */}
                 <span
-                  className="flex-shrink-0 rounded-sm border border-white/80"
+                  className="flex-shrink-0 rounded border border-white"
                   style={{
                     display: "inline-block",
-                    width: 10,
-                    height: 10,
+                    width: 12,
+                    height: 12,
                     background: entry.color,
                     opacity: entry.opacity,
-                    boxShadow: `0 0 0 1px ${entry.color}55`,
+                    boxShadow: `0 0 0 1px ${entry.color}66`,
                   }}
                 />
-                {/* Label */}
+                {/* Label — larger, non-truncating */}
                 <span
-                  className="text-[10px] font-mono text-slate-600 leading-none truncate"
+                  className="text-xs font-mono text-slate-700 leading-tight break-all"
                   title={entry.label}
                 >
                   {entry.label}
@@ -145,7 +142,6 @@ const NativeLegend: React.FC<{
     </div>
   );
 };
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const getWMSExtent4326 = async (
   layerName: string,
@@ -558,7 +554,6 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
       baseLayerRef.current = nb;
       mapInstanceRef.current.getLayers().insertAt(0, nb);
       onBaseMapChange(key);
-      setActivePanel(null);
     };
 
     // ── Render ───────────────────────────────────────────────────────────
@@ -705,59 +700,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
           >
             {rasterFileName ? (
               <>
-                <div
-                  className="p-3 mb-3"
-                  style={{
-                    background: "var(--accent-bg)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid var(--accent-border)",
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className="w-2 h-2 rounded-full terra-pulse-dot"
-                        style={{ background: "var(--green)" }}
-                      />
-                      <span
-                        className="text-xs font-semibold"
-                        style={{ color: "var(--accent)" }}
-                      >
-                        Active Layer
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleRemoveLayer}
-                      className="p-1 rounded-md"
-                      style={{ color: "var(--red)" }}
-                      title="Remove"
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                  <p
-                    className="text-sm truncate"
-                    style={{
-                      color: "var(--text-primary)",
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {rasterFileName}
-                  </p>
-                </div>
+               
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between">
                     <label
@@ -977,7 +920,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
 
         {/* ═══ NATIVE HTML LEGEND ════════════════════════════════════ */}
         {legendUrl && showLegend && (
-          <div className="absolute bottom-12 right-3 z-20">
+          <div className="absolute bottom-20 right-3 z-20">
             <NativeLegend
               entries={legendEntries}
               onClose={() => onLegendUrlChange(null)}

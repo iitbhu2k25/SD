@@ -31,3 +31,15 @@ class PostgresDb():
             session.close()
 
 db_dependency = Annotated[Session, Depends(PostgresDb().get_session, use_cache=False)]
+
+@contextmanager
+def celery_session():
+    session = sessions()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        sessions.remove() 

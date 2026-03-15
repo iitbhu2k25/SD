@@ -14,7 +14,7 @@ import os
 from app.conf.celery import app
 from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
-from app.database.config.dependency import PostgresDb
+from app.database.config.dependency import celery_session
 from app.database.crud.raster_operations import rasterOperCrud
 
 wbt = WhiteboxTools()
@@ -22,6 +22,8 @@ wbt.set_whitebox_dir(os.environ["WBT_PATH"])
 wbt.set_working_dir("/tmp")
 
 def update_redis_status(task_id: str, status: str, progress: int=0):
+    with celery_session() as session:
+        rasterOperCrud(session).start_task(task_id,task_id)
 
     data = {
         "task_id": task_id,
@@ -35,6 +37,8 @@ def update_redis_status(task_id: str, status: str, progress: int=0):
     sync_redis_client.publish(channel, payload)
 
 def update_redis_done(task_id:str,layer_name:str,result_path:str):
+    with celery_session() as session:
+        rasterOperCrud(session).update_task(task_id,"completed",layer_name,result_path)
     data = {
         "task_id": task_id,
         "status": "completed",
@@ -46,6 +50,8 @@ def update_redis_done(task_id:str,layer_name:str,result_path:str):
     sync_redis_client.publish(channel, payload)
     
 def update_redis_fail(task_id: str):
+    with celery_session() as session:
+        rasterOperCrud(session).update(task_id,"failed")
     data = {
         "task_id": task_id,
         "status": "failed",
@@ -420,12 +426,11 @@ def celery_reprojection(
     src_nodata: str,
     resampling: str = "near",
 ):  
-    
+
     update_redis_status(
         task_id=self.request.id,
         status="started",
     )
-    time.sleep(30)
     command = [
         "gdalwarp",
         "-t_srs", target_epsg,
@@ -464,7 +469,6 @@ def celery_reprojection(
         logger.error(e.stderr)
         update_redis_fail(
         id=self.request.id,
-        channel=channel,
         )
         raise RuntimeError(f"GDAL error: {e.stderr}")
 
@@ -977,8 +981,6 @@ def resample_raster_task(
         )
         
         _update_stats(float(src_nodata),output_path)
-
-
         return output_path
 
     except (FileNotFoundError, PermissionError, ValueError) as e:

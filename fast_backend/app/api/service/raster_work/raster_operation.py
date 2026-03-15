@@ -402,7 +402,12 @@ class RasterOperation:
         if resp1 is None or resp2 is None:
             raise CustomException(status_code=404,detail="File not found")
         return {"raster_info":resp1,"raster_meta":resp2}
-
+    async def get_result(self,db:Session,task_id:str):
+        return await {
+            "file_id":task_id,
+            "layer_name":task_id    
+        }
+        
     async def reprojection(self,db:Session,payload:RasterReproject):
         try:
             epsg_code = EPSG[payload.target_epsg].value
