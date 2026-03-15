@@ -1,7 +1,7 @@
 import aiohttp
 import os
 from app.conf.settings import Settings
-import rasterio
+
 import numpy as np
 import colorsys
 from xml.dom import minidom

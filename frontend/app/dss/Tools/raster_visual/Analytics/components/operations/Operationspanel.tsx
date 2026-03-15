@@ -11,6 +11,7 @@ import OperationCard from "./Operationcard";
 import OperationForm from "./Operationform";
 import TaskPanel from "./Taskpanel";
 import { useOperationTask } from "./Useoperationtask";
+import { api } from "@/services/api";
 
 type View = "list" | "form" | "task";
 
@@ -19,7 +20,7 @@ type View = "list" | "form" | "task";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const OperationsPanel: React.FC = () => {
-  const { layer } = useRaster();
+  const { layer,details } = useRaster();
 
   const [view,          setView         ] = useState<View>("list");
   const [activeCategory, setActiveCategory] = useState<OperationCategory | "all">("all");
@@ -29,8 +30,8 @@ const OperationsPanel: React.FC = () => {
   const hasLayer = !!layer;
 
   const { taskState, execute, reset } = useOperationTask(
-    layer?.file_id ?? "",
-    layer?.nodata != null ? String(layer.nodata) : "0"
+    details?.file_id ?? "",
+    details?.nodata ?? ""
   );
 
   // ── Filtered list ──────────────────────────────────────────────────────
@@ -82,13 +83,28 @@ const OperationsPanel: React.FC = () => {
     // e.g. mapContext.addWmsLayer(layerName)
   };
 
-  const handleDownload = (fileId: string, fileName: string) => {
-    const url = `${process.env.NEXT_PUBLIC_API_BASE}/raster/download/${fileId}`;
+  const handleDownload = async (fileId: string) => {
+  try {
+    const res = await api.get<Blob>(`/tools/raster/download/${fileId}`, {
+      responseType: "blob",
+    });
+
+    if (!res.message) return;
+
+    const url = window.URL.createObjectURL(res.message);
+
     const a = document.createElement("a");
     a.href = url;
-    a.download = fileName;
+    a.download = `${fileId}raster.tif`;
+    document.body.appendChild(a);
     a.click();
-  };
+
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Download failed", error);
+  }
+};
 
   // ── Task view ──────────────────────────────────────────────────────────
   if (view === "task" && selectedOp) {

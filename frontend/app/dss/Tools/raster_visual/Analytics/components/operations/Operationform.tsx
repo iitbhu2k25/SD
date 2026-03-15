@@ -106,8 +106,8 @@ const OperationForm: React.FC<Props> = ({ op, running, onExecute, onClose }) => 
           background: running
             ? 'var(--border-strong)'
             : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
-          color: '#fff',
-          fontSize: 13,
+          color: '#dc3a09e5',
+          fontSize: 16,
           fontWeight: 700,
           fontFamily: 'var(--font-mono)',
           letterSpacing: '0.5px',

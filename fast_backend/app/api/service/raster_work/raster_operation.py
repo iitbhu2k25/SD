@@ -1,5 +1,6 @@
 import uuid
 import shutil
+from fastapi.responses import FileResponse
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import transform_bounds
@@ -44,7 +45,7 @@ from app.api.exception.exceptions import CustomException
 
 from .raster_resize_test import dry_run_resample
 from app.api.service.geoserver_svc.geoserver import Geoserver
-from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud
+from app.database.crud.raster_operations import rasterstorecrud,rasterMetacrud,rasterOperCrud
 from enum import Enum
 from app.conf.redis.redis_manager import redis_manager
 
@@ -402,11 +403,10 @@ class RasterOperation:
         if resp1 is None or resp2 is None:
             raise CustomException(status_code=404,detail="File not found")
         return {"raster_info":resp1,"raster_meta":resp2}
+    
     async def get_result(self,db:Session,task_id:str):
-        return await {
-            "file_id":task_id,
-            "layer_name":task_id    
-        }
+        return rasterOperCrud(db).get_task(task_id)
+      
         
     async def reprojection(self,db:Session,payload:RasterReproject):
         try:
@@ -418,13 +418,13 @@ class RasterOperation:
         except KeyError:
             raise ValueError("Invalid EPSG")
 
-           
 
     def reclassify(self,db:Session,payload:RasterReclassify):
         file_path=self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"reclassified_{time.time()}.tif"
         return reclassify_raster(payload,str(file_path),str(output_path))
 
+    
     async def edludian(self,db:Session,payload:Edliudian):
         file_path=await self._get_file_path(payload.file_id)
         output_path = self.temp_dir / f"ecludian_{time.time()}.tif"
@@ -464,5 +464,7 @@ class RasterOperation:
         output_path = self.temp_dir / f"resolution_{time.time()}.tif"
         return resample_raster_task.delay(str(file_path),str(output_path),payload.target_cell,payload.algorithm,payload.src_nodata)
        
-
-    
+    async def raster_download(self,db:Session,file_id:str):
+        db_obj=rasterOperCrud(db).get_task(file_id)
+        file_path=db_obj.file_path
+        return FileResponse(path=file_path, media_type="image/tiff")

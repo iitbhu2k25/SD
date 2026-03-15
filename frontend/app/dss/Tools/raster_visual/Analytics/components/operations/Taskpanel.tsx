@@ -8,7 +8,7 @@ interface Props {
   onBack: () => void;
   onReset: () => void;
   onViewOnMap?: (layerName: string) => void;
-  onDownload?: (fileId: string, fileName: string) => void;
+  onDownload?: (fileId: string) => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -176,9 +176,7 @@ const TaskPanel: React.FC<Props> = ({
           {/* Result rows */}
           {(
             [
-              ["file_id",    result.file_id],
-              ["layer_name", result.layer_name],
-              ["file_name",  result.file_name],
+              ["file_name",  result.layer_name],
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex items-center justify-between gap-4">
@@ -219,7 +217,7 @@ const TaskPanel: React.FC<Props> = ({
             )}
             {onDownload && (
               <button
-                onClick={() => onDownload(result.file_id, result.file_name)}
+                onClick={() => onDownload(result.file_id)}
                 className="flex-1 py-2 flex items-center justify-center gap-1.5 text-[11px] font-medium transition-colors"
                 style={{
                   borderRadius: "var(--radius-md)",

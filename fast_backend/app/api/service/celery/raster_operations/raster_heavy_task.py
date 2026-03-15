@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 import tempfile
+import asyncio
 from app.conf.logging import logger
 import json
 from typing import Optional,List
@@ -16,10 +17,15 @@ from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
 from app.database.config.dependency import celery_session
 from app.database.crud.raster_operations import rasterOperCrud
+from app.api.service.geoserver_svc.geoserver import Geoserver
+from app.utils.name import Unique_name
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
 wbt.set_working_dir("/tmp")
+
+raster_workspace="raster_work"
+raster_default_sld="/home/app/media/Rajat_data/default_sld.xml"
 
 def update_redis_status(task_id: str, status: str, progress: int=0):
     with celery_session() as session:
@@ -461,8 +467,9 @@ def celery_reprojection(
             layer_name=self.request.id,
             result_path=output_path
         )
-        
-
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")

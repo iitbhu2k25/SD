@@ -1,5 +1,3 @@
-
-
 export type ParamType = "select" | "number" | "text" | "boolean";
 
 export interface OperationParam {
@@ -20,10 +18,10 @@ export interface OperationDef {
   label: string;
   description: string;
   category: OperationCategory;
-  icon: string;           // SVG path (d attribute)
-  accentColor: string;    // CSS variable name, e.g. "--accent"
+  icon: string; // SVG path (d attribute)
+  accentColor: string; // CSS variable name, e.g. "--accent"
   params: OperationParam[];
-  apiEndpoint?: string;   // override default endpoint
+  apiEndpoint?: string; // override default endpoint
 }
 
 export type OperationCategory =
@@ -36,24 +34,43 @@ export type OperationCategory =
 export interface CategoryDef {
   id: OperationCategory;
   label: string;
-  color: string;        // CSS variable
-  dotColor: string;     // direct hex for the dot
+  color: string; // CSS variable
+  dotColor: string; // direct hex for the dot
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────
 
 export const CATEGORIES: CategoryDef[] = [
-  { id: "terrain",        label: "Terrain Analysis",   color: "--accent",  dotColor: "#0d9b7a" },
-  { id: "hydrology",      label: "Hydrology",          color: "--blue",    dotColor: "#3b82f6" },
-  { id: "transform",      label: "Transformation",     color: "--amber",   dotColor: "#d97706" },
-  { id: "classification", label: "Classification",     color: "--purple",  dotColor: "#8b5cf6" },
-  { id: "distance",       label: "Distance Analysis",  color: "--orange",  dotColor: "#ea580c" },
+  {
+    id: "terrain",
+    label: "Terrain Analysis",
+    color: "--accent",
+    dotColor: "#0d9b7a",
+  },
+  { id: "hydrology", label: "Hydrology", color: "--blue", dotColor: "#3b82f6" },
+  {
+    id: "transform",
+    label: "Transformation",
+    color: "--amber",
+    dotColor: "#d97706",
+  },
+  {
+    id: "classification",
+    label: "Classification",
+    color: "--purple",
+    dotColor: "#8b5cf6",
+  },
+  {
+    id: "distance",
+    label: "Distance Analysis",
+    color: "--orange",
+    dotColor: "#ea580c",
+  },
 ];
 
 // ── Operations ───────────────────────────────────────────────────────────────
 
 export const OPERATIONS: OperationDef[] = [
-
   // ── Terrain ─────────────────────────────────────────────
   {
     id: "slope",
@@ -148,8 +165,19 @@ export const OPERATIONS: OperationDef[] = [
       {
         key: "target_crs",
         label: "Target CRS",
-        type: "text",
-        default: "EPSG:4326",
+        type: "select",
+        default: "WGS84",
+        options: [
+          { label: "WGS84", value: "4326" },
+          { label: "WGS84 Web Mercator", value: "3857" },
+          { label: "NAD83", value: "4269" },
+          { label: "ETRS89", value: "4258" },
+          { label: "UTM Zone 33N", value: "32633" },
+          { label: "UTM Zone 43N", value: "32643" },
+          { label: "UTM Zone 44N", value: "32644" },
+          { label: "UTM Zone 45N", value: "32645" },
+          { label: "UTM Zone 46N", value: "32646" },
+        ],
         hint: "Example: EPSG:3857",
       },
       {
@@ -158,7 +186,7 @@ export const OPERATIONS: OperationDef[] = [
         type: "select",
         default: "bilinear",
         options: [
-          { label: "Nearest", value: "nearest" },
+          { label: "Nearest", value: "near" },
           { label: "Bilinear", value: "bilinear" },
           { label: "Cubic", value: "cubic" },
         ],
@@ -265,7 +293,9 @@ export const OPERATIONS: OperationDef[] = [
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-export function getOperationsByCategory(cat: OperationCategory): OperationDef[] {
+export function getOperationsByCategory(
+  cat: OperationCategory,
+): OperationDef[] {
   return OPERATIONS.filter((o) => o.category === cat);
 }
 

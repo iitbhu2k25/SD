@@ -23,6 +23,7 @@ from app.api.schema.raster_operation import (
     TwiParams,
     Chunkcomplete,
     CellResize,
+    RasterOperOutput,
     RasterUploadResponse)
 from app.api.service.raster_work.raster_operation import RasterOperation
 router=APIRouter()
@@ -64,7 +65,7 @@ async def get_raster(db:db_dependency,file_id: str):
     return await RasterOperation().get_info(db,file_id)
 
 
-@router.get("/raster/{task_id}/output",status_code=status.HTTP_201_CREATED,response_model=RasterInfoResponse)
+@router.get("/raster/{task_id}/output",status_code=status.HTTP_201_CREATED,response_model=RasterOperOutput)
 @validate
 async def get_raster(db:db_dependency,task_id: str):
     """ return the output layer details"""
@@ -158,14 +159,11 @@ async def raster_resolution(db:db_dependency,payload:CellResize):
     return resp.id
 
 
-@router.get("/download_output",status_code=status.HTTP_200_OK,response_class=FileResponse)
+@router.get("/raster/download/{fileId}",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate
-async def get_report(chord_id:str):
-    file_path = AsyncResult(chord_id).get()      
-    file_path = Path(file_path)
-    if not file_path.exists():
-        return {"error": "File not found"}
-    return FileResponse(path=file_path, filename=file_path.name, media_type="image/tiff")
+async def get_report(db:db_dependency,fileId:str):
+    return await RasterOperation().raster_download(db,fileId)
+
 
 
 @router.websocket("/ws/operation/{task_id}")

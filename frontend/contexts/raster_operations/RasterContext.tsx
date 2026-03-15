@@ -74,10 +74,7 @@ interface CtxValue {
 
   handleUpload: (file: File) => Promise<void>;
   removeLayer: () => void;
-  executeOperation: (
-    type: OperationType,
-    params: Record<string, unknown>,
-  ) => Promise<void>;
+ 
   setOpacity: (v: number) => void;
   setLegendUrl: (url: string | null) => void;
   setShowLegend: (v: boolean) => void;
@@ -161,17 +158,17 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     }
   }, [layer, geoserverUrl]);
 
-  // ── Auto-fetch legend entries when sldConfig changes ──────────────────────
+  
   useEffect(() => {
     if (!sldConfig) return;
-    // Wait for GeoServer to commit the new style before fetching the updated legend
+  
     const timer = setTimeout(() => {
       fetchLegendEntries();
-    }, 1500); // 800 ms is enough for local GeoServer; raise to 1500 on slow servers
+    }, 1500); 
     return () => clearTimeout(timer);
   }, [sldConfig]);
 
-  // ── Load details ──────────────────────────────────────────────────────────
+  
   const loadDetails = useCallback(async (fileId: string) => {
     setDetailsLoading(true);
     try {
@@ -192,7 +189,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ── Upload ────────────────────────────────────────────────────────────────
+ 
   const handleUpload = useCallback(
     async (file: File) => {
       if (file.size > MAX_FILE_SIZE) {
@@ -243,65 +240,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     toast.info("Layer removed");
   }, []);
 
-  // ── Operations ────────────────────────────────────────────────────────────
-  const executeOperation = useCallback(
-    async (type: OperationType, params: Record<string, unknown>) => {
-      if (!layer) {
-        toast.error("Upload a layer first");
-        return;
-      }
-
-      const op: Operation = {
-        id: `op_${Date.now()}`,
-        type,
-        status: "running",
-        params,
-        startedAt: Date.now(),
-      };
-
-      setOperations((prev) => [...prev, op]);
-      toast.info(`Running ${type.replace(/_/g, " ")}…`);
-
-      try {
-        const resp = await api.post<OperationResult>("/api/raster/operation", {
-          file_id: layer.file_id,
-          operation: type,
-          params,
-        });
-        const result = resp.data;
-
-        setOperations((prev) =>
-          prev.map((o) =>
-            o.id === op.id
-              ? { ...o, status: "success" as OperationStatus, result }
-              : o,
-          ),
-        );
-        toast.success(`${type.replace(/_/g, " ")} completed`);
-
-        if (result.file_id && result.layer_name) {
-          const updatedLayer: RasterLayer = {
-            file_id: result.file_id,
-            file_name: result.file_name,
-            layer_name: result.layer_name,
-          };
-          setLayer(updatedLayer);
-          loadDetails(updatedLayer.file_id);
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Operation failed";
-        setOperations((prev) =>
-          prev.map((o) =>
-            o.id === op.id
-              ? { ...o, status: "error" as OperationStatus, error: msg }
-              : o,
-          ),
-        );
-        toast.error(msg);
-      }
-    },
-    [layer, loadDetails],
-  );
+  
 
   return (
     <Ctx.Provider
@@ -331,7 +270,6 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         setRasterFileName,
         handleUpload,
         removeLayer,
-        executeOperation,
         setOpacity: setWmsOpacity,
         setLegendUrl,
         setShowLegend,

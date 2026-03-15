@@ -490,7 +490,7 @@ const RasterDetails: React.FC = () => {
       />
       <div className="grid grid-cols-2 gap-1.5">
         <Cell label="Dtype"  value={d.dtypes.join(", ")}                                          color="purple" />
-        <Cell label="NoData" value={d.nodata !== null ? d.nodata.toExponential(2) : "None"}       color="coral" />
+        <Cell label="NoData" value={d.nodata !== null ? Number(d.nodata).toExponential(2) : "None"}       color="coral" />
         <Cell label="Block"  value={d.block_shapes[0]?.join("×") ?? "N/A"} sub="pixels"          color="gray" />
       </div>
 

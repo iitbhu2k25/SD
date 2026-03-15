@@ -60,7 +60,7 @@ export interface RasterMetaRaw {
   height: number;
   band_count: number;
   dtypes: string;             // API returns a plain string, not an array
-  nodata: number | null;
+  nodata: string;
   crs: string;
   crs_unit: string;
   bounds: {
@@ -105,8 +105,8 @@ export interface RasterDetails {
   width: number;
   height: number;
   band_count: number;
-  dtypes: string[];           // normalised — always an array
-  nodata: number | null;
+  dtypes: string[];          
+  nodata: string;
   crs: string;
   crs_unit: string;
   bounds: {

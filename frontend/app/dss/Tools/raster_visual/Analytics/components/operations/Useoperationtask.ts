@@ -1,17 +1,8 @@
-/**
- * useOperationTask
- *
- * Full pipeline:
- *   1. POST to operation endpoint → { task_id }
- *   2. Open WebSocket at /ws/tasks/{task_id} → status / progress events
- *   3. On "completed" → GET /raster/tasks/{task_id}/result → { file_id, layer_name, file_name }
- *   4. On "failed"    → surface error message
- */
 
 import { useCallback, useRef, useState } from "react";
 import { OperationDef } from "./registry";
 import { api } from "@/services/api";
-// ─── Types ────────────────────────────────────────────────────────────────────
+
 
 export type TaskStatus = "idle" | "submitting" | "pending" | "running" | "completed" | "failed";
 
@@ -45,7 +36,7 @@ const ENDPOINT_MAP: Record<string, string> = {
   flow_direction:     "/tools/flow-direction",
   flow_accumulation:  "/tools/flow-accumulation",
   twi:                "/tools/twi",
-  projection:         "/tools/reproject",
+  projection:         "/tools/reprojection",
   cell_resize:        "/tools/cell-resize",
   interpolation:      "/tools/interpolation",
   reclassification:   "/tools/reclassify",
@@ -74,7 +65,7 @@ function buildPayload(op: OperationDef, params: Record<string, unknown>, fileId:
     case "twi":
       return { ...base, fill_depressions: true, algorithm: params.algorithm ?? "d8" };
     case "projection":
-      return { file_id: fileId, src_nodata: nodata, target_epsg: params.target_crs, resampling: params.resampling };
+      return { file_id: fileId, src_nodata: String(nodata), target_epsg: params.target_crs, resampling: params.resampling };
     case "cell_resize":
       return { ...base, target_cell: params.cell_size, algorithm: params.method, dtype_override: "float32" };
     case "interpolation":

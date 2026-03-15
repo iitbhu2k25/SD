@@ -273,6 +273,11 @@ class RasterInfoResponse(BaseModel):
     raster_info:RasterdataResponse 
     raster_meta:RasterMetadataResponse 
     
+class RasterOperOutput(BaseModel):
+    file_id: str
+    task_name: str
+    task_status: str
+    layer_name: str
 
 class RasterUploadResponse(BaseModel):
     file_id:str

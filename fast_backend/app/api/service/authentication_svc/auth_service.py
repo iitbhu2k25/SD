@@ -147,11 +147,10 @@ class AuthService(AuthServiceInterface):
                 print(f"Token validation error: {e}")
             if payload and payload.get("user_id"):
                 user = UserCrud(db).get_user(id=payload.get("user_id"))
-                # await get_redis.delete(f"refresh:dss_{user.id}")
-            
-            # Delete cookies anyway
+           
             response.delete_cookie(key="refresh_token")
             response.delete_cookie(key="access_token")
+            response.delete_cookie(key="verified_token")
             return True
         except Exception as e:
             print(e)
