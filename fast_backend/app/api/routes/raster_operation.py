@@ -164,18 +164,49 @@ async def get_report(chord_id:str):
 
 
 
+import asyncio
+import json
+from fastapi import WebSocket
+from starlette.websockets import WebSocketDisconnect
+
 @router.websocket("/ws/operation/{task_id}")
 async def task_websocket(websocket: WebSocket, task_id: str):
     await websocket.accept()
     await connection_manager.connect(websocket, task_id)
-    last = await redis_manager.get(f"opr_status:{task_id}")
 
+    
+    last = await redis_manager.get(f"opr_status:{task_id}")
     if last:
-        await websocket.send_json(json.loads(last))
+        last_data = json.loads(last)
+        await websocket.send_json(last_data)
+
+        if last_data.get("status") in ("completed", "failed"):
+            await websocket.close()
+            await connection_manager.disconnect(websocket, task_id)
+            return
+    pubsub = redis_manager.pubsub()
+    await pubsub.subscribe(f"opr_updates:{task_id}")
+
     try:
-        while True:
-            await websocket.receive_text() 
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                data = json.loads(message["data"])
+
+                try:
+                    await websocket.send_json(data)
+                except WebSocketDisconnect:
+                    logger.info(f"[WebSocket] Client disconnected: task_id={task_id}")
+                    break
+                
+                if data.get("status") in ("completed", "failed"):
+                    await websocket.close(code=1000)
+                    break
+
     except WebSocketDisconnect:
-        pass
+        logger.info(f"[WebSocket] Client disconnected: task_id={task_id}")
+
     finally:
+        await pubsub.unsubscribe(f"opr_updates:{task_id}")
+        await pubsub.aclose()
         await connection_manager.disconnect(websocket, task_id)
+

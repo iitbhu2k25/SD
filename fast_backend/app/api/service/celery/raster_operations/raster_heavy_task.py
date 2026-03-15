@@ -14,62 +14,48 @@ import os
 from app.conf.celery import app
 from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
-from app.database.config.dependency import db_dependency
+from app.database.config.dependency import PostgresDb
 from app.database.crud.raster_operations import rasterOperCrud
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
 wbt.set_working_dir("/tmp")
 
-def update_redis_start(id:str,channel:str,file_id:str):
+def update_redis_status(task_id: str, status: str, progress: int=0):
+
     data = {
-        "task_id": id,
-        "status": "started",
-        "progress": 0
-        }
+        "task_id": task_id,
+        "status": status,
+        "progress": progress,
 
-    sync_redis_client.setex(
-    f"opr_status:{id}",
-        3600,
-        json.dumps(data)
-    )
-    sync_redis_client.publish(channel, json.dumps(data))
-    # with db_dependency() as db:
-    #     rasterOperCrud(db).start(task_id=id,file_id=file_id)
-        
+    }
+    payload = json.dumps(data)
+    channel = f"opr_updates:{task_id}" 
+    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
+    sync_redis_client.publish(channel, payload)
 
-def update_redis_fail(id:str,channel:str):
+def update_redis_done(task_id:str,layer_name:str,result_path:str):
     data = {
-        "task_id": id,
-        "status": "failed",
-        "progress": 100
-        }
-
-    sync_redis_client.setex(
-    f"opr_status:{id}",
-        3600,
-        json.dumps(data)
-    )
-    sync_redis_client.publish(channel, json.dumps(data))
-    # with db_dependency() as db:
-    #     rasterOperCrud(db).update(task_id=id,status="failed")
-
-
-def update_redis_done(id:str,channel:str,layer_name:str,result_path:str):
-    data = {
-        "task_id": id,
+        "task_id": task_id,
         "status": "completed",
         "progress": 100
         }
+    payload = json.dumps(data)
+    channel = f"opr_updates:{task_id}"
+    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
+    sync_redis_client.publish(channel, payload)
+    
+def update_redis_fail(task_id: str):
+    data = {
+        "task_id": task_id,
+        "status": "failed",
+        "progress": 100
+        }
+    payload = json.dumps(data)
+    channel = f"opr_updates:{task_id}"
+    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
+    sync_redis_client.publish(channel, payload)
 
-    sync_redis_client.setex(
-    f"opr_status:{id}",
-        3600,
-        json.dumps(data)
-    )
-    sync_redis_client.publish(channel, json.dumps(data))
-    # with db_dependency() as db:
-    #     rasterOperCrud(db).update(task_id=id,status="completed",layer_name=layer_name,result_path=result_path)
 
 
 def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
@@ -426,7 +412,8 @@ def reclassify_raster(params: RasterReclassify, input_path: str, output_path: st
 
 
 @app.task(bind=True,name='celery_projection_tools',queue='heavy_task')
-def celery_reprojection(self,
+def celery_reprojection(
+    self,
     input_path: str,
     output_path: str,
     target_epsg: str,
@@ -434,13 +421,11 @@ def celery_reprojection(self,
     resampling: str = "near",
 ):  
     
-    channel = f"opr_id:{self.request.id}"
-    channel = f"opr_id:{self.request.id}"
-    update_redis_start(
-        id=self.request.id,
-        channel=channel,
-        file_id=input_path
+    update_redis_status(
+        task_id=self.request.id,
+        status="started",
     )
+    time.sleep(30)
     command = [
         "gdalwarp",
         "-t_srs", target_epsg,
@@ -467,11 +452,11 @@ def celery_reprojection(self,
         logger.info("Reprojection completed successfully")
         logger.debug(result.stdout)
         update_redis_done(
-        id=self.request.id,
-        channel=channel,
-        result_path=str(output_path),
-        layer_name="geoserver"
+            task_id=self.request.id,
+            layer_name=self.request.id,
+            result_path=output_path
         )
+        
 
 
     except subprocess.CalledProcessError as e:

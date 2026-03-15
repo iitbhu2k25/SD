@@ -47,6 +47,10 @@ class RedisManager:
 
     async def exists(self, key: str):
         return await self.client().exists(key)
+    
+    async def publish(self, channel: str, message: str):
+        return await self.client().publish(channel, message)
+
 
 
 redis_manager = RedisManager()

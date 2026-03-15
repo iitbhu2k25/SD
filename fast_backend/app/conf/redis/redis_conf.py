@@ -36,8 +36,8 @@ class AsyncRedisSingleton:
         db: int = 0,
         username: str= sett.REDIS_USERNAME,
         password: str=sett.REDIS_PASSWORD,
-        max_connections: int = 20,
-        socket_timeout: float = 5.0,
+        max_connections: int = 100,
+        socket_timeout=None,
         socket_connect_timeout: float = 3.0,
         decode_responses: bool = True,
     ):
