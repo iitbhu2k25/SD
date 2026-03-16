@@ -21,17 +21,17 @@ async def get_states(db:db_dependency,user: Annotated[bool, Depends(validate_use
 
 @router.get("/all_districts",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_districtss(db:db_dependency):
+async def get_districtss(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_district_all(db)
 
 @router.get("/all_sub_districts",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_sub_districtss(db:db_dependency):
+async def get_sub_districtss(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_sub_district_all(db)
 
 @router.get("/get_all_towns",response_model=list[Stp_town_respons],status_code=status.HTTP_201_CREATED)
 @validate
-async def get_towns(db:db_dependency):
+async def get_towns(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_all_town(db)
 
 @router.post("/get_districts",response_model=list[Stp_response],status_code=status.HTTP_201_CREATED)
@@ -66,12 +66,12 @@ async def get_river(db:db_dependency,user: Annotated[bool, Depends(validate_user
 
 @router.get("/all_stretch",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency):
+async def get_stretch(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_stretch_all(db)
 
 @router.get("/all_drain",status_code=status.HTTP_201_CREATED)
 @validate
-async def get_stretch(db:db_dependency):
+async def get_stretch(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_drain_all(db)
 
 @router.post("/get_stretch",response_model=list[STPStretchesOutput],status_code=status.HTTP_201_CREATED)
@@ -109,12 +109,12 @@ async def get_visual(db:db_dependency,user: Annotated[bool, Depends(validate_use
 
 @router.get("/raster_download",status_code=status.HTTP_201_CREATED,response_class=FileResponse)
 @validate
-async def get_raster(db:db_dependency, moduleName:str,rasterName:str):
+async def get_raster(db:db_dependency, moduleName:str,rasterName:str,user: Annotated[bool, Depends(validate_user)]):
     return Raster_visual.raster_down(db,RasterVisual(moduleName=moduleName,rasterName=rasterName))
 
 @router.get("/celery_pdf",status_code=status.HTTP_201_CREATED)
 @validate
-async def celery_visual(db:db_dependency, moduleName:str,rasterName:str,fileName:str):
+async def celery_visual(db:db_dependency, moduleName:str,rasterName:str,fileName:str,user: Annotated[bool, Depends(validate_user)]):
     payload=RasterVisual(moduleName=moduleName,rasterName=rasterName,fileName=fileName)
     task_id= raster_visual.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
