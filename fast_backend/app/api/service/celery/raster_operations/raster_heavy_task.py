@@ -27,10 +27,17 @@ wbt.set_working_dir("/tmp")
 raster_workspace="raster_work"
 raster_default_sld="/home/app/media/Rajat_data/default_sld.xml"
 
-def update_redis_status(task_id: str, status: str, progress: int=0):
-    with celery_session() as session:
-        rasterOperCrud(session).start_task(task_id,task_id)
+work_state=["started","in_progress","completed","failed"]
 
+
+def celery_task_update(task_id: str, status: str, progress: int=0,layer_name:str = None,result_path:str=None):
+    if status =="started":
+        with celery_session() as session:
+            rasterOperCrud(session).start_task(task_id,task_id)
+    else:
+        with celery_session() as session:
+            rasterOperCrud(session).update_task(task_id,status,layer_name,result_path)
+    
     data = {
         "task_id": task_id,
         "status": status,
@@ -41,33 +48,6 @@ def update_redis_status(task_id: str, status: str, progress: int=0):
     channel = f"opr_updates:{task_id}" 
     sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
     sync_redis_client.publish(channel, payload)
-
-def update_redis_done(task_id:str,layer_name:str,result_path:str):
-    with celery_session() as session:
-        rasterOperCrud(session).update_task(task_id,"completed",layer_name,result_path)
-    data = {
-        "task_id": task_id,
-        "status": "completed",
-        "progress": 100
-        }
-    payload = json.dumps(data)
-    channel = f"opr_updates:{task_id}"
-    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
-    sync_redis_client.publish(channel, payload)
-    
-def update_redis_fail(task_id: str):
-    with celery_session() as session:
-        rasterOperCrud(session).update(task_id,"failed")
-    data = {
-        "task_id": task_id,
-        "status": "failed",
-        "progress": 100
-        }
-    payload = json.dumps(data)
-    channel = f"opr_updates:{task_id}"
-    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
-    sync_redis_client.publish(channel, payload)
-
 
 
 def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
@@ -433,7 +413,7 @@ def celery_reprojection(
     resampling: str = "near",
 ):  
 
-    update_redis_status(
+    celery_task_update(
         task_id=self.request.id,
         status="started",
     )
@@ -462,8 +442,10 @@ def celery_reprojection(
 
         logger.info("Reprojection completed successfully")
         logger.debug(result.stdout)
-        update_redis_done(
+        celery_task_update(
             task_id=self.request.id,
+            status="completed",
+            progress=100,
             layer_name=self.request.id,
             result_path=output_path
         )
@@ -474,8 +456,9 @@ def celery_reprojection(
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")
         logger.error(e.stderr)
-        update_redis_fail(
-        id=self.request.id,
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
         )
         raise RuntimeError(f"GDAL error: {e.stderr}")
 
