@@ -98,7 +98,7 @@ export const fetchData = async (endpoint: APIEndpoint, lat: number, lng: number)
 // Function to fetch India base map from GeoServer
 export const fetchIndiaBaseMap = async (): Promise<GeoJSONResponse | null> => {
   try {
-    const WFS_URL = '/geoserver/api/dss_vector/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=dss_vector:India&outputFormat=application/json';
+    const WFS_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json`;
     
     const response = await fetch(WFS_URL, {
       method: 'GET',

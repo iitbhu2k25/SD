@@ -42,8 +42,8 @@ interface BaseMapDefinition {
     label: string;
 }
 
-const GEOSERVER_WFS_URL = 'http://localhost:9090/geoserver/wfs';
-const WORKSPACE = 'dss_vector';
+const GEOSERVER_WFS_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs`;
+const WORKSPACE = `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}`;
 const BASIN_BOUNDARY_LAYER = 'basin_boundary';
 
 const baseMaps: Record<string, BaseMapDefinition> = {

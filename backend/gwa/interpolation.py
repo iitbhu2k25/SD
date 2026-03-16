@@ -1270,7 +1270,7 @@ class InterpolateRasterView(APIView):
                     'std_deviation': float(z_std),
                     'nan_percentage': float(nan_percentage)
                 },
-                'geoserver_url': f"/geoserver/api/{WORKSPACE}/wms",
+                'geoserver_url': f"/geoserver/{WORKSPACE}/wms",
                 'published_layers': published_layers
             }
 

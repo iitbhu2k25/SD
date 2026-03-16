@@ -27,8 +27,9 @@ import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationCon
 import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellContext";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = "/geoserver/api/dss_vector/wfs";
-const GEOSERVER_WMS_URL = "/geoserver";
+const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs`;
+const GEOSERVER_WMS_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`;
+console.log(GEOSERVER_BASE_URL);
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -1127,7 +1128,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const layer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
       }),
       style: style,
       zIndex,
@@ -1201,7 +1202,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const basinBoundaryLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:basin_boundary&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:basin_boundary&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: basinBoundaryStyle,
       zIndex: 1,
@@ -1235,7 +1236,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const riversLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Rivers&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Rivers&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: riverStyle,
       zIndex: 10,
@@ -1269,7 +1270,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const stretchesLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Stretches&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Stretches&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: (feature) => {
         const stretchId = feature.get('Stretch_ID');
@@ -1331,7 +1332,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const drainsLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Drain&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Drain&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: (feature) => {
         const drainNo = feature.get('Drain_No');
@@ -2046,7 +2047,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const catchmentsLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Catchment&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(catchmentsCqlFilter)}`,
+          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Catchment&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(catchmentsCqlFilter)}`,
         }),
         style: catchmentStyle,
         zIndex: 13,
@@ -2108,7 +2109,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const villagesLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(villagesCqlFilter)}`,
+          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(villagesCqlFilter)}`,
         }),
         style: (feature) => {
           const villageCode = feature.get('village_co');
@@ -2584,7 +2585,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const imageWmsSource = new ImageWMS({
         url: wmsUrl,
         params: {
-          LAYERS: `dss_vector:${coloredLayerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${coloredLayerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",
@@ -2670,7 +2671,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const imageWmsSource = new ImageWMS({
         url: geoserverUrl,
         params: {
-          LAYERS: `dss_vector:${layerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${layerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",

@@ -1501,10 +1501,7 @@ class InterpolationService:
     """Service for raster interpolation and GeoServer publishing"""
     
     def __init__(self):
-        print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
-        print(f"[DEBUG] MEDIA_ROOT: {MEDIA_ROOT}")
-        print(f"[DEBUG] TEMP_DIR: {TEMP_DIR}")
-        print(f"[DEBUG] VILLAGES_PATH: {VILLAGES_PATH}")
+        self.temp_dir = Path(TEMP_DIR)
         
         if not VILLAGES_PATH.exists():
             print(f"[WARNING] Villages shapefile not found at: {VILLAGES_PATH}")
@@ -1609,7 +1606,7 @@ class InterpolationService:
                 plt.tight_layout()
                 
                 if output_path is None:
-                    output_path = TEMP_DIR / f"visualization_{parameter}_{uuid.uuid4().hex[:8]}.png"
+                    output_path = self.temp_dir / f"visualization_{parameter}_{uuid.uuid4().hex[:8]}.png"
                 
                 plt.savefig(output_path, dpi=150, bbox_inches='tight',
                            facecolor='white', edgecolor='none',
@@ -1921,12 +1918,15 @@ class InterpolationService:
 
     def create_workspace(self) -> bool:
         """Create GeoServer workspace if not exists."""
-        url = f"{GEOSERVER_URL}/workspaces"
+        rest_base = GEOSERVER_URL.rstrip("/")
+        if not rest_base.endswith("/rest"):
+            rest_base = f"{rest_base}/rest"
+        url = f"{rest_base}/workspaces"
         headers = {"Content-Type": "text/xml"}
         data = f"<workspace><name>{WORKSPACE}</name></workspace>"
         
         try:
-            check_url = f"{GEOSERVER_URL}/workspaces/{WORKSPACE}"
+            check_url = f"{rest_base}/workspaces/{WORKSPACE}"
             check_response = requests.get(
                 check_url,
                 auth=(GEOSERVER_USER, GEOSERVER_PASSWORD),
@@ -1949,6 +1949,7 @@ class InterpolationService:
                 print(f"[âœ“] Workspace '{WORKSPACE}' created or already exists.")
                 return True
             
+            print(f"[ERROR] Workspace create failed [{response.status_code}]: {response.text[:300]}")
             return False
         except Exception as e:
             print(f"[ERROR] Workspace creation error: {str(e)}")
@@ -1956,7 +1957,10 @@ class InterpolationService:
 
     def publish_geotiff(self, tiff_path: Path, store_name: str) -> bool:
         """Publish GeoTIFF to GeoServer."""
-        upload_url = f"{GEOSERVER_URL}/workspaces/{WORKSPACE}/coveragestores/{store_name}/file.geotiff"
+        rest_base = GEOSERVER_URL.rstrip("/")
+        if not rest_base.endswith("/rest"):
+            rest_base = f"{rest_base}/rest"
+        upload_url = f"{rest_base}/workspaces/{WORKSPACE}/coveragestores/{store_name}/file.geotiff"
         headers = {"Content-type": "image/tiff"}
         
         try:
@@ -1970,6 +1974,7 @@ class InterpolationService:
                 )
             
             if upload_response.status_code not in [200, 201, 202]:
+                print(f"[ERROR] GeoTIFF publish failed [{upload_response.status_code}]: {upload_response.text[:300]}")
                 return False
             
             return True
@@ -2200,7 +2205,7 @@ class InterpolationService:
         print(f"[DEBUG] Data range: min={z_min:.3f}, max={z_max:.3f}, mean={z_mean:.3f}")
         
         # Create initial raster
-        initial_tiff_path = TEMP_DIR / f"{store_name}_initial_utm.tif"
+        initial_tiff_path = self.temp_dir / f"{store_name}_initial_utm.tif"
         height, width = Z_proj.shape
         
         with rasterio.open(
@@ -2225,7 +2230,7 @@ class InterpolationService:
         if create_colored:
             colors, labels = self.get_arcmap_colors(parameter)
             colored_grid, classification_breaks = self.create_colored_raster(Z_proj, colors, num_classes=len(colors))
-            colored_tiff_path = TEMP_DIR / f"{store_name}_colored_utm.tif"
+            colored_tiff_path = self.temp_dir / f"{store_name}_colored_utm.tif"
             
             height_c, width_c, bands = colored_grid.shape
             
@@ -2245,7 +2250,7 @@ class InterpolationService:
                     dst.write(colored_grid[:, :, i], i + 1)
         
         # Mask to village boundaries
-        masked_tiff_path = TEMP_DIR / f"{store_name}_masked_utm.tif"
+        masked_tiff_path = self.temp_dir / f"{store_name}_masked_utm.tif"
         masked_colored_path = None
         
         with rasterio.open(initial_tiff_path) as src:
@@ -2281,7 +2286,7 @@ class InterpolationService:
                 dest.write(out_image)
         
         if create_colored and colored_tiff_path:
-            masked_colored_path = TEMP_DIR / f"{store_name}_colored_masked_utm.tif"
+            masked_colored_path = self.temp_dir / f"{store_name}_colored_masked_utm.tif"
             with rasterio.open(colored_tiff_path) as src_colored:
                 out_image_colored, out_transform_colored = mask(
                     dataset=src_colored,
@@ -2306,7 +2311,7 @@ class InterpolationService:
                     dest_colored.write(out_image_colored)
         
         # Final UTM reprojection
-        final_tiff_path = TEMP_DIR / f"{store_name}_final_utm.tif"
+        final_tiff_path = self.temp_dir / f"{store_name}_final_utm.tif"
         final_colored_path = None
         
         with rasterio.open(masked_tiff_path) as src:
@@ -2331,7 +2336,7 @@ class InterpolationService:
                 )
         
         if create_colored and masked_colored_path:
-            final_colored_path = TEMP_DIR / f"{store_name}_colored_final_utm.tif"
+            final_colored_path = self.temp_dir / f"{store_name}_colored_final_utm.tif"
             with rasterio.open(masked_colored_path) as src_colored:
                 dst_crs = 'EPSG:32644'
                 transform_c, width_c, height_c = calculate_default_transform(
@@ -2369,7 +2374,7 @@ class InterpolationService:
         png_path = None
         png_base64 = None
         if final_tiff_path.exists():
-            png_output_path = TEMP_DIR / f"{store_name}_visualization.png"
+            png_output_path = self.temp_dir / f"{store_name}_visualization.png"
             viz_colors = colors if create_colored else None
             viz_breaks = classification_breaks if create_colored else None
             
@@ -2418,7 +2423,7 @@ class InterpolationService:
                 'std_deviation': float(z_std),
                 'nan_percentage': float(nan_percentage)
             },
-            'geoserver_url': f"/geoserver/api/{WORKSPACE}/wms",
+            'geoserver_url': f"/geoserver/{WORKSPACE}/wms",
             'published_layers': published_layers
         }
         
@@ -2504,7 +2509,7 @@ class InterpolationService:
             if search_mode == 'fixed' and (radius is None or radius <= 0):
                 raise ValueError("Fixed search mode requires a positive radius value")
 
-        csv_path = TEMP_DIR / csv_file
+        csv_path = self.temp_dir / csv_file
         if not csv_path.exists():
             raise ValueError(f"CSV file not found: {csv_path}")
 
@@ -2644,7 +2649,6 @@ class PDFMapService:
         unique_id = str(uuid.uuid4())[:8]
         filename = f"gwa_map_{timestamp}_{unique_id}.png"
         path = os.path.join(TEMP_DIR, filename)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
 
         plt.savefig(path, dpi=300, bbox_inches="tight")
         plt.close()
@@ -2940,7 +2944,6 @@ class RechargeService:
     def __init__(self, media_root: str = "media"):
         self.media_root = media_root
         self.temp_dir = Settings().TEMP_DIR
-        os.makedirs(self.temp_dir, exist_ok=True)
 
     def _fallback_to_csv_recharge(
         self,
@@ -3463,7 +3466,7 @@ class TrendService:
         self.centroid_shp_path = os.path.join(self.gwa_data_dir, "Centroid", "Centroid1.shp")
         self.VILLAGE_CODE_COL = "village_co"
 
-        os.makedirs(self.temp_media_dir, exist_ok=True)
+        
 
     def _make_json_safe(self, value: Any) -> Any:
         if isinstance(value, dict):
@@ -4180,6 +4183,127 @@ class TrendService:
 # ===== END trend_service.py =====
 
 
+# ===== BEGIN villages_catchment_service.py =====
+
+
+class VillagesCatchmentService:
+    def __init__(self):
+        self.media_root = MEDIA_ROOT
+        self.catchment_path = os.path.join(
+            self.media_root,
+            "gwa_data",
+            "gwa_shp",
+            "Catchments",
+            "Catchment.shp",
+        )
+        self.village_path = os.path.join(
+            self.media_root,
+            "gwa_data",
+            "gwa_shp",
+            "Final_Village",
+            "Village.shp",
+        )
+
+    def villages_by_catchment(self, drain_no: Any) -> Dict[str, Any]:
+        if drain_no is None:
+            raise ValueError("Drain_No is required")
+
+        if not os.path.exists(self.catchment_path):
+            raise FileNotFoundError(f"Catchment.shp not found at: {self.catchment_path}")
+        if not os.path.exists(self.village_path):
+            raise FileNotFoundError(f"Village.shp not found at: {self.village_path}")
+
+        try:
+            catchment_gdf = gpd.read_file(self.catchment_path).to_crs("EPSG:4326")
+            village_gdf = gpd.read_file(self.village_path).to_crs("EPSG:4326")
+        except Exception as exc:
+            raise RuntimeError(f"Failed to read shapefiles: {str(exc)}") from exc
+
+        if "Drain_No" not in catchment_gdf.columns:
+            raise ValueError(
+                f"Column 'Drain_No' not found in catchment shapefile. "
+                f"Available columns: {list(catchment_gdf.columns)}"
+            )
+
+        selected_catchment = catchment_gdf[catchment_gdf["Drain_No"].astype(str) == str(drain_no)]
+        if selected_catchment.empty:
+            raise FileNotFoundError(f"Catchment with Drain_No {drain_no} not found")
+
+        try:
+            villages_intersecting = gpd.sjoin(
+                village_gdf,
+                selected_catchment,
+                predicate="intersects",
+                how="inner",
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Failed to compute villages intersecting with catchment: {str(exc)}") from exc
+
+        village_key = "village_co" if "village_co" in villages_intersecting.columns else None
+        if village_key:
+            villages_intersecting = villages_intersecting.drop_duplicates(subset=[village_key])
+        else:
+            villages_intersecting = villages_intersecting.drop_duplicates()
+
+        catchment_geom = unary_union(selected_catchment.geometry)
+        results = []
+
+        for _, row in villages_intersecting.iterrows():
+            village_code = row.get("village_co", "Unknown")
+            village_name = row.get("shapeName", f"Village_{village_code}")
+
+            overlap_percentage = None
+            try:
+                village_geom = row.geometry
+                intersection_area = village_geom.intersection(catchment_geom).area
+                village_total_area = village_geom.area
+                if village_total_area > 0:
+                    overlap_percentage = round((intersection_area / village_total_area) * 100, 2)
+            except Exception:
+                overlap_percentage = None
+
+            item = {
+                "village_code": village_code,
+                "name": village_name,
+            }
+            if overlap_percentage is not None:
+                item["overlap_percentage"] = overlap_percentage
+            results.append(item)
+
+        return {
+            "drain_no": drain_no,
+            "total_villages": len(results),
+            "villages": results,
+            "note": "Includes all villages that have any intersection with the catchment boundary",
+        }
+
+    def available_drain_numbers(self) -> Dict[str, Any]:
+        if not os.path.exists(self.catchment_path):
+            raise FileNotFoundError(f"Catchment.shp not found at: {self.catchment_path}")
+
+        try:
+            catchment_gdf = gpd.read_file(self.catchment_path)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to check available drain numbers: {str(exc)}") from exc
+
+        if "Drain_No" in catchment_gdf.columns:
+            drain_numbers = sorted(catchment_gdf["Drain_No"].dropna().unique().tolist())
+            return {
+                "message": "API is working",
+                "available_drain_numbers": drain_numbers,
+                "total_catchments": len(drain_numbers),
+            }
+
+        return {
+            "message": "API is working",
+            "error": "Drain_No column not found",
+            "available_columns": list(catchment_gdf.columns),
+        }
+
+
+# ===== END villages_catchment_service.py =====
+
+
 # ===== BEGIN upload_service.py =====
 
 
@@ -4202,9 +4326,9 @@ class CSVUploadService:
 
         try:
             settings = Settings()
-            base_dir = getattr(settings, "BASE_DIR", os.getcwd())
-            media_dir = os.path.join(base_dir, "media")
-            
+            temp_dir = settings.TEMP_DIR
+            print(temp_dir)
+           
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_id = str(uuid.uuid4())[:8]
@@ -4229,7 +4353,7 @@ class CSVUploadService:
                     "file_path": file_path,
                     "file_size": f"{file_size} bytes",
                     "uploaded_at": datetime.now().isoformat(),
-                    "temp_directory": temp_dir,
+                    "temp_directory": str(temp_dir),
                 },
             }
         except HTTPException:

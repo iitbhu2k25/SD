@@ -76,7 +76,7 @@ GEOSERVER_URL = "http://geoserver:8080/geoserver"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "dss_vector"
-wms_base_url = "/geoserver/api"  # Frontend fetches rasters from geoserver
+wms_base_url = "/geoserver"  # Frontend fetches rasters from geoserver
 
 # Add this at the top of your file
 BACKEND_PARAMETER_DISPLAY_NAMES = {

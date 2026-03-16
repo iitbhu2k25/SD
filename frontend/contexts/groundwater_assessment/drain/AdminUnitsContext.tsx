@@ -48,7 +48,7 @@ const AdminUnitsContext = createContext<AdminUnitsContextType>({
 
 export const AdminUnitsProvider: React.FC<AdminUnitsProviderProps> = ({
   children,
-  apiBaseUrl = "http://localhost:8050",
+  apiBaseUrl = `${process.env.NEXT_PUBLIC_FAST_URL}`,
 }) => {
   const [stateCode, setStateCode] = useState<number | null>(null);
   const [districtCodes, setDistrictCodes] = useState<number[]>([]);

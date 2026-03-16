@@ -52,7 +52,7 @@ export const LocationProvider: React.FC<React.PropsWithChildren> = ({ children }
     selectedSubbasinsRef.current = selectedSubbasins;
   }, [selectedSubbasins]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? `${process.env.NEXT_PUBLIC_FAST_URL}`;
 
   const fetchOnce = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);

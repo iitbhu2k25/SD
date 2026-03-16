@@ -179,10 +179,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/dss_vector/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=dss_vector:India" +
-            "&outputFormat=application/json",
+            "&typeName=myworkspace:India" +
+            "&outputFormat=application/json`,
         }),
         style: boundaryLayerStyle,
         zIndex: 1,
@@ -192,10 +192,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/dss_vector/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=dss_vector:varuna_subbasin_data" +
-            "&outputFormat=application/json",
+            "&typeName=myworkspace:varuna_subbasin_data" +
+            "&outputFormat=application/json`,
         }),
         style: varunaBaseStyleNoLabel,
         declutter: true,
@@ -206,10 +206,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/dss_vector/wfs" +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=dss_vector:Streams_clipped" +
-            "&outputFormat=application/json",
+            "&typeName=myworkspace:Streams_clipped" +
+            "&outputFormat=application/json`,
         }),
         style: streamsBaseStyle,
         zIndex: 2.5,
@@ -525,9 +525,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/dss_vector/wfs` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=dss_vector:varuna_subbasin_data` +
+      `&typeName=myworkspace:varuna_subbasin_data` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 
@@ -594,9 +594,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/dss_vector/wfs` +
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=dss_vector:Streams_clipped` +
+      `&typeName=myworkspace:Streams_clipped` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 

@@ -266,7 +266,7 @@ export const GroundwaterForecastProvider = ({
       console.log(`    Timeseries CSV: ${payload.timeseries_yearly_csv_filename}`);
       console.log(' Full Payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch('http://localhost:8050/gwa/forecast', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/forecast`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

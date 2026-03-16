@@ -167,12 +167,12 @@ function MapLayers({
 
   // Helper function to create WFS URL
   const createWFSUrl = (layerName: string, cqlFilter?: string) => {
-    const baseUrl = '/geoserver/api/dss_vector/wfs';
+    const baseUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs`;
     const params = new URLSearchParams({
       service: 'WFS',
       version: '1.0.0',
       request: 'GetFeature',
-      typeName: `dss_vector:${layerName}`,
+      typeName: `myworkspace:${layerName}`,
       outputFormat: 'application/json',
       srsName: 'EPSG:4326'
     });
@@ -395,7 +395,7 @@ function MapLayers({
 
         // GeoServer WFS endpoint for India layer (GeoJSON output)
         const WFS_URL =
-          '/geoserver/api/dss_vector/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=dss_vector:B_State&outputFormat=application/json';
+          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`;
 
         const response = await fetch(WFS_URL, {
           method: 'GET',
@@ -771,7 +771,7 @@ useEffect(() => {
         service: "WFS",
         version: "1.0.0",
         request: "GetFeature",
-        typeName: "dss_vector:Village", // <-- change this to your actual workspace/layer namemyworkspace
+        typeName: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:Village`, // <-- change this to your actual workspace/layer namemyworkspace
         outputFormat: "application/json",
         cql_filter: cqlFilter,
       });

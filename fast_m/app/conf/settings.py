@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     POSTGRES_USER:str
     POSTGRES_PASSWORD:str
     POSTGRES_PORT:int
-    BASE_DIR : str="/home/app"
+    BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     TEMP_DIR:str = os.path.dirname(BASE_DIR)+'/temp'
 
     DATABSE_URL:AnyHttpUrl = Field(get_db_url(

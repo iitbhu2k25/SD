@@ -347,8 +347,8 @@ const IndCatchmentMap: React.FC<IndCatchmentMapProps> = ({
     // Fetched once at map init and never removed by clearAllLayers so it
     // always stays visible regardless of watershed / village operations.
     const WFS_URL =
-      '/geoserver/api/dss_vector/wfs?service=WFS&version=2.0.0' +
-      '&request=GetFeature&typeName=dss_vector:B_State&outputFormat=application/json'
+      `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=2.0.0' +
+      '&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`
 
     fetch(WFS_URL)
       .then((res) => {

@@ -829,13 +829,14 @@ class BasicService:
         if not upload_file.filename or not upload_file.filename.lower().endswith(".pdf"):
             raise ValueError("Only PDF files are allowed")
 
-        media_root = self._media_root()
-
+        settings = Settings()
+        temp_dir = getattr(settings, "TEMP_DIR", self.temp_dir)
+        os.makedirs(temp_dir, exist_ok=True)
 
         name, ext = os.path.splitext(upload_file.filename)
         unique_id = uuid.uuid4().hex
         unique_filename = f"{name}_{unique_id}{ext}"
-        temp_file_path = os.path.join(self.temp_dir, unique_filename)
+        temp_file_path = os.path.join(temp_dir, unique_filename)
 
         with open(temp_file_path, "wb") as f:
             f.write(upload_file.file.read())
@@ -919,12 +920,12 @@ class BasicService:
             "service": "WFS",
             "version": "1.0.0",
             "request": "GetFeature",
-            "typeName": "dss_vector:village_boundary_SOI",
+            "typeName": "myworkspace:village_boundary_SOI",
             "outputFormat": "application/json",
             "CQL_FILTER": f"{bbox_filter} AND {spatial_filter}",
         }
 
-        response = requests.post("http://geoserver:8080/geoserver/dss_vector/ows", data=payload, timeout=60)
+        response = requests.post("http://geoserver:8080/geoserver/myworkspace/ows", data=payload, timeout=60)
         if response.status_code != 200:
             raise RuntimeError("GeoServer request failed")
 

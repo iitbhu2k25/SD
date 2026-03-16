@@ -36,7 +36,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const [lastFetchedSubdistricts, setLastFetchedSubdistricts] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ??  `${process.env.NEXT_PUBLIC_FAST_URL}`;
 
   const fetchFDCBulk = useCallback(
     async (subdistrictIds: number[]) => {
@@ -193,7 +193,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const fetchFdcPng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`${apiBase}/django/swa/adminfdcimage`, {
+        const res = await fetch(`${apiBase}/swa/adminfdcimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),

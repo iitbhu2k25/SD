@@ -26,7 +26,7 @@ export const ShapefileProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const fetchShapefiles = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/django/datahub/shapefiles');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/datahub/shapefiles`);
       if (!response.ok) throw new Error('Failed to fetch shapefiles');
       const data = await response.json();
       setShapefiles(data);

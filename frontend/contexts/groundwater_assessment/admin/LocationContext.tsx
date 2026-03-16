@@ -105,8 +105,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        console.log("Fetching states from /django/state");
-        const response = await fetch("/django/state", {
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/state`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -152,7 +152,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setError(null);
       try {
         console.log("Fetching districts for state:", selectedState);
-        const response = await fetch("/django/district/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/district/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -201,7 +201,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setError(null);
       try {
         console.log("Fetching sub-districts for districts:", selectedDistricts);
-        const response = await fetch("/django/subdistrict/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/subdistrict/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

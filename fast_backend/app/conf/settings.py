@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL:str
     CELERY_RESULT_BACKEND:str
     #media path
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    BASE_DIR:str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     TEMP_DIR:str = os.path.dirname(BASE_DIR)+'/temp'
     subdistrict_path:str
     villages_path :str

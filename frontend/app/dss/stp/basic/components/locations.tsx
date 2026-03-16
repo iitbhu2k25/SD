@@ -188,7 +188,7 @@ useEffect(() => {
     if (selectedState) {
       const fetchDistricts = async (): Promise<void> => {
         try {
-          const response = await fetch('http://localhost:8050/basic/district/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/district/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -242,7 +242,7 @@ useEffect(() => {
     if (selectedDistricts.length > 0) {
       const fetchSubDistricts = async (): Promise<void> => {
         try {
-          const response = await fetch('http://localhost:8050/basic/subdistrict/',
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/subdistrict/`,
             {
               method: 'POST',
               headers: {
@@ -302,7 +302,7 @@ useEffect(() => {
     if (selectedSubDistricts.length > 0) {
       const fetchVillages = async (): Promise<void> => {
         try {
-          const response = await fetch('http://localhost:8050/basic/village/',
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/village/`,
             {
               method: 'POST',
               headers: {

@@ -123,7 +123,7 @@ if (wellCount < 3) {
 
       console.log('Sending interpolation API request:', payload);
 
-      const response = await fetch('http://localhost:8050/gwa/interpolation', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/interpolation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
