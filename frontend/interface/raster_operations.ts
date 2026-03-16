@@ -1,4 +1,3 @@
-
 export interface RasterLayer {
   file_id: string;
   file_name: string;
@@ -11,24 +10,20 @@ export interface ColorStop {
   value: number;
   color: string;
   label?: string;
-
 }
 
 export interface SLDConfig {
   layerName: string;
   colorStops: ColorStop[];
-  interpolation: 'linear' | 'discrete';
+  interpolation: "linear" | "discrete";
   opacity: number;
 }
-
 
 export interface UploadResponse {
   success: boolean;
   file_id: string;
   message: RasterLayer[];
 }
-
-
 
 export interface BandInfo {
   band_number: number;
@@ -40,14 +35,78 @@ export interface BandInfo {
   std: number;
 }
 
-export interface RasterDetails {
+// ─── Raw API response shape ───────────────────────────────────────────────────
+
+export interface RasterInfoRaw {
+  file_name: string;
+  file_id: string;
+  layer_name: string;
+  raster_type: string;
+  modified_at: string;        // ISO datetime string
+  id: number;
+  parent_id: number | null;
+}
+
+export interface LegendEntry {
+  label: string;
+  color: string;   // hex
+  opacity: number; // 0-1
+}
+
+export interface RasterMetaRaw {
   file_size: { value: number; unit: string };
   driver: string;
   width: number;
   height: number;
   band_count: number;
-  dtypes: string[];
-  nodata: number | null;
+  dtypes: string;             // API returns a plain string, not an array
+  nodata: string;
+  crs: string;
+  crs_unit: string;
+  bounds: {
+    west: number; south: number; east: number; north: number; unit: string;
+  };
+  bounds_wgs84: {
+    west: number; south: number; east: number; north: number; unit: string;
+  };
+  resolution: {
+    x: { value: number; unit: string };
+    y: { value: number; unit: string };
+  };
+  compression: string | null;
+  is_tiled: boolean;
+  block_shapes: number[][];
+  is_cog_like: boolean;
+  bands: BandInfo[];
+  tags: Record<string, string>;
+}
+
+/** Top-level shape returned by the details endpoint */
+export interface RasterDetailsApiResponse {
+  raster_info: RasterInfoRaw;
+  raster_meta: RasterMetaRaw;
+}
+
+// ─── Normalised shape used internally ────────────────────────────────────────
+
+export interface RasterDetails {
+  // from raster_info
+  file_name: string;
+  file_id: string;
+  layer_name: string;
+  raster_type: string;
+  modified_at: string;
+  id: number;
+  parent_id: number | null;
+
+  // from raster_meta (dtypes normalised to string[])
+  file_size: { value: number; unit: string };
+  driver: string;
+  width: number;
+  height: number;
+  band_count: number;
+  dtypes: string[];          
+  nodata: string;
   crs: string;
   crs_unit: string;
   bounds: {
@@ -69,8 +128,46 @@ export interface RasterDetails {
 }
 
 export interface UploadComplete extends RasterDetails {
-  file_id: string;
-  layer_name: string;
+  /* RasterDetails already carries file_id and layer_name */
+}
+
+// ─── Helper: normalise raw API response → RasterDetails ──────────────────────
+
+export function normaliseRasterDetails(
+  raw: RasterDetailsApiResponse
+): RasterDetails {
+  const { raster_info: info, raster_meta: meta } = raw;
+  return {
+    // info fields
+    file_name: info.file_name,
+    file_id: info.file_id,
+    layer_name: info.layer_name,
+    raster_type: info.raster_type,
+    modified_at: info.modified_at,
+    id: info.id,
+    parent_id: info.parent_id,
+
+    // meta fields
+    file_size: meta.file_size,
+    driver: meta.driver,
+    width: meta.width,
+    height: meta.height,
+    band_count: meta.band_count,
+    // normalise: API may send "float32" or ["float32"]
+    dtypes: Array.isArray(meta.dtypes) ? meta.dtypes : [meta.dtypes],
+    nodata: meta.nodata,
+    crs: meta.crs,
+    crs_unit: meta.crs_unit,
+    bounds: meta.bounds,
+    bounds_wgs84: meta.bounds_wgs84,
+    resolution: meta.resolution,
+    compression: meta.compression,
+    is_tiled: meta.is_tiled,
+    block_shapes: meta.block_shapes,
+    is_cog_like: meta.is_cog_like,
+    bands: meta.bands,
+    tags: meta.tags,
+  };
 }
 
 // ─── Raster Operations ────────────────────────────────────────────────────────
@@ -93,7 +190,7 @@ export interface OperationResult {
 }
 
 export interface Operation {
-  id: string;           // local uuid
+  id: string;
   type: OperationType;
   status: OperationStatus;
   params: Record<string, unknown>;
@@ -114,7 +211,7 @@ export interface BaseMapConfig {
 export interface WMSLayerState {
   fileId: string;
   fileName: string;
-  layerName: string;  // full: "workspace:name"
+  layerName: string;
   opacity: number;
   visible: boolean;
   legendUrl: string | null;
@@ -124,5 +221,3 @@ export interface WMSLayerState {
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
 export type RasterPanelTab = "layers" | "basemap" | "details" | "operations";
-
-

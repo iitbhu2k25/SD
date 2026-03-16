@@ -12,7 +12,7 @@ from shapely.geometry import mapping,shape
 from rasterio.plot import show
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from xml.dom import minidom
 from xml.etree import ElementTree as ET
 from app.utils.network_conf import GeoConfig

@@ -1,3 +1,5 @@
+from fastapi.responses import HTMLResponse
+
 from app.api.schema.auth_schema import signup_input,login_input,UserOut
 from app.database.crud.user_crud import UserCrud
 from sqlalchemy.orm import Session
@@ -14,8 +16,6 @@ from jwt.exceptions import ExpiredSignatureError
 from app.api.service.authentication_svc.email_otp import EmailService
 from abc import ABC, abstractmethod
 from typing import Tuple
-
-redis_client=Settings().redis_client
 
 
 class AuthServiceInterface(ABC):
@@ -69,13 +69,13 @@ class AuthService(AuthServiceInterface):
             raise PasswordFail()
         else:
             return {"fullname":obj.fullname,"email":obj.email,"user_id":obj.id,"is_verified":obj.is_verified}
-    def _generate_token(self,user:UserOut)->Tuple[str, str]:
+    async def _generate_token(self,user:UserOut)->Tuple[str, str]:
         access_token=TokenManager.generate_access_token(user,timedelta(minutes=Settings().ACCESS_TOKEN_EXPIRE_MINUTES))
-        refresh_token=TokenManager.generate_refresh_token(user["user_id"]) 
+        refresh_token=await TokenManager.generate_refresh_token(user["user_id"]) 
         return access_token,refresh_token
     
-    def _generate_token_response(self,user:UserOut,response:Response):
-        access_token,refresh_token=self._generate_token(user=user)
+    async def _generate_token_response(self,user:UserOut,response:Response):
+        access_token,refresh_token=await self._generate_token(user=user)
         if user["is_verified"]:
             response.set_cookie(key="verified_token",value=Settings().VERIFY_KEY,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
         response.set_cookie(key="refresh_token",value=refresh_token,max_age=Settings().REFRESH_TOKEN_EXPIRE_DAYS*86400,httponly=True)
@@ -116,10 +116,10 @@ class AuthService(AuthServiceInterface):
             else:
                 raise InternalServerError()
     
-    def login(self,db:Session,payload:login_input,response:Response)->UserOut:
+    async def login(self,db:Session,payload:login_input,response:Response)->UserOut:
         try:
             objects= self._authenticate_user(db,payload) 
-            access_token= self._generate_token_response(user=objects,response=response)
+            access_token= await self._generate_token_response(user=objects,response=response)
             return{
                 "access_token":access_token,
                 "token_type":"Bearer",
@@ -147,11 +147,10 @@ class AuthService(AuthServiceInterface):
                 print(f"Token validation error: {e}")
             if payload and payload.get("user_id"):
                 user = UserCrud(db).get_user(id=payload.get("user_id"))
-                redis_client.delete(f"refresh:dss_{user.id}")
-            
-            # Delete cookies anyway
+           
             response.delete_cookie(key="refresh_token")
             response.delete_cookie(key="access_token")
+            response.delete_cookie(key="verified_token")
             return True
         except Exception as e:
             print(e)
@@ -177,6 +176,22 @@ class AuthService(AuthServiceInterface):
             return False
         except Exception as e:
             raise InternalServerError(CustomExceptionDetail=str(e))
+    
+    def verify_otp(self,db:Session,user:UserOut,otp:str)->UserOut:
+        try:
+            if self.email.verify_otp(otp):
+                new_data={
+                    "is_verified":True,
+                    "id":user.id
+                }
+                return UserCrud(db).update(new_data)
+            else:
+                raise InvalidOtp
+        except InvalidOtp:
+            raise InvalidOtp
+        except Exception as e:
+            raise InternalServerError(CustomExceptionDetail=str(e))
+        
     def verify_by_admin(self,db:Session,bg:BackgroundTasks,email:str,status:str):
         if status=="approved":
             new_data={
@@ -192,29 +207,91 @@ class AuthService(AuthServiceInterface):
                 }
         self.email.approval_status(background=bg,email=email,status=status)
         UserCrud(db).update_email(new_data)
-        return f"""
-            <html>
-                <head>
-                    <title>{status}</title>
-                </head>
-                <body style="font-family: Arial; text-align: center; margin-top: 80px;">
-                    <h2>✅ User Approved</h2>
-                    <p>User with email <strong>{email}</strong> has been {status}.</p>
-                </body>
-            </html>
-            """
-       
-    def verify_otp(self,db:Session,user:UserOut,otp:str)->UserOut:
-        try:
-            if self.email.verify_otp(otp):
-                new_data={
-                    "is_verified":True,
-                    "id":user.id
-                }
-                return UserCrud(db).update(new_data)
-            else:
-                raise InvalidOtp
-        except InvalidOtp:
-            raise InvalidOtp
-        except Exception as e:
-            raise InternalServerError(CustomExceptionDetail=str(e))
+        if status=="approved":
+            icon_bg      = "#d1fae5"
+            title_color  = "#15803d"
+            badge_color  = "#16a34a"
+            title_text   = "Account Approved"
+            desc_text    = f"<strong>{email}</strong> has been approved and can now log in."
+            badge_label  = "Approval email sent to user"
+            svg_icon     = """<path class="ap" d="M13 25 L22 34 L37 16"
+                            stroke="#15803d" stroke-width="4"
+                            stroke-linecap="round" stroke-linejoin="round" fill="none"/>"""
+        else:
+            icon_bg      = "#fee2e2"
+            title_color  = "#b91c1c"
+            badge_color  = "#dc2626"
+            title_text   = "Account Rejected"
+            desc_text    = f"<strong>{email}</strong>'s request was rejected. They have been notified."
+            badge_label  = "Rejection email sent to user"
+            svg_icon     = """<path class="ap" d="M15 15 L35 35"
+                            stroke="#b91c1c" stroke-width="4" stroke-linecap="round" fill="none"/>
+                            <path class="ap" d="M35 15 L15 35"
+                            stroke="#b91c1c" stroke-width="4" stroke-linecap="round" fill="none"/>"""
+    
+        html = f"""<!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width,initial-scale=1"/>
+        <title>{title_text}</title>
+        <style>
+            *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+            body{{
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            background:#f0f0ed;min-height:100vh;
+            display:flex;align-items:center;justify-content:center;padding:24px;
+            }}
+            .card{{
+            background:#fff;border:1px solid #e3e1da;border-radius:18px;
+            padding:48px 44px;width:100%;max-width:440px;text-align:center;
+            box-shadow:0 4px 24px rgba(0,0,0,0.07);
+            }}
+            .icon-wrap{{
+            width:96px;height:96px;border-radius:50%;background:{icon_bg};
+            margin:0 auto 24px;display:flex;align-items:center;justify-content:center;
+            animation:pop .55s cubic-bezier(.34,1.56,.64,1);
+            }}
+            @keyframes pop{{from{{transform:scale(0);opacity:0}}to{{transform:scale(1);opacity:1}}}}
+            .ap{{stroke-dasharray:80;stroke-dashoffset:80;animation:draw .55s ease .3s forwards}}
+            @keyframes draw{{to{{stroke-dashoffset:0}}}}
+            .title{{font-size:24px;font-weight:700;color:{title_color};margin-bottom:10px;animation:up .4s ease .2s both}}
+            .desc{{font-size:14px;color:#777;line-height:1.7;margin-bottom:24px;animation:up .4s ease .3s both}}
+            .chip{{
+            display:inline-flex;align-items:center;gap:10px;
+            background:#f5f4f1;border:1px solid #e3e1da;border-radius:40px;
+            padding:8px 16px 8px 8px;margin-bottom:20px;animation:up .4s ease .4s both;
+            }}
+            .av{{
+            width:32px;height:32px;border-radius:50%;background:{icon_bg};
+            color:{title_color};font-size:13px;font-weight:700;
+            display:flex;align-items:center;justify-content:center;
+            }}
+            .em{{font-size:13px;color:#555}}
+            .badge{{
+            display:inline-flex;align-items:center;gap:8px;
+            background:#f5f4f1;border:1px solid #e3e1da;border-radius:30px;
+            padding:8px 18px;font-size:12px;color:#777;animation:up .4s ease .5s both;
+            }}
+            .dot{{width:7px;height:7px;border-radius:50%;background:{badge_color};flex-shrink:0}}
+            @keyframes up{{from{{opacity:0;transform:translateY(8px)}}to{{opacity:1;transform:translateY(0)}}}}
+        </style>
+        </head>
+        <body>
+        <div class="card">
+        <div class="icon-wrap">
+            <svg width="50" height="50" viewBox="0 0 50 50">{svg_icon}</svg>
+        </div>
+        <div class="title">{title_text}</div>
+        <p class="desc">{desc_text}</p>
+        <div class="chip">
+            <div class="av">{email[0].upper()}</div>
+            <span class="em">{email}</span>
+        </div><br/>
+        <div class="badge"><span class="dot"></span>{badge_label}</div>
+        </div>
+        </body>
+        </html>"""
+        
+        return HTMLResponse(content=html)
+        

@@ -18,7 +18,7 @@ import math
 import numpy as np
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
-from app.api.service.geoserver import Geoserver
+from app.api.service.geoserver_svc.geoserver import Geoserver
 from pathlib import Path
 from app.utils.name import Unique_name
 
@@ -638,7 +638,7 @@ class Raster_visual:
     @staticmethod
     def raster_pdf(db,payload:RasterVisual):
         output_pdf = Path(Settings().TEMP_DIR,Unique_name.unique_name_with_ext("raster","pdf"))
-        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"dss_raster")
+        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
         generator = GISMapGenerator(resp["raster_path"], 
                                     resp["sld_path"], 
                                     str(output_pdf),
