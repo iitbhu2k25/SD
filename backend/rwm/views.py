@@ -75,7 +75,7 @@ auth = base64.b64encode(b"admin:geoserver").decode("utf-8")
 GEOSERVER_URL = "http://geoserver:8080/geoserver"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
-WORKSPACE = "myworkspace"
+WORKSPACE = "dss_vector"
 wms_base_url = "/geoserver/api"  # Frontend fetches rasters from geoserver
 
 # Add this at the top of your file
@@ -2392,7 +2392,7 @@ def create_multi_resolution_idw(
             },
         ]
 
-        workspace = "myworkspace"
+        workspace = "dss_vector"
         safe_attribute = (
             decoded_attribute.replace("(", "")
             .replace(")", "")
@@ -6876,7 +6876,7 @@ def upload_river_shapefile_recovered_duplicate(request):
 
         publisher = GeoServerPublisher(
             geoserver_url=GEOSERVER_URL,  # Use the global: http://geoserver:8080/geoserver
-            workspace=WORKSPACE,  # Use same workspace as raster upload (myworkspace)
+            workspace=WORKSPACE,  # Use same workspace as raster upload (dss_vector)
         )
 
         publish_result = publisher.publish(zip_for_geoserver, layer_name)
@@ -7307,7 +7307,7 @@ def general_interpolate_wqi_recovered_duplicate(request):
         points_gdf["wqi_score"] = points_gdf["wqi_score"].astype(float)
 
         # Step 2: Fetch buffer polygon from GeoServer WFS
-        # Both buffer and raster use same workspace (myworkspace)
+        # Both buffer and raster use same workspace (dss_vector)
         wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
         params = {
             "service": "WFS",
@@ -7471,7 +7471,7 @@ def general_interpolate_wqi_recovered_duplicate(request):
 
         tiff_path = clipped_tiff_path
 
-        # Step 8: Upload to GeoServer (to myworkspace)
+        # Step 8: Upload to GeoServer (to dss_vector)
         upload_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{raster_layer_name}/file.geotiff?configure=all"
         with open(tiff_path, "rb") as f:
             headers = {"Content-Type": "image/tiff"}

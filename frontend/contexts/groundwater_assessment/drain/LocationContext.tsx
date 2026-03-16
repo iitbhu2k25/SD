@@ -196,9 +196,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       let url: string;
 
       if (cqlFilter) {
-        url = `${geoServerBaseUrl}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+        url = `${geoServerBaseUrl}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
       } else {
-        url = `${geoServerBaseUrl}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json`;
+        url = `${geoServerBaseUrl}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:${layerName}&outputFormat=application/json`;
       }
 
       console.log(`Fetching from GeoServer: ${url}`);

@@ -305,9 +305,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            '/geoserver/api/myworkspace/wfs' +
+            '/geoserver/api/dss_vector/wfs' +
             '?service=WFS&version=1.0.0&request=GetFeature' +
-            '&typeName=myworkspace:B_State&outputFormat=application/json',
+            '&typeName=dss_vector:B_State&outputFormat=application/json',
         }),
         style: boundaryLayerStyle,
         zIndex: 1,
@@ -558,9 +558,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `STATE_CODE='${selectedState}'`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `/geoserver/api/dss_vector/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=myworkspace:B_district` +
+      `&typeName=dss_vector:B_district` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 
@@ -605,9 +605,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const districtCodes = selectedDistricts.map((d) => `'${d}'`).join(',');
     const cql = `DISTRICT_C IN (${districtCodes})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `/geoserver/api/dss_vector/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=myworkspace:B_subdistrict` +
+      `&typeName=dss_vector:B_subdistrict` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 
@@ -651,9 +651,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const subCodes = selectedSubDistricts.map((s) => `'${s}'`).join(',');
     const cql = `SUBDIS_COD IN (${subCodes})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `/geoserver/api/dss_vector/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=myworkspace:Village` +
+      `&typeName=dss_vector:Village` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 

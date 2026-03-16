@@ -179,9 +179,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            "/geoserver/api/dss_vector/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=myworkspace:India" +
+            "&typeName=dss_vector:India" +
             "&outputFormat=application/json",
         }),
         style: boundaryLayerStyle,
@@ -192,9 +192,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            "/geoserver/api/dss_vector/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=myworkspace:varuna_subbasin_data" +
+            "&typeName=dss_vector:varuna_subbasin_data" +
             "&outputFormat=application/json",
         }),
         style: varunaBaseStyleNoLabel,
@@ -206,9 +206,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         source: new VectorSource({
           format: new GeoJSON(),
           url:
-            "/geoserver/api/myworkspace/wfs" +
+            "/geoserver/api/dss_vector/wfs" +
             "?service=WFS&version=1.0.0&request=GetFeature" +
-            "&typeName=myworkspace:Streams_clipped" +
+            "&typeName=dss_vector:Streams_clipped" +
             "&outputFormat=application/json",
         }),
         style: streamsBaseStyle,
@@ -525,9 +525,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `/geoserver/api/dss_vector/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=myworkspace:varuna_subbasin_data` +
+      `&typeName=dss_vector:varuna_subbasin_data` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 
@@ -594,9 +594,9 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const cql = `${attr} IN (${list})`;
     const wfsUrl =
-      `/geoserver/api/myworkspace/wfs` +
+      `/geoserver/api/dss_vector/wfs` +
       `?service=WFS&version=1.0.0&request=GetFeature` +
-      `&typeName=myworkspace:Streams_clipped` +
+      `&typeName=dss_vector:Streams_clipped` +
       `&outputFormat=application/json` +
       `&CQL_FILTER=${encodeURIComponent(cql)}`;
 

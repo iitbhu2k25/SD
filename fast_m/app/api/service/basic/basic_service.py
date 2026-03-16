@@ -919,12 +919,12 @@ class BasicService:
             "service": "WFS",
             "version": "1.0.0",
             "request": "GetFeature",
-            "typeName": "myworkspace:village_boundary_SOI",
+            "typeName": "dss_vector:village_boundary_SOI",
             "outputFormat": "application/json",
             "CQL_FILTER": f"{bbox_filter} AND {spatial_filter}",
         }
 
-        response = requests.post("http://geoserver:8080/geoserver/myworkspace/ows", data=payload, timeout=60)
+        response = requests.post("http://geoserver:8080/geoserver/dss_vector/ows", data=payload, timeout=60)
         if response.status_code != 200:
             raise RuntimeError("GeoServer request failed")
 

@@ -43,7 +43,7 @@ interface BaseMapDefinition {
 }
 
 const GEOSERVER_WFS_URL = 'http://localhost:9090/geoserver/wfs';
-const WORKSPACE = 'myworkspace';
+const WORKSPACE = 'dss_vector';
 const BASIN_BOUNDARY_LAYER = 'basin_boundary';
 
 const baseMaps: Record<string, BaseMapDefinition> = {

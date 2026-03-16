@@ -1923,7 +1923,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
 
       const workspace = layerForDownload.includes(":")
         ? layerForDownload.split(":", 1)[0]
-        : "myworkspace";
+        : "dss_vector";
       const fileExtension = downloadFormat === "png" ? "png" : "tif";
       const safeParam = (selectedAttribute || "interpolation")
         .replace(/[^a-zA-Z0-9._-]+/g, "_");

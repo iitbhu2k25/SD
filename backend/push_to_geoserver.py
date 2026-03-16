@@ -5,7 +5,7 @@ from pathlib import Path
 GEOSERVER_URL = "http://localhost:9090/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
-WORKSPACE = "myworkspace"
+WORKSPACE = "dss_vector"
 
 # Directory containing all shapefile ZIPs
 ZIP_DIR = Path("media/gwa_data/shp_zip")

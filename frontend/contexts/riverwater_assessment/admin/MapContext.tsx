@@ -90,7 +90,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
 };
 
 // Workspace used for GeoServer layer names (can be overridden via env var)
-const WORKSPACE = "myworkspace";
+const WORKSPACE = "dss_vector";
 
 interface LegendData {
   mean?: number;

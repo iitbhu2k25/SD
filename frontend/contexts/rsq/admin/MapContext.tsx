@@ -272,7 +272,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const india = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`,
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:B_State&outputFormat=application/json`,
       }),
       style: new Style({
         stroke: new Stroke({ color: "#1e88e5", width: 2 }),
@@ -444,7 +444,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const cql = `state_code='${String(selectedState).padStart(2, "0")}'`;
-    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
+    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:B_State&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
 
     const layer = new VectorLayer({
       source: new VectorSource({ format: new GeoJSON(), url }),
@@ -481,7 +481,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const cql = `DISTRICT_C IN (${selectedDistricts.join(",")})`;
-    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
+    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
 
     const layer = new VectorLayer({
       source: new VectorSource({ format: new GeoJSON(), url }),
@@ -519,7 +519,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     const cql = `Block_LG00 IN (${selectedBlocks.join(",")})`;
-    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:block&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
+    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:block&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
 
     const layer = new VectorLayer({
       source: new VectorSource({ format: new GeoJSON(), url }),
@@ -562,7 +562,7 @@ export const MapProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const codes = selectedVillages.map((c) => `'${c}'`).join(",");
     const cql = `vlcode IN (${codes})`;
-    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
+    const url = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cql)}`;
 
     const layer = new VectorLayer({
       source: new VectorSource({

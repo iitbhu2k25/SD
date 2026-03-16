@@ -97,7 +97,7 @@ const Map: React.FC<MapProps> = ({ layerInfo, onReset, wqiPoints, wqiRasterLayer
     // Create India Vector layer (for thicker lines)
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
-        url: `${GEOSERVER_URL}/myworkspace/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json`,
+        url: `${GEOSERVER_URL}/dss_vector/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:India&outputFormat=application/json`,
         format: new GeoJSON(),
       }),
       style: new Style({
@@ -192,7 +192,7 @@ const Map: React.FC<MapProps> = ({ layerInfo, onReset, wqiPoints, wqiRasterLayer
       source: new TileWMS({
         url: `${GEOSERVER_URL}/wms`,
         params: {
-          LAYERS: `myworkspace:${layerInfo.layerName}`,
+          LAYERS: `dss_vector:${layerInfo.layerName}`,
           TILED: true,
           FORMAT: "image/png",
           TRANSPARENT: true,

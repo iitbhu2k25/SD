@@ -37,7 +37,7 @@ from io import BytesIO
 GEOSERVER_URL = "http://geoserver:8080/geoserver/rest"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
-WORKSPACE = "myworkspace"
+WORKSPACE = "dss_vector"
 TEMP_DIR = Path("media/temp")
 
 # Path to shapefiles

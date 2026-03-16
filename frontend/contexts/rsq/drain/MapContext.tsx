@@ -25,7 +25,7 @@ import { useRSQ } from "./RsqContext";
 import CircleStyle from "ol/style/Circle";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs`;
+const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/dss_vector/wfs`;
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -420,7 +420,7 @@ const selectedDrainPointStyle = new Style({
     const basinBoundaryLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:basin_boundary&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:basin_boundary&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: basinBoundaryStyle,
       zIndex: 1,
@@ -452,7 +452,7 @@ const selectedDrainPointStyle = new Style({
     const riversLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Rivers&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Rivers&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: riverStyle,
       zIndex: 10,
@@ -484,7 +484,7 @@ const selectedDrainPointStyle = new Style({
     const stretchesLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Stretches&outputFormat=application/json&CQL_FILTER=1=1`,
+        url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Stretches&outputFormat=application/json&CQL_FILTER=1=1`,
       }),
       style: (feature) => {
         const stretchId = feature.get('Stretch_ID');
@@ -541,7 +541,7 @@ console.log("Adding permanent drains layer from GeoServer");
 const drainsLayer = new VectorLayer({
   source: new VectorSource({
     format: new GeoJSON(),
-    url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Drain&outputFormat=application/json&CQL_FILTER=1=1`,
+    url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Drain&outputFormat=application/json&CQL_FILTER=1=1`,
   }),
   style: (feature) => {
     const drainNo = feature.get('Drain_No');
@@ -1064,7 +1064,7 @@ useEffect(() => {
       const catchmentsLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Catchment&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(catchmentsCqlFilter)}`,
+          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Catchment&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(catchmentsCqlFilter)}`,
         }),
         style: catchmentStyle,
         zIndex: 13,
@@ -1121,7 +1121,7 @@ useEffect(() => {
       const villagesLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(villagesCqlFilter)}`,
+          url: `${GEOSERVER_BASE_URL}?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:Village&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(villagesCqlFilter)}`,
         }),
         style: (feature) => {
           const villageCode = feature.get('village_co');

@@ -797,7 +797,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     console.log("Style name:", style_name);
     console.log("Extent:", extent);
 
-    const workspace = "myworkspace"; // Extract from primary_layer or hardcode
+    const workspace = "dss_vector"; // Extract from primary_layer or hardcode
     const fullStyleName = `${workspace}:${style_name}`;
 
     const wmsSource = new TileWMS({
