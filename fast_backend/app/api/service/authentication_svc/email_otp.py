@@ -190,7 +190,7 @@ class EmailService:
 
         action_text = "Log in to your account" if is_approved else f"Kindly email us on {ADMIN_EMAIL} for more information."
         action_url = (
-            f"slcrdss.in"
+            f"slcrdss.xyz"
             if is_approved
             else f""
         )
