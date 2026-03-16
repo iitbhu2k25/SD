@@ -254,7 +254,7 @@ export const GroundwaterTrendProvider = ({
     if (!trendMapFilename) {
       return null;
     }
-    return `/django/media/temp/${trendMapFilename}`;
+    return `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${trendMapFilename}`;
   };
 
   const getTrendMapFilename = (): string | null => {
@@ -467,7 +467,7 @@ export const GroundwaterTrendProvider = ({
             seasonal: data.summary_stats?.file_info?.timeseries_seasonal_csv_filename,
           },
           trendMapFilename: mapFilename,
-          trendMapUrl: mapFilename ? `/django/media/temp/${mapFilename}` : null,
+          trendMapUrl: mapFilename ? `${process.env.NEXT_PUBLIC_DJANGO_URL}/media/temp/${mapFilename}` : null,
           trendMapBase64: mapBase64,
         },
       }));

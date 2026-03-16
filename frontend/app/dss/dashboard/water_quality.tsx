@@ -151,7 +151,7 @@ export default function WQIDashboard({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/django/drain-water-quality/main');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main`);
       if (!response.ok) throw new Error('Failed to fetch data');
       
       const data: DrainRecord[] = await response.json();

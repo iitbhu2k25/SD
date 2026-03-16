@@ -1,75 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMapEvents, Popup, Marker } from 'react-leaflet';
+import React, { useEffect, useState, useRef } from 'react';
+import {
+  MapContainer,
+  TileLayer,
+  GeoJSON,
+  useMapEvents,
+  Marker,
+  Popup,
+} from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L, { LatLng, Icon, Map as LeafletMap } from 'leaflet';
-
-// Fix Leaflet default icon path issues - handle both string and StaticImageData
+import 'leaflet-draw/dist/leaflet.draw.css';
+import L, { LatLng, Icon, Map as LeafletMap, FeatureGroup } from 'leaflet';
+import 'leaflet-draw';
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
 import iconUrl from 'leaflet/dist/images/marker-icon.png';
 import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
 
-// Helper function to extract URL string from imports
-const getImageUrl = (image: any): string => {
-  return typeof image === 'string' ? image : image.src || image.default || image;
-};
-
-// Define types for API responses
-type WatershedFeature = {
-  type: string;
-  geometry: {
-    type: string;
-    coordinates: number[][][];
-  };
-  properties: {
-    area_km2?: string;
-    outlet_lat?: number;
-    outlet_lng?: number;
-    [key: string]: any;
-  };
-};
-
-type RiverFeature = {
-  type: string;
-  geometry: {
-    type: string;
-    coordinates: number[][];
-  };
-  properties: {
-    comid?: number;
-    sorder?: number;
-    [key: string]: any;
-  };
-};
-
-type FlowpathFeature = {
-  type: string;
-  geometry: {
-    type: string;
-    coordinates: number[][];
-  };
-  properties: {
-    comid?: number;
-    sorder?: number;
-    [key: string]: any;
-  };
-};
-
-type GeoJSONResponse = {
-  type: string;
-  features: (WatershedFeature | RiverFeature | FlowpathFeature)[];
-};
-
-type FlowpathAPIResponse = {
-  message: string;
-  outlet: GeoJSONResponse;
-  rivers: GeoJSONResponse;
-};
-
-// API endpoint types
-type APIEndpoint = 'watershed_api' | 'upstream_rivers_api' | 'flowpath_api';
-
-// Analysis mode type
-type AnalysisMode = 'upstream' | 'downstream';
+import {
+  GeoJSONResponse,
+  AnalysisMode,
+  MapSettings,
+  LayerData,
+} from './type';
+import { getImageUrl, fetchData } from './utils';
 
 // Set up default Leaflet marker icon
 const defaultIcon = new Icon({
@@ -79,36 +31,233 @@ const defaultIcon = new Icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
-  shadowSize: [41, 41]
+  shadowSize: [41, 41],
 });
 
-// Component for map click events
-function MapClickHandler({ onClick }: { onClick: (latlng: LatLng) => void }) {
+// Component for map click events with drawing mode detection
+function MapClickHandler({ 
+  onClick, 
+  isDrawing 
+}: { 
+  onClick: (latlng: LatLng) => void;
+  isDrawing: boolean;
+}) {
   useMapEvents({
     click: (e) => {
-      onClick(e.latlng);
+      // Only trigger onClick if not in drawing mode
+      if (!isDrawing) {
+        onClick(e.latlng);
+      }
     },
   });
   return null;
 }
 
-// Custom loading button component
-const LoadingButton = ({ isLoading, onClick, text }: { isLoading: boolean; onClick: () => void; text: string }) => {
+// Drawing controls component with drawing state tracking
+function DrawingControls({ 
+  onDrawnItemsChange,
+  onDrawingStateChange
+}: { 
+  onDrawnItemsChange: (items: any[]) => void;
+  onDrawingStateChange: (isDrawing: boolean) => void;
+}) {
+  const map = useMapEvents({});
+  const drawnItemsRef = useRef<L.FeatureGroup>(new L.FeatureGroup());
+
+  useEffect(() => {
+    if (!map) return;
+
+    const drawnItems = drawnItemsRef.current;
+    map.addLayer(drawnItems);
+
+    // Initialize drawing controls
+    const drawControl = new L.Control.Draw({
+      position: 'topright',
+      draw: {
+        polyline: {
+          shapeOptions: {
+            color: '#f59e0b',
+            weight: 3,
+          },
+        },
+        polygon: {
+          allowIntersection: false,
+          shapeOptions: {
+            color: '#8b5cf6',
+            fillOpacity: 0.2,
+          },
+        },
+        rectangle: {
+          shapeOptions: {
+            color: '#ec4899',
+            fillOpacity: 0.2,
+          },
+        },
+        circle: {
+          shapeOptions: {
+            color: '#10b981',
+            fillOpacity: 0.2,
+          },
+        },
+        marker: {
+          icon: defaultIcon,
+        },
+        circlemarker: {
+          color: '#06b6d4',
+          fillOpacity: 0.5,
+        },
+      },
+      edit: {
+        featureGroup: drawnItems,
+        remove: true,
+      },
+    });
+
+    map.addControl(drawControl);
+
+    // Track drawing state
+    map.on(L.Draw.Event.DRAWSTART, () => {
+      onDrawingStateChange(true);
+    });
+
+    map.on(L.Draw.Event.DRAWSTOP, () => {
+      onDrawingStateChange(false);
+    });
+
+    // Handle drawing events
+    map.on(L.Draw.Event.CREATED, (e: any) => {
+      const layer = e.layer;
+      drawnItems.addLayer(layer);
+      
+      // Convert to array and update parent
+      const items: any[] = [];
+      drawnItems.eachLayer((layer: any) => {
+        items.push(layer.toGeoJSON());
+      });
+      onDrawnItemsChange(items);
+    });
+
+    map.on(L.Draw.Event.EDITED, (e: any) => {
+      const items: any[] = [];
+      drawnItems.eachLayer((layer: any) => {
+        items.push(layer.toGeoJSON());
+      });
+      onDrawnItemsChange(items);
+    });
+
+    map.on(L.Draw.Event.DELETED, (e: any) => {
+      const items: any[] = [];
+      drawnItems.eachLayer((layer: any) => {
+        items.push(layer.toGeoJSON());
+      });
+      onDrawnItemsChange(items);
+    });
+
+    return () => {
+      map.removeControl(drawControl);
+      map.removeLayer(drawnItems);
+      map.off(L.Draw.Event.DRAWSTART);
+      map.off(L.Draw.Event.DRAWSTOP);
+    };
+  }, [map, onDrawnItemsChange, onDrawingStateChange]);
+
+  return null;
+}
+
+// Loading overlay component
+const LoadingOverlay = ({
+  show,
+  isBaseMapLoading = false,
+}: {
+  show: boolean;
+  isBaseMapLoading?: boolean;
+}) => {
+  if (!show) return null;
+
+  return (
+    <div
+      className={`absolute inset-0 z-[1000] flex items-center justify-center ${
+        isBaseMapLoading
+          ? ' bg-opacity-80 '
+          : ' bg-opacity-40'
+      }`}
+    >
+      {isBaseMapLoading && (
+        <div className="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center border border-slate-200">
+          <svg
+            className="animate-spin h-12 w-12 text-blue-600 mb-4"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <div className="text-lg font-semibold text-slate-800">
+            Loading Base Map
+          </div>
+          <div className="text-sm text-slate-500 mt-2">
+            Fetching geographical boundaries...
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Loading button component
+const LoadingButton = ({
+  isLoading,
+  onClick,
+  text,
+}: {
+  isLoading: boolean;
+  onClick: () => void;
+  text: string;
+}) => {
   return (
     <button
       onClick={onClick}
       disabled={isLoading}
-      className={`relative overflow-hidden flex items-center justify-center px-3 py-1 rounded-md text-sm text-white font-medium transition-all duration-300 ${isLoading
+      className={`relative overflow-hidden flex items-center justify-center px-4 py-2 rounded-lg text-sm text-white font-medium transition-all duration-300 ${
+        isLoading
           ? 'bg-blue-400 cursor-not-allowed'
-          : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-        }`}
+          : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 active:scale-95 shadow-md hover:shadow-lg'
+      }`}
     >
       {isLoading ? (
         <>
           <span className="absolute inset-0 flex items-center justify-center">
-            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="animate-spin h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
           </span>
           <span className="opacity-0">Processing</span>
@@ -120,272 +269,61 @@ const LoadingButton = ({ isLoading, onClick, text }: { isLoading: boolean; onCli
   );
 };
 
-// Information panel component
-const InfoPanel = ({
-  watershedData,
-  clickedPoint,
-  onClear,
-  mode,
-  flowpathMessage
-}: {
-  watershedData: GeoJSONResponse | null;
+interface WatershedMapProps {
+  mapRef: React.MutableRefObject<LeafletMap | null>;
   clickedPoint: [number, number] | null;
-  onClear: () => void;
+  onMapClick: (latlng: [number, number]) => void;
   mode: AnalysisMode;
-  flowpathMessage?: string;
+  watershedData: GeoJSONResponse | null;
+  setWatershedData: (data: GeoJSONResponse | null) => void;
+  riversData: GeoJSONResponse | null;
+  setRiversData: (data: GeoJSONResponse | null) => void;
+  flowpathData: GeoJSONResponse | null;
+  setFlowpathData: (data: GeoJSONResponse | null) => void;
+  flowpathMessage: string | null;
+  setFlowpathMessage: (message: string | null) => void;
+  loading: boolean;
+  setLoading: (loading: boolean) => void;
+  error: string | null;
+  setError: (error: string | null) => void;
+  indiaBaseMap: GeoJSONResponse | null;
+  baseMapLoading: boolean;
+  mapSettings: MapSettings;
+  customLayers: LayerData[];
+  drawnItems: any[];
+  onDrawnItemsChange: (items: any[]) => void;
+}
+
+const WatershedMap: React.FC<WatershedMapProps> = ({
+  mapRef,
+  clickedPoint,
+  onMapClick,
+  mode,
+  watershedData,
+  setWatershedData,
+  riversData,
+  setRiversData,
+  flowpathData,
+  setFlowpathData,
+  flowpathMessage,
+  setFlowpathMessage,
+  loading,
+  setLoading,
+  error,
+  setError,
+  indiaBaseMap,
+  baseMapLoading,
+  mapSettings,
+  customLayers,
+  drawnItems,
+  onDrawnItemsChange,
 }) => {
-  if (!watershedData && mode !== 'downstream') return null;
+  const [isDrawing, setIsDrawing] = useState<boolean>(false);
 
-  return (
-    <div className="absolute top-4 right-4 p-3 bg-white rounded-lg shadow-lg  w-64">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold text-blue-800 text-sm">{mode === 'upstream' ? 'Watershed Info' : 'Flowpath Info'}</h3>
-        <button
-          onClick={onClear}
-          className="text-gray-400 hover:text-gray-600"
-          title="Clear data"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="space-y-1 text-sm">
-        {mode === 'upstream' && watershedData && watershedData.features && watershedData.features[0] && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Area:</span>
-            <span className="font-medium">
-              {(watershedData.features[0] as WatershedFeature)?.properties?.area_km2 || 'N/A'} km²
-            </span>
-          </div>
-        )}
-        {mode === 'downstream' && flowpathMessage && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Total Length:</span>
-            <span className="font-medium">{flowpathMessage.match(/Total length: (\d+ km)/)?.[1] || 'N/A'}</span>
-          </div>
-        )}
-        {clickedPoint && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Point:</span>
-            <span className="font-medium">{clickedPoint[0].toFixed(4)}, {clickedPoint[1].toFixed(4)}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-2 pt-2 border-t border-gray-200">
-        <div className="text-xs text-gray-500">
-          Data source: MERIT-Hydro
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Loading overlay component for the map
-const LoadingOverlay = ({ show, isBaseMapLoading = false }: { show: boolean; isBaseMapLoading?: boolean }) => {
-  if (!show) return null;
-
-  return (
-    <div className={`absolute inset-0 z-[1000] flex items-center justify-center ${isBaseMapLoading ? 'bg- bg-opacity-60 backdrop-blur-sm' : 'bg- bg-opacity-30 backdrop-blur-sm'}`}>
-      <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-        <svg className="animate-spin h-10 w-10 text-blue-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <div className="text-base font-medium text-gray-700">
-          {isBaseMapLoading ? 'Loading India Base Map' : 'Processing Analysis'}
-        </div>
-        <div className="text-sm text-gray-500 mt-1">
-          {isBaseMapLoading ? 'Fetching geographical boundaries...' : 'This may take a few moments...'}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Custom CSS for the popup
-const customPopupStyle = `
-  .custom-popup .leaflet-popup-content-wrapper {
-    background-color: white;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-  .custom-popup .leaflet-popup-content {
-    margin: 0;
-    padding: 8px;
-    min-width: 140px;
-  }
-  .custom-popup .leaflet-popup-tip {
-    background-color: white;
-  }
-  
-  /* Make the marker bounce on add */
-  @keyframes markerBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-  
-  .leaflet-marker-icon {
-    animation: markerBounce 0.5s ease;
-  }
-`;
-
-const WatershedMap: React.FC = () => {
-  const [clickedPoint, setClickedPoint] = useState<[number, number] | null>(null);
-  const [watershedData, setWatershedData] = useState<GeoJSONResponse | null>(null);
-  const [riversData, setRiversData] = useState<GeoJSONResponse | null>(null);
-  const [flowpathData, setFlowpathData] = useState<GeoJSONResponse | null>(null);
-  const [flowpathMessage, setFlowpathMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<AnalysisMode>('upstream');
-  const [indiaBaseMap, setIndiaBaseMap] = useState<GeoJSONResponse | null>(null);
-  const [baseMapLoading, setBaseMapLoading] = useState<boolean>(true);
-
-  const mapRef = useRef<LeafletMap | null>(null);
-  const watershedRef = useRef<L.GeoJSON | null>(null);
-  const riversRef = useRef<L.GeoJSON | null>(null);
-  const flowpathRef = useRef<L.GeoJSON | null>(null);
-
-  // Function to fetch India base map
-// Function to fetch India base map from GeoServer
-  const fetchIndiaBaseMap = async () => {
-    try {
-      setBaseMapLoading(true);
-      
-      const WFS_URL = '${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json';
-      
-      const response = await fetch(WFS_URL, {
-        method: 'GET',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch base map from GeoServer: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('India base map data from GeoServer:', data);
-      
-      // Validate and set the base map data
-      if (isValidGeoJSON(data)) {
-        setIndiaBaseMap(data);
-      } else {
-        console.log('Invalid GeoJSON data received from GeoServer');
-      }
-    } catch (error) {
-      console.log('Error fetching India base map from GeoServer:', error);
-      setError('Failed to load India base map from GeoServer');
-    } finally {
-      setBaseMapLoading(false);
-    }
-  };
-
-  // Function to validate GeoJSON
-  const isValidGeoJSON = (data: any): data is GeoJSONResponse => {
-    return (
-      data &&
-      typeof data === 'object' &&
-      data.type === 'FeatureCollection' &&
-      Array.isArray(data.features) &&
-      data.features.every(
-        (feature: any) =>
-          feature.type === 'Feature' &&
-          feature.geometry &&
-          ['Point', 'LineString', 'Polygon', 'MultiLineString', 'MultiPolygon'].includes(feature.geometry.type)
-      )
-    );
-  };
-
-  // Function to transform data into GeoJSON
-  const transformToGeoJSON = (data: any, endpoint: APIEndpoint): GeoJSONResponse | null => {
-    if (endpoint === 'flowpath_api') {
-      if (data && data.rivers && isValidGeoJSON(data.rivers)) {
-        return data.rivers;
-      }
-      return null;
-    }
-    if (isValidGeoJSON(data)) {
-      return data;
-    }
-    // Handle single Feature
-    if (data && data.type === 'Feature' && data.geometry) {
-      return {
-        type: 'FeatureCollection',
-        features: [data]
-      };
-    }
-    // Handle raw geometry
-    if (data && data.type && ['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'].includes(data.type)) {
-      return {
-        type: 'FeatureCollection',
-        features: [
-          {
-            type: 'Feature',
-            geometry: data,
-            properties: {} as any // Type assertion to handle empty properties
-          }
-        ]
-      };
-    }
-    return null;
-  };
-
-  // Function to fetch data from an API endpoint via our proxy
-  const fetchData = async (endpoint: APIEndpoint, lat: number, lng: number) => {
-    const url = `/api/watershed?endpoint=${endpoint}&lat=${lat}&lng=${lng}&precision=high`;
-
-    try {
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        if (response.status === 400) {
-          throw new Error('Bad request: Check your latitude and longitude values.');
-        } else if (response.status === 404) {
-          throw new Error('Could not process: The point may be over ocean or invalid terrain.');
-        } else if (response.status === 500) {
-          throw new Error('Server error: Please try again later.');
-        } else {
-          throw new Error(`Error: ${response.status}`);
-        }
-      }
-
-      const data = await response.json();
-      console.log(`API response for ${endpoint}:`, data);
-
-      // Validate or transform the data
-      const validData = transformToGeoJSON(data, endpoint);
-      if (!validData) {
-        throw new Error('Invalid GeoJSON response from API');
-      }
-
-      // For flowpath_api, store the message
-      if (endpoint === 'flowpath_api') {
-        setFlowpathMessage(data.message || 'No message provided');
-      }
-
-      return validData;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(error.message);
-      }
-      throw new Error('An unknown error occurred');
-    }
-  };
-
-  // Handle map click event - set the clicked point and show popup
   const handleMapClick = (latlng: LatLng) => {
-    const { lat, lng } = latlng;
-    setClickedPoint([lat, lng]);
-
-    // Clear any existing error
-    if (error) {
-      setError(null);
-    }
+    onMapClick([latlng.lat, latlng.lng]);
   };
 
-  // Handle delineate button click - fetch the data based on mode
   const handleDelineate = async () => {
     if (!clickedPoint) return;
 
@@ -403,11 +341,11 @@ const WatershedMap: React.FC = () => {
 
       if (mode === 'upstream') {
         // Fetch watershed data
-        const watershedData = await fetchData('watershed_api', lat, lng);
+        const { data: watershedData } = await fetchData('watershed_api', lat, lng);
         setWatershedData(watershedData);
 
         // Fetch river network data
-        const riversData = await fetchData('upstream_rivers_api', lat, lng);
+        const { data: riversData } = await fetchData('upstream_rivers_api', lat, lng);
         setRiversData(riversData);
 
         // Fit map to watershed bounds
@@ -418,17 +356,18 @@ const WatershedMap: React.FC = () => {
             if (bounds.isValid()) {
               mapRef.current.fitBounds(bounds, {
                 padding: [50, 50],
-                maxZoom: 13
+                maxZoom: 13,
               });
             }
           } catch (e) {
-            console.log("Error fitting to bounds:", e);
+            console.log('Error fitting to bounds:', e);
           }
         }
       } else {
         // Fetch flowpath data
-        const flowpathData = await fetchData('flowpath_api', lat, lng);
+        const { data: flowpathData, message } = await fetchData('flowpath_api', lat, lng);
         setFlowpathData(flowpathData);
+        setFlowpathMessage(message || null);
 
         // Fit map to flowpath bounds
         if (flowpathData?.features?.length > 0 && mapRef.current) {
@@ -438,11 +377,11 @@ const WatershedMap: React.FC = () => {
             if (bounds.isValid()) {
               mapRef.current.fitBounds(bounds, {
                 padding: [50, 50],
-                maxZoom: 13
+                maxZoom: 13,
               });
             }
           } catch (e) {
-            console.log("Error fitting to bounds:", e);
+            console.log('Error fitting to bounds:', e);
           }
         }
       }
@@ -457,47 +396,45 @@ const WatershedMap: React.FC = () => {
     }
   };
 
-  // Handle clearing the data
-  const handleClearWatershed = () => {
-    setWatershedData(null);
-    setRiversData(null);
-    setFlowpathData(null);
-    setFlowpathMessage(null);
-    setClickedPoint(null);
-    setError(null);
-  };
-
-  // Handle mode change
-  const handleModeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setMode(event.target.value as AnalysisMode);
-    // Clear existing data when mode changes
-    handleClearWatershed();
-  };
-
   useEffect(() => {
-    // Add custom styles for the popup
-    const style = document.createElement('style');
-    style.textContent = customPopupStyle;
-    document.head.appendChild(style);
-
     // Set up Leaflet default icon
     const DefaultIcon = L.Icon.Default as any;
     delete DefaultIcon.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl: getImageUrl(iconRetinaUrl),
       iconUrl: getImageUrl(iconUrl),
-      shadowUrl: getImageUrl(shadowUrl)
+      shadowUrl: getImageUrl(shadowUrl),
     });
-
-    // Fetch India base map on component mount
-    fetchIndiaBaseMap();
-
-    return () => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
-    };
   }, []);
+
+  // Get base map URL based on settings
+  const getBaseMapUrl = () => {
+    switch (mapSettings.baseMap) {
+      case 'satellite':
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      case 'terrain':
+        return 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      case 'dark':
+        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      case 'osm':
+      default:
+        return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+  };
+
+  const getBaseMapAttribution = () => {
+    switch (mapSettings.baseMap) {
+      case 'satellite':
+        return '© Esri';
+      case 'terrain':
+        return '© OpenTopoMap';
+      case 'dark':
+        return '© CartoDB';
+      case 'osm':
+      default:
+        return '© OpenStreetMap contributors';
+    }
+  };
 
   // Style functions for GeoJSON layers
   const indiaBaseMapStyle = {
@@ -509,30 +446,30 @@ const WatershedMap: React.FC = () => {
   };
 
   const watershedStyle = {
-    color: 'red',
+    color: mapSettings.watershedColor,
     weight: 4,
-    opacity: 0.7,
+    opacity: mapSettings.watershedOpacity,
     fillColor: 'white',
-    fillOpacity: 0.1,
+    fillOpacity: mapSettings.watershedFillOpacity,
   };
 
   const riverStyle = (feature?: any) => {
     const order = feature?.properties?.sorder || 1;
-    const width = Math.max(1, order);
+    const width = Math.max(1, order * mapSettings.riverThickness);
     return {
-      color: 'blue',
+      color: mapSettings.riverColor,
       weight: width,
-      opacity: 0.9,
+      opacity: mapSettings.riverOpacity,
     };
   };
 
   const flowpathStyle = (feature?: any) => {
     const order = feature?.properties?.sorder || 1;
-    const width = Math.max(1, order);
+    const width = Math.max(1, order * mapSettings.riverThickness);
     return {
-      color: 'blue',
+      color: mapSettings.riverColor,
       weight: width,
-      opacity: 0.9,
+      opacity: mapSettings.riverOpacity,
     };
   };
 
@@ -551,174 +488,124 @@ const WatershedMap: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-row bg-white">
-      {/* Left Panel (25%) */}
-      <div className="w-1/4 p-4 bg-gray-100 border-r border-gray-300 overflow-y-auto">
-        <h1 className="text-xl font-bold text-blue-800 mb-4">Watershed Tool</h1>
-        <div className="mb-4">
-          <label htmlFor="mode-select" className="block text-gray-700 font-medium mb-2">
-            Analysis Mode:
-          </label>
-          <select
-            id="mode-select"
-            value={mode}
-            onChange={handleModeChange}
-            className="w-full p-2 border border-gray-300 rounded-md"
+    <div className="flex-1 relative m-4 rounded-xl shadow-xl overflow-hidden border border-slate-200">
+      {/* Loading overlays */}
+      <LoadingOverlay show={baseMapLoading} isBaseMapLoading={true} />
+      <LoadingOverlay show={loading && !baseMapLoading} isBaseMapLoading={false} />
+
+      <div
+        className={`w-full h-full ${
+          baseMapLoading ? 'filter blur-sm' : ''
+        } transition-all duration-500`}
+      >
+        <MapContainer
+          center={[22.9734, 78.6569]}
+          zoom={6}
+          style={{ height: '100%', width: '100%', zIndex: 0 }}
+          ref={(map) => {
+            mapRef.current = map;
+          }}
+          zoomControl={false}
+        >
+          {/* Custom Zoom Controls */}
+          <div
+            className="leaflet-control-zoom leaflet-bar leaflet-control"
+            style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 1000 }}
           >
-            <option value="upstream">Upstream</option>
-            <option value="downstream">Downstream</option>
-          </select>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
-            <strong>Error:</strong> {error}
-          </div>
-        )}
-
-        {/* Feature Info Panel */}
-        <div className="text-sm space-y-3">
-          {indiaBaseMap && (
-            <div>
-              <h2 className="font-semibold text-gray-700">India Base Map</h2>
-              <p className="text-gray-600">Loaded: {indiaBaseMap.features?.length} features</p>
-            </div>
-          )}
-
-          {mode === 'upstream' && watershedData && (
-            <div>
-              <h2 className="font-semibold text-gray-700">Watershed Features</h2>
-              <p className="text-gray-600">Count: {watershedData.features?.length}</p>
-            </div>
-          )}
-
-          {mode === 'upstream' && riversData && (
-            <div>
-              <h2 className="font-semibold text-gray-700">River Network</h2>
-              <p className="text-gray-600">Count: {riversData.features?.length}</p>
-            </div>
-          )}
-
-          {mode === 'downstream' && flowpathData && (
-            <div>
-              <h2 className="font-semibold text-gray-700">Flowpath Data</h2>
-              <p className="text-gray-600">Count: {flowpathData.features?.length}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Right Panel - Map (75%) */}
-      <div className="w-3/4 relative m-4 border border-gray-300 rounded-2xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl">
-        {/* Base map loading overlay with blur effect */}
-        <LoadingOverlay show={baseMapLoading} isBaseMapLoading={true} />
-        
-        {/* Analysis loading overlay */}
-        <LoadingOverlay show={loading && !baseMapLoading} isBaseMapLoading={false} />
-
-        {(watershedData || flowpathData) && (
-          <InfoPanel
-            watershedData={mode === 'upstream' ? watershedData : flowpathData}
-            clickedPoint={clickedPoint}
-            onClear={handleClearWatershed}
-            mode={mode}
-            flowpathMessage={flowpathMessage || undefined}
-          />
-        )}
-
-        <div className={`w-full h-full ${baseMapLoading ? 'filter blur-sm' : ''} transition-all duration-500`}>
-          <MapContainer
-            center={[22.9734, 78.6569]}
-            zoom={6}
-            style={{ height: 'calc(100vh - 2rem)', width: '100%', zIndex: 0 }}
-            ref={(map) => {
-              mapRef.current = map;
-            }}
-            zoomControl={false}
-          >
-            {/* Custom Zoom Controls */}
-            <div
-              className="leaflet-control-zoom leaflet-bar leaflet-control"
-              style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 1000 }}
+            <a
+              className="leaflet-control-zoom-in"
+              href="#"
+              title="Zoom in"
+              role="button"
+              aria-label="Zoom in"
+              onClick={handleZoomIn}
             >
-              <a 
-                className="leaflet-control-zoom-in" 
-                href="#" 
-                title="Zoom in" 
-                role="button" 
-                aria-label="Zoom in"
-                onClick={handleZoomIn}
-              >
-                +
-              </a>
-              <a 
-                className="leaflet-control-zoom-out" 
-                href="#" 
-                title="Zoom out" 
-                role="button" 
-                aria-label="Zoom out"
-                onClick={handleZoomOut}
-              >
-                −
-              </a>
-            </div>
+              +
+            </a>
+            <a
+              className="leaflet-control-zoom-out"
+              href="#"
+              title="Zoom out"
+              role="button"
+              aria-label="Zoom out"
+              onClick={handleZoomOut}
+            >
+              −
+            </a>
+          </div>
 
-            {/* Base OpenStreetMap layer as fallback */}
-            <TileLayer
-              attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+          {/* Base Map Tile Layer */}
+          <TileLayer
+            attribution={getBaseMapAttribution()}
+            url={getBaseMapUrl()}
+          />
 
-            {/* India Base Map Layer */}
-            {indiaBaseMap && (
-              <GeoJSON 
-                data={indiaBaseMap as any} 
-                style={indiaBaseMapStyle}
-              />
-            )}
+          {/* India Base Map Layer */}
+          {indiaBaseMap && (
+            <GeoJSON data={indiaBaseMap as any} style={indiaBaseMapStyle} />
+          )}
 
-            <MapClickHandler onClick={handleMapClick} />
+          {/* Map Click Handler */}
+          <MapClickHandler onClick={handleMapClick} isDrawing={isDrawing} />
 
-            {clickedPoint && (
-              <Marker position={[clickedPoint[0], clickedPoint[1]]} icon={defaultIcon}>
-                <Popup autoPan={true} closeOnClick={false} autoClose={false}>
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="font-medium text-gray-700">Selected Point</div>
-                    <div className="text-gray-600">
-                      Lat: {clickedPoint[0].toFixed(5)}<br />
-                      Lng: {clickedPoint[1].toFixed(5)}
-                    </div>
-                    <LoadingButton isLoading={loading} onClick={handleDelineate} text="Delineate" />
+          {/* Drawing Controls */}
+          <DrawingControls 
+            onDrawnItemsChange={onDrawnItemsChange}
+            onDrawingStateChange={setIsDrawing}
+          />
+
+          {/* Clicked Point Marker */}
+          {clickedPoint && (
+            <Marker position={[clickedPoint[0], clickedPoint[1]]} icon={defaultIcon}>
+              <Popup autoPan={true} closeOnClick={false} autoClose={false}>
+                <div className="flex flex-col gap-2 text-sm p-1">
+                  <div className="font-semibold text-slate-700">Selected Point</div>
+                  <div className="text-slate-600 text-xs">
+                    Lat: {clickedPoint[0].toFixed(5)}
+                    <br />
+                    Lng: {clickedPoint[1].toFixed(5)}
                   </div>
-                </Popup>
-              </Marker>
-            )}
+                  <LoadingButton
+                    isLoading={loading}
+                    onClick={handleDelineate}
+                    text="Delineate"
+                  />
+                </div>
+              </Popup>
+            </Marker>
+          )}
 
-            {mode === 'upstream' && watershedData && (
-              <GeoJSON 
-                data={watershedData as any} 
-                style={watershedStyle} 
-                ref={watershedRef} 
-              />
-            )}
+          {/* Watershed Data */}
+          {mode === 'upstream' && watershedData && (
+            <GeoJSON data={watershedData as any} style={watershedStyle} />
+          )}
 
-            {mode === 'upstream' && riversData && (
-              <GeoJSON 
-                data={riversData as any} 
-                style={riverStyle} 
-                ref={riversRef} 
-              />
-            )}
+          {/* Rivers Data */}
+          {mode === 'upstream' && riversData && (
+            <GeoJSON data={riversData as any} style={riverStyle} />
+          )}
 
-            {mode === 'downstream' && flowpathData && (
-              <GeoJSON 
-                data={flowpathData as any} 
-                style={flowpathStyle} 
-                ref={flowpathRef} 
+          {/* Flowpath Data */}
+          {mode === 'downstream' && flowpathData && (
+            <GeoJSON data={flowpathData as any} style={flowpathStyle} />
+          )}
+
+          {/* Custom Layers */}
+          {customLayers
+            .filter((layer) => layer.visible)
+            .map((layer) => (
+              <GeoJSON
+                key={layer.id}
+                data={layer.data as any}
+                style={{
+                  color: layer.color,
+                  weight: 2,
+                  opacity: 0.7,
+                  fillOpacity: 0.2,
+                }}
               />
-            )}
-          </MapContainer>
-        </div>
+            ))}
+        </MapContainer>
       </div>
     </div>
   );

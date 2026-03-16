@@ -95,7 +95,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
   const basinLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const riverLayersRef = useRef<{ [key: string]: VectorLayer<VectorSource> }>({}); 
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
-  const API_BASE = '/django/drain-water-quality/';
+  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/`;
 
   // Initialize map
   useEffect(() => {

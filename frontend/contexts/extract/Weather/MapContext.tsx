@@ -21,7 +21,7 @@ import VectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import XYZ from "ol/source/XYZ";
 import GeoJSON from "ol/format/GeoJSON";
-import { Fill, Stroke, Style, Icon, Text } from "ol/style";
+import { Fill, Stroke, Style, Circle, Text } from "ol/style";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls, ScaleLine } from "ol/control";
 import { Feature } from "ol";
@@ -44,6 +44,17 @@ interface WeatherData {
   moonset: string;
 }
 
+interface StateOption {
+  label: string;
+  state_code: string;
+}
+
+interface DistrictOption {
+  label: string;
+  district_code: string;
+  state_code: string;
+}
+
 interface WeatherMapContextType {
   mapRef: React.RefObject<HTMLDivElement | null>;
   map: Map | null;
@@ -54,6 +65,12 @@ interface WeatherMapContextType {
   isLoadingWeather: boolean;
   selectedStation: string | null;
   closeWeatherPanel: () => void;
+  states: StateOption[];
+  selectedStateCode: string | null;
+  setSelectedStateCode: (code: string | null) => void;
+  districts: DistrictOption[];
+  selectedDistrictCode: string | null;
+  setSelectedDistrictCode: (code: string | null) => void;
 }
 
 const WeatherMapContext = createContext<WeatherMapContextType | undefined>(undefined);
@@ -67,6 +84,12 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [currentZoom, setCurrentZoom] = useState(5);
+  
+  // State and District selection states
+  const [states, setStates] = useState<StateOption[]>([]);
+  const [selectedStateCode, setSelectedStateCode] = useState<string | null>(null);
+  const [districts, setDistricts] = useState<DistrictOption[]>([]);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState<string | null>(null);
 
   // ----- Styles -----
   const indiaBoundaryStyle = new Style({
@@ -74,8 +97,14 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
     stroke: new Stroke({ color: "blue", width: 2 }),
   });
 
+  const districtBoundaryStyle = new Style({
+    fill: new Fill({ color: "rgba(0, 0, 0, 0.01)" }),
+    stroke: new Stroke({ color: "green", width: 1 }),
+  });
+
   // weather station style: label shown only at zoom >= 6
- const weatherStationStyle = (
+  // Replace the weatherStationStyle function with this simpler version:
+const weatherStationStyle = (
   feature: FeatureLike,
   resolution: number
 ): Style => {
@@ -84,32 +113,16 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
   const showLabel = zoom >= 6;
 
   return new Style({
-    image: new Icon({
-      src:
-        "data:image/svg+xml;utf8," +
-        encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24">
-        <defs>
-          <radialGradient id="grad" cx="50%" cy="35%" r="70%">
-            <stop offset="0%" stop-color="#ffe1cc" />
-            <stop offset="45%" stop-color="#ff7a29" />
-            <stop offset="100%" stop-color="#d70000" />
-          </radialGradient>
-        </defs>
-
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
-          fill="url(#grad)" stroke="#8b0000" stroke-width="1.4"/>
-
-        <circle cx="12" cy="10" r="3" fill="#b30000"/>
-      </svg>`),
-      scale: 0.9,
-      anchor: [0.5, 1],
+    image: new Circle({
+      radius: 6,
+      fill: new Fill({ color: "#ff4444" }),
+      stroke: new Stroke({ color: "#ffffff", width: 2 }),
     }),
 
     text: showLabel
       ? new Text({
           text: String(label),
-          offsetY: -42,
+          offsetY: -15,
           font: "600 12px Arial",
           fill: new Fill({ color: "#000" }),
           stroke: new Stroke({ color: "#fff", width: 3 }),
@@ -118,9 +131,6 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
       : undefined,
   });
 };
-
-
-
 
   // ----- Parsing helper (defensive) -----
   const parseWeatherData = (html: string): WeatherData | null => {
@@ -359,7 +369,7 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
       source: new VectorSource({
         format: new GeoJSON(),
         url:
-          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`,
+          "${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json",
       }),
       style: weatherStationStyle,
       zIndex: 3,
@@ -408,49 +418,60 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    // Add click interaction for weather stations
-    const selectInteraction = new Select({
-      condition: click,
-      layers: [weatherStationsLayer],
-      style: (feature) => {
-        const label = feature.get("label") || "";
-        const zoom = newMap.getView().getZoom() || 5;
-        const showLabel = zoom >= 6;
+    // Load states from B_State layer
+    indiaLayer.getSource()?.on("featuresloadend", () => {
+      const source = indiaLayer.getSource();
+      if (!source) return;
 
-        return new Style({
-          image: new Icon({
-            src:
-              "data:image/svg+xml;utf8," +
-              encodeURIComponent(`
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">
-              <defs>
-                <linearGradient id="grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" style="stop-color:#00ff00;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#006400;stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"
-                stroke="#004d00" stroke-width="2" fill="url(#grad)" />
-              <circle cx="12" cy="10" r="3" fill="#004d00"></circle>
-            </svg>
-          `),
-            scale: 1.4,
-            anchor: [0.5, 1],
-          }),
-          text: showLabel
-            ? new Text({
-              text: String(label),
-              offsetY: -45,
-              font: "bold 12px Arial",
-              fill: new Fill({ color: "#000" }),
-              stroke: new Stroke({ color: "#fff", width: 3 }),
-              textAlign: "center",
-            })
-            : undefined,
-        });
-      },
+      const features = source.getFeatures();
+      const stateList: StateOption[] = features
+        .map((f: Feature<Geometry>) => {
+          const props = f.getProperties();
+          const label = props.State || props.state || "Unknown";
+          const code = props.state_code || props.STATE_CODE || props.StateCode;
+          return { label, state_code: code } as StateOption;
+        })
+        .filter((item): item is StateOption => item !== null)
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+      setStates([{ label: "All India", state_code: "" }, ...stateList]);
+
+      // Fit to India initially
+      try {
+        fitToIndia(newMap, source);
+      } catch (err) {
+        console.warn("fitToIndia on featuresloadend failed", err);
+      }
     });
 
+    // Add click interaction for weather stations
+    const selectInteraction = new Select({
+  condition: click,
+  layers: [weatherStationsLayer],
+  style: (feature) => {
+    const label = feature.get("label") || "";
+    const zoom = newMap.getView().getZoom() || 5;
+    const showLabel = zoom >= 6;
+
+    return new Style({
+      image: new Circle({
+        radius: 8,
+        fill: new Fill({ color: "#00ff00" }),
+        stroke: new Stroke({ color: "#004d00", width: 2 }),
+      }),
+      text: showLabel
+        ? new Text({
+            text: String(label),
+            offsetY: -15,
+            font: "bold 12px Arial",
+            fill: new Fill({ color: "#000" }),
+            stroke: new Stroke({ color: "#fff", width: 3 }),
+            textAlign: "center",
+          })
+        : undefined,
+    });
+  },
+});
 
     selectInteraction.on("select", (e) => {
       if (e.selected && e.selected.length > 0) {
@@ -476,19 +497,6 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 2000);
 
-    // if features load event exists, attempt fit on load end
-    try {
-      (indiaLayer.getSource() as VectorSource)?.on?.("featuresloadend", () => {
-        try {
-          fitToIndia(newMap, indiaSource);
-        } catch (err) {
-          console.warn("fitToIndia on featuresloadend failed", err);
-        }
-      });
-    } catch (err) {
-
-    }
-
     // refresh source to trigger load
     try {
       indiaSource?.refresh();
@@ -506,6 +514,224 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitToIndia]);
+
+  // Dynamically load district layer when state is selected
+useEffect(() => {
+  if (!map || !selectedStateCode || selectedStateCode === "") {
+    // Remove district layer if no state selected
+    if (map) {  // Add this check
+      const existingLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase");
+      if (existingLayer) {
+        map.removeLayer(existingLayer);
+      }
+    }
+    setDistricts([{ label: "All Districts", district_code: "", state_code: "" }]);
+    setSelectedDistrictCode(null);
+    return;
+  }
+
+
+    // Check if district layer already exists
+    let districtLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase") as VectorLayer<VectorSource>;
+    
+    if (!districtLayer) {
+      // Create new district layer with CQL filter for selected state
+      const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
+      
+      districtLayer = new VectorLayer({
+        source: new VectorSource({
+          format: new GeoJSON(),
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+        }),
+        style: districtBoundaryStyle,
+        zIndex: 2,
+        properties: { name: "districtBase" },
+      });
+
+      // Add layer to map
+      map.addLayer(districtLayer);
+
+      // Load districts when features are loaded
+    districtLayer.getSource()?.on("featuresloadend", () => {
+      const source = districtLayer.getSource();
+      if (!source) return;
+
+      const features = source.getFeatures();
+      const districtList: DistrictOption[] = features
+        .map((f: Feature<Geometry>) => {
+          const props = f.getProperties();
+          const label = props.DISTRICT || props.district || props.District || "Unknown";
+          const districtCode = props.DISTRICT_C || props.district_c || props.DistrictCode;
+          const stateCode = props.STATE_CODE || props.state_code || props.StateCode;
+          return { label, district_code: districtCode, state_code: stateCode } as DistrictOption;
+        })
+        .filter((item): item is DistrictOption => item !== null && Boolean(item.district_code))  // Change here
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+      setDistricts([{ label: "All Districts", district_code: "", state_code: selectedStateCode }, ...districtList]);
+    });
+  } else {
+      // Update existing layer with new CQL filter
+       const source = districtLayer.getSource();
+    if (source) {
+      const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
+      const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+      
+      // Clear and reload source
+      source.clear();
+      source.setUrl(newUrl);
+      source.refresh();
+
+      // Reload districts when features are loaded
+      source.once("featuresloadend", () => {
+        const features = source.getFeatures();
+        const districtList: DistrictOption[] = features
+          .map((f: Feature<Geometry>) => {
+            const props = f.getProperties();
+            const label = props.DISTRICT || props.district || props.District || "Unknown";
+            const districtCode = props.DISTRICT_C || props.district_c || props.DistrictCode;
+            const stateCode = props.STATE_CODE || props.state_code || props.StateCode;
+            return { label, district_code: districtCode, state_code: stateCode } as DistrictOption;
+          })
+          .filter((item): item is DistrictOption => item !== null && Boolean(item.district_code))  // Change here
+          .sort((a, b) => a.label.localeCompare(b.label));
+
+        setDistricts([{ label: "All Districts", district_code: "", state_code: selectedStateCode }, ...districtList]);
+      });
+    }
+  }
+
+  // Reset district selection when state changes
+  setSelectedDistrictCode(null);
+}, [selectedStateCode, map]);
+
+  // Apply CQL filter to weather layers when state or district changes
+  useEffect(() => {
+    if (!map) return;
+
+    // Apply filter to Weather WMS layer
+    const weatherWMSLayer = map.getLayers().getArray().find(l => l.get("name") === "weather") as ImageLayer<ImageWMS>;
+    if (weatherWMSLayer) {
+      const source = weatherWMSLayer.getSource();
+      if (source) {
+        const params = source.getParams();
+        let cqlFilter = "";
+
+        if (selectedDistrictCode && selectedDistrictCode !== "") {
+          cqlFilter = `DISTRICT_C = '${selectedDistrictCode}'`;
+        } else if (selectedStateCode && selectedStateCode !== "") {
+          cqlFilter = `STATE_CODE = '${selectedStateCode}'`;
+        }
+
+        if (cqlFilter) {
+          params.CQL_FILTER = cqlFilter;
+        } else {
+          delete params.CQL_FILTER;
+        }
+
+        source.updateParams({ ...params, t: Date.now() });
+      }
+    }
+
+    // Apply filter to Weather Stations layer
+    const weatherStationsLayer = map.getLayers().getArray().find(l => l.get("name") === "weatherStations") as VectorLayer<VectorSource>;
+    if (weatherStationsLayer) {
+      const source = weatherStationsLayer.getSource();
+      if (source) {
+        let cqlFilter = "";
+
+        if (selectedDistrictCode && selectedDistrictCode !== "") {
+          cqlFilter = `DISTRICT_C = '${selectedDistrictCode}'`;
+        } else if (selectedStateCode && selectedStateCode !== "") {
+          cqlFilter = `STATE_CODE = '${selectedStateCode}'`;
+        }
+
+        const baseUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`;
+        const newUrl = cqlFilter 
+          ? `${baseUrl}&CQL_FILTER=${encodeURIComponent(cqlFilter)}`
+          : baseUrl;
+
+        source.clear();
+        source.setUrl(newUrl);
+        source.refresh();
+      }
+    }
+  }, [selectedStateCode, selectedDistrictCode, map]);
+
+  // Zoom to selected state or district
+  useEffect(() => {
+    if (!map) return;
+
+    if (selectedDistrictCode && selectedDistrictCode !== "") {
+      // Zoom to district
+      const districtLayer = map.getLayers().getArray().find(l => l.get("name") === "districtBase") as VectorLayer<VectorSource>;
+      if (!districtLayer) return;
+
+      const source = districtLayer.getSource();
+      if (!source) return;
+
+      const zoomToDistrict = () => {
+        const feature = source.getFeatures().find((f: Feature<Geometry>) => {
+          const code = f.get("DISTRICT_C") || f.get("district_c") || f.get("DistrictCode");
+          return code === selectedDistrictCode;
+        });
+
+        if (feature) {
+          const geometry = feature.getGeometry();
+          if (geometry) {
+            const extent = geometry.getExtent();
+            map.getView().fit(extent, {
+              duration: 1000,
+              padding: [100, 100, 100, 100],
+              maxZoom: 12,
+            });
+          }
+        }
+      };
+
+      if (source.getFeatures().length > 0) {
+        zoomToDistrict();
+      } else {
+        source.once("featuresloadend", zoomToDistrict);
+      }
+    } else if (selectedStateCode && selectedStateCode !== "") {
+      // Zoom to state
+      const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
+      if (!indiaLayer) return;
+
+      const source = indiaLayer.getSource();
+      if (!source) return;
+
+      const feature = source.getFeatures().find((f: Feature<Geometry>) => {
+        const code = f.get("state_code") || f.get("STATE_CODE") || f.get("StateCode");
+        return code === selectedStateCode;
+      });
+
+      if (feature) {
+        const geometry = feature.getGeometry();
+        if (geometry) {
+          const extent = geometry.getExtent();
+          map.getView().fit(extent, {
+            duration: 1000,
+            padding: [100, 100, 100, 100],
+            maxZoom: 10,
+          });
+        }
+      }
+    } else {
+      // Zoom back to All India
+      const indiaLayer = map.getLayers().getArray().find(l => l.get("name") === "indiaBase") as VectorLayer<VectorSource>;
+      if (!indiaLayer) return;
+
+      const source = indiaLayer.getSource();
+      if (!source) return;
+
+      const extent = source.getExtent();
+      if (extent && extent.some(isFinite)) {
+        map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
+      }
+    }
+  }, [selectedStateCode, selectedDistrictCode, map]);
 
   // Toggle base map
   const toggleBaseMap = () => {
@@ -533,6 +759,12 @@ export const WeatherMapProvider = ({ children }: { children: ReactNode }) => {
         isLoadingWeather,
         selectedStation,
         closeWeatherPanel,
+        states,
+        selectedStateCode,
+        setSelectedStateCode,
+        districts,
+        selectedDistrictCode,
+        setSelectedDistrictCode,
       }}
     >
       {children}

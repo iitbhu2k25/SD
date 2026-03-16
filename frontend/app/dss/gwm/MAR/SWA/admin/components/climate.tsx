@@ -221,7 +221,7 @@ export default function ClimateAdmin() {
       end_year: Number(selectedEndYear),
     };
 
-    const res = await fetch(`${apiBase}/django/swa/adminclimateimage`, {
+    const res = await fetch(`${apiBase}/${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminclimateimage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',

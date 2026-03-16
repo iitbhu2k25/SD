@@ -57,7 +57,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
       setError(null);
 
       try {
-        const res = await fetch(`${apiBase}/django/swa/adminsurfacewater`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminsurfacewater`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -207,7 +207,7 @@ export const VillageSurplusProvider: React.FC<React.PropsWithChildren> = ({ chil
   const fetchVillagePng = useCallback(
     async (vlcode: string | number): Promise<string | null> => {
       try {
-        const res = await fetch(`${apiBase}/django/swa/adminsurfacewaterimage`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swa/adminsurfacewaterimage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ vlcode }),

@@ -363,7 +363,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
 
   const scanAvailableRivers = async (): Promise<RiverInfo[]> => {
     try {
-      const response = await fetch(`/django/drain-water-quality/rivers/scan/`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/scan/`);
       const data = await response.json();
 
       if (data.status === 'success') {
@@ -394,7 +394,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
       // Load all rivers in parallel
       const loadPromises = rivers.map(async (river) => {
         try {
-          const response = await fetch(`/django/drain-water-quality/rivers/geojson/${river.id}`);
+          const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/geojson/${river.id}`);
           if (!response.ok) return null;
           const geoJsonData = await response.json();
           return { river, geoJsonData };
@@ -719,7 +719,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({ sidebarCollapsed, showNotificatio
     const loadStations = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/django/drain-water-quality/main`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data: DrainStation[] = await response.json();
         setDrainStations(data);

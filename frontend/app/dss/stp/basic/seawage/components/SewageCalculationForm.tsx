@@ -211,7 +211,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch('/django/swrunoff', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/swrunoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +271,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch('/django/stormwaterrunoff', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/stormwaterrunoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -667,7 +667,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
 
     try {
       const responses = await Promise.all(payloads.map(payload =>
-        fetch('/django/sewage_calculation/', {
+        fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/sewage_calculation/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1593,7 +1593,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
     try {
       //console.log('Fetching map from API with village codes:', villageCodes);
 
-      const response = await fetch('/django/studyareamap', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/studyareamap`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3500,7 +3500,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             //console.log('FormData created, uploading to API...');
 
             // Upload to your API
-            const uploadResponse = await fetch('/django/pdf', {
+            const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/pdf`, {
               method: 'POST',
               body: formData,
             });

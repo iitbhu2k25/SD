@@ -365,7 +365,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
         seasonal_multipliers: seasonalMultipliers
       };
 
-      const response = await fetch('/django/domestic_water_demand/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/domestic_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -400,7 +400,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
         seasonal_multipliers: floatingSeasonalMultipliers
       };
 
-      const floatingResponse = await fetch('/django/floating_water_demand/', {
+      const floatingResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/floating_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -430,7 +430,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
     try {
       let institutionalResult: { [year: string]: number };///////fixing here
       if (institutionalInputMode === 'manual') {
-        const institutionalResponse = await fetch('/django/institutional_water_demand/', {
+        const institutionalResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/institutional_water_demand/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -480,7 +480,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
 
     setIsCalculating(true);
     try {
-      const response = await fetch('/django/firefighting_water_demand/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/firefighting_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

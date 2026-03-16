@@ -103,7 +103,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/django/state");
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/state`);
         const data = await response.json();
 
         const formatted: State[] = data.map((s: any) => ({
@@ -144,7 +144,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       try {
         console.log('📤 Fetching districts for state:', selectedState);
-        const response = await fetch("/django/district/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/district/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ state_code: selectedState }),
@@ -188,7 +188,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       try {
         console.log('📤 Fetching blocks for districts:', selectedDistricts);
-        const response = await fetch("/django/rsq/getblocks", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rsq/getblocks`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -235,7 +235,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       try {
         console.log('📤 Fetching villages for blocks:', selectedBlocks);
-        const response = await fetch("/django/rsq/getvillages", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rsq/getvillages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
