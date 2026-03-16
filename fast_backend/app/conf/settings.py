@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     MODELED_WATER:str
     VERIFY_URL:str
     ADMIN_EMAIL:str
+    DOMAIN:str
     DATABSE_URL:AnyHttpUrl = Field(get_db_url(
         drivername="postgresql+psycopg2",
         username=config("POSTGRES_USER"),

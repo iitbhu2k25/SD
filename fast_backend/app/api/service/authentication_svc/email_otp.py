@@ -8,6 +8,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from app.conf.settings import Settings
 
 SECRET_KEY = Settings().SECRET_KEY
+domain = Settings().DOMAIN
 
 
 from fastapi import BackgroundTasks
@@ -190,7 +191,7 @@ class EmailService:
 
         action_text = "Log in to your account" if is_approved else f"Kindly email us on {ADMIN_EMAIL} for more information."
         action_url = (
-            f"slcrdss.in"
+            f"{domain}"
             if is_approved
             else f""
         )
