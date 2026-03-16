@@ -12,7 +12,7 @@ from app.utils.network_conf import GeoConfig
 from app.utils.name import Unique_name
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.water.geospatial_service import GeospatialProcessor
-from app.database.crud.water_crud import Drain_crud, Stretches_crud
+from app.database.crud.water_crud import Drain_crud, Stretches_crud, Stp_Villages_crud, Stp_District_crud, Stp_State_crud, Stp_towns_crud, Stp_SubDistrict_crud
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class WaterAvailabilityMapper:
         
         # GeoServer configuration
         self.vector_workspace = "dss_vector"
-        self.raster_workspace = "water_Availability"
+        self.raster_workspace = "dss_raster"
         self.vector_store_name = "vector_store"
         
         # Vector layer configuration
@@ -687,6 +687,36 @@ class WaterAvailabilityMapper:
             }
         }
 
+class Stp_location:
+    def get_state(db:Session,all_data: bool = False):
+        states=Stp_State_crud(db).get_states(all_data)
+        states=[{'id': state.state_code,'name':state.state_name} for state in states]
+        return states
+
+    def get_district(db:Session,payload:dict):
+        districts=Stp_District_crud(db).get_district(payload.state,payload.all_data)
+        districts=[{'id': district.district_code,'name':district.district_name} for district in districts]
+        return districts
+    
+    def get_district_all(db:Session):
+        districts=Stp_District_crud(db).get_district_all()
+        districts=[{'id': district.district_code,'name':district.district_name,'stateId':district.state_code} for district in districts]
+        return districts
+
+    def get_sub_district(db:Session,payload:dict):
+        SubDistricts=Stp_SubDistrict_crud(db).get_subdistrict(payload.districts,payload.all_data)
+        SubDistricts=[{'id': SubDistrict.subdistrict_code,'name':SubDistrict.subdistrict_name} for SubDistrict in SubDistricts]
+        return SubDistricts
+    
+    def get_sub_district_all(db:Session):
+        SubDistricts=Stp_SubDistrict_crud(db).get_subdistrict_all()
+        SubDistricts=[{'id': SubDistrict.subdistrict_code,'name':SubDistrict.subdistrict_name,'districtId':SubDistrict.district_code} for SubDistrict in SubDistricts]
+        return SubDistricts
+    
+    def get_villages(db:Session,payload:dict):
+        Villages=Stp_Villages_crud(db).get_villages(payload.subdis_code,payload.all_data)
+        Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
+        return Villages
 
 class StretchLocation:
     """Helper class for database operations."""

@@ -1,8 +1,8 @@
-"""new 
+"""updation
 
-Revision ID: 1d7da5a56810
+Revision ID: de1d23b99362
 Revises: 
-Create Date: 2026-03-13 10:52:32.903633
+Create Date: 2026-03-14 10:58:17.288584
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '1d7da5a56810'
+revision: str = 'de1d23b99362'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -155,6 +155,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('state_code')
     )
     op.create_index(op.f('ix_gwa_state_state_code'), 'gwa_state', ['state_code'], unique=False)
+    op.create_table('stp_state',
+    sa.Column('state_code', sa.Integer(), nullable=False),
+    sa.Column('state_name', sa.String(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.PrimaryKeyConstraint('state_code', 'id'),
+    sa.UniqueConstraint('state_code')
+    )
+    op.create_index(op.f('ix_stp_state_id'), 'stp_state', ['id'], unique=True)
     op.create_table('subbasin_flow',
     sa.Column('sub', sa.Integer(), nullable=False),
     sa.Column('year', sa.Integer(), nullable=False),
@@ -198,6 +208,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('district_code')
     )
     op.create_index(op.f('ix_gwa_district_district_code'), 'gwa_district', ['district_code'], unique=False)
+    op.create_table('stp_district',
+    sa.Column('district_code', sa.Integer(), nullable=False),
+    sa.Column('district_name', sa.String(), nullable=False),
+    sa.Column('state_code', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['state_code'], ['stp_state.state_code'], ),
+    sa.PrimaryKeyConstraint('district_code', 'id'),
+    sa.UniqueConstraint('district_code')
+    )
+    op.create_index(op.f('ix_stp_district_id'), 'stp_district', ['id'], unique=True)
     op.create_table('basic_basic_subdistrict',
     sa.Column('subdistrict_code', sa.Integer(), nullable=False),
     sa.Column('subdistrict_name', sa.String(length=40), nullable=False),
@@ -216,6 +238,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('subdistrict_code')
     )
     op.create_index(op.f('ix_gwa_subdistrict_subdistrict_code'), 'gwa_subdistrict', ['subdistrict_code'], unique=False)
+    op.create_table('stp_subdistrict',
+    sa.Column('subdistrict_code', sa.Integer(), nullable=False),
+    sa.Column('subdistrict_name', sa.String(), nullable=False),
+    sa.Column('district_code', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['district_code'], ['stp_district.district_code'], ),
+    sa.PrimaryKeyConstraint('subdistrict_code', 'id'),
+    sa.UniqueConstraint('subdistrict_code')
+    )
+    op.create_index(op.f('ix_stp_subdistrict_id'), 'stp_subdistrict', ['id'], unique=True)
     op.create_table('basic_basic_village',
     sa.Column('village_code', sa.Integer(), nullable=False),
     sa.Column('village_name', sa.String(length=100), nullable=False),
@@ -236,6 +270,29 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('village_code')
     )
     op.create_index(op.f('ix_gwa_village_village_code'), 'gwa_village', ['village_code'], unique=False)
+    op.create_table('stp_towns',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('classs', sa.Integer(), nullable=False),
+    sa.Column('population', sa.Integer(), nullable=False),
+    sa.Column('elevation', sa.Float(), nullable=False),
+    sa.Column('subdistrict_code', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['subdistrict_code'], ['stp_subdistrict.subdistrict_code'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('id')
+    )
+    op.create_table('stp_villages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('village_name', sa.String(), nullable=False),
+    sa.Column('subdistrict_code', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('modified_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['subdistrict_code'], ['stp_subdistrict.subdistrict_code'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('id')
+    )
     op.create_table('gwa_well',
     sa.Column('village_code', sa.Integer(), nullable=False),
     sa.Column('FID_clip', sa.Integer(), nullable=True),
@@ -291,14 +348,20 @@ def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_index(op.f('ix_gwa_well_id'), table_name='gwa_well')
     op.drop_table('gwa_well')
+    op.drop_table('stp_villages')
+    op.drop_table('stp_towns')
     op.drop_index(op.f('ix_gwa_village_village_code'), table_name='gwa_village')
     op.drop_table('gwa_village')
     op.drop_index(op.f('ix_basic_basic_village_subdistrict_code'), table_name='basic_basic_village')
     op.drop_table('basic_basic_village')
+    op.drop_index(op.f('ix_stp_subdistrict_id'), table_name='stp_subdistrict')
+    op.drop_table('stp_subdistrict')
     op.drop_index(op.f('ix_gwa_subdistrict_subdistrict_code'), table_name='gwa_subdistrict')
     op.drop_table('gwa_subdistrict')
     op.drop_index(op.f('ix_basic_basic_subdistrict_district_code'), table_name='basic_basic_subdistrict')
     op.drop_table('basic_basic_subdistrict')
+    op.drop_index(op.f('ix_stp_district_id'), table_name='stp_district')
+    op.drop_table('stp_district')
     op.drop_index(op.f('ix_gwa_district_district_code'), table_name='gwa_district')
     op.drop_table('gwa_district')
     op.drop_index(op.f('ix_basic_basic_district_state_code'), table_name='basic_basic_district')
@@ -308,6 +371,8 @@ def downgrade() -> None:
     op.drop_index('ix_subbasin_flow_sub', table_name='subbasin_flow')
     op.drop_index(op.f('ix_subbasin_flow_id'), table_name='subbasin_flow')
     op.drop_table('subbasin_flow')
+    op.drop_index(op.f('ix_stp_state_id'), table_name='stp_state')
+    op.drop_table('stp_state')
     op.drop_index(op.f('ix_gwa_state_state_code'), table_name='gwa_state')
     op.drop_table('gwa_state')
     op.drop_index(op.f('ix_gwa_population_2011_subdistrict_code'), table_name='gwa_population_2011')

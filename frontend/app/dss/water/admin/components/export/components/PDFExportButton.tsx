@@ -875,7 +875,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         try {
           const controller = new AbortController();
           const timeout    = setTimeout(() => controller.abort(), 5000);
-          const capUrl     = `/geoserver/api/water_Availability/wms?service=WMS&version=1.1.0&request=GetCapabilities`;
+          const capUrl     = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/water_Availability/wms?service=WMS&version=1.1.0&request=GetCapabilities`;
           const capRes     = await fetch(capUrl, { credentials: "include", signal: controller.signal });
           clearTimeout(timeout);
 
@@ -887,7 +887,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           capXml.querySelectorAll("Layer").forEach((layerNode) => {
             const nameNode = layerNode.querySelector(":scope > Name");
             if (
-              nameNode?.textContent === `water_Availability:${firstRaster.layer_name}` ||
+              nameNode?.textContent === `dss_raster:${firstRaster.layer_name}` ||
               nameNode?.textContent === firstRaster.layer_name
             ) {
               const llBbox = layerNode.querySelector("LatLonBoundingBox");
@@ -963,12 +963,12 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
 
         for (const raster of rasters) {
           const wmsUrl =
-            `/geoserver/api/water_Availability/wms?` +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/water_Availability/wms?` +
             new URLSearchParams({
               service:     "WMS",
               version:     "1.1.0",
               request:     "GetMap",
-              layers:      `water_Availability:${raster.layer_name}`,
+              layers:      `dss_raster:${raster.layer_name}`,
               bbox:        BBOX,
               width:       String(W),
               height:      String(H),
@@ -1018,12 +1018,12 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         for (const raster of rasters) {
           try {
             const legendUrl =
-              `/geoserver/api/water_Availability/wms?` +
+              `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/water_Availability/wms?` +
               new URLSearchParams({
                 service:        "WMS",
                 version:        "1.1.0",
                 request:        "GetLegendGraphic",
-                layer:          `water_Availability:${raster.layer_name}`,
+                layer:          `dss_raster:${raster.layer_name}`,
                 format:         "image/png",
                 width:          "30",
                 height:         "30",
