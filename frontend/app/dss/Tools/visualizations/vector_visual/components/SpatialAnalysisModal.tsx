@@ -369,7 +369,7 @@ export default function SpatialAnalysisModal({
         if (ml?.layer) fd.append(`geojson_${i}`, JSON.stringify(layerToGeoJSON(ml.layer)));
       });
       Object.entries(opParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
-      const res  = await fetch('/django/mapplot/spatial/process', { method:'POST', body:fd });
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/process`, { method:'POST', body:fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       if (data.message) { showNotification('Result', data.message, 'info'); }
@@ -404,7 +404,7 @@ export default function SpatialAnalysisModal({
       fd.append('geojson_0', JSON.stringify(layerToGeoJSON(srcML.layer)));
       fd.append('geojson_1', JSON.stringify(layerToGeoJSON(tgtML.layer)));
       Object.entries(qParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
-      const res  = await fetch('/django/mapplot/spatial/query', { method:'POST', body:fd });
+      const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/query`, { method:'POST', body:fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
       if (data.message) {

@@ -115,7 +115,7 @@ const LocationContext = createContext<LocationContextType>({
 
 export const LocationProvider: React.FC<LocationProviderProps> = ({
   children,
-  geoServerBaseUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
+  geoServerBaseUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   villageApiBaseUrl = `${process.env.NEXT_PUBLIC_FAST_URL}`,
 }) => {
   // Location state
