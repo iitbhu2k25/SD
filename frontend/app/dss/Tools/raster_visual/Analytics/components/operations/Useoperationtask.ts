@@ -51,11 +51,11 @@ function nowISO() {
 
 function buildPayload(op: OperationDef, params: Record<string, unknown>, fileId: string, nodata: string) {
   
-  const base = { file_id: fileId, src_nodata: nodata };
+  const base = { file_id: fileId, src_nodata: String(nodata) };
 
   switch (op.id) {
     case "slope":
-      return { ...base, units: params.unit, z_factor: params.z_factor };
+      return { ...base, units: params.unit };
     case "tpi":
       return { ...base, radius: params.radius };
     case "flow_direction":
@@ -65,7 +65,7 @@ function buildPayload(op: OperationDef, params: Record<string, unknown>, fileId:
     case "twi":
       return { ...base, fill_depressions: true, algorithm: params.algorithm ?? "d8" };
     case "projection":
-      return { file_id: fileId, src_nodata: String(nodata), target_epsg: params.target_crs, resampling: params.resampling };
+      return { ...base, target_epsg: params.target_crs, resampling: params.resampling };
     case "cell_resize":
       return { ...base, target_cell: params.cell_size, algorithm: params.method, dtype_override: "float32" };
     case "interpolation":

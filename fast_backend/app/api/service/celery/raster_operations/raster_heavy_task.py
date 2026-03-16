@@ -780,7 +780,10 @@ def compute_flow_accumulation_task(
     src_nodata: str,
 ) -> str:
     try:
-        
+        celery_task_update(
+        task_id=self.request.id,
+        status="started",
+        )
 
         with tempfile.TemporaryDirectory(prefix="flow_acc_") as tmp_dir:
 
@@ -789,7 +792,12 @@ def compute_flow_accumulation_task(
             if fill_depressions:
                 dem_path = _fill_depressions( input_path, tmp_dir)
 
-            # Step 2 — Flow accumulation
+            celery_task_update(
+            task_id=self.request.id,
+            status="in_process",
+            progress=50,
+            
+            )
             _run_flow_accumulation(
                 dem_path=dem_path,
                 output_path=output_path,
@@ -801,10 +809,23 @@ def compute_flow_accumulation_task(
         _update_stats(float(src_nodata),output_path)
 
         logger.info("Flow accumulation complete [pid=%s]: %s", os.getpid(), output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Flow accumulation failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
 @app.task(bind=True,name='celery_flow_direction_tools',queue='heavy_task')
@@ -817,7 +838,10 @@ def compute_flow_direction_task(
     src_nodata: str,
     
 ) -> str:
-    
+    celery_task_update(
+        task_id=self.request.id,
+        status="started",
+    )
     try:
         with tempfile.TemporaryDirectory(prefix="flow_dir_") as tmp_dir:
             # Fill depressions
@@ -825,23 +849,49 @@ def compute_flow_direction_task(
             if fill_depressions:
                 dem_path = _fill_depressions(input_path, tmp_dir)
 
-            # Flow direction
+            celery_task_update(
+            task_id=self.request.id,
+            status="in_process",
+            progress=40,
+            
+            )
             _run_flow_direction(
                 dem_path=dem_path,
                 output_path=output_path,
                 algorithm=algorithm
             )
-
+        celery_task_update(
+            task_id=self.request.id,
+            status="in_process",
+            progress=70,
+           
+        )
         _update_stats(float(src_nodata),output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         # Non-retryable — bad input
         logger.error("Flow direction failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
     except RuntimeError as e:
-        # Retryable — WBT process failure
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         logger.warning("Flow direction failed (retryable): %s", e)
 
 
@@ -854,16 +904,33 @@ def compute_slope_task(
     src_nodata: str,
 ) -> str:
     try:
+        celery_task_update(
+        task_id=self.request.id,
+        status="started",
+        )
         _run_slope(
             dem_path=input_path,
             output_path=output_path,
             units=units,
         )
         _update_stats(float(src_nodata),output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Slope failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
 
@@ -876,16 +943,34 @@ def compute_tpi_task(
         src_nodata: str
 ) -> str:
     try:
+        celery_task_update(
+        task_id=self.request.id,
+        status="started",
+        )
         _run_tpi(
             dem_path=input_path,
             output_path=output_path,
             radius=radius,
         )
         _update_stats(float(src_nodata), output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
+        
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("TPI failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
 
@@ -899,11 +984,19 @@ def compute_twi_task(
     src_nodata: str
 ) -> str:
     try:
+        celery_task_update(
+        task_id=self.request.id,
+        status="started",
+        )
         with tempfile.TemporaryDirectory(prefix="twi_") as tmp_dir:
             dem_path = input_path
             if fill_depressions:
                 dem_path = _fill_depressions(input_path, tmp_dir)
-
+            celery_task_update(
+            task_id=self.request.id,
+            status="in_process",
+            progress=40,
+            )
             _run_twi(
                 dem_path=dem_path,
                 output_path=output_path,
@@ -912,10 +1005,23 @@ def compute_twi_task(
             )
 
         _update_stats(float(src_nodata),output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("TWI failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
 
@@ -961,7 +1067,10 @@ def resample_raster_task(
 
 ) -> str:
     try:
-       
+        celery_task_update(
+        task_id=self.request.id,
+        status="started",
+        )
         _run_resample(
             input_path=input_path,
             output_path=output_path,
@@ -971,9 +1080,22 @@ def resample_raster_task(
         )
         
         _update_stats(float(src_nodata),output_path)
-        return output_path
+        celery_task_update(
+            task_id=self.request.id,
+            status="completed",
+            progress=100,
+            layer_name=self.request.id,
+            result_path=output_path
+        )
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Resample failed (non-retryable): %s", e)
+        celery_task_update(
+            task_id=self.request.id,
+            status="failed",
+        )
         raise
 
