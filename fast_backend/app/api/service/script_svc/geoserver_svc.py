@@ -106,7 +106,7 @@ def create_vector_stores(workspace_name, store_name):
        
         return True
     
-    create_shapefile_store(workspace_name,store_name,geoserver_url)
+    return create_shapefile_store(workspace_name,store_name,geoserver_url)
 
 def create_shapefile_store(workspace_name, store_name, geoserver_url):
     store_url = f"{geoserver_url}/rest/workspaces/{workspace_name}/datastores"
@@ -124,7 +124,6 @@ def create_shapefile_store(workspace_name, store_name, geoserver_url):
     response = geoserver_post(url=store_url,data=data)
     
     if response.status_code == 201:
-     
         return True
     else:
         print(f"Failed to create shapefile store. Status code: {response.status_code}")

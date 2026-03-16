@@ -33,11 +33,11 @@ const WS_BASE  = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
 const ENDPOINT_MAP: Record<string, string> = {
   slope:              "/tools/slope",
   tpi:                "/tools/tpi",
-  flow_direction:     "/tools/flow-direction",
-  flow_accumulation:  "/tools/flow-accumulation",
+  flow_direction:     "/tools/flow_direction",
+  flow_accumulation:  "/tools/flow_accumulation",
   twi:                "/tools/twi",
   projection:         "/tools/reprojection",
-  cell_resize:        "/tools/cell-resize",
+  cell_resize:        "/tools/raster_resolution_execute",
   interpolation:      "/tools/interpolation",
   reclassification:   "/tools/reclassify",
   euclidean_distance: "/tools/euclidean-distance",
@@ -59,11 +59,11 @@ function buildPayload(op: OperationDef, params: Record<string, unknown>, fileId:
     case "tpi":
       return { ...base, radius: params.radius };
     case "flow_direction":
-      return { ...base, algorithm: params.algorithm ?? "d8", fill_depressions: params.fill_depressions ?? true };
+      return { ...base, algorithm: params.algorithm, fill_depressions: params.fill_depressions };
     case "flow_accumulation":
-      return { ...base, algorithm: params.algorithm ?? "d8", output_type: params.output_type ?? "cells", fill_depressions: true, log_transform: params.log_transform ?? false };
+      return { ...base, algorithm: params.algorithm, output_type: params.output_type , fill_depressions: true, log_transform: params.log_transform };
     case "twi":
-      return { ...base, fill_depressions: true, algorithm: params.algorithm ?? "d8" };
+      return { ...base, fill_depressions: params.fill_depressions, algorithm: params.algorithm  };
     case "projection":
       return { ...base, target_epsg: params.target_crs, resampling: params.resampling };
     case "cell_resize":

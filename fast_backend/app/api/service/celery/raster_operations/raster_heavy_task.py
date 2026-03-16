@@ -563,7 +563,6 @@ def _run_flow_direction(
     dem_path:   str,
     output_path: str,
     algorithm:  str,
-    max_slope:  Optional[float],
 ) -> None:
     """Dispatch to correct WhiteboxTools flow direction algorithm."""
 
@@ -794,7 +793,7 @@ def compute_flow_accumulation_task(
 
             celery_task_update(
             task_id=self.request.id,
-            status="in_process",
+            status="running",
             progress=50,
             
             )
@@ -851,7 +850,7 @@ def compute_flow_direction_task(
 
             celery_task_update(
             task_id=self.request.id,
-            status="in_process",
+            status="running",
             progress=40,
             
             )
@@ -862,7 +861,7 @@ def compute_flow_direction_task(
             )
         celery_task_update(
             task_id=self.request.id,
-            status="in_process",
+            status="running",
             progress=70,
            
         )
@@ -994,7 +993,7 @@ def compute_twi_task(
                 dem_path = _fill_depressions(input_path, tmp_dir)
             celery_task_update(
             task_id=self.request.id,
-            status="in_process",
+            status="running",
             progress=40,
             )
             _run_twi(

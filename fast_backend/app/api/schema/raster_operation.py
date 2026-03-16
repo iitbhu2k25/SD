@@ -128,11 +128,11 @@ class FlowDirectionParams(BaseModel):
     fill_depressions: bool        = True
     src_nodata: str
 
-    @model_validator(mode="after")
-    def validate_params(self):
-        if self.max_slope is not None and self.algorithm == "d8":
-            raise ValueError("max_slope is only valid for 'dinf' or 'mfd' algorithms")
-        return self
+    # @model_validator(mode="after")
+    # def validate_params(self):
+    #     if self.max_slope is not None and self.algorithm == "d8":
+    #         raise ValueError("max_slope is only valid for 'dinf' or 'mfd' algorithms")
+    #     return self
     
 
 FLOW_ACC_NODATA = -1.0

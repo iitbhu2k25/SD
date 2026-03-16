@@ -116,7 +116,7 @@ async def flow_direction(db:db_dependency,payload:FlowDirectionParams):
     resp = await RasterOperation().flow_direction(db,payload)
     return resp.id
 
-@router.post("/flow_acumulation",status_code=status.HTTP_201_CREATED)
+@router.post("/flow_accumulation",status_code=status.HTTP_201_CREATED)
 @validate
 async def flow_acumulation(db:db_dependency,payload:FlowAccumulationParams):
     """return the flow accumulation raster"""

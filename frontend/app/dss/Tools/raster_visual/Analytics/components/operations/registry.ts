@@ -122,7 +122,29 @@ export const OPERATIONS: OperationDef[] = [
     category: "hydrology",
     icon: "M12 5v14M5 12l7 7 7-7",
     accentColor: "--blue",
-    params: [],
+    params: [
+      {
+        key: "algorithm",
+        label: "Select Algorithm",
+        type: "select",
+        default: "d8",
+        options: [
+          { label: "D8", value: "d8" },
+          { label: "DINF", value: "dinf" },
+          { label: "MFD", value: "mfd" },
+        ],
+      },
+      {
+        key: "fill_depressions",
+        label: "fill depressions",
+        type: "select",
+        default: "true",
+        options: [
+          { label: "True", value: "true" },
+          { label: "False", value: "false" },
+        ],
+      },
+    ],
   },
 
   {
@@ -132,7 +154,50 @@ export const OPERATIONS: OperationDef[] = [
     category: "hydrology",
     icon: "M17 20H7",
     accentColor: "--blue",
-    params: [],
+    params: [
+      {
+        key: "algorithm",
+        label: "Select Algorithm",
+        type: "select",
+        default: "d8",
+        options: [
+          { label: "D8", value: "d8" },
+          { label: "DINF", value: "dinf" },
+          { label: "MFD", value: "mfd" },
+        ],
+      },
+      {
+        key: "output type",
+        label: "Output Type",
+        type: "select",
+        default: "cells",
+        options: [
+          { label: "cells", value: "cells" },
+          { label: "specific contributing area", value: "catchment area" },
+          { label: "specific contributing area", value: "specific contributing area" },
+        ],
+      },
+      {
+        key: "fill_depressions",
+        label: "Fill Depressions",
+        type: "select",
+        default: "true",
+        options: [
+          { label: "True", value: "true" },
+          { label: "False", value: "false" },
+        ],
+      },
+      {
+        key: "log_transform",
+        label: "Log Transform",
+        type: "select",
+        default: "true",
+        options: [
+          { label: "True", value: "true" },
+          { label: "False", value: "false" },
+        ],
+      },
+    ],
   },
 
   {
@@ -142,7 +207,29 @@ export const OPERATIONS: OperationDef[] = [
     category: "hydrology",
     icon: "M12 2.69l5.66 5.66",
     accentColor: "--blue",
-    params: [],
+    params: [
+      {
+        key: "algorithm",
+        label: "Select Algorithm",
+        type: "select",
+        default: "d8",
+        options: [
+          { label: "D8", value: "d8" },
+          { label: "DINF", value: "dinf" },
+          { label: "MFD", value: "mfd" },
+        ],
+      },
+      {
+        key: "fill_depressions",
+        label: "fill depressions",
+        type: "select",
+        default: "true",
+        options: [
+          { label: "True", value: "true" },
+          { label: "False", value: "false" },
+        ],
+      },
+    ],
   },
 
   // ── Transformation ───────────────────────────────────────
@@ -199,18 +286,18 @@ export const OPERATIONS: OperationDef[] = [
         label: "Target Cell Size",
         type: "number",
         default: 30,
-        min: 0.1,
-        max: 10000,
-        step: 0.1,
-        unit: "map units",
+        min: 1,
+        max: 500,
+        step: 1,
+        unit: "meter",
       },
       {
-        key: "method",
+        key: "resampling",
         label: "Resampling Method",
         type: "select",
         default: "bilinear",
         options: [
-          { label: "Nearest", value: "nearest" },
+          { label: "Nearest", value: "near" },
           { label: "Bilinear", value: "bilinear" },
           { label: "Cubic", value: "cubic" },
         ],
