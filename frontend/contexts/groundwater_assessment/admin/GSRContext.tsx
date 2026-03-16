@@ -230,7 +230,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       console.log(`   Compressed size: ${base64Compressed.length} bytes`);
 
       // Send compressed data
-      const response = await fetch('http://localhost:8050/gwa/gsr', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/gsr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -350,7 +350,7 @@ export const GSRProvider: React.FC<GSRProviderProps> = ({ children }) => {
       console.log(`   Years: ${yearsCount}`);
       console.log(`   GSR Records: ${gsrTableData.length}`);
 
-      const response = await fetch('http://localhost:8050/gwa/stress', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/stress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestPayload),

@@ -84,6 +84,33 @@ class CSVUploadResponse(BaseModel):
     data: CSVUploadData
 
 
+class VillagesCatchmentRequest(BaseModel):
+    drain_no: Union[str, int] = Field(..., alias="Drain_No")
+
+    model_config = {"populate_by_name": True, "extra": "ignore"}
+
+
+class VillagesCatchmentVillage(BaseModel):
+    village_code: Union[str, int]
+    name: str
+    overlap_percentage: Optional[float] = None
+
+
+class VillagesCatchmentResponse(BaseModel):
+    drain_no: Union[str, int]
+    total_villages: int
+    villages: List[VillagesCatchmentVillage]
+    note: str
+
+
+class VillagesCatchmentMetaResponse(BaseModel):
+    message: str
+    available_drain_numbers: Optional[List[Union[str, int]]] = None
+    total_catchments: Optional[int] = None
+    error: Optional[str] = None
+    available_columns: Optional[List[str]] = None
+
+
 class WellRequest(BaseModel):
     village_code: Optional[Union[List[Union[str, int]], str, int]] = None
     subdis_cod: Optional[Union[List[Union[str, int]], str, int]] = None

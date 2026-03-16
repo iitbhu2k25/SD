@@ -4,7 +4,7 @@ from decouple import config
 from sqlalchemy import URL
 from pydantic import AnyHttpUrl,Field,computed_field
 import redis
-from fastapi_mail import ConnectionConfig
+
 def get_db_url(drivername,username,password,host,database,port)->str:
     return URL.create(
         drivername=drivername,

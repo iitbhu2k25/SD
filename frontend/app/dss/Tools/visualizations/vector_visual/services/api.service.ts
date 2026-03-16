@@ -46,7 +46,7 @@ export function isAcceptedFile(filename: string): boolean {
 // ─────────────────────────────────────────────────────────────────
 
 export async function fetchShapefileDirectory(): Promise<Record<string, string[]>> {
-  const response = await fetch('http://localhost:8050/mapplot/shapefiles');
+  const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/shapefiles`);
   if (!response.ok) throw new Error(`Failed to fetch directory: ${response.statusText}`);
   return await response.json();
 }
@@ -57,7 +57,7 @@ export async function fetchShapefileDirectory(): Promise<Record<string, string[]
 
 export async function fetchGeoJSON(category: string, subcategory: string): Promise<any> {
   const response = await fetch(
-    `http://localhost:8050/mapplot/get_shapefile/?category=${encodeURIComponent(category)}&subcategory=${encodeURIComponent(subcategory)}`
+    `${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/get_shapefile/?category=${encodeURIComponent(category)}&subcategory=${encodeURIComponent(subcategory)}`
   );
   if (!response.ok) throw new Error(`Failed to fetch data: ${response.statusText}`);
 
@@ -107,7 +107,7 @@ export async function uploadShapefile(
   fileArray.forEach(f => form.append('file', f));
 
   // POST the file — backend responds with text/event-stream
-  const res = await fetch('http://localhost:8050/mapplot/upload-shapefile', {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/upload-shapefile`, {
     method: 'POST',
     body: form,
   });
@@ -205,7 +205,7 @@ export async function performSpatialAnalysis(
     Object.entries(options).forEach(([k, v]) => formData.append(k, String(v)));
   }
 
-  const response = await fetch('http://localhost:8050/mapplot/spatial/process', { method: 'POST', body: formData });
+  const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/process`, { method: 'POST', body: formData });
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || `Spatial analysis failed: ${response.statusText}`);
@@ -214,7 +214,7 @@ export async function performSpatialAnalysis(
 }
 
 export async function getSpatialOperations(): Promise<any> {
-  const response = await fetch('http://localhost:8050/mapplot/spatial/operations');
+  const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/operations`);
   if (!response.ok) throw new Error(`Failed to fetch operations: ${response.statusText}`);
   return await response.json();
 }
@@ -224,7 +224,7 @@ export async function getSpatialOperations(): Promise<any> {
 // ─────────────────────────────────────────────────────────────────
 
 export async function exportMapPNG(geojson: any, width = 1920, height = 1080, dpi = 300): Promise<Blob> {
-  const r = await fetch('http://localhost:8050/mapplot/export/png', {
+  const r = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/export/png`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ geojson, width, height, dpi }),
   });
@@ -238,7 +238,7 @@ export async function exportMapPDFServer(
   orientation: 'portrait' | 'landscape' = 'landscape',
   heading = 'Map Export',
 ): Promise<Blob> {
-  const r = await fetch('http://localhost:8050/mapplot/export/pdf', {
+  const r = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/export/pdf`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ geojson, format, orientation, heading }),
   });
@@ -247,7 +247,7 @@ export async function exportMapPDFServer(
 }
 
 export async function geojsonToShapefile(geojson: any, filename = 'export'): Promise<Blob> {
-  const r = await fetch('http://localhost:8050/mapplot/export/shapefile', {
+  const r = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/export/shapefile`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ geojson, filename }),
   });

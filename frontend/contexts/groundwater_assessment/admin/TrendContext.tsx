@@ -336,7 +336,7 @@ export const GroundwaterTrendProvider = ({
 
       console.log("Sending trend analysis request:", payload);
 
-      const response = await fetch("http://localhost:8050/gwa/trends", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/trends`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

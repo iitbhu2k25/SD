@@ -312,7 +312,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
         setRiverError(null);
         setError(null);
 
-        const response = await fetch('http://localhost:8050/basic/rivers/');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/rivers/`);
         if (!response.ok) {
           throw new Error(`Failed to fetch rivers (Status: ${response.status})`);
         }
@@ -350,7 +350,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setStretchError(null);
           setError(null);
 
-          const response = await fetch('http://localhost:8050/basic/river-stretched/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/river-stretched/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ River_Code: parseInt(selectedRiver) }),
@@ -407,7 +407,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setDrainError(null);
           setError(null);
 
-          const response = await fetch('http://localhost:8050/basic/drain/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/drain/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ Stretch_ID: parseInt(selectedStretch) }),
@@ -462,7 +462,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
           setVillageError(null);
           setError(null);
 
-          const response = await fetch('http://localhost:8050/basic/catchment_village/', {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/catchment_village/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -688,7 +688,7 @@ const DrainLocationsSelector: React.FC<DrainLocationsSelectorProps> = ({
     try {
       //console.log("Fetching populations for villages:", selectedVillageIds.length, "villages");
 
-      const response = await fetch('http://localhost:8050/basic/village-population/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/village-population/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shapeID: selectedVillageIds })

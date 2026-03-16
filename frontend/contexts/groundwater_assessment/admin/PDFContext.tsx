@@ -140,7 +140,7 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({ children }) => {
 
       // Step 3: Send to API
       console.log(' Sending PDF generation request to /pdf API...');
-      const response = await fetch('http://localhost:8050/gwa/pdf', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/pdf`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

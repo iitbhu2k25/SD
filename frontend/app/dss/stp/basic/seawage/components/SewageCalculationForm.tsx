@@ -211,7 +211,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         throw new Error('No village data available');
       }
 
-      const response = await fetch('http://localhost:8050/basic/swrunoff', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/swrunoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,7 +271,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
         rainfall_intensity: Number(rainfallIntensity)
       };
 
-      const response = await fetch('http://localhost:8050/basic/stormwaterrunoff', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/stormwaterrunoff`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -667,7 +667,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
 
     try {
       const responses = await Promise.all(payloads.map(payload =>
-        fetch('http://localhost:8050/basic/sewage_calculation/', {
+        fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/sewage_calculation/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1544,7 +1544,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
     try {
       //console.log('Fetching map from API with village codes:', villageCodes);
 
-      const response = await fetch('http://localhost:8050/basic/studyareamap', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/studyareamap`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3451,7 +3451,7 @@ const SewageCalculationForm: React.FC<SewageCalculationFormProps> = ({
             //console.log('FormData created, uploading to API...');
 
             // Upload to your API
-            const uploadResponse = await fetch('http://localhost:8050/basic/pdf', {
+            const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/pdf`, {
               method: 'POST',
               body: formData,
             });

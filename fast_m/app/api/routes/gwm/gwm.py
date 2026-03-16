@@ -4,8 +4,8 @@ from typing import Dict, List
 
 from fastapi import APIRouter, Body, File, HTTPException, Query, Request, UploadFile, status
 
-from app.api.schema.gwm.gwm_schema import CSVUploadResponse, ForecastRequest, IndustrialRequest, PopulationRequest, RechargeRequest, SeasonRequest, StressRequest, TrendRequest, WellResponse
-from app.api.service.gwm.gwm_service import AgriDemandService, AdminUnitService, CropService, ForecastService, GSRService, IndustrialForecastService, InterpolationService, PDFMapService, PopulationService, RechargeService, StressIdentificationService, TrendService, CSVUploadService, WellLocation
+from app.api.schema.gwm.gwm_schema import CSVUploadResponse, ForecastRequest, IndustrialRequest, PopulationRequest, RechargeRequest, SeasonRequest, StressRequest, TrendRequest, VillagesCatchmentMetaResponse, VillagesCatchmentRequest, VillagesCatchmentResponse, WellResponse
+from app.api.service.gwm.gwm_service import AgriDemandService, AdminUnitService, CropService, ForecastService, GSRService, IndustrialForecastService, InterpolationService, PDFMapService, PopulationService, RechargeService, StressIdentificationService, TrendService, CSVUploadService, VillagesCatchmentService, WellLocation
 from app.database.config.dependency import db_dependency
 
 
@@ -15,6 +15,7 @@ gsr_service = GSRService()
 stress_service = StressIdentificationService()
 forecast_service = ForecastService()
 interpolation_service = InterpolationService()
+villages_catchment_service = VillagesCatchmentService()
 
 
 @router.post("/wells", response_model=list[WellResponse])
@@ -103,4 +104,26 @@ def industrial_forecast(payload: IndustrialRequest, db: db_dependency):
 @router.post("/pdf")
 async def generate_pdf(request: Request):
     return await PDFMapService.generate_pdf_from_request(request)
+
+
+@router.post("/villagescatchment", response_model=VillagesCatchmentResponse)
+async def villages_by_catchment(payload: VillagesCatchmentRequest):
+    try:
+        return villages_catchment_service.villages_by_catchment(payload.drain_no)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.get("/villagescatchment", response_model=VillagesCatchmentMetaResponse)
+async def villages_by_catchment_meta():
+    try:
+        return villages_catchment_service.available_drain_numbers()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 

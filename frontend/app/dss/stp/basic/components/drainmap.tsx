@@ -750,7 +750,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchBasin = async () => {
         try {
             //console.log("Fetching basin data...");
-            const response = await fetch('http://localhost:8050/basic/basin/');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/basin/`);
             //console.log("Basin response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch basin: ${response.statusText}`);
@@ -775,7 +775,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchRivers = async () => {
         try {
             //console.log("Fetching rivers...");
-            const response = await fetch('http://localhost:8050/basic/rivers/');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/rivers/`);
             //console.log("Rivers response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch rivers: ${response.statusText}`);
@@ -877,7 +877,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         setCatchmentLoading(true);
         try {
             //console.log(`Fetching stretches for river ${riverId}...`);
-            const response = await fetch('http://localhost:8050/basic/river-stretched/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/river-stretched/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ River_ID: parseInt(riverId, 10) })
@@ -920,7 +920,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchAllDrains = async () => {
         try {
             //console.log("Fetching drains...");
-            const response = await fetch('http://localhost:8050/basic/drain/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/drain/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({})
@@ -949,7 +949,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
     const fetchAllStretches = async () => {
         try {
             //console.log("Fetching all stretches...");
-            const response = await fetch('http://localhost:8050/basic/all-stretches/');
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/all-stretches/`);
             //console.log("All stretches response status:", response.status);
             if (!response.ok) {
                 throw new Error(`Failed to fetch stretches: ${response.statusText}`);
@@ -985,7 +985,7 @@ const DrainMap: React.FC<DrainMapProps> = ({
         setCatchmentLoading(true);
         try {
             //console.log(`Fetching catchments and villages for drains: ${drainIds}...`);
-            const response = await fetch('http://localhost:8050/basic/catchment_village/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/catchment_village/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

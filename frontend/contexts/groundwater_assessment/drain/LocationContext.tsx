@@ -115,8 +115,8 @@ const LocationContext = createContext<LocationContextType>({
 
 export const LocationProvider: React.FC<LocationProviderProps> = ({
   children,
-  geoServerBaseUrl = "/geoserver/api",
-  villageApiBaseUrl = "/django",
+  geoServerBaseUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
+  villageApiBaseUrl = `${process.env.NEXT_PUBLIC_FAST_URL}`,
 }) => {
   // Location state
   const [rivers, setRivers] = useState<River[]>([]);
@@ -196,9 +196,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       let url: string;
 
       if (cqlFilter) {
-        url = `${geoServerBaseUrl}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+        url = `${geoServerBaseUrl}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
       } else {
-        url = `${geoServerBaseUrl}/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json`;
+        url = `${geoServerBaseUrl}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json`;
       }
 
       console.log(`Fetching from GeoServer: ${url}`);

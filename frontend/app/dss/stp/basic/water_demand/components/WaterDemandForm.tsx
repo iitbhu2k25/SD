@@ -365,7 +365,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
         seasonal_multipliers: seasonalMultipliers
       };
 
-      const response = await fetch('http://localhost:8050/basic/domestic_water_demand/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/domestic_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -400,7 +400,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
         seasonal_multipliers: floatingSeasonalMultipliers
       };
 
-      const floatingResponse = await fetch('http://localhost:8050/basic/floating_water_demand/', {
+      const floatingResponse = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/floating_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -430,7 +430,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
     try {
       let institutionalResult: { [year: string]: number };///////fixing here
       if (institutionalInputMode === 'manual') {
-        const institutionalResponse = await fetch('http://localhost:8050/basic/institutional_water_demand/', {
+        const institutionalResponse = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/institutional_water_demand/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -480,7 +480,7 @@ const WaterDemandForm: React.FC<WaterDemandFormProps> = ({
 
     setIsCalculating(true);
     try {
-      const response = await fetch('http://localhost:8050/basic/firefighting_water_demand/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/firefighting_water_demand/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

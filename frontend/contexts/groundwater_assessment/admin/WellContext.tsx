@@ -145,7 +145,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
     setWellsLoading(true);
     setWellsError(null);
     try {
-      const response = await fetch('http://localhost:8050/gwa/wells', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/wells`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -449,7 +449,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
       const formData = new FormData();
       formData.append('csv_file', file);
 
-      const validateResponse = await fetch("/django/gwa/validate-csv", {
+      const validateResponse = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/validate-csv`, {
         method: "POST",
         body: formData,
       });
@@ -521,7 +521,7 @@ export const WellProvider: React.FC<WellProviderProps> = ({
       formData.append('csv_file', blob, filename);
 
       // Send to the correct endpoint that expects file upload
-      const response = await fetch("http://localhost:8050/gwa/upload-csv", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/gwa/upload-csv`, {
         method: "POST",
         body: formData,
       });

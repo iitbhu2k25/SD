@@ -829,13 +829,14 @@ class BasicService:
         if not upload_file.filename or not upload_file.filename.lower().endswith(".pdf"):
             raise ValueError("Only PDF files are allowed")
 
-        media_root = self._media_root()
-
+        settings = Settings()
+        temp_dir = getattr(settings, "TEMP_DIR", self.temp_dir)
+        os.makedirs(temp_dir, exist_ok=True)
 
         name, ext = os.path.splitext(upload_file.filename)
         unique_id = uuid.uuid4().hex
         unique_filename = f"{name}_{unique_id}{ext}"
-        temp_file_path = os.path.join(self.temp_dir, unique_filename)
+        temp_file_path = os.path.join(temp_dir, unique_filename)
 
         with open(temp_file_path, "wb") as f:
             f.write(upload_file.file.read())

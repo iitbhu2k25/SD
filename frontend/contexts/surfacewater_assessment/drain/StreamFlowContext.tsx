@@ -44,7 +44,7 @@ export const StreamFlowProvider: React.FC<React.PropsWithChildren> = ({ children
   const [lastFetchedSubbasins, setLastFetchedSubbasins] = useState<number[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8050';
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? `${process.env.NEXT_PUBLIC_FAST_URL}`;
 
   const selectedSubs = useMemo(
     () =>

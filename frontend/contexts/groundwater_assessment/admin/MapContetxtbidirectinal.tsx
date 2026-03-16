@@ -1315,7 +1315,8 @@ const createSubdistrictPolygonStyle = (feature: any, selectedSubDistricts: numbe
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: "/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json",
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}
+         /wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:India&outputFormat=application/json`,
       }),
       style: boundaryLayerStyle,
       zIndex: 1,
@@ -1785,7 +1786,7 @@ const createWFSLayer = (
   const layer = new VectorLayer({
     source: new VectorSource({
       format: new GeoJSON(),
-      url: `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+      url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
     }),
     style: styleFunction,
     zIndex: zIndex,
@@ -1971,7 +1972,7 @@ const createWFSLayer = (
       const imageWmsSource = new ImageWMS({
         url: geoserverUrl,
         params: {
-          LAYERS: `myworkspace:${coloredLayerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${coloredLayerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",
@@ -2060,7 +2061,7 @@ const createWFSLayer = (
       const imageWmsSource = new ImageWMS({
         url: geoserverUrl,
         params: {
-          LAYERS: `myworkspace:${layerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${layerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",
@@ -2173,7 +2174,7 @@ const createWFSLayer = (
     try {
       console.log(`Attempting to zoom to ${layerName} with filter: ${cqlFilter}`);
 
-      const wfsUrl = `/geoserver/api/myworkspace/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
 
       const response = await fetch(wfsUrl);
       if (!response.ok) {

@@ -27,8 +27,8 @@ import { useLocation } from "@/contexts/groundwater_assessment/drain/LocationCon
 import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellContext";
 
 // GeoServer configuration
-const GEOSERVER_BASE_URL = "/geoserver/api/myworkspace/wfs";
-const GEOSERVER_WMS_URL = "/geoserver";
+const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs`;
+const GEOSERVER_WMS_URL = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}`;
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -2584,7 +2584,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const imageWmsSource = new ImageWMS({
         url: wmsUrl,
         params: {
-          LAYERS: `myworkspace:${coloredLayerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${coloredLayerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",
@@ -2670,7 +2670,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       const imageWmsSource = new ImageWMS({
         url: geoserverUrl,
         params: {
-          LAYERS: `myworkspace:${layerName}`,
+          LAYERS: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:${layerName}`,
           FORMAT: "image/png",
           TRANSPARENT: true,
           VERSION: "1.1.1",
