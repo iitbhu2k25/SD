@@ -564,11 +564,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
                     const features = basinSource.getFeatures();
                     if (features.length > 0) {
                         const extent = basinSource.getExtent();
-                        mapInstance.getView().fit(extent, {
-                            padding: [50, 50, 50, 50],
-                            maxZoom: 16,
-                            duration: 1000
-                        });
+                        // mapInstance.getView().fit(extent, {
+                        //     padding: [50, 50, 50, 50],
+                        //     maxZoom: 16,
+                        //     duration: 1000
+                        // });
                         console.log('✓ Basin boundary layer loaded and zoomed');
                     }
                 }
