@@ -9,6 +9,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
 from app.conf.redis.redis_manager import redis_manager
 from app.conf.redis.redis_conf import close_redis
+from app.conf.settings import Settings
 
 
 from app.conf.logging import logger
@@ -42,7 +43,7 @@ instrumentator.expose(app)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000","slcrdss.xyz"],
+    allow_origins=["http://localhost:3000",Settings().DOMAIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -30,7 +30,7 @@ services:
   #     dockerfile: docker/dockerfile.backend
   #   image: backend:latest
   #   ports:
-  #     - "9200:9000"
+  #     - "9000:9000"
   #   env_file:
   #     - .env
   #   volumes:
@@ -74,22 +74,22 @@ services:
   #       celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
 
 
-  fast_m:
-    build:
-      context: ./fast_m
-      dockerfile: Dockerfile
-    image: fast_m:latest
-    ports:
-      - "7100:7100"
-    env_file:
-      - ./fast_m/.fastmdb.env
-    volumes:
-      - ./fast_m:/home/app:z
-    command: uvicorn app.main:app --host 0.0.0.0 --port 7100 --reload
-    restart: always
-    depends_on:
-      - database
-      - geoserver     
+  # fast_m:
+  #   build:
+  #     context: ./fast_m
+  #     dockerfile: Dockerfile
+  #   image: fast_m:latest
+  #   ports:
+  #     - "6500:6500"
+  #   env_file:
+  #     - .fastmdb.env
+  #   volumes:
+  #     - ./fast_m:/home/app:z
+  #   command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
+  #   restart: always
+  #   depends_on:
+  #     - database
+  #     - geoserver     
     
 
 
@@ -192,7 +192,7 @@ services:
     environment:
       ENABLE_CORS: "true"
       CORS_ENABLED: "true"
-      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,https://*.slcrdss.in,https://*.slcrdss.xyz
       CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,HEAD,OPTIONS
       CORS_ALLOWED_HEADERS: "*"
       TOMCAT_EXTRAS: "true"
@@ -202,6 +202,7 @@ services:
     env_file:
       - ./fast_backend/.fastdb.env
     restart: always
+
 
 volumes:
   postgres_data:
