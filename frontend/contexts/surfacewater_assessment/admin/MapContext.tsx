@@ -302,16 +302,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       // Permanent India boundary layer (always present)
       const indiaLayer = new VectorLayer({
-        source: new VectorSource({
-          format: new GeoJSON(),
-          url:
-            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs' +
-            '?service=WFS&version=1.0.0&request=GetFeature' +
-            '&typeName=myworkspace:B_State&outputFormat=application/json`,
-        }),
-        style: boundaryLayerStyle,
-        zIndex: 1,
-      });
+  source: new VectorSource({
+    format: new GeoJSON(),
+    url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${process.env.NEXT_PUBLIC_FAST_WORKSPACE}:B_State&outputFormat=application/json`,
+  }),
+  style: boundaryLayerStyle,
+  zIndex: 1,
+});
       indiaLayer.set('name', 'india');
       indiaLayerRef.current = indiaLayer;
 

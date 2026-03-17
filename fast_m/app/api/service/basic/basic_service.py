@@ -14,12 +14,12 @@ from sqlalchemy.orm import Session
 from app.conf.settings import Settings
 from app.database.crud.basic.basic import BasicCrud
 
-
 class BasicService:
     def __init__(self, db: Session):
         self.db = db
         self.crud = BasicCrud(db)
-        self.temp_dir = Settings().TEMP_DIR
+        self.settings = Settings()
+        self.temp_dir = self.settings.TEMP_DIR
 
     def get_states(self):
         rows = self.crud.get_states()
@@ -906,28 +906,36 @@ class BasicService:
         if not geojson_data or "type" not in geojson_data:
             raise ValueError("Invalid GeoJSON format")
 
-        if geojson_data["type"] == "FeatureCollection":
+        geo_type = geojson_data["type"]
+        if geo_type == "FeatureCollection":
             geometries = [shape(feature["geometry"]) for feature in geojson_data.get("features", [])]
+            if not geometries:
+                raise ValueError("FeatureCollection has no geometries")
             watershed_geom = unary_union(geometries)
+        elif geo_type == "Feature":
+            watershed_geom = shape(geojson_data.get("geometry"))
         else:
-            watershed_geom = shape(geojson_data["geometry"])
+            watershed_geom = shape(geojson_data)
 
         minx, miny, maxx, maxy = watershed_geom.bounds
         bbox_filter = f"BBOX(the_geom,{minx},{miny},{maxx},{maxy})"
         spatial_filter = f"INTERSECTS(the_geom, {watershed_geom.wkt})"
 
+        geoserver_workspace = self.settings.GEOSERVER_WORKSPACE
+        geoserver_url = self.settings.GEOSERVER_URL.rstrip("/")
+
         payload = {
             "service": "WFS",
             "version": "1.0.0",
             "request": "GetFeature",
-            "typeName": "myworkspace:village_boundary_SOI",
+            "typeName": f"{geoserver_workspace}:village_boundary_SOI",
             "outputFormat": "application/json",
             "CQL_FILTER": f"{bbox_filter} AND {spatial_filter}",
         }
 
-        response = requests.post("http://geoserver:8080/geoserver/myworkspace/ows", data=payload, timeout=60)
+        response = requests.post(f"{geoserver_url}/{geoserver_workspace}/ows", data=payload, timeout=60)
         if response.status_code != 200:
-            raise RuntimeError("GeoServer request failed")
+            raise RuntimeError(f"GeoServer request failed with status {response.status_code}")
 
         features = response.json().get("features", [])
         villages = []
