@@ -357,7 +357,7 @@ const weatherStationStyle = (
       source: new VectorSource({
         format: new GeoJSON(),
         url:
-          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`,
+          `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_State&outputFormat=application/json`,
       }),
       style: indiaBoundaryStyle,
       zIndex: 1,
@@ -369,13 +369,13 @@ const weatherStationStyle = (
       source: new VectorSource({
         format: new GeoJSON(),
         url:
-          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`,
+          `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`,
       }),
       style: weatherStationStyle,
       zIndex: 3,
       properties: { name: "weatherStations" },
     });
-    console.log(`${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wms`)
+
     // Weather WMS layer (background)
     const weatherLayer = new ImageLayer({
       source: new ImageWMS({
@@ -541,7 +541,7 @@ useEffect(() => {
       districtLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+          url: `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
         }),
         style: districtBoundaryStyle,
         zIndex: 2,
@@ -575,7 +575,7 @@ useEffect(() => {
        const source = districtLayer.getSource();
     if (source) {
       const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
-      const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+      const newUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
       
       // Clear and reload source
       source.clear();
@@ -646,7 +646,7 @@ useEffect(() => {
           cqlFilter = `STATE_CODE = '${selectedStateCode}'`;
         }
 
-        const baseUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`;
+        const baseUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:weather&outputFormat=application/json`;
         const newUrl = cqlFilter 
           ? `${baseUrl}&CQL_FILTER=${encodeURIComponent(cqlFilter)}`
           : baseUrl;

@@ -152,8 +152,17 @@ export default function VectorPage() {
       {/* Main Content */}
       <div className="flex flex-1 relative overflow-hidden">
         {/* Sidebar */}
-        <div className={`${sidebarCollapsed ? 'w-0' : 'w-[300px]'} transition-all duration-300 h-full overflow-hidden flex-shrink-0`}>
-          <div className="h-full overflow-y-auto">
+        <div
+          style={{
+            width: sidebarCollapsed ? 0 : 300,
+            transition: 'width 0.28s cubic-bezier(0.4,0,0.2,1)',
+            overflow: 'hidden',
+            flexShrink: 0,
+            height: '100%',
+            position: 'relative',
+          }}
+        >
+          <div style={{ width: 300, height: '100%', overflowY: 'auto' }}>
             <Sidebar
               collapsed={sidebarCollapsed}
               onToggle={handleSidebarToggle}
@@ -167,24 +176,67 @@ export default function VectorPage() {
           </div>
         </div>
 
-        {/* Map and Features container */}
-        <div className="flex-1 flex relative h-full">
-          {/* Map takes the remaining width */}
-          <div className="flex-1 h-full">
-            <Map
-              sidebarCollapsed={sidebarCollapsed}
-              onFeatureClick={handleFeatureClick}
-              currentLayer={currentLayer}
-              activeFeature={activeFeature}
-              compassVisible={compassVisible}
-              gridVisible={gridVisible}
-              showNotification={showNotification}
-            />
-          </div>
+        {/* Sidebar toggle tab — sits at the seam, vertically centred, never overlaps zoom controls */}
+        <button
+          onClick={handleSidebarToggle}
+          title={sidebarCollapsed ? 'Open panel' : 'Close panel'}
+          style={{
+            position: 'absolute',
+            left: sidebarCollapsed ? 0 : 300,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            transition: 'left 0.28s cubic-bezier(0.4,0,0.2,1)',
+            zIndex: 1100,
+            background: 'linear-gradient(180deg, #1e3a5f 0%, #1e40af 100%)',
+            border: 'none',
+            borderRadius: '0 6px 6px 0',
+            width: 18,
+            height: 56,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#93c5fd',
+            fontSize: 13,
+            fontWeight: 700,
+            boxShadow: '2px 0 8px rgba(0,0,0,0.22)',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.background = 'linear-gradient(180deg, #1e40af 0%, #2563eb 100%)';
+            (e.currentTarget as HTMLElement).style.color = '#fff';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.background = 'linear-gradient(180deg, #1e3a5f 0%, #1e40af 100%)';
+            (e.currentTarget as HTMLElement).style.color = '#93c5fd';
+          }}
+        >
+          {sidebarCollapsed ? '›' : '‹'}
+        </button>
 
-          {/* Features panel */}
-          {featureInfoVisible && (
-            <div className="w-[300px] h-full overflow-y-auto flex-shrink-0 bg-white shadow-lg">
+        {/* Map and Features container */}
+        <div className="flex-1 relative h-full">
+          <Map
+            sidebarCollapsed={sidebarCollapsed}
+            onFeatureClick={handleFeatureClick}
+            currentLayer={currentLayer}
+            activeFeature={activeFeature}
+            compassVisible={compassVisible}
+            gridVisible={gridVisible}
+            showNotification={showNotification}
+          />
+
+          {/* Feature properties — compact floating card over the map */}
+          {featureInfoVisible && activeFeature?.feature?.properties && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 140,
+                right: 16,
+                zIndex: 1000,
+                pointerEvents: 'auto',
+                animation: 'slideUpFeature 0.22s cubic-bezier(0.4,0,0.2,1)',
+              }}
+            >
               <Features
                 properties={activeFeature?.feature?.properties ?? null}
                 onClose={() => setActiveFeature(null)}

@@ -47,14 +47,13 @@ interface OperationsPanelProps {
 export default function OperationsPanel({ onOpenSpatialAnalysis }: OperationsPanelProps) {
   const [pos, setPos] = useState({ x: 60, y: 10 });
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [opsSize, setOpsSize] = useState({ w: 420, h: 0 }); // h=0 means auto
+  const [opsSize, setOpsSize] = useState({ w: 420, h: 0 });
 
   const isDragging = useRef(false);
   const isResizing = useRef(false);
   const dragRef = useRef({ mouseX: 0, mouseY: 0, panelX: 0, panelY: 0 });
   const resizeRef = useRef({ mouseX: 0, mouseY: 0, w: 0, h: 0 });
 
-  // Drag: start on mousedown anywhere except interactive elements
   const onPanelMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const tag = (e.target as HTMLElement).tagName.toLowerCase();
     if (tag === 'button' || tag === 'input' || tag === 'select') return;
@@ -64,7 +63,6 @@ export default function OperationsPanel({ onOpenSpatialAnalysis }: OperationsPan
     e.preventDefault();
   };
 
-  // Resize: start on resize handle mousedown
   const onResizeMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();

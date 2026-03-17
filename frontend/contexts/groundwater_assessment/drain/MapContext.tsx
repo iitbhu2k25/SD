@@ -28,8 +28,7 @@ import { useWell, WellData } from "@/contexts/groundwater_assessment/drain/WellC
 
 // GeoServer configuration
 const GEOSERVER_BASE_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs`;
-const GEOSERVER_WMS_URL = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`;
-console.log(GEOSERVER_BASE_URL);
+const GEOSERVER_WMS_URL = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}`;
 
 // Base maps configuration
 interface BaseMapDefinition {

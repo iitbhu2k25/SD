@@ -1,3 +1,31 @@
+/* ── Scale bar — match our compact control style ──────────────── */
+.leaflet-control-scale-line {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(0, 0, 0, 0.22) !important;
+  border-top: none !important;
+  border-radius: 0 0 3px 3px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.22) !important;
+  font-size: 10px !important;
+  font-family: monospace !important;
+  color: #333 !important;
+  padding: 1px 4px !important;
+  line-height: 1.4 !important;
+  user-select: none;
+}
+/* Ensure Leaflet container inherits border-radius clipping */
+[data-map-root] {
+  overflow: hidden !important;
+}
+
+.leaflet-control-scale {
+  cursor: pointer;
+}
+.leaflet-control-scale:hover .leaflet-control-scale-line {
+  background: rgba(239, 246, 255, 0.96) !important;
+  border-color: #93c5fd !important;
+  color: #1d4ed8 !important;
+}
+
 /* Leaflet Draw Custom Styles - Circular Edit Handles */
 
 /* Main vertex handles - make them circular dots */
