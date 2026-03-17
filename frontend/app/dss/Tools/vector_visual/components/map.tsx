@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
+import '../styles/leaflet-custom.css';
 import IntersectionModal from './IntersectionModal';
 import { SpatialAnalysisModal } from '../components';
 import LayersPanel from './LayersPanel';
@@ -349,7 +350,21 @@ export default function Map(props: MapProps) {
         currentBaseLayerRef.current = defaultLayer;
       }
 
-      L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+      // ── Interactive scale bar (click to toggle metric/imperial) ──
+      let scaleMetric = true;
+      const scaleControl = L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
+      const scaleEl = scaleControl.getContainer() as HTMLElement;
+      scaleEl.style.cursor = 'pointer';
+      scaleEl.title = 'Click to toggle km / miles';
+      scaleEl.style.transition = 'opacity 0.15s';
+      scaleEl.addEventListener('mouseenter', () => { scaleEl.style.opacity = '0.75'; });
+      scaleEl.addEventListener('mouseleave', () => { scaleEl.style.opacity = '1'; });
+      scaleEl.addEventListener('click', () => {
+        scaleMetric = !scaleMetric;
+        scaleControl.options.metric = scaleMetric;
+        scaleControl.options.imperial = !scaleMetric;
+        (scaleControl as any)._update();
+      });
 
       const drawnItems = new L.FeatureGroup(undefined as any, { renderer: L.canvas() } as any);
       map.addLayer(drawnItems);
@@ -537,6 +552,10 @@ export default function Map(props: MapProps) {
       window.addEventListener('resize', handleResize);
 
       setMapReady(true);
+      // Re-measure after CSS calc() settles
+      requestAnimationFrame(() => {
+        setTimeout(() => { map.invalidateSize({ animate: false }); }, 80);
+      });
 
       return () => {
         window.removeEventListener('resize', handleResize);
@@ -975,15 +994,28 @@ export default function Map(props: MapProps) {
   }, [changeBasemap, loadGeoJSON, updateLayerStyles, handleUploadShapefile]);
 
   return (
-    <div ref={mapContainerRef} className="relative w-full h-full">
+    <div ref={mapContainerRef} className="relative w-full h-full" style={{ background: '#dde3ea' }}>
       <div
         ref={mapRef}
         data-map-root
-        className="absolute inset-0 w-full h-full rounded-lg shadow-inner z-0"
-        style={{ minHeight: '400px', minWidth: '300px', backgroundColor: '#f0f0f0' }}
+        style={{
+          position: 'absolute',
+          zIndex: 0,          /* creates stacking context — traps all Leaflet internal z-indices inside */
+          top: 8,
+          left: 8,
+          width: 'calc(100% - 16px)',
+          height: 'calc(100% - 16px)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          backgroundColor: '#e8edf2',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
+        }}
       />
 
-      <div className="absolute inset-0 z-10 pointer-events-none">
+      <div
+        className="absolute z-10 pointer-events-none"
+        style={{ top: 8, left: 8, width: 'calc(100% - 16px)', height: 'calc(100% - 16px)' }}
+      >
         <CoordinatesDisplay coordinates={coordinates} />
         <Compass visible={compassVisible} />
         <LoadingOverlay
@@ -1020,50 +1052,59 @@ export default function Map(props: MapProps) {
           onExportClick={() => setExportModalOpen(true)}
         />
 
-        {/* ── Basemap Selector (top-right, next to Layers button) ── */}
-        <div ref={basemapWidgetRef} className="absolute pointer-events-auto" style={{ top: 12, right: 160, zIndex: 1002 }}>
+        {/* ── Basemap Selector — Leaflet-style compact icon button ── */}
+        <div ref={basemapWidgetRef} className="absolute pointer-events-auto" style={{ top: 216, left: 10, zIndex: 1002 }}>
           <div style={{ position: 'relative' }}>
+            {/* Icon button matching zoom strip style */}
             <button
               onClick={() => setBasemapOpen(p => !p)}
-              title="Change Basemap"
+              title={`Basemap: ${BASEMAP_OPTIONS.find(b => b.id === currentBasemap)?.label ?? ''}`}
               style={{
-                background: basemapOpen ? '#2563eb' : '#fff',
-                color: basemapOpen ? '#fff' : '#2563eb',
-                border: `1.5px solid ${basemapOpen ? '#2563eb' : '#bfdbfe'}`,
-                borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                boxShadow: '0 2px 10px rgba(0,0,0,0.12)', letterSpacing: 0.4,
-                transition: 'all 0.18s', outline: 'none', whiteSpace: 'nowrap',
+                width: 30, height: 30,
+                background: basemapOpen ? '#1e40af' : 'rgba(255,255,255,0.95)',
+                border: '1px solid rgba(0,0,0,0.25)',
+                borderRadius: 4,
+                boxShadow: '0 1px 5px rgba(0,0,0,0.35)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: basemapOpen ? '#fff' : '#444',
+                transition: 'all 0.15s',
+                padding: 0,
               }}
-              onMouseEnter={e => { if (!basemapOpen) { (e.currentTarget as HTMLElement).style.background = '#eff6ff'; (e.currentTarget as HTMLElement).style.borderColor = '#93c5fd'; } }}
-              onMouseLeave={e => { if (!basemapOpen) { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.borderColor = '#bfdbfe'; } }}
+              onMouseEnter={e => { if (!basemapOpen) { (e.currentTarget as HTMLElement).style.background = '#f4f4f4'; (e.currentTarget as HTMLElement).style.color = '#1e40af'; } }}
+              onMouseLeave={e => { if (!basemapOpen) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.95)'; (e.currentTarget as HTMLElement).style.color = '#444'; } }}
             >
-              <i className="fg-wmts" style={{ fontSize: 15 }} />
-              {BASEMAP_OPTIONS.find(b => b.id === currentBasemap)?.label ?? 'Basemap'}
-              <span style={{ fontSize: 9, opacity: 0.7 }}>{basemapOpen ? '▲' : '▼'}</span>
+              {/* Layers stack SVG icon */}
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 6l7-4 7 4-7 4-7-4z"/>
+                <path d="M1 10l7 4 7-4"/>
+              </svg>
             </button>
+
+            {/* Dropdown */}
             {basemapOpen && (
               <div style={{
-                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.15)', padding: 8, minWidth: 165, zIndex: 2100,
+                position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                boxShadow: '0 6px 24px rgba(0,0,0,0.15)', padding: '6px 0', minWidth: 148, zIndex: 2100,
               }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, fontFamily: 'monospace', padding: '2px 6px 6px' }}>BASE MAP</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, fontFamily: 'monospace', padding: '2px 10px 5px' }}>BASEMAP</div>
                 {BASEMAP_OPTIONS.map(opt => (
                   <button key={opt.id} onClick={() => { changeBasemap(opt.id); setBasemapOpen(false); }}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                      padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12,
+                      display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+                      padding: '5px 10px', border: 'none', cursor: 'pointer', fontSize: 11,
                       background: currentBasemap === opt.id ? '#eff6ff' : 'transparent',
                       color: currentBasemap === opt.id ? '#2563eb' : '#334155',
-                      fontWeight: currentBasemap === opt.id ? 700 : 400, transition: 'background 0.12s',
+                      fontWeight: currentBasemap === opt.id ? 700 : 400,
+                      transition: 'background 0.1s',
                     }}
                     onMouseEnter={e => { if (currentBasemap !== opt.id) (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
                     onMouseLeave={e => { if (currentBasemap !== opt.id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
-                    <i className="fg-wmts" style={{ fontSize: 12, opacity: 0.75 }} />
+                    <i className="fg-wmts" style={{ fontSize: 11, opacity: 0.7 }} />
                     {opt.label}
-                    {currentBasemap === opt.id && <span style={{ marginLeft: 'auto', fontSize: 10 }}>✓</span>}
+                    {currentBasemap === opt.id && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#2563eb' }}>✓</span>}
                   </button>
                 ))}
               </div>

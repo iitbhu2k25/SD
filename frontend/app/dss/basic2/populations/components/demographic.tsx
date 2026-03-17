@@ -26,7 +26,10 @@ export default function Demographic({ data }: DemographicProps) {
           <XAxis dataKey="year" tick={{ fontSize: 11 }} />
           <YAxis tickFormatter={(v) => formatPopulation(v)} tick={{ fontSize: 11 }} />
           <Tooltip
-            formatter={(v: number) => [formatPopulation(v), '']}
+            formatter={(value, name) => {
+              const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+              return [formatPopulation(numericValue), String(name ?? '')];
+            }}
             contentStyle={{ fontSize: 12 }}
           />
           <Bar dataKey="urban" fill="#10b981" name="Urban" radius={[3, 3, 0, 0]} />

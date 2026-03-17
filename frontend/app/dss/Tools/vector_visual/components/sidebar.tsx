@@ -277,14 +277,10 @@ export default function Sidebar({
   return (
     <>
       <div
-        className={`w-[300px] bg-white overflow-y-auto transition-all duration-300 z-10 border-r border-gray-200 shadow-md flex-shrink-0 ${
-          collapsed ? 'w-0 p-0 overflow-hidden' : 'p-5'
-        }`}
+        className="w-[300px] h-full overflow-y-auto z-10 flex-shrink-0"
+        style={{ background: '#f8fafc', borderRight: '1px solid #e2e8f0', boxShadow: '2px 0 12px rgba(0,0,0,0.08)' }}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-5 pb-2.5 border-b-2 border-blue-500">
-          <h5 className="font-semibold text-gray-700 tracking-wide">Control Panel</h5>
-        </div>
+        <div style={{ padding: '14px 14px 14px' }}>
 
         {/* ══════════════════════════════════════════════════════
             UPLOAD SECTION
@@ -576,20 +572,9 @@ export default function Sidebar({
             </label>
           ))}
         </div>
+        </div>{/* end padding wrapper */}
       </div>
 
-      {/* Toggle button */}
-      <button
-        onClick={onToggle}
-        className={`
-          absolute z-[999] flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md
-          border border-gray-200 cursor-pointer transition-all duration-300
-          hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:scale-110
-          ${collapsed ? 'left-4 top-5' : 'left-[300px] top-5'}
-        `}
-      >
-        <i className={`fas ${collapsed ? 'fa-chevron-right' : 'fa-chevron-left'} text-xs`} />
-      </button>
     </>
   );
 }
