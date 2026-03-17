@@ -74,22 +74,22 @@ services:
   #       celery -A main worker --loglevel=info -c 4 --pool=prefork --max-tasks-per-child=50
 
 
-  # fast_m:
-  #   build:
-  #     context: ./fast_m
-  #     dockerfile: Dockerfile
-  #   image: fast_m:latest
-  #   ports:
-  #     - "6500:6500"
-  #   env_file:
-  #     - .fastmdb.env
-  #   volumes:
-  #     - ./fast_m:/home/app:z
-  #   command: uvicorn app.main:app --host 0.0.0.0 --port 6500 --reload
-  #   restart: always
-  #   depends_on:
-  #     - database
-  #     - geoserver     
+  fast_m:
+    build:
+      context: ./fast_m
+      dockerfile: Dockerfile
+    image: fast_m:latest
+    ports:
+      - "7100:7100"
+    env_file:
+      - ./fast_m/.fastmdb.env
+    volumes:
+      - ./fast_m:/home/app:z
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7100 --reload
+    restart: always
+    depends_on:
+      - database
+      - geoserver     
     
 
 
@@ -107,8 +107,8 @@ services:
     environment:
       - SERVICE_TYPE=app
 
-    command: gunicorn app.main:app --config gunicorn.conf.py --reload
-    #command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload 
+    #command: gunicorn app.main:app --config gunicorn.conf.py --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 7000 --reload 
     restart: always
     depends_on:
       - database

@@ -805,7 +805,6 @@ def compute_flow_accumulation_task(
                 log_transform=log_transform,
             )
 
-        _update_stats(float(src_nodata),output_path)
 
         logger.info("Flow accumulation complete [pid=%s]: %s", os.getpid(), output_path)
         celery_task_update(
@@ -865,7 +864,7 @@ def compute_flow_direction_task(
             progress=70,
            
         )
-        _update_stats(float(src_nodata),output_path)
+        
         celery_task_update(
             task_id=self.request.id,
             status="completed",
@@ -912,7 +911,7 @@ def compute_slope_task(
             output_path=output_path,
             units=units,
         )
-        _update_stats(float(src_nodata),output_path)
+        
         celery_task_update(
             task_id=self.request.id,
             status="completed",
@@ -1003,7 +1002,7 @@ def compute_twi_task(
                 algorithm=algorithm,
             )
 
-        _update_stats(float(src_nodata),output_path)
+        
         celery_task_update(
             task_id=self.request.id,
             status="completed",

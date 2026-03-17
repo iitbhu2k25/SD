@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/fastapi/:path*",
-        destination: "http://fast_m:7100/:path*",
+        destination: "http://localhost:7100/:path*",
       },
       {
         source: "/token/:path*",
