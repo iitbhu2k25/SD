@@ -1374,7 +1374,7 @@ const Navbar = (): JSX.Element => {
       />
 
       {/* Improved Breadcrumbs */}
-      {!isHomePage && (
+      {/* {!isHomePage && (
         <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3.5 border-t border-slate-200 shadow-sm">
           <div className="container mx-auto flex justify-center items-center space-x-2 text-sm md:text-base overflow-x-auto pb-1">
             {breadcrumbs.map((item, index) => (
@@ -1402,7 +1402,7 @@ const Navbar = (): JSX.Element => {
             ))}
           </div>
         </div>
-      )}
+      )} */}
     </>
   );
 };
