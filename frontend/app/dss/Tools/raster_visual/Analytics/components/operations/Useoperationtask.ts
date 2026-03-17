@@ -214,7 +214,9 @@ export function useOperationTask(fileId: string, srcNodata: string = "0") {
           console.log("error in placing the api call")
           return 
         }
+        console.log("start wss")
         const task_id =await res.message as string
+        console.log("taski9",task_id)
         setTaskState((prev) => ({
           ...prev,
           taskId: task_id,

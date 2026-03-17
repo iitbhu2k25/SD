@@ -451,7 +451,7 @@ def celery_reprojection(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except subprocess.CalledProcessError as e:
         logger.error("GDAL reprojection failed")
@@ -817,7 +817,7 @@ def compute_flow_accumulation_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Flow accumulation failed (non-retryable): %s", e)
@@ -875,7 +875,7 @@ def compute_flow_direction_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         # Non-retryable — bad input
@@ -922,7 +922,7 @@ def compute_slope_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Slope failed (non-retryable): %s", e)
@@ -961,7 +961,7 @@ def compute_tpi_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
         
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -1013,7 +1013,7 @@ def compute_twi_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("TWI failed (non-retryable): %s", e)
@@ -1088,7 +1088,7 @@ def resample_raster_task(
         )
         unique_store_name =Unique_name.unique_name("raster_store")
         _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
-        asyncio.run(Geoserver().apply_sld_to_layer(raster_workspace,layer_name,raster_default_sld))
+        
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
         logger.error("Resample failed (non-retryable): %s", e)

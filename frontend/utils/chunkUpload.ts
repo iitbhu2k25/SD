@@ -17,7 +17,7 @@ export async function uploadFileInChunks(
     const formData = new FormData();
     formData.append("file", chunk);
 
-    await uploadClient.post("https://kalki.space/api/tools/upload_raster_chunk", formData, {
+    await uploadClient.post("/tools/upload_raster_chunk", formData, {
       headers: {
         "Upload-Id": uploadId,
         "Chunk-Index": i,
@@ -38,7 +38,7 @@ export async function uploadFileInChunks(
   }
 
   // Merge chunks
-  const resp=await uploadClient.post("https://kalki.space/api/tools/upload/complete", {
+  const resp=await uploadClient.post("/tools/upload/complete", {
     upload_id: uploadId,
     total_chunks: totalChunks,
     filename: file.name,
