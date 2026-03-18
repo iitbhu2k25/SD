@@ -8,6 +8,7 @@ import {
   fetchInstitutionalWaterDemand,
   fetchFirefightingWaterDemand,
 } from '../shared/services/waterDemand.service';
+import { fetchWaterDemandThematic, type WDThematicParams } from '../shared/services/population.service';
 import { Home, Users, Building2, Flame, Play, ChevronDown, ChevronUp, AlertCircle, ArrowRight, ArrowLeft, Info } from 'lucide-react';
 import ModuleNav from '../shared/components/ModuleNav';
 
@@ -73,6 +74,10 @@ export default function WaterDemandModule() {
     populationForecastVersion,
     setWaterDemandTotals,
     setWaterDemandReportData,
+    confirmedLocation,
+    setThematicMapData,
+    mergeThematicMapMethod,
+    setThematicMapMethod,
   } = useBasicStore();
 
   // Which methods are checked
@@ -206,6 +211,58 @@ export default function WaterDemandModule() {
     setWaterDemandTotals(totals);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results, selectedFfMethod, hasAnyResult]);
+
+  // ── Fetch per-village water demand thematic map from backend ─────────────
+  useEffect(() => {
+    if (!hasAnyResult || !results.domestic || !confirmedLocation) return;
+    const pc = parseFloat(perCapita) || 135;
+    const sortedYears = years.map(Number).sort((a, b) => a - b);
+    if (sortedYears.length === 0) return;
+
+    const FACILITY_LPCD: Record<string, number> = { provided: 45, notprovided: 25, onlypublic: 15 };
+    const wdParams: WDThematicParams = { per_capita_consumption: pc };
+
+    if (checked.has('floating') && results.floating) {
+      wdParams.floating_percentage = parseFloat(floatPct) || 15;
+      wdParams.facility_lpcd = FACILITY_LPCD[facilityType] ?? 45;
+    }
+    if (checked.has('institutional') && results.institutional) {
+      const d: Record<string, number> = {};
+      for (const yr of years) d[yr] = results.institutional[Number(yr)] ?? 0;
+      wdParams.inst_demand = d;
+    }
+    if (checked.has('firefighting') && results.firefighting) {
+      const ffKey = selectedFfMethod || Object.keys(results.firefighting)[0];
+      const ffData = ffKey ? results.firefighting[ffKey] : null;
+      if (ffData) {
+        const d: Record<string, number> = {};
+        for (const yr of years) d[yr] = ffData[Number(yr)] ?? 0;
+        wdParams.ff_demand = d;
+      }
+    }
+    if (confirmedLocation.mode === 'admin' && (confirmedLocation as any).admin?.villages?.length) {
+      wdParams.total_population_2011 = (confirmedLocation as any).admin.villages
+        .reduce((s: number, v: any) => s + (parseFloat(v.population) || 0), 0);
+    }
+
+    fetchWaterDemandThematic(
+      confirmedLocation,
+      { start_year: sortedYears[0], end_year: sortedYears[sortedYears.length - 1] },
+      wdParams,
+    ).then((villageData: Record<string, any>) => {
+      if (!villageData || !Object.keys(villageData).length) return;
+      // Merge into existing population GeoJSON (non-reactive snapshot)
+      const tmd = useBasicStore.getState().thematicMapData;
+      if (!tmd?.features?.length) return;
+      const mergedFeatures = tmd.features.map((f: any) => {
+        const code = String(f.properties?.village_code ?? '');
+        const wd = villageData[code] ?? {};
+        return { ...f, properties: { ...f.properties, ...wd } };
+      });
+      setThematicMapData({ ...tmd, features: mergedFeatures }, 'Domestic');
+    }).catch(() => { /* silently ignore */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, perCapita]);
 
   useEffect(() => {
     if (!hasAnyResult) {

@@ -22,7 +22,9 @@ from app.api.schema.basic_schema import (
     TimeSeriesRequest,
     VillageCodesRequest,
     VillageRequest,
+    WaterDemandThematicRequest,
     WaterSupplyRequest,
+    WaterSupplyThematicRequest,
 )
 from app.api.service.basic.basic_service import BasicService
 from app.database.config.dependency import db_dependency
@@ -171,6 +173,24 @@ def institutional_water_demand(payload: InstitutionalWaterDemandRequest, db: db_
 def firefighting_water_demand(payload: FirefightingWaterDemandRequest, db: db_dependency):
     try:
         return BasicService(db).firefighting_water_demand(payload.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/water_supply/thematic")
+def water_supply_thematic(payload: WaterSupplyThematicRequest, db: db_dependency):
+    try:
+        return BasicService(db).water_supply_thematic_map(payload.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/water_demand/thematic")
+def water_demand_thematic(payload: WaterDemandThematicRequest, db: db_dependency):
+    try:
+        return BasicService(db).water_demand_thematic_map(payload.model_dump())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

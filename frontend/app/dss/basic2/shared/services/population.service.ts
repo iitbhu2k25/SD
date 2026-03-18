@@ -195,6 +195,45 @@ export async function fetchThematicMap(
   });
 }
 
+export async function fetchWaterSupplyThematic(
+  location: ConfirmedLocation,
+  params: { year?: number; start_year?: number; end_year?: number },
+  total_supply: number,
+  demand_by_year: Record<string, number>,
+) {
+  const { villages_props, subdistrict_props } = buildProps(location);
+  return post('water_supply/thematic', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    total_supply,
+    demand_by_year,
+  });
+}
+
+export interface WDThematicParams {
+  per_capita_consumption: number;
+  floating_percentage?: number;
+  facility_lpcd?: number;
+  inst_demand?: Record<string, number>;
+  ff_demand?: Record<string, number>;
+  total_population_2011?: number;
+}
+
+export async function fetchWaterDemandThematic(
+  location: ConfirmedLocation,
+  params: { year?: number; start_year?: number; end_year?: number },
+  wdParams: WDThematicParams,
+) {
+  const { villages_props, subdistrict_props } = buildProps(location);
+  return post('water_demand/thematic', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    ...wdParams,
+  });
+}
+
 // ── Fetch exactly 2025 population for the currently selected method ──────────
 // Called by PopulationModule when the user's chosen forecast range doesn't include 2025.
 // Returns the total population at year 2025 (number) or null on failure.

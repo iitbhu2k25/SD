@@ -570,6 +570,150 @@ class BasicService:
             result[method] = method_result
         return result
 
+    def water_supply_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village Water Supply / Water Demand / Water Gap / Status (MLD).
+        No geometry — frontend merges into existing population GeoJSON."""
+        base_year    = 2011
+        total_supply = float(payload.get("total_supply", 0))
+        demand_raw   = {int(k): float(v) for k, v in (payload.get("demand_by_year") or {}).items()}
+
+        single_year = payload.get("year")
+        start_year  = payload.get("start_year")
+        end_year    = payload.get("end_year")
+        villages    = self._ensure_village_subdistrict(payload.get("villages_props", []))
+        subdistrict = payload.get("subdistrict_props", [])
+
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {}
+
+        sub_ids   = self._extract_id_list(subdistrict)
+        stats_map = {x["subdistrict_code"]: x for x in self._population_stats(sub_ids)}
+
+        # First pass: compute projected population per village per year
+        village_pops: dict[int, dict[int, float]] = {}
+        for v in villages:
+            vid      = int(v["id"])
+            pop_2011 = float(v["population"])
+            sid      = int(v.get("subDistrictId", 0))
+            item     = stats_map.get(sid)
+            pops: dict[int, float] = {base_year: pop_2011}
+            for yr in forecast_years:
+                if item and item.get("total_p7"):
+                    pops[yr] = max(0.0, pop_2011 + (
+                        item["linear_annual_growth"] * (yr - base_year)
+                    ) * (pop_2011 / item["total_p7"]))
+                else:
+                    pops[yr] = pop_2011
+            village_pops[vid] = pops
+
+        # Total projected population per year (for distributing supply/demand)
+        total_pop_yr: dict[int, float] = {}
+        for yr in [base_year] + forecast_years:
+            total_pop_yr[yr] = sum(vp[yr] for vp in village_pops.values())
+
+        result: dict[str, dict] = {}
+        for v in villages:
+            vid    = int(v["id"])
+            pops   = village_pops[vid]
+            ws: dict[int, float] = {}
+            wd: dict[int, float] = {}
+            wg: dict[int, float] = {}
+            st: dict[int, str]   = {}
+
+            for yr in [base_year] + forecast_years:
+                pop_yr    = pops[yr]
+                tot_yr    = total_pop_yr[yr] or 1.0
+                share     = pop_yr / tot_yr
+                s = round(share * total_supply, 4)
+                d = round(share * demand_raw.get(yr, 0), 4)
+                g = round(s - d, 4)
+                ws[yr] = s
+                wd[yr] = d
+                wg[yr] = g
+                st[yr] = "Sufficient" if g >= 0 else "Deficit"
+
+            result[str(vid)] = {
+                "Water Supply": ws,
+                "Water Demand": wd,
+                "Water Gap":    wg,
+                "Status":       st,
+            }
+        return result
+
+    def water_demand_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village water demand data (MLD) keyed by village_code.
+        No geometry — the frontend merges this into the existing population GeoJSON."""
+        base_year     = 2011
+        per_capita    = float(payload.get("per_capita_consumption", 135))
+        float_pct     = float(payload.get("floating_percentage", 0))
+        facility_lpcd = float(payload.get("facility_lpcd", 0))
+        inst_demand   = {int(k): float(v) for k, v in (payload.get("inst_demand") or {}).items()}
+        ff_demand     = {int(k): float(v) for k, v in (payload.get("ff_demand") or {}).items()}
+        total_pop_2011 = float(payload.get("total_population_2011", 0))
+
+        single_year = payload.get("year")
+        start_year  = payload.get("start_year")
+        end_year    = payload.get("end_year")
+        villages    = self._ensure_village_subdistrict(payload.get("villages_props", []))
+        subdistrict = payload.get("subdistrict_props", [])
+
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {}
+
+        sub_ids   = self._extract_id_list(subdistrict)
+        stats_map = {x["subdistrict_code"]: x for x in self._population_stats(sub_ids)}
+
+        result: dict[str, dict] = {}
+        for v in villages:
+            vid      = int(v["id"])
+            pop_2011 = float(v["population"])
+            sid      = int(v.get("subDistrictId", 0))
+            item     = stats_map.get(sid)
+            v_ratio  = (pop_2011 / total_pop_2011) if total_pop_2011 > 0 else 0.0
+
+            dom: dict[int, float] = {}
+            flt: dict[int, float] = {}
+            ins: dict[int, float] = {}
+            ffd: dict[int, float] = {}
+            tot: dict[int, float] = {}
+
+            for yr in [base_year] + forecast_years:
+                if yr == base_year:
+                    pop_yr = pop_2011
+                elif item and item.get("total_p7"):
+                    pop_yr = max(0.0, pop_2011 + (
+                        item["linear_annual_growth"] * (yr - base_year)
+                    ) * (pop_2011 / item["total_p7"]))
+                else:
+                    pop_yr = pop_2011
+
+                d = round(pop_yr * per_capita / 1_000_000, 4)
+                f = round(pop_yr * (float_pct / 100) * facility_lpcd / 1_000_000, 4) if float_pct > 0 else 0.0
+                i = round(v_ratio * inst_demand.get(yr, 0), 4) if inst_demand else 0.0
+                g = round(v_ratio * ff_demand.get(yr, 0), 4)   if ff_demand   else 0.0
+
+                dom[yr] = d
+                if float_pct > 0:    flt[yr] = f
+                if inst_demand:      ins[yr] = i
+                if ff_demand:        ffd[yr] = g
+                tot[yr] = round(d + f + i + g, 4)
+
+            entry: dict[str, Any] = {"Domestic": dom, "Total Water Demand": tot}
+            if flt: entry["Floating"]      = flt
+            if ins: entry["Institutional"] = ins
+            if ffd: entry["Firefighting"]  = ffd
+            result[str(vid)] = entry
+
+        return result
+
     def cohort(self, payload: dict[str, Any]):
         year = payload.get("year")
         start_year = payload.get("start_year")

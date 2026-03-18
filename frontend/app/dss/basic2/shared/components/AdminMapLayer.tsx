@@ -33,7 +33,11 @@ interface MapProps {
 }
 
 // ── Thematic Map (choropleth) ─────────────────────────────────────────────────
-const CHOROPLETH_COLORS = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+const CHOROPLETH_COLORS = [
+  '#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c',
+  '#fc4e2a', '#e31a1c', '#bd0026', '#800026', '#4d0012',
+];
+const NUM_CLASSES = 10;
 
 function getQuantileBreaks(values: number[], numClasses: number): number[] {
   if (values.length === 0) return [];
@@ -72,23 +76,29 @@ function ThematicMapLayer({
     if (!thematicMapData || !visible || !thematicMapData.features.length || !selectedYear) return;
 
     const method = thematicMapMethod || 'Arithmetic';
+    const isStatusMethod = method === 'Status';
 
-    // properties[method] is now { [year]: population }
-    const values = thematicMapData.features
+    // For Status, values are strings — skip numeric filter and quantile breaks
+    const values = isStatusMethod ? [] : thematicMapData.features
       .map((f) => {
         const yearMap = f.properties?.[method];
         return yearMap?.[selectedYear] ?? yearMap?.[String(selectedYear)];
       })
       .filter((v): v is number => typeof v === 'number' && !isNaN(v));
-    if (!values.length) return;
+    if (!isStatusMethod && !values.length) return;
 
-    const breaks = getQuantileBreaks(values, 5);
+    const breaks = getQuantileBreaks(values, NUM_CLASSES);
 
     const layer = L.geoJSON(thematicMapData as any, {
       style: (feature) => {
         const yearMap = feature?.properties?.[method];
         const val = yearMap?.[selectedYear] ?? yearMap?.[String(selectedYear)];
-        const color = typeof val === 'number' ? getChoroplethColor(val, breaks) : '#cccccc';
+        let color = '#cccccc';
+        if (isStatusMethod) {
+          color = val === 'Sufficient' ? '#16a34a' : val === 'Deficit' ? '#dc2626' : '#cccccc';
+        } else if (typeof val === 'number') {
+          color = getChoroplethColor(val, breaks);
+        }
         return { fillColor: color, fillOpacity: 0.75, color: '#444', weight: 1 };
       },
       onEachFeature: (feature, lyr) => {
@@ -96,11 +106,28 @@ function ThematicMapLayer({
         const yearMap = p[method] ?? {};
         const val = yearMap[selectedYear] ?? yearMap[String(selectedYear)];
         const pop2011 = p.population_2011 != null ? Number(p.population_2011).toLocaleString() : 'N/A';
-        const projVal = val != null ? Math.round(val).toLocaleString() : 'N/A';
+        const WD_SET = new Set(['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand',
+          'Water Supply', 'Water Demand', 'Water Gap', 'Status']);
+        const isWD = WD_SET.has(method);
+        const isStatus = method === 'Status';
+        const isGap = method === 'Water Gap';
+        let projVal = 'N/A';
+        if (val != null) {
+          if (isStatus) {
+            projVal = String(val);
+          } else if (isGap && typeof val === 'number') {
+            const sign = val >= 0 ? '+' : '';
+            projVal = `${sign}${Number(val).toFixed(4)} MLD`;
+          } else if (isWD && typeof val === 'number') {
+            projVal = `${Number(val).toFixed(4)} MLD`;
+          } else if (typeof val === 'number') {
+            projVal = Math.round(val).toLocaleString();
+          }
+        }
 
         let html = `<div style="font-family:sans-serif;font-size:12px;min-width:180px">` +
           `<b style="font-size:13px">${p.village_name || 'Village'}</b><br/>` +
-          `<span style="color:#64748b">Population 2011:</span> ${pop2011}<br/>` +
+          (!isWD ? `<span style="color:#64748b">Population 2011:</span> ${pop2011}<br/>` : '') +
           `<span style="color:#64748b">${method} (${selectedYear}):</span> <b>${projVal}</b>`;
 
         // Cohort: age-sex breakdown table for the selected year
@@ -1410,13 +1437,25 @@ export default function Map({
 
       {/* Thematic map toggle + legend */}
       {thematicMapData && thematicMapData.features.length > 0 && (() => {
-        const ALL_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
-        const firstProps = thematicMapData.features[0]?.properties ?? {};
-        const availableMethods = ALL_METHODS.filter((m) => firstProps[m] != null);
+        const POP_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+        const WD_METHODS_LIST = ['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand'];
+        const WS_METHODS_LIST = ['Water Supply', 'Water Demand', 'Water Gap', 'Status'];
+        const ALL_WD_WS      = new Set([...WD_METHODS_LIST, ...WS_METHODS_LIST]);
 
-        const method = (thematicMapMethod && availableMethods.includes(thematicMapMethod))
-          ? thematicMapMethod
+        const firstProps = thematicMapData.features[0]?.properties ?? {};
+        const availableWD  = WD_METHODS_LIST.filter((m) => firstProps[m] != null);
+        const availableWS  = WS_METHODS_LIST.filter((m) => firstProps[m] != null);
+        const availablePop = POP_METHODS.filter((m) => firstProps[m] != null);
+
+        const activeMethod = thematicMapMethod ?? '';
+        const isWSContext  = WS_METHODS_LIST.includes(activeMethod) && availableWS.length > 0;
+        const isWDContext  = WD_METHODS_LIST.includes(activeMethod) && availableWD.length > 0;
+        const availableMethods = isWSContext ? availableWS : isWDContext ? availableWD : availablePop;
+
+        const method = availableMethods.includes(activeMethod)
+          ? activeMethod
           : (availableMethods[0] ?? 'Arithmetic');
+        const isWaterDemand = ALL_WD_WS.has(method);
 
         const activeYear = thematicMapYear
           ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
@@ -1428,16 +1467,17 @@ export default function Map({
           })
           .filter((v): v is number => typeof v === 'number' && !isNaN(v));
 
-        const breaks = getQuantileBreaks(values, 5);
+        const breaks = getQuantileBreaks(values, NUM_CLASSES);
         const minVal = values.length ? Math.min(...values) : 0;
         const maxVal = values.length ? Math.max(...values) : 0;
+        const fmt = (v: number) => isWaterDemand ? `${v.toFixed(4)} MLD` : Math.round(v).toLocaleString();
         const labels: string[] = breaks.length
           ? [
-              `≤ ${Math.round(breaks[0]).toLocaleString()}`,
-              ...breaks.slice(1).map((b, i) => `${Math.round(breaks[i] + 1).toLocaleString()} – ${Math.round(b).toLocaleString()}`),
-              `> ${Math.round(breaks[breaks.length - 1]).toLocaleString()}`,
+              `≤ ${fmt(breaks[0])}`,
+              ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])} – ${fmt(b)}`),
+              `> ${fmt(breaks[breaks.length - 1])}`,
             ]
-          : [`${Math.round(minVal).toLocaleString()} – ${Math.round(maxVal).toLocaleString()}`];
+          : [`${fmt(minVal)} – ${fmt(maxVal)}`];
 
         const selectStyle: React.CSSProperties = {
           width: '100%', fontSize: 11, fontWeight: 600,
@@ -1498,14 +1538,25 @@ export default function Map({
             {/* Color legend */}
             <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 4 }}>
               <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Population ({activeYear})
+                {method === 'Status' ? `Status (${activeYear})` : isWaterDemand ? `${method} MLD (${activeYear})` : `Population (${activeYear})`}
               </span>
-              {CHOROPLETH_COLORS.slice(0, labels.length).map((color, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                  <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
-                </div>
-              ))}
+              {method === 'Status' ? (
+                <>
+                  {[['#16a34a', 'Sufficient'], ['#dc2626', 'Deficit']].map(([color, label]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                      <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: '#374151' }}>{label}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                CHOROPLETH_COLORS.slice(0, labels.length).map((color, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                    <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         );

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useBasicStore } from '../shared/store/basic.store';
+import { fetchWaterSupplyThematic } from '../shared/services/population.service';
 import { API_BASE_URL } from '../shared/utils/constants';
 import { Waves, Wind, Recycle, AlertCircle, ChevronDown, ChevronUp, CheckCircle2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import ModuleNav from '../shared/components/ModuleNav';
@@ -77,7 +78,10 @@ function OrDivider() {
 }
 
 export default function WaterSupplyModule() {
-  const { setActiveModule, waterDemandTotals, setWaterSupplyTotal, setWaterSupplyReportData } = useBasicStore();
+  const {
+    setActiveModule, waterDemandTotals, setWaterSupplyTotal, setWaterSupplyReportData,
+    confirmedLocation, populationForecast, setThematicMapData,
+  } = useBasicStore();
   const reportHashRef = useRef('');
 
   // ── Surface water ─────────────────────────────────────────────
@@ -147,7 +151,32 @@ export default function WaterSupplyModule() {
       }
       const data = await res.json();
       setResult(data);
-      setWaterSupplyTotal(data.total_supply); // save to store for SewageModule auto-fill
+      setWaterSupplyTotal(data.total_supply);
+
+      // Fire thematic map (non-blocking) — merge into existing population GeoJSON
+      if (confirmedLocation && populationForecast) {
+        const sortedYears = Object.keys(populationForecast).map(Number).sort((a, b) => a - b);
+        const demandByYear: Record<string, number> = {};
+        const totals = useBasicStore.getState().waterDemandTotals ?? {};
+        for (const yr of sortedYears) demandByYear[String(yr)] = totals[yr] ?? 0;
+
+        fetchWaterSupplyThematic(
+          confirmedLocation,
+          { start_year: sortedYears[0], end_year: sortedYears[sortedYears.length - 1] },
+          data.total_supply,
+          demandByYear,
+        ).then((villageData: Record<string, any>) => {
+          if (!villageData || !Object.keys(villageData).length) return;
+          const tmd = useBasicStore.getState().thematicMapData;
+          if (!tmd?.features?.length) return;
+          const mergedFeatures = tmd.features.map((f: any) => {
+            const code = String(f.properties?.village_code ?? '');
+            const ws = villageData[code] ?? {};
+            return { ...f, properties: { ...f.properties, ...ws } };
+          });
+          setThematicMapData({ ...tmd, features: mergedFeatures }, 'Water Supply');
+        }).catch(() => {});
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
