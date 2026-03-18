@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useBasicStore } from '../shared/store/basic.store';
 import ModuleNav from '../shared/components/ModuleNav';
-import { fetchArithmetic, fetchDemographic, fetchCohort, fetchPopulation2025 } from '../shared/services/population.service';
+import { fetchArithmetic, fetchDemographic, fetchCohort, fetchPopulation2025, fetchThematicMap, fetchThematicMapDemographic, fetchThematicMapCohort } from '../shared/services/population.service';
 import PopulationForm from './components/PopulationForm';
 import PopulationChart from './components/PopulationChart';
 import TimeseriesTable from './components/timeseries';
@@ -84,13 +84,14 @@ export default function PopulationModule() {
     setPopulationForecast,
     setPopulation2025,
     setActiveModule,
-    clearConfirmedLocation,
     setPopulationReportData,
+    setThematicMapData,
+    mergeThematicMapMethod,
   } = useBasicStore();
   const [results, setResults] = useState<Partial<Record<Method, any>>>({});
   const [errors, setErrors] = useState<Partial<Record<Method, string>>>({});
   const [loadingMethods, setLoadingMethods] = useState<Set<Method>>(new Set());
-  const [chartTab, setChartTab] = useState<'chart' | 'table'>('chart');
+  const [chartTab, setChartTab] = useState<'chart' | 'table'>('table');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [autoSelectedMethod, setAutoSelectedMethod] = useState<string | null>(null);
   const [userPicked, setUserPicked] = useState(false);
@@ -125,9 +126,23 @@ export default function PopulationModule() {
     setErrors((e) => ({ ...e, [method]: undefined }));
     try {
       let data: any;
-      if (method === 'arithmetic') data = await fetchArithmetic(confirmedLocation, params);
-      else if (method === 'demographic') data = await fetchDemographic(confirmedLocation, params);
-      else data = await fetchCohort(confirmedLocation, params);
+      if (method === 'arithmetic') {
+        data = await fetchArithmetic(confirmedLocation, params);
+        // Fire thematic map in parallel (non-blocking — ignore errors)
+        fetchThematicMap(confirmedLocation, params)
+          .then((geo) => setThematicMapData(geo, 'Arithmetic'))
+          .catch(() => {});
+      } else if (method === 'demographic') {
+        data = await fetchDemographic(confirmedLocation, params);
+        fetchThematicMapDemographic(confirmedLocation, params)
+          .then((geo) => mergeThematicMapMethod(geo, 'Demographic'))
+          .catch(() => {});
+      } else {
+        data = await fetchCohort(confirmedLocation, params);
+        fetchThematicMapCohort(confirmedLocation, params)
+          .then((geo) => mergeThematicMapMethod(geo, 'Cohort Total'))
+          .catch(() => {});
+      }
       setResults((r) => ({ ...r, [method]: data }));
     } catch (e: any) {
       setErrors((err) => ({ ...err, [method]: e.message }));

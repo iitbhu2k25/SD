@@ -49,10 +49,7 @@ export interface WaterSupplyReportData {
 export interface SewageReportData {
   waterSupplyInput: string;
   waterSupplyResult: number | null;
-  domesticMode: 'manual' | 'modeled';
-  domesticResult: any;
-  domesticSeasonal: Record<string, Record<string, number>> | null;
-  domesticYears: string[];
+  sewageDemandResult: any[] | null;
   floatingSeasonal: Record<string, Record<string, number>> | null;
   floatingYears: string[];
   peakRows: any[] | null;
@@ -144,6 +141,16 @@ interface BasicStore {
     villages: string[]; allVillages?: any[]; totalPopulation?: number;
   } | null;
   setMapPayload: (payload: BasicStore['mapPayload']) => void;
+
+  // ── Thematic map (population forecast choropleth) ─────────────────────────
+  thematicMapData: { type: string; available_years: number[]; features: any[] } | null;
+  thematicMapMethod: string | null;
+  thematicMapYear: number | null;
+  setThematicMapData: (data: { type: string; available_years: number[]; features: any[] } | null, method: string | null) => void;
+  setThematicMapYear: (year: number) => void;
+  setThematicMapMethod: (method: string) => void;
+  mergeThematicMapMethod: (data: { type: string; available_years: number[]; features: any[] }, methodKey: string) => void;
+  clearThematicMapData: () => void;
 }
 
 const defaultAdminSelection: AdminLocationSelection = {
@@ -173,7 +180,13 @@ export const useBasicStore = create<BasicStore>((set, get) => ({
     adminSelection: defaultAdminSelection,
     drainSelection: defaultDrainSelection,
     mapPayload: null,
+    // Reset all module data
+    activeModule: 'population',
+    populationForecast: null, selectedPopMethod: null, populationForecastVersion: 0,
+    population2025: null, waterDemandTotals: null, waterSupplyTotal: null,
     populationReportData: null, waterDemandReportData: null, waterSupplyReportData: null, sewageReportData: null,
+    // Reset thematic map
+    thematicMapData: null, thematicMapMethod: null, thematicMapYear: null,
   }),
 
   // ── Admin selection ───────────────────────────────────────────────────────
@@ -312,6 +325,48 @@ export const useBasicStore = create<BasicStore>((set, get) => ({
 
   mapPayload: null,
   setMapPayload: (payload) => set({ mapPayload: payload }),
+
+  thematicMapData: null,
+  thematicMapMethod: null,
+  thematicMapYear: null,
+  setThematicMapData: (data, method) => set({
+    thematicMapData: data,
+    thematicMapMethod: method,
+    thematicMapYear: data?.available_years?.length ? data.available_years[data.available_years.length - 1] : null,
+  }),
+  setThematicMapYear: (year) => set({ thematicMapYear: year }),
+  setThematicMapMethod: (method) => set({ thematicMapMethod: method }),
+  mergeThematicMapMethod: (incoming, methodKey) => set((s) => {
+    if (!s.thematicMapData) {
+      return { thematicMapData: incoming, thematicMapMethod: methodKey };
+    }
+    // Build a lookup from village_code → incoming feature properties
+    const lookup: Record<string, any> = {};
+    for (const f of incoming.features) {
+      const code = f.properties?.village_code;
+      if (code != null) lookup[String(code)] = f.properties;
+    }
+    // Merge the new method key (and companion keys like Cohort AgeSex) into existing features
+    const companionKey = methodKey === 'Cohort Total' ? 'Cohort AgeSex' : null;
+    const mergedFeatures = s.thematicMapData.features.map((f) => {
+      const code = f.properties?.village_code;
+      const src = code != null ? lookup[String(code)] : null;
+      if (!src) return f;
+      const extra: Record<string, any> = { [methodKey]: src[methodKey] };
+      if (companionKey && src[companionKey] != null) extra[companionKey] = src[companionKey];
+      return {
+        ...f,
+        properties: { ...f.properties, ...extra },
+      };
+    });
+    // Merge available_years
+    const mergedYears = Array.from(new Set([...s.thematicMapData.available_years, ...incoming.available_years])).sort((a, b) => a - b);
+    return {
+      thematicMapData: { ...s.thematicMapData, features: mergedFeatures, available_years: mergedYears },
+      thematicMapMethod: methodKey,
+    };
+  }),
+  clearThematicMapData: () => set({ thematicMapData: null, thematicMapMethod: null, thematicMapYear: null }),
 }));
 
 // NOTE: India Catchment confirm is called externally from IndCatchmentSelector

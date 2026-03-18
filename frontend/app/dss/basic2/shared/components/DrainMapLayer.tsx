@@ -24,18 +24,26 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
   const labelsRef   = useRef<any[]>([]);
   const selectedVillageIdsRef = useRef<string[]>([]);
   const controlsCleanupRef = useRef<null | (() => void)>(null);
+  const thematicLayerRef  = useRef<any>(null);
 
   const [mapReady,    setMapReady]    = useState(false);
   const [showCatch,   setShowCatch]   = useState(false);
   const [showVillage, setShowVillage] = useState(false);
   const [showLabels,  setShowLabels]  = useState(false);
   const [loading,     setLoading]     = useState(true);
+  const [thematicLayerVisible, setThematicLayerVisible] = useState(true);
 
   // ── Read store ─────────────────────────────────────────────────────────────
   const drainSelection        = useBasicStore(s => s.drainSelection);
   const confirmedLocation     = useBasicStore(s => s.confirmedLocation);
   const setDrainSelectedVillageIds = useBasicStore(s => s.setDrainSelectedVillageIds);
   const isConfirmed           = !!confirmedLocation && confirmedLocation.mode === 'drain';
+
+  const thematicMapData   = useBasicStore(s => s.thematicMapData);
+  const thematicMapMethod = useBasicStore(s => s.thematicMapMethod);
+  const thematicMapYear   = useBasicStore(s => s.thematicMapYear);
+  const setThematicMapYear   = useBasicStore(s => s.setThematicMapYear);
+  const setThematicMapMethod = useBasicStore(s => s.setThematicMapMethod);
 
   // Active values (post-confirm use confirmed, pre-confirm use in-progress)
   const activeDrain     = isConfirmed ? confirmedLocation!.drain! : drainSelection;
@@ -50,6 +58,97 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
   useEffect(() => {
     selectedVillageIdsRef.current = activeVillageIds;
   }, [activeVillageIds]);
+
+  // ── Choropleth helpers ─────────────────────────────────────────────────────
+  const CHOROPLETH_COLORS = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+  function getQuantileBreaks(values: number[], n: number): number[] {
+    if (!values.length) return [];
+    const s = [...values].sort((a, b) => a - b);
+    const breaks: number[] = [];
+    for (let i = 1; i < n; i++) breaks.push(s[Math.floor((i / n) * s.length)]);
+    return breaks;
+  }
+  function getChoroplethColor(v: number, breaks: number[]): string {
+    for (let i = 0; i < breaks.length; i++) if (v <= breaks[i]) return CHOROPLETH_COLORS[i];
+    return CHOROPLETH_COLORS[CHOROPLETH_COLORS.length - 1];
+  }
+
+  // ── Thematic map layer (vanilla Leaflet) ───────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current || !LRef.current) return;
+    const L = LRef.current;
+    if (thematicLayerRef.current) { mapRef.current.removeLayer(thematicLayerRef.current); thematicLayerRef.current = null; }
+    if (!thematicMapData || !thematicLayerVisible || !thematicMapData.features.length || !thematicMapYear) return;
+
+    const method = thematicMapMethod || 'Arithmetic';
+    const values = thematicMapData.features
+      .map((f: any) => { const ym = f.properties?.[method]; return ym?.[thematicMapYear] ?? ym?.[String(thematicMapYear)]; })
+      .filter((v: any): v is number => typeof v === 'number' && !isNaN(v));
+    if (!values.length) return;
+
+    const breaks = getQuantileBreaks(values, 5);
+
+    thematicLayerRef.current = L.geoJSON(thematicMapData, {
+      style: (feature: any) => {
+        const ym = feature?.properties?.[method];
+        const val = ym?.[thematicMapYear] ?? ym?.[String(thematicMapYear)];
+        const color = typeof val === 'number' ? getChoroplethColor(val, breaks) : '#cccccc';
+        return { fillColor: color, fillOpacity: 0.75, color: '#444', weight: 1 };
+      },
+      onEachFeature: (feature: any, lyr: any) => {
+        const p = feature.properties ?? {};
+        const ym = p[method] ?? {};
+        const val = ym[thematicMapYear] ?? ym[String(thematicMapYear)];
+        const pop2011 = p.population_2011 != null ? Number(p.population_2011).toLocaleString() : 'N/A';
+        const projVal = val != null ? Math.round(val).toLocaleString() : 'N/A';
+        let html = `<div style="font-family:sans-serif;font-size:12px;min-width:180px">` +
+          `<b style="font-size:13px">${p.village_name || 'Village'}</b><br/>` +
+          `<span style="color:#64748b">Population 2011:</span> ${pop2011}<br/>` +
+          `<span style="color:#64748b">${method} (${thematicMapYear}):</span> <b>${projVal}</b>`;
+        if (method === 'Cohort Total') {
+          const ageSex = p['Cohort AgeSex'];
+          const yrData = ageSex?.[thematicMapYear] ?? ageSex?.[String(thematicMapYear)];
+          if (yrData) {
+            const groups = Object.keys(yrData).filter((k: string) => k !== 'total').sort();
+            html += `<hr style="margin:6px 0;border:none;border-top:1px solid #e2e8f0"/>` +
+              `<b style="font-size:11px;color:#475569">Age-Sex Breakdown</b>` +
+              `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">` +
+              `<tr style="background:#f1f5f9"><th style="padding:2px 4px;text-align:left">Age</th>` +
+              `<th style="padding:2px 4px;text-align:right">Male</th><th style="padding:2px 4px;text-align:right">Female</th><th style="padding:2px 4px;text-align:right">Total</th></tr>`;
+            for (const grp of groups) {
+              const g = yrData[grp];
+              html += `<tr><td style="padding:2px 4px">${grp}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.male).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.female).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.total).toLocaleString()}</td></tr>`;
+            }
+            if (yrData['total']) {
+              const t = yrData['total'];
+              html += `<tr style="background:#f8fafc;font-weight:700"><td style="padding:2px 4px">Total</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(t.male).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(t.female).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(t.total).toLocaleString()}</td></tr>`;
+            }
+            html += `</table>`;
+          }
+        }
+        if (method === 'Demographic') {
+          const baseMap = p['Demographic'] ?? {};
+          const base = baseMap[2011] ?? baseMap['2011'];
+          if (base != null && val != null) {
+            const change = Math.round(val) - Math.round(base);
+            const pct = base > 0 ? ((change / base) * 100).toFixed(1) : '—';
+            const sign = change >= 0 ? '+' : '';
+            html += `<br/><span style="color:#64748b">Change from 2011:</span> ` +
+              `<b style="color:${change >= 0 ? '#16a34a' : '#dc2626'}">${sign}${change.toLocaleString()} (${sign}${pct}%)</b>`;
+          }
+        }
+        html += `</div>`;
+        lyr.bindPopup(html, { maxWidth: 280 });
+      },
+    }).addTo(mapRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [thematicMapData, thematicMapMethod, thematicMapYear, thematicLayerVisible, mapReady]);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const removeL = (ref: MutableRefObject<any>) => {
@@ -430,6 +529,80 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
             )}
           </div>
         )}
+
+        {/* ── Thematic map legend ── */}
+        {thematicMapData && thematicMapData.features.length > 0 && (() => {
+          const ALL_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+          const firstProps = thematicMapData.features[0]?.properties ?? {};
+          const availableMethods = ALL_METHODS.filter((m) => firstProps[m] != null);
+          const method = (thematicMapMethod && availableMethods.includes(thematicMapMethod))
+            ? thematicMapMethod : (availableMethods[0] ?? 'Arithmetic');
+          const activeYear = thematicMapYear
+            ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
+          const values = thematicMapData.features
+            .map((f: any) => { const ym = f.properties?.[method]; return ym?.[activeYear] ?? ym?.[String(activeYear)]; })
+            .filter((v: any): v is number => typeof v === 'number' && !isNaN(v));
+          const breaks = getQuantileBreaks(values, 5);
+          const minVal = values.length ? Math.min(...values) : 0;
+          const maxVal = values.length ? Math.max(...values) : 0;
+          const labels: string[] = breaks.length
+            ? [`≤ ${Math.round(breaks[0]).toLocaleString()}`,
+               ...breaks.slice(1).map((b, i) => `${Math.round(breaks[i] + 1).toLocaleString()} – ${Math.round(b).toLocaleString()}`),
+               `> ${Math.round(breaks[breaks.length - 1]).toLocaleString()}`]
+            : [`${Math.round(minVal).toLocaleString()} – ${Math.round(maxVal).toLocaleString()}`];
+          const COLORS = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+          const sel: React.CSSProperties = {
+            width: '100%', fontSize: 11, fontWeight: 600, padding: '4px 6px',
+            borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc',
+            color: '#1e293b', cursor: 'pointer',
+          };
+          return (
+            <div style={{
+              position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
+              background: 'rgba(255,255,255,0.96)', borderRadius: 10,
+              border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+              padding: '10px 14px', minWidth: 210,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Thematic Map</span>
+                <button type="button" onClick={() => setThematicLayerVisible(v => !v)}
+                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                    border: '1px solid #cbd5e1', cursor: 'pointer',
+                    background: thematicLayerVisible ? '#eff6ff' : '#f8fafc',
+                    color: thematicLayerVisible ? '#2563eb' : '#64748b' }}>
+                  {thematicLayerVisible ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              {availableMethods.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>Method</label>
+                  <select value={method} onChange={e => setThematicMapMethod(e.target.value)} style={sel}>
+                    {availableMethods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )}
+              {thematicMapData.available_years?.length > 1 && (
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>Year</label>
+                  <select value={activeYear ?? ''} onChange={e => setThematicMapYear(Number(e.target.value))} style={sel}>
+                    {thematicMapData.available_years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                  </select>
+                </div>
+              )}
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
+                <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Population ({activeYear})
+                </span>
+                {COLORS.slice(0, labels.length).map((color, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                    <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── Loading overlay ── */}
         {loading && (

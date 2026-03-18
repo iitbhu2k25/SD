@@ -271,7 +271,60 @@ class BasicService:
             raise ValueError("Invalid domestic load method")
 
         raise ValueError("Invalid sewage method")
-    
+
+    def sewage_demand(self, payload: dict[str, Any]):
+        load_method = payload.get("load_method")
+        drains = payload.get("drains") or []
+        drain_recharge_sum = sum(float(d.get("drain_recharge", 0) or 0) for d in drains)
+        water_supply = float(payload.get("water_supply", 0) or 0)
+        pop_2025 = float(payload.get("population_2025", 0) or 0)
+        unmetered = float(payload.get("unmetered_supply", 15) or 15)
+        mul = (135 + unmetered) / 1_000_000
+
+        results = []
+
+        if load_method == "manual":
+            population_data = payload.get("population_data") or {}
+            if not population_data:
+                raise ValueError("population_data must not be empty for manual mode")
+            for year in sorted(population_data.keys(), key=lambda y: int(y)):
+                pop_val = float(population_data[year])
+                pop_based = pop_val * mul * 0.84
+                water_based = (pop_val / pop_2025) * 0.84 * water_supply if pop_2025 > 0 else 0.0
+                drain_based = (pop_val / pop_2025) * drain_recharge_sum if pop_2025 > 0 else 0.0
+                results.append({
+                    "year": str(year),
+                    "population": pop_val,
+                    "population_based": round(pop_based, 4),
+                    "water_based": round(water_based, 4),
+                    "drain_based": round(drain_based, 4),
+                })
+
+        elif load_method == "modeled":
+            computed = payload.get("computed_population") or {}
+            if not computed:
+                raise ValueError("computed_population is required for modeled mode")
+            for year in sorted(computed.keys(), key=lambda y: int(y)):
+                pop_val = float(computed[year])
+                pop_based = pop_val * mul * 0.80
+                water_based = (pop_val / pop_2025) * 0.84 * water_supply if pop_2025 > 0 else 0.0
+                drain_based = (pop_val / pop_2025) * drain_recharge_sum if pop_2025 > 0 else 0.0
+                results.append({
+                    "year": str(year),
+                    "population": pop_val,
+                    "population_based": round(pop_based, 4),
+                    "water_based": round(water_based, 4),
+                    "drain_based": round(drain_based, 4),
+                })
+
+        else:
+            raise ValueError("Invalid load_method. Use 'manual' or 'modeled'")
+
+        return {
+            "results": results,
+            "drain_recharge_sum": round(drain_recharge_sum, 4),
+        }
+
     def peak_sewage_flow(self, payload: dict[str, Any]):
             population_data: dict[str, float] = payload.get("population_data") or {}
             methods: list[str]                = payload.get("methods") or []
@@ -370,10 +423,6 @@ class BasicService:
             "total_coefficient": round(total_coeff, 4),
             "items":             result_items,
         }
-
-
-
-
 
 
     def water_supply(self, payload: dict[str, Any]):
@@ -596,6 +645,302 @@ class BasicService:
                 years_data.append({"year": y, "data": organize(records)})
 
         return {"cohort": years_data}
+    def time_series_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village GeoJSON FeatureCollection with projected population values for all years."""
+        try:
+            import geopandas as gpd
+            from shapely.geometry import mapping as geom_mapping
+        except ImportError as exc:
+            raise RuntimeError("geopandas is required for thematic map") from exc
+
+        base_year = 2011
+        single_year = payload.get("year")
+        start_year = payload.get("start_year")
+        end_year = payload.get("end_year")
+        villages = self._ensure_village_subdistrict(payload.get("villages_props", []))
+        subdistrict = payload.get("subdistrict_props", [])
+
+        # Build the list of years to compute
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        sub_ids = self._extract_id_list(subdistrict)
+        stats = self._population_stats(sub_ids)
+        stats_map = {x["subdistrict_code"]: x for x in stats}
+
+        # Compute per-village values for every forecast year, keyed by year
+        village_data: dict[int, dict] = {}
+        for v in villages:
+            vid = int(v["id"])
+            value = float(v["population"])
+            sid = int(v.get("subDistrictId", 0))
+            item = stats_map.get(sid)
+            name = v.get("name", "")
+
+            arith: dict[int, int] = {base_year: int(value)}
+            geo:   dict[int, int] = {base_year: int(value)}
+            incr:  dict[int, int] = {base_year: int(value)}
+            expo:  dict[int, int] = {base_year: int(value)}
+
+            if item:
+                for yr in forecast_years:
+                    n = (yr - base_year) / 10
+                    t = yr - base_year
+                    arith[yr] = int(
+                        value + ((item["linear_annual_growth"] * (yr - base_year)) * (value / item["total_p7"]))
+                    )
+                    geo[yr] = int(value * math.pow((1 + (item["annual_growth_rate"] / 100)), n))
+                    k = value / item["total_p7"] if item["total_p7"] else 0
+                    incr[yr] = int(
+                        value + (k * n * item["d_mean"]) + (((n * (n + 1)) * item["m_mean"] / 2) * k)
+                    )
+                    expo[yr] = int(value * math.exp(item["growth_rate"] * t))
+
+            village_data[vid] = {
+                "village_name": name,
+                "population_2011": int(value),
+                "Arithmetic": arith,
+                "Geometric": geo,
+                "Incremental": incr,
+                "Exponential": expo,
+            }
+
+        # Load village shapefile
+        shp_path = os.path.join(self._media_root(), "Drain_shp", "Villages", "Edited2.shp")
+        if not os.path.exists(shp_path):
+            raise FileNotFoundError("Village shapefile not found")
+
+        gdf = gpd.read_file(shp_path)
+        gdf["village_co"] = gdf["village_co"].astype(str).str.strip()
+        selected = gdf[gdf["village_co"].isin([str(vid) for vid in village_data.keys()])]
+
+        if selected.empty:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        selected_latlon = selected.to_crs(epsg=4326)
+        available_years = sorted({base_year} | set(forecast_years))
+
+        features = []
+        for _, gdf_row in selected_latlon.iterrows():
+            vcode = str(gdf_row["village_co"]).strip()
+            try:
+                vid = int(vcode)
+            except ValueError:
+                continue
+            data = village_data.get(vid)
+            if not data:
+                continue
+            features.append({
+                "type": "Feature",
+                "geometry": geom_mapping(gdf_row.geometry),
+                "properties": {
+                    "village_code": vcode,
+                    "village_name": data["village_name"],
+                    "population_2011": data["population_2011"],
+                    "Arithmetic": data["Arithmetic"],
+                    "Geometric": data["Geometric"],
+                    "Incremental": data["Incremental"],
+                    "Exponential": data["Exponential"],
+                },
+            })
+
+        return {"type": "FeatureCollection", "available_years": available_years, "features": features}
+
+    def demographic_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village GeoJSON with Demographic projected population for all years."""
+        try:
+            import geopandas as gpd
+            from shapely.geometry import mapping as geom_mapping
+        except ImportError as exc:
+            raise RuntimeError("geopandas is required for thematic map") from exc
+
+        base_year = 2011
+        single_year = payload.get("year")
+        start_year = payload.get("start_year")
+        end_year = payload.get("end_year")
+        villages = self._ensure_village_subdistrict(payload.get("villages_props", []))
+        rates = payload.get("demographic", {}) or {}
+
+        b = float(rates.get("birthRate", 0)) / 10000
+        d = float(rates.get("deathRate", 0)) / 10000
+        e_rate = float(rates.get("emigrationRate", 0)) / 10000
+        i_rate = float(rates.get("immigrationRate", 0)) / 10000
+
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        village_data: dict[int, dict] = {}
+        for v in villages:
+            vid = int(v["id"])
+            value = float(v["population"])
+            name = v.get("name", "")
+            demo: dict[int, int] = {base_year: int(value)}
+            for yr in forecast_years:
+                t = yr - base_year
+                demo[yr] = int(value + (value * t * (b - d)) + (t * (e_rate - i_rate)))
+            village_data[vid] = {
+                "village_name": name,
+                "population_2011": int(value),
+                "Demographic": demo,
+            }
+
+        shp_path = os.path.join(self._media_root(), "Drain_shp", "Villages", "Edited2.shp")
+        if not os.path.exists(shp_path):
+            raise FileNotFoundError("Village shapefile not found")
+
+        gdf = gpd.read_file(shp_path)
+        gdf["village_co"] = gdf["village_co"].astype(str).str.strip()
+        selected = gdf[gdf["village_co"].isin([str(v) for v in village_data.keys()])]
+        if selected.empty:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        selected_latlon = selected.to_crs(epsg=4326)
+        available_years = sorted({base_year} | set(forecast_years))
+
+        features = []
+        for _, gdf_row in selected_latlon.iterrows():
+            vcode = str(gdf_row["village_co"]).strip()
+            try:
+                vid = int(vcode)
+            except ValueError:
+                continue
+            data = village_data.get(vid)
+            if not data:
+                continue
+            features.append({
+                "type": "Feature",
+                "geometry": geom_mapping(gdf_row.geometry),
+                "properties": {
+                    "village_code": vcode,
+                    "village_name": data["village_name"],
+                    "population_2011": data["population_2011"],
+                    "Demographic": data["Demographic"],
+                },
+            })
+
+        return {"type": "FeatureCollection", "available_years": available_years, "features": features}
+
+    def cohort_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village GeoJSON with cohort total + age-sex breakdown for all years."""
+        try:
+            import geopandas as gpd
+            from shapely.geometry import mapping as geom_mapping
+        except ImportError as exc:
+            raise RuntimeError("geopandas is required for thematic map") from exc
+
+        single_year = payload.get("year")
+        start_year = payload.get("start_year")
+        end_year = payload.get("end_year")
+        villages_props = payload.get("villages_props") or []
+        subdistrict_raw = payload.get("subdistrict_props")
+        district_raw = payload.get("district_props")
+        state_raw = payload.get("state_props") or {}
+
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        all_years = sorted({2011} | set(forecast_years))
+
+        state_code = int(state_raw["id"]) if isinstance(state_raw, dict) and state_raw.get("id") is not None else None
+        district_codes = self._extract_id_list(district_raw)
+        subdistrict_codes = self._extract_id_list(subdistrict_raw)
+        village_codes = self._extract_id_list(villages_props)
+
+        # Build village name / pop lookup from payload
+        village_meta: dict[int, dict] = {}
+        for v in villages_props:
+            try:
+                vid = int(v["id"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            village_meta[vid] = {"name": v.get("name", ""), "population_2011": int(float(v.get("population", 0)))}
+
+        # Query cohort data per year for all villages at once
+        village_totals: dict[int, dict[int, int]] = {}          # vid -> {year -> total}
+        village_agesex: dict[int, dict[int, dict]] = {}          # vid -> {year -> {age_group -> {m,f,t}}}
+
+        for yr in all_years:
+            records = self.crud.get_cohort_by_filters(yr, state_code, district_codes, subdistrict_codes, village_codes)
+            for row in records:
+                vid = int(row.village_code) if row.village_code is not None else None
+                if vid is None:
+                    continue
+                gender = (row.gender or "").lower()
+                age_grp = row.age_group or "unknown"
+                pop = int(row.population)
+
+                if vid not in village_totals:
+                    village_totals[vid] = {}
+                    village_agesex[vid] = {}
+
+                village_totals[vid][yr] = village_totals[vid].get(yr, 0) + pop
+
+                if yr not in village_agesex[vid]:
+                    village_agesex[vid][yr] = {}
+                if age_grp not in village_agesex[vid][yr]:
+                    village_agesex[vid][yr][age_grp] = {"male": 0, "female": 0, "total": 0}
+                if gender == "male":
+                    village_agesex[vid][yr][age_grp]["male"] += pop
+                elif gender == "female":
+                    village_agesex[vid][yr][age_grp]["female"] += pop
+                village_agesex[vid][yr][age_grp]["total"] = (
+                    village_agesex[vid][yr][age_grp]["male"] + village_agesex[vid][yr][age_grp]["female"]
+                )
+
+        if not village_totals:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        # Load shapefile
+        shp_path = os.path.join(self._media_root(), "Drain_shp", "Villages", "Edited2.shp")
+        if not os.path.exists(shp_path):
+            raise FileNotFoundError("Village shapefile not found")
+
+        gdf = gpd.read_file(shp_path)
+        gdf["village_co"] = gdf["village_co"].astype(str).str.strip()
+        valid_codes = [str(vid) for vid in village_totals.keys()]
+        selected = gdf[gdf["village_co"].isin(valid_codes)]
+        if selected.empty:
+            return {"type": "FeatureCollection", "available_years": [], "features": []}
+
+        selected_latlon = selected.to_crs(epsg=4326)
+        features = []
+        for _, gdf_row in selected_latlon.iterrows():
+            vcode = str(gdf_row["village_co"]).strip()
+            try:
+                vid = int(vcode)
+            except ValueError:
+                continue
+            meta = village_meta.get(vid, {})
+            totals = village_totals.get(vid, {})
+            agesex = village_agesex.get(vid, {})
+            if not totals:
+                continue
+            features.append({
+                "type": "Feature",
+                "geometry": geom_mapping(gdf_row.geometry),
+                "properties": {
+                    "village_code": vcode,
+                    "village_name": meta.get("name", ""),
+                    "population_2011": meta.get("population_2011", totals.get(2011, 0)),
+                    "Cohort Total": totals,
+                    "Cohort AgeSex": agesex,
+                },
+            })
+
+        return {"type": "FeatureCollection", "available_years": all_years, "features": features}
+
     def _media_root(self) -> str:
         settings = Settings()
         if hasattr(settings, "media_root"):

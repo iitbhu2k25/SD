@@ -12,6 +12,8 @@ const IndCatchMap = dynamic(() => import('./Indcatchmentmapview'), { ssr: false 
 const StableAdminMap = memo(function StableAdminMap({
   selectedState, selectedDistricts, selectedSubDistricts, selectedVillages,
   onLocationSelect, className,
+  thematicMapData, thematicMapMethod, thematicMapYear,
+  onThematicYearChange, onThematicMethodChange,
 }: {
   selectedState?: string;
   selectedDistricts: string[];
@@ -19,6 +21,11 @@ const StableAdminMap = memo(function StableAdminMap({
   selectedVillages: string[];
   onLocationSelect: (payload: any) => void;
   className?: string;
+  thematicMapData?: { type: string; available_years: number[]; features: any[] } | null;
+  thematicMapMethod?: string | null;
+  thematicMapYear?: number | null;
+  onThematicYearChange?: (year: number) => void;
+  onThematicMethodChange?: (method: string) => void;
 }) {
   return (
     <AdminMap
@@ -28,6 +35,11 @@ const StableAdminMap = memo(function StableAdminMap({
       selectedVillages={selectedVillages}
       onLocationSelect={onLocationSelect}
       className={className}
+      thematicMapData={thematicMapData}
+      thematicMapMethod={thematicMapMethod}
+      thematicMapYear={thematicMapYear}
+      onThematicYearChange={onThematicYearChange}
+      onThematicMethodChange={onThematicMethodChange}
     />
   );
 });
@@ -35,19 +47,18 @@ const StableAdminMap = memo(function StableAdminMap({
 interface MapViewProps { className?: string; }
 
 export default function MapView({ className }: MapViewProps) {
-  const { mode } = useBasicStore();
+  const {
+    mode,
+    thematicMapData, thematicMapMethod, thematicMapYear,
+    setThematicMapYear, setThematicMapMethod,
+  } = useBasicStore();
+  // Stable references — Zustand selectors return the same function objects across renders
+  const onThematicYearChange = setThematicMapYear;
+  const onThematicMethodChange = setThematicMapMethod;
   const { mapProps, handleMapLocationSelect } = useMapSelection();
 
-  // Keep maps mounted after first visit so base map does not reload on mode switch.
-  const [mountedModes, setMountedModes] = useState({
-    admin: true,
-    drain: false,
-    india_catchment: false,
-  });
-
-  useEffect(() => {
-    setMountedModes((prev) => (prev[mode] ? prev : { ...prev, [mode]: true }));
-  }, [mode]);
+  // Pre-mount all maps so switching modes never triggers a Leaflet re-init.
+  const [mountedModes] = useState({ admin: true, drain: true, india_catchment: true });
 
   return (
     <div className={`relative h-full w-full ${className ?? ''}`}>
@@ -67,6 +78,11 @@ export default function MapView({ className }: MapViewProps) {
             selectedVillages={mapProps.selectedVillages}
             onLocationSelect={handleMapLocationSelect}
             className="h-full w-full"
+            thematicMapData={thematicMapData}
+            thematicMapMethod={thematicMapMethod}
+            thematicMapYear={thematicMapYear}
+            onThematicYearChange={onThematicYearChange}
+            onThematicMethodChange={onThematicMethodChange}
           />
         </div>
       )}

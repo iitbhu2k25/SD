@@ -154,6 +154,47 @@ export async function fetchCohort(
   });
 }
 
+export async function fetchThematicMapCohort(
+  location: ConfirmedLocation,
+  params: { year?: number; start_year?: number; end_year?: number }
+) {
+  const { villages_props, subdistrict_props, district_props, state_props } = buildProps(location);
+  return post('cohort/thematicmap', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    district_props,
+    state_props,
+  });
+}
+
+export async function fetchThematicMapDemographic(
+  location: ConfirmedLocation,
+  params: Record<string, any>
+) {
+  const { villages_props, subdistrict_props } = buildProps(location);
+  return post('time_series/demographic/thematicmap', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    totalPopulation_props: null,
+    demographic: params.demographic ?? {},
+  });
+}
+
+export async function fetchThematicMap(
+  location: ConfirmedLocation,
+  params: { year?: number; start_year?: number; end_year?: number }
+) {
+  const { villages_props, subdistrict_props } = buildProps(location);
+  return post('time_series/arthemitic/thematicmap', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    totalPopulation_props: null,
+  });
+}
+
 // ── Fetch exactly 2025 population for the currently selected method ──────────
 // Called by PopulationModule when the user's chosen forecast range doesn't include 2025.
 // Returns the total population at year 2025 (number) or null on failure.

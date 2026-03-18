@@ -38,6 +38,24 @@ class SewageRequest(BaseModel):
     unmetered_supply: float | None = 0
 
 
+class DrainDemandInput(BaseModel):
+    drain_no: str | int
+    drain_id: str | int
+    drain_recharge: float
+
+
+class SewageDemandRequest(BaseModel):
+    load_method: Literal["manual", "modeled"]
+    # manual: user-supplied {year: population} pairs
+    population_data: dict[str, float] | None = None
+    # modeled: forecasted {year: population} from store
+    computed_population: dict[str, float] | None = None
+    water_supply: float | None = None
+    drains: list[DrainDemandInput] = Field(default_factory=list)
+    population_2025: float | None = None
+    unmetered_supply: float = 15
+
+
 class PeakSewageFlowRequest(BaseModel):
    
     population_data: dict[str, float]

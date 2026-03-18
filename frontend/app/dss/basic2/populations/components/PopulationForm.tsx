@@ -68,7 +68,7 @@ const METHODS: {
 
 export default function PopulationForm({ onRun, onBeforeRun, loadingMethod }: PopulationFormProps) {
   const [startYear, setStartYear] = useState('2011');
-  const [endYear, setEndYear]     = useState('2051');
+  const [endYear, setEndYear]     = useState('2036');
   const [singleYear, setSingleYear] = useState('');
 
   const [birthRate, setBirthRate]           = useState('');
@@ -130,7 +130,7 @@ export default function PopulationForm({ onRun, onBeforeRun, loadingMethod }: Po
         </Field>
         <Field label="End Year">
           <input type="number" value={endYear} onChange={(e) => setEndYear(e.target.value)}
-            placeholder="2051" className={inputCls} min={1901} max={2100} />
+            placeholder="2036" className={inputCls} min={1901} max={2100} />
         </Field>
       </div>
       <Field label="Single Year (optional)">

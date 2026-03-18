@@ -254,32 +254,19 @@ export default function BasicDashboard() {
               </button>
             )}
 
-            {/* Right panel toggle ear — sits at right edge of the map area */}
-            {isConfirmed && (
-              <button type="button"
-                onClick={() => setRightOpen(v => !v)}
-                title={rightOpen ? 'Hide analysis panel' : 'Show analysis panel'}
+            {/* Right panel toggle ear — re-open button at right edge of map */}
+            {isConfirmed && !rightOpen && (
+              <button type="button" onClick={() => setRightOpen(true)}
+                title="Show analysis panel"
                 style={{
                   position:'absolute', right:0, top:'50%', transform:'translateY(-50%)',
-                  zIndex:20,
-                  width:24, height:54,
-                  background: rightOpen ? '#2563eb' : 'rgba(255,255,255,0.96)',
-                  borderTop:    rightOpen ? 'none' : '1px solid #cbd5e1',
-                  borderBottom: rightOpen ? 'none' : '1px solid #cbd5e1',
-                  borderLeft:   rightOpen ? 'none' : '1px solid #cbd5e1',
-                  borderRight:  'none',
-                  borderRadius:'12px 0 0 12px',
-                  cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  color: rightOpen ? '#fff' : '#475569',
-                  boxShadow: rightOpen
-                    ? '-3px 0 14px rgba(37,99,235,0.45)'
-                    : '-3px 0 10px rgba(0,0,0,0.14)',
+                  zIndex:20, width:24, height:54,
+                  background:'rgba(255,255,255,0.96)', border:'1px solid #cbd5e1', borderRight:'none',
+                  borderRadius:'12px 0 0 12px', cursor:'pointer',
+                  display:'flex', alignItems:'center', justifyContent:'center', color:'#475569',
+                  boxShadow:'-3px 0 10px rgba(0,0,0,0.12)',
                 }}>
-                {rightOpen
-                  ? <ChevronRight size={14} strokeWidth={2.5}/>
-                  : <ChevronLeft  size={14} strokeWidth={2.5}/>
-                }
+                <ChevronLeft size={14} strokeWidth={2.5}/>
               </button>
             )}
 
@@ -299,11 +286,7 @@ export default function BasicDashboard() {
             )}
           </div>
 
-          {/* ┌──────────────────────────────────────────┐
-              │  RIGHT PANEL  (flex row member)           │
-              │  width:0 → map fills space (shifts left)  │
-              │  width:480 → map shrinks (shifts right)   │
-              └──────────────────────────────────────────┘ */}
+          {/* ── RIGHT PANEL (flex sibling — does NOT overlap the map) ── */}
           {isConfirmed && (
             <div style={{
               width: rightOpen ? RIGHT_W : 0,
@@ -311,31 +294,23 @@ export default function BasicDashboard() {
               overflow: 'hidden',
               transition: `width ${EASE}`,
             }}>
-              {/* inner box stays full width so content never squashes */}
               <div style={{
                 width: RIGHT_W,
                 height: '100%',
                 background: '#fff',
                 borderLeft: '1px solid #e2e8f0',
-                boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',
+                boxShadow: '-4px 0 24px rgba(0,0,0,0.08)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
               }}>
                 {/* header */}
-                <div style={{
-                  display:'flex', alignItems:'center', gap:8,
-                  padding:'10px 16px',
-                  borderBottom:'1px solid #f1f5f9',
-                  background:'#f8fafc', flexShrink:0,
-                }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', borderBottom:'1px solid #f1f5f9', background:'#f8fafc', flexShrink:0 }}>
                   <button type="button" onClick={() => setRightOpen(false)}
                     style={{ width:26, height:26, borderRadius:7, border:'none', background:'rgba(0,0,0,0.06)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#64748b' }}>
                     <ChevronRight size={14} strokeWidth={2.5}/>
                   </button>
-                  <span style={{ fontSize:11, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.07em' }}>
-                    Analysis
-                  </span>
+                  <span style={{ fontSize:11, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.07em' }}>Analysis</span>
                 </div>
 
                 {/* module tabs */}
@@ -344,20 +319,16 @@ export default function BasicDashboard() {
                     <button key={tab.key} type="button" className="mod-tab"
                       onClick={() => setActiveModule(tab.key)}
                       style={{
-                        flex:1,
-                        display:'flex', flexDirection:'column', alignItems:'center', gap:3,
-                        padding:'9px 2px 8px',
-                        border:'none',
+                        flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+                        padding:'9px 2px 8px', border:'none',
                         borderBottom: activeModule === tab.key ? '2px solid #2563eb' : '2px solid transparent',
                         background: activeModule === tab.key ? '#eff6ff' : 'transparent',
                         color: activeModule === tab.key ? '#2563eb' : '#64748b',
                         cursor:'pointer', fontSize:9.5, fontWeight:700,
                         textTransform:'uppercase', letterSpacing:'0.04em',
-                        transition:'all 0.15s', whiteSpace:'nowrap',
-                        marginBottom:'-2px',
+                        transition:'all 0.15s', whiteSpace:'nowrap', marginBottom:'-2px',
                       }}>
-                      {tab.icon}
-                      {tab.label}
+                      {tab.icon}{tab.label}
                     </button>
                   ))}
                 </div>

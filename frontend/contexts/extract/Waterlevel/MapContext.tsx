@@ -287,7 +287,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
       try {
         const cqlFilter = `DISTRICT_C='${selectedDistrictCode}'`;
         const response = await fetch(
-          `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&propertyName=rivname,DISTRICT_C&CQL_FILTER=${encodeURIComponent(cqlFilter)}`
+          `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&propertyName=rivname,DISTRICT_C&CQL_FILTER=${encodeURIComponent(cqlFilter)}`
         );
         const data = await response.json();
 
@@ -368,7 +368,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
       riverLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
         }),
         style: riverHighlightStyle,
         zIndex: 3,
@@ -395,7 +395,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
       // Update existing layer with new filter
       const source = riverLayer.getSource();
       if (source) {
-        const newUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+        const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:indiariver&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
 
         source.clear();
         source.setUrl(newUrl);
@@ -441,7 +441,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
       districtLayer = new VectorLayer({
         source: new VectorSource({
           format: new GeoJSON(),
-          url: `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
         }),
         style: districtBoundaryStyle,
         zIndex: 2,
@@ -475,7 +475,7 @@ export const WaterLevelMapProvider = ({ children }: { children: ReactNode }) => 
       const source = districtLayer.getSource();
       if (source) {
         const cqlFilter = `STATE_CODE='${selectedStateCode}'`;
-        const newUrl = `/${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+        const newUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=myworkspace:B_district&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
 
         // Clear and reload source
         source.clear();

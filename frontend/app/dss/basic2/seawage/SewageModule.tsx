@@ -5,7 +5,7 @@ import { useBasicStore } from '../shared/store/basic.store';
 import { API_BASE_URL } from '../shared/utils/constants';
 import ModuleNav from '../shared/components/ModuleNav';
 import {
-  Droplets, FlaskConical, AlertCircle, CheckCircle2,
+  Droplets, AlertCircle, CheckCircle2,
   ChevronDown, ChevronUp, RefreshCw, Construction, Waves,
   Gauge, CloudRain,
 } from 'lucide-react';
@@ -142,10 +142,6 @@ const FACILITY_LPCD: Record<string, number> = { provided: 45, notprovided: 25, o
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-type DomResult =
-  | { type: 'single'; value: number }          // manual → single sewage value
-  | { type: 'yearly'; data: Record<string, number> }; // modeled → per-year
-
 interface PeakRow {
   year: string;
   population: number;
@@ -182,15 +178,21 @@ export default function SewageModule() {
       setWsInput(waterSupplyTotal.toFixed(3));
   }, [waterSupplyTotal]);
 
-  // ── Section 2: Domestic ───────────────────────────────────────────────────
-  const [domMode,    setDomMode]    = useState<'manual' | 'modeled'>('manual');
-  const [popInput,   setPopInput]   = useState('');   // manual: design population
-  const [ufw,        setUfw]        = useState('15');  // shared UFW %
-  const [domResult,  setDomResult]  = useState<DomResult | null>(null);
-  const [domSeasonal,setDomSeasonal]= useState<SeasonalData | null>(null);
-  const [domLoad,    setDomLoad]    = useState(false);
-  const [domErr,     setDomErr]     = useState<string | null>(null);
-  const [domYears,   setDomYears]   = useState<string[]>([]);
+  // Auto-fill drain table from confirmed drain location
+  useEffect(() => {
+    if (confirmedLocation?.mode === 'drain' && confirmedLocation.drain?.drains?.length) {
+      setSdDrains(
+        confirmedLocation.drain.drains.map((d, i) => ({
+          drain_no: d.name,
+          drain_id: String(i + 1),
+          drain_recharge: '',
+        }))
+      );
+    }
+  }, [confirmedLocation]);
+
+  // ── UFW (shared) ─────────────────────────────────────────────────────────
+  const [ufw, setUfw] = useState('15');
 
   // ── Section 3: Floating seasonal ─────────────────────────────────────────
   const [openFloat,     setOpenFloat]     = useState(true);
@@ -225,6 +227,20 @@ export default function SewageModule() {
   const [stormCalcLoad,   setStormCalcLoad]   = useState(false);
   const [stormCalcErr,    setStormCalcErr]    = useState<string | null>(null);
 
+  // ── Section 0: Combined Sewage Demand ────────────────────────────────────
+  type DrainRow = { drain_no: string; drain_id: string; drain_recharge: string };
+  type PopRow   = { year: string; population: string };
+  type SdResultRow = { year: string; population: number; population_based: number; water_based: number; drain_based: number };
+  const [sdMode,        setSdMode]        = useState<'manual' | 'modeled'>('manual');
+  const [sdPopRows,     setSdPopRows]     = useState<PopRow[]>([{ year: '2025', population: '' }]);
+  const [sdWaterSupply, setSdWaterSupply] = useState('');
+  const [sdDrains,      setSdDrains]      = useState<DrainRow[]>([{ drain_no: '', drain_id: '', drain_recharge: '' }]);
+  const [sdResult,      setSdResult]      = useState<SdResultRow[] | null>(null);
+  const [sdDomSeasonal, setSdDomSeasonal] = useState<SeasonalData | null>(null);
+  const [sdDomYears,    setSdDomYears]    = useState<string[]>([]);
+  const [sdLoad,        setSdLoad]        = useState(false);
+  const [sdErr,         setSdErr]         = useState<string | null>(null);
+
   // ── Section 7: Raw sewage ─────────────────────────────────────────────────
   const [openRaw,   setOpenRaw]   = useState(true);
   const [rawItems,  setRawItems]  = useState<RawItem[] | null>(null);
@@ -256,13 +272,6 @@ export default function SewageModule() {
     return out;
   };
 
-  // Build seasonal from a single MLD value spread across all forecast years
-  const makeSingleSeasonal = (mld: number, years: string[], mult: Record<string, number>): SeasonalData => {
-    const out: SeasonalData = {};
-    for (const s of Object.keys(mult)) { out[s] = {}; for (const yr of years) out[s][yr] = mld * mult[s]; }
-    return out;
-  };
-
   // ─────────────────────────────────────────────────────────────────────────
   // CALCULATE: Water Supply Based
   // ─────────────────────────────────────────────────────────────────────────
@@ -280,82 +289,6 @@ export default function SewageModule() {
       setWsResult(Number(data.sewage_demand));
     } catch (e: any) { setWsErr(e.message); }
     finally { setWsLoad(false); }
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // CALCULATE: Domestic Sewage
-  // ─────────────────────────────────────────────────────────────────────────
-  const handleDomCalc = async () => {
-    setDomLoad(true); setDomErr(null); setDomResult(null); setDomSeasonal(null);
-    try {
-      let payload: Record<string, unknown>;
-
-      if (domMode === 'manual') {
-        // User enters design population (person count)
-        const pop = parseFloat(popInput);
-        if (!popInput || isNaN(pop) || pop <= 0) throw new Error('Enter a valid design population.');
-        payload = {
-          method: 'domestic_sewage',
-          load_method: 'manual',
-          domestic_supply: pop,          // API receives population count
-          unmetered_supply: parseFloat(ufw) || 0,
-        };
-      } else {
-        // Modeled: use forecast from store
-        const fp = forecastStrKeys();
-        if (Object.keys(fp).length === 0) throw new Error('No population forecast in store. Complete the Population module first.');
-        payload = {
-          method: 'domestic_sewage',
-          load_method: 'modeled',
-          computed_population: fp,
-          unmetered_supply: parseFloat(ufw) || 0,
-        };
-      }
-
-      const res = await fetch(`${API_BASE_URL}/basic/sewage_calculation`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? `API ${res.status}`); }
-      const data = await res.json();
-
-      if (data.sewage_result) {
-        // Modeled → per-year result
-        const yData: Record<string, number> = {};
-        for (const [k, v] of Object.entries(data.sewage_result)) yData[k] = Number(v);
-        const years = Object.keys(yData).sort((a, b) => Number(a) - Number(b));
-        setDomResult({ type: 'yearly', data: yData });
-        setDomSeasonal(makeSeasonal(yData, DOM_MULT));
-        setDomYears(years);
-      } else if (data.sewage_demand !== undefined) {
-        // Manual → single value; expand per-year by scaling with population2025 reference
-        const singleMLD = Number(data.sewage_demand);
-        const ref = population2025;
-        const fc = forecastStrKeys();
-        const years = sortedForecastYears();
-
-        if (ref && ref > 0 && years.length > 0) {
-          // Scale per-year: (yearPop / pop2025) * sewageMLD
-          const perYear: Record<string, number> = {};
-          for (const yr of years) {
-            const yrPop = fc[yr] ?? 0;
-            perYear[yr] = (yrPop / ref) * singleMLD;
-          }
-          setDomResult({ type: 'yearly', data: perYear });
-          setDomSeasonal(makeSeasonal(perYear, DOM_MULT));
-          setDomYears(years);
-        } else {
-          // No forecast / no 2025 ref → show single value + seasonal over forecast years if available
-          setDomResult({ type: 'single', value: singleMLD });
-          const yrs = years.length > 0 ? years : ['design'];
-          setDomSeasonal(makeSingleSeasonal(singleMLD, yrs, DOM_MULT));
-          setDomYears(yrs);
-        }
-      } else {
-        throw new Error('Unexpected API response.');
-      }
-    } catch (e: any) { setDomErr(e.message); }
-    finally { setDomLoad(false); }
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -385,18 +318,22 @@ export default function SewageModule() {
     const methods = Object.entries(peakChk).filter(([, v]) => v).map(([k]) => k);
     if (methods.length === 0) { setPeakErr('Select at least one peak flow method.'); return; }
 
-    // Build population map
-    const fc = forecastStrKeys();
-    if (Object.keys(fc).length === 0) { setPeakErr('No population forecast available.'); return; }
-    const pop: Record<string, number> = {};
-    for (const [yr, v] of Object.entries(fc)) pop[yr] = v;
+    if (!sdResult || sdResult.length === 0) { setPeakErr('Calculate Sewage Demand first.'); return; }
 
-    // Determine sewage data to send
-    const payload: Record<string, unknown> = { population_data: pop, methods };
-    if (domResult?.type === 'yearly') payload.sewage_data = domResult.data;
-    else if (domResult?.type === 'single') payload.base_sewage = domResult.value;
-    else if (wsResult) payload.base_sewage = wsResult;
-    else { setPeakErr('Calculate at least one sewage section first.'); return; }
+    // In manual mode use only the sdResult rows; in modeled mode use full forecast
+    const pop: Record<string, number> = {};
+    if (sdMode === 'manual') {
+      for (const row of sdResult) pop[row.year] = row.population;
+    } else {
+      const fc = forecastStrKeys();
+      if (Object.keys(fc).length === 0) { setPeakErr('No population forecast available.'); return; }
+      for (const [yr, v] of Object.entries(fc)) pop[yr] = v;
+    }
+
+    const sd: Record<string, number> = {};
+    for (const row of sdResult) sd[row.year] = row.population_based;
+
+    const payload: Record<string, unknown> = { population_data: pop, methods, sewage_data: sd };
 
     setPeakLoad(true); setPeakErr(null);
     try {
@@ -458,31 +395,25 @@ export default function SewageModule() {
     if (!treatCapacity || isNaN(cap) || cap <= 0) { setTreatErr('Enter a valid treatment capacity (MLD).'); return; }
     if (!treatMethod) { setTreatErr('Select a peak flow method.'); return; }
 
-    // Use best available per-year sewage
-    const sewageByYear: Record<string, number> = {};
-    const fc = forecastStrKeys();
-    const years = sortedForecastYears();
-    if (years.length === 0) { setTreatErr('No population forecast available.'); return; }
+    if (!sdResult || sdResult.length === 0) { setTreatErr('Calculate Sewage Demand first.'); return; }
 
-    // Fill sewage per year from domResult or wsResult
-    for (const yr of years) {
-      const pop = fc[yr] ?? 0;
-      let avgSew = 0;
-      if (domResult?.type === 'yearly') {
-        avgSew = domResult.data[yr] ?? 0;
-      } else if (domResult?.type === 'single') {
-        const ref = population2025 ?? pop;
-        avgSew = ref > 0 ? (pop / ref) * domResult.value : domResult.value;
-      } else if (wsResult) {
-        const ref = population2025 ?? pop;
-        avgSew = ref > 0 ? (pop / ref) * wsResult : wsResult;
-      }
-      sewageByYear[yr] = avgSew;
+    // In manual mode use only sdResult rows; in modeled mode use full forecast years
+    let years: string[];
+    const popByYear: Record<string, number> = {};
+    if (sdMode === 'manual') {
+      years = sdResult.map(r => r.year);
+      for (const r of sdResult) popByYear[r.year] = r.population;
+    } else {
+      years = sortedForecastYears();
+      if (years.length === 0) { setTreatErr('No population forecast available.'); return; }
+      const fc = forecastStrKeys();
+      for (const yr of years) popByYear[yr] = fc[yr] ?? 0;
     }
 
     const rows = years.map(yr => {
-      const pop = fc[yr] ?? 0;
-      const avg = sewageByYear[yr] ?? 0;
+      const pop = popByYear[yr] ?? 0;
+      const sdRow = sdResult.find(r => r.year === yr);
+      const avg = sdRow?.population_based ?? (wsResult ?? 0);
       let peakSew = avg;
       if (treatMethod === 'cpheeo') peakSew = avg * getCPHEEOFactor(pop);
       else if (treatMethod === 'harmon') peakSew = avg * getHarmonFactor(pop);
@@ -544,14 +475,83 @@ export default function SewageModule() {
     finally { setStormCalcLoad(false); }
   };
 
-  const anyResult = wsResult !== null || domResult !== null;
+  // ─────────────────────────────────────────────────────────────────────────
+  // CALCULATE: Combined Sewage Demand
+  // ─────────────────────────────────────────────────────────────────────────
+  const handleSdCalc = async () => {
+    setSdLoad(true); setSdErr(null); setSdResult(null);
+    try {
+      const ws = parseFloat(sdWaterSupply);
+      if (!sdWaterSupply || isNaN(ws) || ws < 0) throw new Error('Enter a valid water supply value (MLD).');
+
+      const drainsParsed = sdDrains
+        .filter(d => d.drain_no || d.drain_id || d.drain_recharge)
+        .map(d => ({
+          drain_no: d.drain_no || '—',
+          drain_id: d.drain_id || '—',
+          drain_recharge: parseFloat(d.drain_recharge) || 0,
+        }));
+
+      let payload: Record<string, unknown>;
+
+      if (sdMode === 'manual') {
+        const popData: Record<string, number> = {};
+        for (const row of sdPopRows) {
+          const yr = row.year.trim();
+          const pv = parseFloat(row.population);
+          if (!yr || isNaN(pv) || pv <= 0) throw new Error(`Enter valid year and population for all rows (row year "${yr}" is invalid).`);
+          popData[yr] = pv;
+        }
+        if (Object.keys(popData).length === 0) throw new Error('Add at least one population year entry.');
+        // derive pop_2025 reference: from store, or from the 2025 row if provided, else first entry
+        const pop2025Ref = population2025 ?? popData['2025'] ?? Object.values(popData)[0];
+        payload = {
+          load_method: 'manual',
+          population_data: popData,
+          water_supply: ws,
+          drains: drainsParsed,
+          population_2025: pop2025Ref,
+          unmetered_supply: parseFloat(ufw) || 15,
+        };
+      } else {
+        const fp = forecastStrKeys();
+        if (Object.keys(fp).length === 0) throw new Error('No population forecast in store. Complete Population module first.');
+        payload = {
+          load_method: 'modeled',
+          computed_population: fp,
+          water_supply: ws,
+          drains: drainsParsed,
+          population_2025: population2025 ?? 0,
+          unmetered_supply: parseFloat(ufw) || 15,
+        };
+      }
+
+      const res = await fetch(`${API_BASE_URL}/basic/sewage_demand`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail ?? `API ${res.status}`); }
+      const data = await res.json();
+      const rows: SdResultRow[] = data.results;
+      setSdResult(rows);
+      // Compute domestic seasonal from population_based values
+      if (rows.length > 0) {
+        const yearlyBase: Record<string, number> = {};
+        for (const r of rows) yearlyBase[r.year] = r.population_based;
+        setSdDomSeasonal(makeSeasonal(yearlyBase, DOM_MULT));
+        setSdDomYears(rows.map(r => r.year));
+      }
+    } catch (e: any) { setSdErr(e.message); setSdDomSeasonal(null); setSdDomYears([]); }
+    finally { setSdLoad(false); }
+  };
+
+  const anyResult = wsResult !== null || sdResult !== null;
   const fc = forecastStrKeys();
 
   useEffect(() => {
     const hasData =
       wsResult !== null ||
-      domResult !== null ||
-      !!domSeasonal ||
+      sdResult !== null ||
       !!floatSeasonal ||
       !!peakRows ||
       !!treatRows ||
@@ -569,10 +569,7 @@ export default function SewageModule() {
     const payload = {
       waterSupplyInput: wsInput,
       waterSupplyResult: wsResult,
-      domesticMode: domMode,
-      domesticResult: domResult,
-      domesticSeasonal: domSeasonal,
-      domesticYears: domYears,
+      sewageDemandResult: sdResult,
       floatingSeasonal: floatSeasonal,
       floatingYears: floatYears,
       peakRows: peakRows as any[] | null,
@@ -594,10 +591,7 @@ export default function SewageModule() {
   }, [
     wsInput,
     wsResult,
-    domMode,
-    domResult,
-    domSeasonal,
-    domYears,
+    sdResult,
     floatSeasonal,
     floatYears,
     peakRows,
@@ -619,7 +613,7 @@ export default function SewageModule() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* ══════════════════════════════════════════════════════════════════
           SECTION 1 — WATER SUPPLY BASED SEWAGE
@@ -632,20 +626,23 @@ export default function SewageModule() {
             Water Supply Based Sewage
           </span>
         </div>
-        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {waterSupplyTotal !== null && (
-            <div style={{ fontSize: 12, color: '#0369a1', background: '#e0f2fe', borderRadius: 6, padding: '5px 10px', border: '1px solid #bae6fd' }}>
-              Auto-filled from Water Supply module: <strong>{waterSupplyTotal.toFixed(3)} MLD</strong>
-            </div>
-          )}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>
-                Total Water Supply <span style={{ fontWeight: 400, color: '#cbd5e1', textTransform: 'none' }}>(MLD)</span>
-                <div style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8', textTransform: 'none', marginTop: 2 }}>Sewage = Supply × 0.84</div>
+        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+                Total Water Supply (MLD)
+                <span style={{ fontWeight: 400, color: '#cbd5e1', marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>Sewage = Supply × 0.84</span>
               </div>
-              <input style={{ ...inp, width: 180 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
-                onChange={e => { setWsInput(e.target.value); setWsResult(null); setWsErr(null); }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
+                  onChange={e => { setWsInput(e.target.value); setWsResult(null); setWsErr(null); }} />
+                {waterSupplyTotal !== null && (
+                  <button type="button" onClick={() => setWsInput(waterSupplyTotal.toFixed(3))}
+                    style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '0 9px', borderRadius: 7, border: '1px solid #0369a1', background: '#0369a1', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
+                    Use {waterSupplyTotal.toFixed(2)}
+                  </button>
+                )}
+              </div>
             </div>
             <CalcButton onClick={handleWsCalc} loading={wsLoad} label="Calculate" />
           </div>
@@ -665,116 +662,196 @@ export default function SewageModule() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════
-          SECTION 2 — DOMESTIC SEWAGE GENERATION
+          SECTION 0 — COMBINED SEWAGE DEMAND (Population / Water / Drain)
       ══════════════════════════════════════════════════════════════════ */}
       <div style={card}>
-        <div style={{ padding: '13px 18px', background: 'linear-gradient(135deg,#f5f3ff,#ede9fe)', borderBottom: '1px solid #ddd6fe', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 4, height: 24, background: '#7c3aed', borderRadius: 2 }} />
-          <FlaskConical size={15} color="#7c3aed" />
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#4c1d95', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Domestic Sewage Generation
+        <div style={{ padding: '13px 18px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 4, height: 24, background: '#16a34a', borderRadius: 2 }} />
+          <Droplets size={15} color="#16a34a" />
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Sewage Demand — Combined (Population / Water / Drain Based)
           </span>
         </div>
 
-        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Toggle */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Method</div>
-            <ToggleSwitch value={domMode} onChange={(v) => { setDomMode(v); setDomResult(null); setDomErr(null); setDomSeasonal(null); }} />
+        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* ── Row 1: Mode + modeled hint ─────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Method</span>
+            <ToggleSwitch value={sdMode} onChange={(v) => { setSdMode(v); setSdResult(null); setSdDomSeasonal(null); setSdDomYears([]); setSdErr(null); }} />
+            {sdMode === 'modeled' && (
+              <span style={{ fontSize: 11, color: '#16a34a', background: '#dcfce7', borderRadius: 5, padding: '3px 9px', border: '1px solid #86efac', fontWeight: 600 }}>
+                {Object.keys(fc).length} forecast years
+                {population2025 ? ` · 2025 ref: ${population2025.toLocaleString()}` : ''}
+              </span>
+            )}
           </div>
 
-          {/* UFW — shared across both modes */}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          {/* ── Row 2: Water Supply + UFW (always visible) ─────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                UFW / Unaccounted for Water <span style={{ fontWeight: 400, color: '#cbd5e1', textTransform: 'none' }}>(% — CPHEEO max 15)</span>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
+                Water Supply (MLD)
               </div>
-              <input style={{ ...inp, width: 130 }} type="number" min="0" max="100" step="0.1" placeholder="15" value={ufw}
-                onChange={e => setUfw(e.target.value)} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5"
+                  value={sdWaterSupply}
+                  onChange={e => { setSdWaterSupply(e.target.value); setSdResult(null); }} />
+                {waterSupplyTotal !== null && sdWaterSupply === '' && (
+                  <button type="button" onClick={() => setSdWaterSupply(waterSupplyTotal.toFixed(3))}
+                    style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '0 10px', borderRadius: 7, border: '1px solid #0369a1', background: '#0369a1', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
+                    Use {waterSupplyTotal.toFixed(2)}
+                  </button>
+                )}
+              </div>
             </div>
-
-            {/* Manual: design population input */}
-            {domMode === 'manual' && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                  Design Population
-                  <div style={{ fontSize: 11, fontWeight: 400, color: '#94a3b8', textTransform: 'none', marginTop: 2 }}>
-                    Enter the design-year population
-                  </div>
-                </div>
-                <input style={{ ...inp, width: 180 }} type="number" min="0" step="1" placeholder="e.g. 50000" value={popInput}
-                  onChange={e => { setPopInput(e.target.value); setDomResult(null); setDomErr(null); }} />
-              </div>
-            )}
-
-            {/* Modeled: info badge */}
-            {domMode === 'modeled' && (
-              <div style={{ fontSize: 12, color: '#7c3aed', background: '#ede9fe', borderRadius: 6, padding: '6px 10px', border: '1px solid #ddd6fe', alignSelf: 'center' }}>
-                Uses population forecast from store ({Object.keys(fc).length} years)
-                {population2025 && <span style={{ marginLeft: 8, color: '#94a3b8' }}>· 2025 ref: <strong>{population2025.toLocaleString()}</strong></span>}
-              </div>
-            )}
+            <div style={{ width: 72 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>UFW (%)</div>
+              <input style={{ ...inp, width: '100%' }} type="number" min="0" max="100" step="0.1" placeholder="15"
+                value={ufw} onChange={e => { setUfw(e.target.value); setSdResult(null); }} />
+            </div>
           </div>
 
-          {population2025 && domMode === 'manual' && (
-            <div style={{ fontSize: 12, color: '#64748b', background: '#f8fafc', borderRadius: 6, padding: '5px 10px', border: '1px solid #e2e8f0' }}>
-              2025 reference population: <strong>{population2025.toLocaleString()}</strong>
-              <span style={{ color: '#94a3b8', marginLeft: 8 }}>– used to scale per-year sewage values</span>
+          {/* ── Row 3: Population by Year (manual only) ─────────────────── */}
+          {sdMode === 'manual' && (
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: 9, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Population by Year</span>
+                <button type="button"
+                  onClick={() => setSdPopRows(r => [...r, { year: '', population: '' }])}
+                  style={{ fontSize: 11, padding: '2px 9px', borderRadius: 5, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', cursor: 'pointer', fontWeight: 700 }}>
+                  + Add
+                </button>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ padding: '5px 10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 600, color: '#64748b', width: '40%' }}>Year</th>
+                    <th style={{ padding: '5px 10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 600, color: '#64748b' }}>Population</th>
+                    <th style={{ padding: '5px 8px', borderBottom: '1px solid #e2e8f0', width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sdPopRows.map((row, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input style={{ ...inp, width: '100%', fontSize: 12, padding: '5px 8px' }} type="number" min="1900" max="2100" step="1" placeholder="2025"
+                          value={row.year}
+                          onChange={e => { setSdPopRows(rs => rs.map((r, idx) => idx === i ? { ...r, year: e.target.value } : r)); setSdResult(null); }} />
+                      </td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input style={{ ...inp, width: '100%', fontSize: 12, padding: '5px 8px' }} type="number" min="0" step="1" placeholder="50000"
+                          value={row.population}
+                          onChange={e => { setSdPopRows(rs => rs.map((r, idx) => idx === i ? { ...r, population: e.target.value } : r)); setSdResult(null); }} />
+                      </td>
+                      <td style={{ padding: '4px 6px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+                        {sdPopRows.length > 1 && (
+                          <button type="button" onClick={() => setSdPopRows(rs => rs.filter((_, idx) => idx !== i))}
+                            style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            ×
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          <CalcButton
-            onClick={handleDomCalc} loading={domLoad}
-            label={domMode === 'manual' ? 'Calculate Domestic Sewage' : 'Calculate Domestic Sewage'}
-            disabled={domMode === 'manual' ? (!popInput) : (Object.keys(fc).length === 0)}
-          />
-          {domErr && <ErrorBox msg={domErr} />}
+          {/* ── Row 4: Drain Data ────────────────────────────────────────── */}
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: 9, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Drain Data</span>
+              <button type="button"
+                onClick={() => setSdDrains(d => [...d, { drain_no: '', drain_id: '', drain_recharge: '' }])}
+                style={{ fontSize: 11, padding: '2px 9px', borderRadius: 5, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', cursor: 'pointer', fontWeight: 700 }}>
+                + Add
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    {['Drain No', 'Drain ID', 'Recharge (MLD)', ''].map((h, ci) => (
+                      <th key={h} style={{ padding: '5px 10px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap', width: ci === 3 ? 28 : undefined }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sdDrains.map((d, i) => (
+                    <tr key={i}>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input style={{ ...inp, width: '100%', fontSize: 12, padding: '5px 8px' }} placeholder="Drain No" value={d.drain_no}
+                          onChange={e => setSdDrains(rows => rows.map((r, idx) => idx === i ? { ...r, drain_no: e.target.value } : r))} />
+                      </td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input style={{ ...inp, width: '100%', fontSize: 12, padding: '5px 8px' }} placeholder="ID" value={d.drain_id}
+                          onChange={e => setSdDrains(rows => rows.map((r, idx) => idx === i ? { ...r, drain_id: e.target.value } : r))} />
+                      </td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>
+                        <input style={{ ...inp, width: '100%', fontSize: 12, padding: '5px 8px' }} type="number" min="0" step="0.001" placeholder="0.000" value={d.drain_recharge}
+                          onChange={e => setSdDrains(rows => rows.map((r, idx) => idx === i ? { ...r, drain_recharge: e.target.value } : r))} />
+                      </td>
+                      <td style={{ padding: '4px 6px', borderBottom: '1px solid #f1f5f9', textAlign: 'center' }}>
+                        {sdDrains.length > 1 && (
+                          <button type="button" onClick={() => setSdDrains(rows => rows.filter((_, idx) => idx !== i))}
+                            style={{ width: 20, height: 20, borderRadius: 4, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            ×
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-          {/* Domestic result */}
-          {domResult && (
-            <div style={{ border: '1px solid #ddd6fe', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #86efac' }}>
-                <CheckCircle2 size={15} color="#16a34a" />
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Domestic Sewage Result</span>
-              </div>
+          <CalcButton onClick={handleSdCalc} loading={sdLoad} label="Calculate Sewage Demand"
+            disabled={sdMode === 'manual' ? sdPopRows.every(r => !r.year || !r.population) : Object.keys(fc).length === 0} />
 
-              {domResult.type === 'single' ? (
-                <div style={{ padding: '16px 20px' }}>
-                  <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sewage Demand</div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: '#15803d' }}>{domResult.value.toFixed(3)} <span style={{ fontSize: 13, color: '#64748b', fontWeight: 400 }}>MLD</span></div>
+          {sdErr && <ErrorBox msg={sdErr} />}
+
+          {/* Result table */}
+          {sdResult && sdResult.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ border: '1px solid #86efac', borderRadius: 10, overflow: 'hidden' }}>
+                <div style={{ padding: '9px 14px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <CheckCircle2 size={15} color="#16a34a" />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sewage Demand Results (MLD)</span>
                 </div>
-              ) : (
-                <div style={{ overflowX: 'auto', maxHeight: 320, overflowY: 'auto' }}>
+                <div style={{ overflowX: 'auto', maxHeight: 360, overflowY: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
-                      <tr style={{ background: '#f8fafc' }}>
-                        {['Year', 'Population', 'Sewage (MLD)'].map(h => (
-                          <th key={h} style={{ padding: '9px 14px', textAlign: h === 'Year' ? 'left' : 'right', borderBottom: '2px solid #e2e8f0', fontWeight: 700, color: '#475569' }}>{h}</th>
+                      <tr style={{ background: '#f0fdf4' }}>
+                        {['Year', 'Population', 'Population Based (MLD)', 'Water Based (MLD)', 'Drain Based (MLD)'].map(h => (
+                          <th key={h} style={{ padding: '9px 14px', textAlign: h === 'Year' ? 'left' : 'right', borderBottom: '2px solid #86efac', fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(domResult.data).sort(([a], [b]) => Number(a) - Number(b)).map(([yr, val], i) => (
-                        <tr key={yr} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-                          <td style={{ padding: '8px 14px', fontWeight: 600, color: '#374151', borderBottom: '1px solid #f1f5f9' }}>{yr}</td>
-                          <td style={{ padding: '8px 14px', textAlign: 'right', color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>{fc[yr] ? Number(fc[yr]).toLocaleString() : '—'}</td>
-                          <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 600, color: '#15803d', borderBottom: '1px solid #f1f5f9' }}>{Number(val).toFixed(3)}</td>
+                      {sdResult.map((row, i) => (
+                        <tr key={row.year} style={{ background: i % 2 ? '#f0fdf4' : '#fff' }}>
+                          <td style={{ padding: '8px 14px', fontWeight: 600, color: '#374151', borderBottom: '1px solid #f1f5f9' }}>{row.year}</td>
+                          <td style={{ padding: '8px 14px', textAlign: 'right', color: '#64748b', borderBottom: '1px solid #f1f5f9' }}>{Number(row.population).toLocaleString()}</td>
+                          <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 600, color: '#7c3aed', borderBottom: '1px solid #f1f5f9' }}>{Number(row.population_based).toFixed(4)}</td>
+                          <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 600, color: '#0369a1', borderBottom: '1px solid #f1f5f9' }}>{Number(row.water_based).toFixed(4)}</td>
+                          <td style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 600, color: '#ea580c', borderBottom: '1px solid #f1f5f9' }}>{Number(row.drain_based).toFixed(4)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              )}
+              </div>
 
-              {/* Domestic Seasonal Sewage */}
-              {domSeasonal && domYears.length > 0 && (
-                <div style={{ padding: '0 14px 14px' }}>
-                  <SeasonalTable
-                    title="Domestic Seasonal Sewage Generation"
-                    data={domSeasonal} years={domYears}
-                    accentColor="#7c3aed" accentBg="#f5f3ff" accentBd="#ddd6fe"
-                  />
-                </div>
+              {/* Domestic Seasonal Sewage Generation */}
+              {sdDomSeasonal && sdDomYears.length > 0 && (
+                <SeasonalTable
+                  title="Domestic Seasonal Sewage Generation"
+                  data={sdDomSeasonal} years={sdDomYears}
+                  accentColor="#7c3aed" accentBg="#f5f3ff" accentBd="#ddd6fe"
+                />
               )}
             </div>
           )}
@@ -796,20 +873,17 @@ export default function SewageModule() {
         </div>
 
         {openFloat && (
-          <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              Uses population forecast from store to compute floating population sewage with seasonal factors.
-            </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Floating Population %</div>
-                <input style={{ ...inp, width: 120 }} type="number" min="0" max="100" step="0.1" placeholder="15" value={floatPct}
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ width: 110 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Floating Pop %</div>
+                <input style={{ ...inp, width: '100%' }} type="number" min="0" max="100" step="0.1" placeholder="15" value={floatPct}
                   onChange={e => { setFloatPct(e.target.value); setFloatSeasonal(null); }} />
               </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Sanitation Facility</div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Sanitation Facility</div>
                 <select value={facilityType} onChange={e => { setFacilityType(e.target.value); setFloatSeasonal(null); }}
-                  style={{ ...inp, width: 200 }}>
+                  style={{ ...inp, width: '100%' }}>
                   <option value="provided">Provided (45 LPCD)</option>
                   <option value="notprovided">Not Provided (25 LPCD)</option>
                   <option value="onlypublic">Only Public (15 LPCD)</option>

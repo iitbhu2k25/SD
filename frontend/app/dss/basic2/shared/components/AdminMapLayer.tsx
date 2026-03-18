@@ -25,6 +25,139 @@ interface MapProps {
     totalPopulation?: number;
   }) => void;
   onLoadingChange?: (isLoading: boolean) => void;
+  thematicMapData?: { type: string; available_years: number[]; features: any[] } | null;
+  thematicMapMethod?: string | null;
+  thematicMapYear?: number | null;
+  onThematicYearChange?: (year: number) => void;
+  onThematicMethodChange?: (method: string) => void;
+}
+
+// ── Thematic Map (choropleth) ─────────────────────────────────────────────────
+const CHOROPLETH_COLORS = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+
+function getQuantileBreaks(values: number[], numClasses: number): number[] {
+  if (values.length === 0) return [];
+  const sorted = [...values].sort((a, b) => a - b);
+  const breaks: number[] = [];
+  for (let i = 1; i < numClasses; i++) {
+    const idx = Math.floor((i / numClasses) * sorted.length);
+    breaks.push(sorted[idx]);
+  }
+  return breaks;
+}
+
+function getChoroplethColor(value: number, breaks: number[]): string {
+  for (let i = 0; i < breaks.length; i++) {
+    if (value <= breaks[i]) return CHOROPLETH_COLORS[i];
+  }
+  return CHOROPLETH_COLORS[CHOROPLETH_COLORS.length - 1];
+}
+
+function ThematicMapLayer({
+  thematicMapData,
+  thematicMapMethod,
+  selectedYear,
+  visible,
+}: {
+  thematicMapData: { type: string; available_years: number[]; features: any[] } | null;
+  thematicMapMethod: string | null;
+  selectedYear: number | null;
+  visible: boolean;
+}) {
+  const map = useMap();
+  const layerRef = useRef<L.GeoJSON | null>(null);
+
+  useEffect(() => {
+    if (layerRef.current) { layerRef.current.remove(); layerRef.current = null; }
+    if (!thematicMapData || !visible || !thematicMapData.features.length || !selectedYear) return;
+
+    const method = thematicMapMethod || 'Arithmetic';
+
+    // properties[method] is now { [year]: population }
+    const values = thematicMapData.features
+      .map((f) => {
+        const yearMap = f.properties?.[method];
+        return yearMap?.[selectedYear] ?? yearMap?.[String(selectedYear)];
+      })
+      .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+    if (!values.length) return;
+
+    const breaks = getQuantileBreaks(values, 5);
+
+    const layer = L.geoJSON(thematicMapData as any, {
+      style: (feature) => {
+        const yearMap = feature?.properties?.[method];
+        const val = yearMap?.[selectedYear] ?? yearMap?.[String(selectedYear)];
+        const color = typeof val === 'number' ? getChoroplethColor(val, breaks) : '#cccccc';
+        return { fillColor: color, fillOpacity: 0.75, color: '#444', weight: 1 };
+      },
+      onEachFeature: (feature, lyr) => {
+        const p = feature.properties ?? {};
+        const yearMap = p[method] ?? {};
+        const val = yearMap[selectedYear] ?? yearMap[String(selectedYear)];
+        const pop2011 = p.population_2011 != null ? Number(p.population_2011).toLocaleString() : 'N/A';
+        const projVal = val != null ? Math.round(val).toLocaleString() : 'N/A';
+
+        let html = `<div style="font-family:sans-serif;font-size:12px;min-width:180px">` +
+          `<b style="font-size:13px">${p.village_name || 'Village'}</b><br/>` +
+          `<span style="color:#64748b">Population 2011:</span> ${pop2011}<br/>` +
+          `<span style="color:#64748b">${method} (${selectedYear}):</span> <b>${projVal}</b>`;
+
+        // Cohort: age-sex breakdown table for the selected year
+        if (method === 'Cohort Total') {
+          const ageSex = p['Cohort AgeSex'];
+          const yrData = ageSex?.[selectedYear] ?? ageSex?.[String(selectedYear)];
+          if (yrData) {
+            const groups = Object.keys(yrData).filter((k) => k !== 'total').sort();
+            const total = yrData['total'];
+            html += `<hr style="margin:6px 0;border:none;border-top:1px solid #e2e8f0"/>` +
+              `<b style="font-size:11px;color:#475569">Age-Sex Breakdown</b>` +
+              `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">` +
+              `<tr style="background:#f1f5f9"><th style="padding:2px 4px;text-align:left">Age</th>` +
+              `<th style="padding:2px 4px;text-align:right">Male</th>` +
+              `<th style="padding:2px 4px;text-align:right">Female</th>` +
+              `<th style="padding:2px 4px;text-align:right">Total</th></tr>`;
+            for (const grp of groups) {
+              const g = yrData[grp];
+              html += `<tr><td style="padding:2px 4px">${grp}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.male).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.female).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(g.total).toLocaleString()}</td></tr>`;
+            }
+            if (total) {
+              html += `<tr style="background:#f8fafc;font-weight:700">` +
+                `<td style="padding:2px 4px">Total</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(total.male).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(total.female).toLocaleString()}</td>` +
+                `<td style="padding:2px 4px;text-align:right">${Number(total.total).toLocaleString()}</td></tr>`;
+            }
+            html += `</table>`;
+          }
+        }
+
+        // Demographic: show change from 2011 baseline
+        if (method === 'Demographic') {
+          const baseMap = p['Demographic'] ?? {};
+          const base = baseMap[2011] ?? baseMap['2011'];
+          if (base != null && val != null) {
+            const change = Math.round(val) - Math.round(base);
+            const pct = base > 0 ? ((change / base) * 100).toFixed(1) : '—';
+            const sign = change >= 0 ? '+' : '';
+            html += `<br/><span style="color:#64748b">Change from 2011:</span> ` +
+              `<b style="color:${change >= 0 ? '#16a34a' : '#dc2626'}">${sign}${change.toLocaleString()} (${sign}${pct}%)</b>`;
+          }
+        }
+
+        html += `</div>`;
+        lyr.bindPopup(html, { maxWidth: 280 });
+      },
+    });
+    layer.addTo(map);
+    layerRef.current = layer;
+    return () => { layer.remove(); layerRef.current = null; };
+  }, [thematicMapData, thematicMapMethod, selectedYear, visible, map]);
+
+  return null;
 }
 
 // Fullscreen Button Component
@@ -1086,6 +1219,11 @@ export default function Map({
   className,
   onLocationSelect,
   onLoadingChange,
+  thematicMapData,
+  thematicMapMethod,
+  thematicMapYear,
+  onThematicYearChange,
+  onThematicMethodChange,
 }: MapProps) {
   // console.log('Map component rendering with selectedState:', selectedState);
   // console.log('Map component rendering with selectedDistricts:', selectedDistricts);
@@ -1095,6 +1233,7 @@ export default function Map({
   // State to track if component is mounted (client-side)
   const [isMounted, setIsMounted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [thematicLayerVisible, setThematicLayerVisible] = useState(true);
 
   // Fix Leaflet icon issues
   useEffect(() => {
@@ -1260,7 +1399,117 @@ export default function Map({
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
         />
+
+        <ThematicMapLayer
+          thematicMapData={thematicMapData ?? null}
+          thematicMapMethod={thematicMapMethod ?? null}
+          selectedYear={thematicMapYear ?? null}
+          visible={thematicLayerVisible}
+        />
       </MapContainer>
+
+      {/* Thematic map toggle + legend */}
+      {thematicMapData && thematicMapData.features.length > 0 && (() => {
+        const ALL_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+        const firstProps = thematicMapData.features[0]?.properties ?? {};
+        const availableMethods = ALL_METHODS.filter((m) => firstProps[m] != null);
+
+        const method = (thematicMapMethod && availableMethods.includes(thematicMapMethod))
+          ? thematicMapMethod
+          : (availableMethods[0] ?? 'Arithmetic');
+
+        const activeYear = thematicMapYear
+          ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
+
+        const values = thematicMapData.features
+          .map((f) => {
+            const ym = f.properties?.[method];
+            return ym?.[activeYear] ?? ym?.[String(activeYear)];
+          })
+          .filter((v): v is number => typeof v === 'number' && !isNaN(v));
+
+        const breaks = getQuantileBreaks(values, 5);
+        const minVal = values.length ? Math.min(...values) : 0;
+        const maxVal = values.length ? Math.max(...values) : 0;
+        const labels: string[] = breaks.length
+          ? [
+              `≤ ${Math.round(breaks[0]).toLocaleString()}`,
+              ...breaks.slice(1).map((b, i) => `${Math.round(breaks[i] + 1).toLocaleString()} – ${Math.round(b).toLocaleString()}`),
+              `> ${Math.round(breaks[breaks.length - 1]).toLocaleString()}`,
+            ]
+          : [`${Math.round(minVal).toLocaleString()} – ${Math.round(maxVal).toLocaleString()}`];
+
+        const selectStyle: React.CSSProperties = {
+          width: '100%', fontSize: 11, fontWeight: 600,
+          padding: '4px 6px', borderRadius: 6,
+          border: '1px solid #cbd5e1', background: '#f8fafc',
+          color: '#1e293b', cursor: 'pointer',
+        };
+
+        return (
+          <div style={{
+            position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
+            background: 'rgba(255,255,255,0.96)', borderRadius: 10,
+            border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+            padding: '10px 14px', minWidth: 210,
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Thematic Map</span>
+              <button type="button" onClick={() => setThematicLayerVisible((v) => !v)}
+                style={{
+                  fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                  border: '1px solid #cbd5e1',
+                  background: thematicLayerVisible ? '#eff6ff' : '#f8fafc',
+                  color: thematicLayerVisible ? '#2563eb' : '#64748b', cursor: 'pointer',
+                }}>
+                {thematicLayerVisible ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            {/* Method dropdown */}
+            {availableMethods.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>
+                  Method
+                </label>
+                <select value={method} onChange={(e) => onThematicMethodChange?.(e.target.value)} style={selectStyle}>
+                  {availableMethods.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Year dropdown */}
+            {thematicMapData.available_years?.length > 1 && (
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>
+                  Year
+                </label>
+                <select value={activeYear ?? ''} onChange={(e) => onThematicYearChange?.(Number(e.target.value))} style={selectStyle}>
+                  {thematicMapData.available_years.map((yr) => (
+                    <option key={yr} value={yr}>{yr}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Color legend */}
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 4 }}>
+              <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Population ({activeYear})
+              </span>
+              {CHOROPLETH_COLORS.slice(0, labels.length).map((color, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
+                  <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Fullscreen exit hint */}
       {isFullscreen && (
