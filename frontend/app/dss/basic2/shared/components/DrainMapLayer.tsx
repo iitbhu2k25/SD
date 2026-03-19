@@ -81,18 +81,23 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
     if (!thematicMapData || !thematicLayerVisible || !thematicMapData.features.length || !thematicMapYear) return;
 
     const method = thematicMapMethod || 'Arithmetic';
-    const values = thematicMapData.features
+    const isStatusMethod = method === 'Status';
+    const values = isStatusMethod ? [] : thematicMapData.features
       .map((f: any) => { const ym = f.properties?.[method]; return ym?.[thematicMapYear] ?? ym?.[String(thematicMapYear)]; })
       .filter((v: any): v is number => typeof v === 'number' && !isNaN(v));
-    if (!values.length) return;
+    if (!isStatusMethod && !values.length) return;
 
     const breaks = getQuantileBreaks(values, 5);
+    const WD_WS_METHODS = new Set(['Domestic','Floating','Institutional','Firefighting','Total Water Demand','Water Supply','Water Demand','Water Gap','Status']);
+    const isWDWS = WD_WS_METHODS.has(method);
 
     thematicLayerRef.current = L.geoJSON(thematicMapData, {
       style: (feature: any) => {
         const ym = feature?.properties?.[method];
         const val = ym?.[thematicMapYear] ?? ym?.[String(thematicMapYear)];
-        const color = typeof val === 'number' ? getChoroplethColor(val, breaks) : '#cccccc';
+        let color = '#cccccc';
+        if (isStatusMethod) color = val === 'Sufficient' ? '#16a34a' : val === 'Deficit' ? '#dc2626' : '#cccccc';
+        else if (typeof val === 'number') color = getChoroplethColor(val, breaks);
         return { fillColor: color, fillOpacity: 0.75, color: '#444', weight: 1 };
       },
       onEachFeature: (feature: any, lyr: any) => {
@@ -100,7 +105,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
         const ym = p[method] ?? {};
         const val = ym[thematicMapYear] ?? ym[String(thematicMapYear)];
         const pop2011 = p.population_2011 != null ? Number(p.population_2011).toLocaleString() : 'N/A';
-        const projVal = val != null ? Math.round(val).toLocaleString() : 'N/A';
+        const projVal = isStatusMethod ? (val ?? 'N/A') : val != null ? (isWDWS ? `${Number(val).toFixed(4)} MLD` : Math.round(val).toLocaleString()) : 'N/A';
         let html = `<div style="font-family:sans-serif;font-size:12px;min-width:180px">` +
           `<b style="font-size:13px">${p.village_name || 'Village'}</b><br/>` +
           `<span style="color:#64748b">Population 2011:</span> ${pop2011}<br/>` +
@@ -532,25 +537,45 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
 
         {/* ── Thematic map legend ── */}
         {thematicMapData && thematicMapData.features.length > 0 && (() => {
-          const ALL_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+          const POP_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+          const WD_METHODS_LIST = ['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand'];
+          const WS_METHODS_LIST = ['Water Supply', 'Water Demand', 'Water Gap', 'Status'];
+
           const firstProps = thematicMapData.features[0]?.properties ?? {};
-          const availableMethods = ALL_METHODS.filter((m) => firstProps[m] != null);
-          const method = (thematicMapMethod && availableMethods.includes(thematicMapMethod))
-            ? thematicMapMethod : (availableMethods[0] ?? 'Arithmetic');
+          const activeMethod = thematicMapMethod ?? '';
+          const isWSCtx = WS_METHODS_LIST.includes(activeMethod);
+          const isWDCtx = WD_METHODS_LIST.includes(activeMethod);
+
+          const loadedWD  = WD_METHODS_LIST.filter(m => firstProps[m] != null);
+          const loadedWS  = WS_METHODS_LIST.filter(m => firstProps[m] != null);
+          const loadedPop = POP_METHODS.filter(m => firstProps[m] != null);
+
+          const availableMethods = isWSCtx
+            ? (loadedWS.length  > 0 ? loadedWS  : WS_METHODS_LIST)
+            : isWDCtx
+            ? (loadedWD.length  > 0 ? loadedWD  : WD_METHODS_LIST)
+            : (loadedPop.length > 0 ? loadedPop : POP_METHODS);
+
+          const isStatus = activeMethod === 'Status';
+          const isWDWS = isWDCtx || isWSCtx;
+          const method = availableMethods.includes(activeMethod) ? activeMethod : (availableMethods[0] ?? 'Arithmetic');
           const activeYear = thematicMapYear
             ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
-          const values = thematicMapData.features
+          const fmt = (v: number) => isWDWS ? `${v.toFixed(4)} MLD` : Math.round(v).toLocaleString();
+          const values = isStatus ? [] : thematicMapData.features
             .map((f: any) => { const ym = f.properties?.[method]; return ym?.[activeYear] ?? ym?.[String(activeYear)]; })
             .filter((v: any): v is number => typeof v === 'number' && !isNaN(v));
           const breaks = getQuantileBreaks(values, 5);
           const minVal = values.length ? Math.min(...values) : 0;
           const maxVal = values.length ? Math.max(...values) : 0;
-          const labels: string[] = breaks.length
-            ? [`≤ ${Math.round(breaks[0]).toLocaleString()}`,
-               ...breaks.slice(1).map((b, i) => `${Math.round(breaks[i] + 1).toLocaleString()} – ${Math.round(b).toLocaleString()}`),
-               `> ${Math.round(breaks[breaks.length - 1]).toLocaleString()}`]
-            : [`${Math.round(minVal).toLocaleString()} – ${Math.round(maxVal).toLocaleString()}`];
-          const COLORS = ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+          const labels: string[] = isStatus
+            ? ['Deficit', 'Sufficient']
+            : breaks.length
+            ? [`≤ ${fmt(breaks[0])}`,
+               ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])} – ${fmt(b)}`),
+               `> ${fmt(breaks[breaks.length - 1])}`]
+            : [`${fmt(minVal)} – ${fmt(maxVal)}`];
+          const COLORS = isStatus ? ['#dc2626', '#16a34a'] : ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
           const sel: React.CSSProperties = {
             width: '100%', fontSize: 11, fontWeight: 600, padding: '4px 6px',
             borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc',

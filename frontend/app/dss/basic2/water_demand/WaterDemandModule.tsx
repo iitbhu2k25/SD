@@ -240,9 +240,14 @@ export default function WaterDemandModule() {
         wdParams.ff_demand = d;
       }
     }
-    if (confirmedLocation.mode === 'admin' && (confirmedLocation as any).admin?.villages?.length) {
-      wdParams.total_population_2011 = (confirmedLocation as any).admin.villages
-        .reduce((s: number, v: any) => s + (parseFloat(v.population) || 0), 0);
+    // total_population_2011 for all location modes (used to scale inst / ff per village)
+    const locVillages: any[] =
+      confirmedLocation.mode === 'admin'           ? (confirmedLocation as any).admin?.villages ?? []
+      : confirmedLocation.mode === 'drain'         ? (confirmedLocation as any).drain?.villages ?? []
+      : (confirmedLocation as any).indiaCatchment?.villages ?? [];
+    if (locVillages.length) {
+      wdParams.total_population_2011 = locVillages
+        .reduce((s: number, v: any) => s + (parseFloat(v.population ?? '0') || 0), 0);
     }
 
     fetchWaterDemandThematic(

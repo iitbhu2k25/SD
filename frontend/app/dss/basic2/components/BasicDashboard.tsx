@@ -44,7 +44,21 @@ export default function BasicDashboard() {
     mode, setMode,
     confirmedLocation, clearConfirmedLocation,
     activeModule, setActiveModule,
+    setThematicMapMethod,
   } = useBasicStore();
+
+  // Default thematic method per module — keeps legend in sync when switching tabs
+  const MODULE_THEMATIC: Partial<Record<ActiveModule, string>> = {
+    population:   'Arithmetic',
+    water_demand: 'Domestic',
+    water_supply: 'Water Supply',
+  };
+
+  const handleTabClick = (key: ActiveModule) => {
+    setActiveModule(key);
+    const m = MODULE_THEMATIC[key];
+    if (m) setThematicMapMethod(m);
+  };
 
   const isConfirmed = !!confirmedLocation;
   const [leftOpen,  setLeftOpen]  = useState(true);
@@ -317,7 +331,7 @@ export default function BasicDashboard() {
                 <div style={{ display:'flex', flexShrink:0, borderBottom:'2px solid #f1f5f9', background:'#fff' }}>
                   {MODULE_TABS.map(tab => (
                     <button key={tab.key} type="button" className="mod-tab"
-                      onClick={() => setActiveModule(tab.key)}
+                      onClick={() => handleTabClick(tab.key)}
                       style={{
                         flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3,
                         padding:'9px 2px 8px', border:'none',

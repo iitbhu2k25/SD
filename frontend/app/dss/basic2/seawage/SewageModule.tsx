@@ -61,6 +61,112 @@ function CalcButton({ onClick, loading, label, disabled }: {
   );
 }
 
+// ── Manual / Modeled info tooltip (fixed position — escapes overflow:hidden) ──
+function SdInfoTooltip() {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  // Continuously sync tooltip position to icon using rAF while open
+  useEffect(() => {
+    if (!open) { setPos(null); return; }
+    const sync = () => {
+      if (ref.current) {
+        const r = ref.current.getBoundingClientRect();
+        setPos({ top: r.top, left: r.left + r.width / 2 });
+      }
+      rafRef.current = requestAnimationFrame(sync);
+    };
+    rafRef.current = requestAnimationFrame(sync);
+    return () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); };
+  }, [open]);
+
+  // Close when clicking outside
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        tipRef.current && !tipRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = () => setOpen(v => !v);
+
+  return (
+    <div
+      ref={ref}
+      style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}
+      onClick={toggle}
+    >
+      <div style={{
+        width: 18, height: 18, borderRadius: '50%',
+        background: open ? '#0369a1' : '#e0f2fe',
+        border: '1.5px solid #38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer', fontSize: 11, fontWeight: 800,
+        color: open ? '#fff' : '#0369a1',
+        transition: 'all 0.15s',
+      }}>i</div>
+
+      {pos && (
+        <div ref={tipRef} style={{
+          position: 'fixed',
+          top: pos.top - 8,
+          left: pos.left,
+          transform: 'translate(-50%, -100%)',
+          zIndex: 99999,
+          width: 360,
+          maxHeight: 360,
+          overflowY: 'auto',
+          background: '#1e293b', color: '#f1f5f9',
+          borderRadius: 10, padding: '12px 14px',
+          fontSize: 12, lineHeight: 1.65,
+          boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+        }}>
+          {/* Modes */}
+          <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: 4 }}>Manual Mode</div>
+          <div style={{ marginBottom: 10, color: '#cbd5e1' }}>
+            Enter population values for each target year yourself. Use this when you have your own survey, census, or project-specific data and want full control over the input population.
+          </div>
+          <div style={{ fontWeight: 700, color: '#4ade80', marginBottom: 4 }}>Modeled Mode</div>
+          <div style={{ marginBottom: 12, color: '#cbd5e1' }}>
+            Uses the population forecast already computed in the Population module. The system fills in all forecast years automatically — no extra input needed.
+          </div>
+
+          {/* Demand types */}
+          <div style={{ borderTop: '1px solid #334155', paddingTop: 10, marginBottom: 6, fontWeight: 700, color: '#f8fafc', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Sewage Demand Types
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#c084fc' }}>Population Based — </span>
+            <span style={{ color: '#cbd5e1' }}>Estimates sewage generated purely from the residential population. No extra inputs needed beyond population and the design water supply rate. Best for areas with consistent domestic water use.</span>
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#38bdf8' }}>Water Based — </span>
+            <span style={{ color: '#cbd5e1' }}>Derives sewage from the actual water supply quantity already calculated in the Water Supply module. Proportional to how much water the population is served — useful when supply data is reliable.</span>
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, color: '#fb923c' }}>Drain Based — </span>
+            <span style={{ color: '#cbd5e1' }}>Uses drain recharge values for each drain in the project area. In the drain table below, enter each drain's <b style={{ color: '#fde68a' }}>Drain No</b> (its identifier), <b style={{ color: '#fde68a' }}>Drain ID</b> (sequential number), and <b style={{ color: '#fde68a' }}>Drain Recharge</b> (MLD). When location is set to Drain Mode, drain numbers are auto-filled from your selection. The total recharge across all drains is then scaled by population ratio to give the drain-based demand.</span>
+          </div>
+
+          <div style={{ borderTop: '1px solid #334155', paddingTop: 8, color: '#94a3b8', fontSize: 11 }}>
+            All three values appear together in the result table — you can compare them side by side for planning decisions.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Toggle (Manual | Modeled) ─────────────────────────────────────────────────
 function ToggleSwitch({ value, onChange }: {
   value: 'manual' | 'modeled';
@@ -204,6 +310,7 @@ export default function SewageModule() {
   // ── Section 4: Peak flow ──────────────────────────────────────────────────
   const [openPeak,    setOpenPeak]    = useState(true);
   const [peakChk,     setPeakChk]     = useState({ cpheeo: false, harmon: false, babbitt: false });
+  const [peakAvgBase, setPeakAvgBase] = useState<'population_based' | 'water_based' | 'drain_based'>('population_based');
   const [peakRows,    setPeakRows]    = useState<PeakRow[] | null>(null);
   const [peakLoad,    setPeakLoad]    = useState(false);
   const [peakErr,     setPeakErr]     = useState<string | null>(null);
@@ -233,7 +340,6 @@ export default function SewageModule() {
   type SdResultRow = { year: string; population: number; population_based: number; water_based: number; drain_based: number };
   const [sdMode,        setSdMode]        = useState<'manual' | 'modeled'>('manual');
   const [sdPopRows,     setSdPopRows]     = useState<PopRow[]>([{ year: '2025', population: '' }]);
-  const [sdWaterSupply, setSdWaterSupply] = useState('');
   const [sdDrains,      setSdDrains]      = useState<DrainRow[]>([{ drain_no: '', drain_id: '', drain_recharge: '' }]);
   const [sdResult,      setSdResult]      = useState<SdResultRow[] | null>(null);
   const [sdDomSeasonal, setSdDomSeasonal] = useState<SeasonalData | null>(null);
@@ -331,7 +437,7 @@ export default function SewageModule() {
     }
 
     const sd: Record<string, number> = {};
-    for (const row of sdResult) sd[row.year] = row.population_based;
+    for (const row of sdResult) sd[row.year] = (row[peakAvgBase] as number) ?? 0;
 
     const payload: Record<string, unknown> = { population_data: pop, methods, sewage_data: sd };
 
@@ -481,8 +587,7 @@ export default function SewageModule() {
   const handleSdCalc = async () => {
     setSdLoad(true); setSdErr(null); setSdResult(null);
     try {
-      const ws = parseFloat(sdWaterSupply);
-      if (!sdWaterSupply || isNaN(ws) || ws < 0) throw new Error('Enter a valid water supply value (MLD).');
+      const ws = waterSupplyTotal ?? 0;
 
       const drainsParsed = sdDrains
         .filter(d => d.drain_no || d.drain_id || d.drain_recharge)
@@ -613,7 +718,7 @@ export default function SewageModule() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, overflowY: 'auto', maxHeight: '100%', boxSizing: 'border-box' }}>
 
       {/* ══════════════════════════════════════════════════════════════════
           SECTION 1 — WATER SUPPLY BASED SEWAGE
@@ -675,40 +780,27 @@ export default function SewageModule() {
 
         <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* ── Row 1: Mode + modeled hint ─────────────────────────────── */}
+          {/* ── Row 1: Mode toggle + info tooltip + UFW ─────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Method</span>
             <ToggleSwitch value={sdMode} onChange={(v) => { setSdMode(v); setSdResult(null); setSdDomSeasonal(null); setSdDomYears([]); setSdErr(null); }} />
+
+            {/* ℹ info tooltip — fixed position to escape any overflow:hidden parent */}
+            <SdInfoTooltip />
+
             {sdMode === 'modeled' && (
               <span style={{ fontSize: 11, color: '#16a34a', background: '#dcfce7', borderRadius: 5, padding: '3px 9px', border: '1px solid #86efac', fontWeight: 600 }}>
                 {Object.keys(fc).length} forecast years
                 {population2025 ? ` · 2025 ref: ${population2025.toLocaleString()}` : ''}
               </span>
             )}
-          </div>
 
-          {/* ── Row 2: Water Supply + UFW (always visible) ─────────────── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-                Water Supply (MLD)
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5"
-                  value={sdWaterSupply}
-                  onChange={e => { setSdWaterSupply(e.target.value); setSdResult(null); }} />
-                {waterSupplyTotal !== null && sdWaterSupply === '' && (
-                  <button type="button" onClick={() => setSdWaterSupply(waterSupplyTotal.toFixed(3))}
-                    style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '0 10px', borderRadius: 7, border: '1px solid #0369a1', background: '#0369a1', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
-                    Use {waterSupplyTotal.toFixed(2)}
-                  </button>
-                )}
-              </div>
-            </div>
-            <div style={{ width: 72 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>UFW (%)</div>
-              <input style={{ ...inp, width: '100%' }} type="number" min="0" max="100" step="0.1" placeholder="15"
+            {/* UFW inline */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>UFW</span>
+              <input style={{ ...inp, width: 64 }} type="number" min="0" max="100" step="0.1" placeholder="15"
                 value={ufw} onChange={e => { setUfw(e.target.value); setSdResult(null); }} />
+              <span style={{ fontSize: 11, color: '#94a3b8' }}>%</span>
             </div>
           </div>
 
@@ -921,6 +1013,30 @@ export default function SewageModule() {
           </div>
           {openPeak && (
             <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+              {/* Avg sewage flow source */}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  Average Sewage Flow Based On
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  {([
+                    ['population_based', 'Population Based', '#7c3aed'],
+                    ['water_based',      'Water Based',      '#0369a1'],
+                    ['drain_based',      'Drain Based',      '#ea580c'],
+                  ] as const).map(([val, label, color]) => (
+                    <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: peakAvgBase === val ? color : '#64748b' }}>
+                      <input type="radio" name="peakAvgBase" value={val}
+                        checked={peakAvgBase === val}
+                        onChange={() => { setPeakAvgBase(val); setPeakRows(null); }}
+                        style={{ accentColor: color, width: 15, height: 15 }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Peak method checkboxes */}
               <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                 {([['cpheeo', 'CPHEEO', '#7c3aed'], ['harmon', "Harmon's", '#0891b2'], ['babbitt', "Babbitt's", '#dc2626']] as const).map(([k, l, c]) => (
                   <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: peakChk[k] ? c : '#64748b' }}>

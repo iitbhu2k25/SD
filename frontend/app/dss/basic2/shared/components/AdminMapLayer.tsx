@@ -1448,9 +1448,15 @@ export default function Map({
         const availablePop = POP_METHODS.filter((m) => firstProps[m] != null);
 
         const activeMethod = thematicMapMethod ?? '';
-        const isWSContext  = WS_METHODS_LIST.includes(activeMethod) && availableWS.length > 0;
-        const isWDContext  = WD_METHODS_LIST.includes(activeMethod) && availableWD.length > 0;
-        const availableMethods = isWSContext ? availableWS : isWDContext ? availableWD : availablePop;
+        // Context is determined purely by the active method key — NOT by whether data is loaded yet
+        const isWSContext  = WS_METHODS_LIST.includes(activeMethod);
+        const isWDContext  = WD_METHODS_LIST.includes(activeMethod);
+        // Always show the full list for the active context; fall back to loaded data if context list is empty
+        const availableMethods = isWSContext
+          ? (availableWS.length > 0 ? availableWS : WS_METHODS_LIST)
+          : isWDContext
+          ? (availableWD.length > 0 ? availableWD : WD_METHODS_LIST)
+          : (availablePop.length > 0 ? availablePop : POP_METHODS);
 
         const method = availableMethods.includes(activeMethod)
           ? activeMethod

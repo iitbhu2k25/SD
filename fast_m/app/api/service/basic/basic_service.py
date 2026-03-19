@@ -1157,7 +1157,7 @@ class BasicService:
 
         media_root = self._media_root()
         catchment_path = os.path.join(media_root, "Drain_shp", "Catchments", "Catchment.shp")
-        village_path = os.path.join(media_root, "Drain_shp", "Final_Village", "Village_survey_of_ind.shp")
+        village_path = os.path.join(media_root, "Drain_shp", "Villages", "Edited2.shp")
 
         if not os.path.exists(catchment_path) or not os.path.exists(village_path):
             raise FileNotFoundError("One or more required shapefiles not found")
