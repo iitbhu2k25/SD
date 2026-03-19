@@ -221,21 +221,23 @@ export default function Sidebar({
 
     const onProgress = (p: UploadProgress) => {
       setUploadProgress(p);
+      // Progressive rendering: add each feature batch to the map as it arrives
+      if (p.geojsonChunk && typeof window !== 'undefined' && window.addGeoJSONChunk) {
+        window.addGeoJSONChunk(p.geojsonChunk);
+      }
     };
 
     try {
-      // uploadShapefile streams SSE progress and resolves with the final geojson
+      // uploadShapefile streams SSE progress and resolves with fully-accumulated GeoJSON
       const geojson = await uploadShapefile(selectedFiles, onProgress);
 
       // Mark done in UI
       setUploadDone(true);
 
-      // Plot directly using the geojson we already have — NO second upload
-      if (typeof window !== 'undefined' && window.loadGeoJSON) {
-        const layer = await window.loadGeoJSON(geojson, {});
-        if (layer) {
-          onMapLayerChange(layer);
-        }
+      // Finalize the layer (fit bounds, register in layer panel)
+      // All features are already on the map via addGeoJSONChunk above
+      if (typeof window !== 'undefined' && window.finalizeGeoJSONLayer) {
+        window.finalizeGeoJSONLayer(geojson);
       }
 
       const count = geojson._feature_count ?? geojson.features?.length ?? '?';

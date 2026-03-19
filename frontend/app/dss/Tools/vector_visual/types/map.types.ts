@@ -81,5 +81,9 @@ declare global {
     uploadShapefile?: (files: FileList) => Promise<any>;
     openIntersectionModal?: () => void;
     openSpatialAnalysisModal?: (operationId?: string) => void;
+    /** Add one batch of features to the in-progress streaming layer */
+    addGeoJSONChunk?: (chunk: { type: string; features: any[] }) => void;
+    /** Finalize the streaming layer after all chunks have arrived */
+    finalizeGeoJSONLayer?: (fullGeoJSON: any) => void;
   }
 }

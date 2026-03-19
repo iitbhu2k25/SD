@@ -7,7 +7,7 @@ import IntersectionModal from './IntersectionModal';
 import { SpatialAnalysisModal } from '../components';
 import LayersPanel from './LayersPanel';
 import OperationsPanel from './OperationsPanel';
-import { uploadShapefile } from '../services/api.service';
+import { uploadShapefile, type UploadProgress } from '../services/api.service';
 import { BASEMAP_OPTIONS } from '../constants/app.constants';
 import ExportModal from './ExportModal';
 import LoadingOverlay from './LoadingOverlay';
@@ -63,6 +63,8 @@ export default function Map(props: MapProps) {
   const currentBaseLayerRef = useRef<any>(null);
   const layerIdCounterRef = useRef(0);
   const basemapWidgetRef = useRef<HTMLDivElement>(null);
+  /** Holds the Leaflet layer that is being built incrementally during a streaming upload. */
+  const streamingLayerRef = useRef<any>(null);
 
   const initializeLeaflet = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -697,6 +699,72 @@ export default function Map(props: MapProps) {
     }
   }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification, addManagedLayer]);
 
+  /**
+   * Add one batch of features to the streaming layer.
+   * Called by sidebar's onProgress whenever a `geojsonChunk` arrives.
+   * Creates the Leaflet layer on the first call, then uses addData() for every
+   * subsequent batch so features appear on the map incrementally.
+   */
+  const addGeoJSONChunk = useCallback((chunk: { type: string; features: any[] }) => {
+    if (!mapInstanceRef.current || !chunk?.features?.length) return;
+    const L = require('leaflet');
+
+    const lineColor = (document.getElementById('lineColor') as HTMLInputElement | null)?.value || 'red';
+    const weight    = parseInt((document.getElementById('weight') as HTMLInputElement | null)?.value || '2', 10);
+    const fillColor = (document.getElementById('fillColor') as HTMLInputElement | null)?.value || '#78b4db';
+    const opacity   = parseFloat((document.getElementById('opacity') as HTMLInputElement | null)?.value || '0.1');
+
+    if (!streamingLayerRef.current) {
+      // First chunk — create the layer and add it to the map
+      const canvasRenderer = L.canvas({ padding: 0.5 });
+      streamingLayerRef.current = L.geoJSON(null, {
+        renderer: canvasRenderer,
+        style: () => ({ color: lineColor, weight, opacity: 1, fillColor, fillOpacity: opacity }),
+        onEachFeature: (feature: any, lyr: any) => {
+          lyr.on('click', (e: any) => {
+            if (onFeatureClick) { L.DomEvent.stop(e); onFeatureClick(feature, lyr); }
+          });
+        },
+      });
+      streamingLayerRef.current.addTo(mapInstanceRef.current);
+    }
+
+    streamingLayerRef.current.addData(chunk);
+  }, [onFeatureClick]);
+
+  /**
+   * Called once the streaming Promise resolves (all chunks received).
+   * Fits the map to the complete layer bounds, registers it in the layer panel,
+   * and clears the streaming ref.
+   */
+  const finalizeGeoJSONLayer = useCallback((fullGeoJSON: any) => {
+    const layer = streamingLayerRef.current;
+    streamingLayerRef.current = null;
+
+    if (!layer || !mapInstanceRef.current) return;
+
+    // Remove any pre-existing uploaded/geojson layers
+    if (uploadedLayer && mapInstanceRef.current.hasLayer(uploadedLayer)) {
+      mapInstanceRef.current.removeLayer(uploadedLayer);
+    }
+    if (geoJsonLayer && mapInstanceRef.current.hasLayer(geoJsonLayer)) {
+      mapInstanceRef.current.removeLayer(geoJsonLayer);
+    }
+
+    // Fit bounds
+    try {
+      const b = layer.getBounds?.();
+      if (b?.isValid()) {
+        mapInstanceRef.current.fitBounds(b, { padding: [20, 20], maxZoom: 16 });
+      }
+    } catch { /* noop */ }
+
+    const layerName = fullGeoJSON?._source_file ?? 'Uploaded Shapefile';
+    setUploadedLayer(layer);
+    setGeoJsonLayer(null);
+    addManagedLayer(layerName, layer, 'uploaded');
+  }, [uploadedLayer, geoJsonLayer, addManagedLayer]);
+
   const updateLayerStyles = useCallback(() => {
     if (!geoJsonLayer && !uploadedLayer) return;
     const lineColor = (document.getElementById('lineColor') as HTMLInputElement | null)?.value || '#000000';
@@ -712,71 +780,27 @@ export default function Map(props: MapProps) {
     try {
       setLoading(true);
 
-      const geojson = await uploadShapefile(files);
-      const L = require('leaflet');
+      const onProgress = (p: UploadProgress) => {
+        if (p.geojsonChunk) addGeoJSONChunk(p.geojsonChunk);
+      };
 
-      if (uploadedLayer && mapInstanceRef.current?.hasLayer(uploadedLayer)) {
-        mapInstanceRef.current.removeLayer(uploadedLayer);
-        setUploadedLayer(null);
-      }
-      if (geoJsonLayer && mapInstanceRef.current?.hasLayer(geoJsonLayer)) {
-        mapInstanceRef.current.removeLayer(geoJsonLayer);
-        setGeoJsonLayer(null);
-      }
-
-      const lineColorElement = document.getElementById('lineColor') as HTMLInputElement | null;
-      const weightElement = document.getElementById('weight') as HTMLInputElement | null;
-      const fillColorElement = document.getElementById('fillColor') as HTMLInputElement | null;
-      const opacityElement = document.getElementById('opacity') as HTMLInputElement | null;
-
-      const lineColor = lineColorElement?.value || 'red';
-      const weight = parseInt(weightElement?.value || '2', 10);
-      const fillColor = fillColorElement?.value || '#78b4db';
-      const opacity = parseFloat(opacityElement?.value || '0.1');
-
-      const canvasRenderer = L.canvas({ padding: 0.5 });
-      const layer = L.geoJSON(geojson, {
-        renderer: canvasRenderer,
-        style: () => ({
-          color: lineColor,
-          weight,
-          opacity: 1,
-          fillColor,
-          fillOpacity: opacity,
-        }),
-        onEachFeature: (feature: any, lyr: any) => {
-          lyr.on('click', (e: any) => {
-            if (onFeatureClick) {
-              L.DomEvent.stop(e);
-              onFeatureClick(feature, lyr);
-            }
-          });
-        },
-      });
-
-      layer.addTo(mapInstanceRef.current);
-
-      try {
-        const b = (layer as any).getBounds?.();
-        if (b && b.isValid()) {
-          mapInstanceRef.current.fitBounds(b, { padding: [20, 20], maxZoom: 16 });
-        }
-      } catch { /* noop */ }
-
-      setUploadedLayer(layer);
-
-      const fileName = Array.from(files).find(f => f.name.endsWith('.shp') || f.name.endsWith('.zip'))?.name || 'Uploaded Shapefile';
-      addManagedLayer(fileName, layer, 'uploaded');
+      const geojson = await uploadShapefile(files, onProgress);
+      finalizeGeoJSONLayer(geojson);
 
       showNotification('Success', 'Shapefile uploaded - click Edit button to enable editing', 'success');
       return geojson;
     } catch (error: any) {
+      // Clean up any partial streaming layer on error
+      if (streamingLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(streamingLayerRef.current);
+        streamingLayerRef.current = null;
+      }
       showNotification('Error', error.message, 'error');
       return null;
     } finally {
       setLoading(false);
     }
-  }, [geoJsonLayer, uploadedLayer, onFeatureClick, showNotification, addManagedLayer]);
+  }, [addGeoJSONChunk, finalizeGeoJSONLayer, showNotification]);
 
   const handleHomeClick = useCallback(() => {
     mapInstanceRef.current?.setView([22.3511, 78.6677], 5);
@@ -970,6 +994,8 @@ export default function Map(props: MapProps) {
     if (typeof window !== 'undefined') {
       window.changeBasemap = changeBasemap;
       window.loadGeoJSON = (geoJsonData: any, styleOptions?: any) => loadGeoJSON(geoJsonData, styleOptions);
+      window.addGeoJSONChunk = addGeoJSONChunk;
+      window.finalizeGeoJSONLayer = finalizeGeoJSONLayer;
       window.updateMapStyles = updateLayerStyles;
       window.toggleBufferTool = () => setBufferToolVisible((prev) => !prev);
       window.uploadShapefile = handleUploadShapefile;
@@ -984,6 +1010,8 @@ export default function Map(props: MapProps) {
       if (typeof window !== 'undefined') {
         delete window.changeBasemap;
         delete window.loadGeoJSON;
+        delete window.addGeoJSONChunk;
+        delete window.finalizeGeoJSONLayer;
         delete window.updateMapStyles;
         delete window.toggleBufferTool;
         delete window.uploadShapefile;
@@ -991,7 +1019,7 @@ export default function Map(props: MapProps) {
         delete window.openSpatialAnalysisModal;
       }
     };
-  }, [changeBasemap, loadGeoJSON, updateLayerStyles, handleUploadShapefile]);
+  }, [changeBasemap, loadGeoJSON, addGeoJSONChunk, finalizeGeoJSONLayer, updateLayerStyles, handleUploadShapefile]);
 
   return (
     <div ref={mapContainerRef} className="relative w-full h-full" style={{ background: '#dde3ea' }}>

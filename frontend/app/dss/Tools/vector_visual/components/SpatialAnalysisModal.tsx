@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ManagedLayer, NotificationType } from '../types/map.types';
+import { prepareGeoJSONField } from '../services/api.service';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface SpatialAnalysisModalProps {
@@ -364,10 +365,14 @@ export default function SpatialAnalysisModal({
     try {
       const fd = new FormData();
       fd.append('operation', selectedOp.id);
-      selectedIds.forEach((id, i) => {
-        const ml = managedLayers.find(l => l.id===id);
-        if (ml?.layer) fd.append(`geojson_${i}`, JSON.stringify(layerToGeoJSON(ml.layer)));
-      });
+      // Upload each layer GeoJSON — chunks it automatically if > 1 MB
+      for (let i = 0; i < selectedIds.length; i++) {
+        const ml = managedLayers.find(l => l.id === selectedIds[i]);
+        if (!ml?.layer) continue;
+        const r = await prepareGeoJSONField(layerToGeoJSON(ml.layer));
+        if (r.upload_id) fd.append(`geojson_${i}_upload_id`, r.upload_id);
+        else             fd.append(`geojson_${i}`, r.direct!);
+      }
       Object.entries(opParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
       const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/process`, { method:'POST', body:fd });
       const data = await res.json();
@@ -401,8 +406,11 @@ export default function SpatialAnalysisModal({
       const srcML = managedLayers.find(l => l.id===sourceId);
       const tgtML = managedLayers.find(l => l.id===targetId);
       if (!srcML?.layer || !tgtML?.layer) throw new Error('Could not find selected layers');
-      fd.append('geojson_0', JSON.stringify(layerToGeoJSON(srcML.layer)));
-      fd.append('geojson_1', JSON.stringify(layerToGeoJSON(tgtML.layer)));
+      // Upload each layer GeoJSON — chunks it automatically if > 1 MB
+      const r0 = await prepareGeoJSONField(layerToGeoJSON(srcML.layer));
+      const r1 = await prepareGeoJSONField(layerToGeoJSON(tgtML.layer));
+      if (r0.upload_id) fd.append('geojson_0_upload_id', r0.upload_id); else fd.append('geojson_0', r0.direct!);
+      if (r1.upload_id) fd.append('geojson_1_upload_id', r1.upload_id); else fd.append('geojson_1', r1.direct!);
       Object.entries(qParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
       const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/query`, { method:'POST', body:fd });
       const data = await res.json();

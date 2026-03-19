@@ -2,9 +2,10 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import zipfile
 from io import BytesIO
-from typing import Any
+from typing import Any, Optional
 
 import contextily as ctx
 import geopandas as gpd
@@ -27,6 +28,118 @@ logger = logging.getLogger(__name__)
 class MapplotService:
     _GEOGRAPHIC_CRS = {4326, 4269, 4267, 4230, 4258}
     _SUPPORTED_EXTENSIONS = {".zip", ".shp", ".geojson", ".json", ".gpkg", ".kml", ".gml", ".fgb", ".tab", ".mif", ".csv"}
+
+    # ── GeoJSON chunk upload storage (in-memory) ─────────────────────────
+    _chunk_store: dict = {}   # upload_id -> {"chunks": {idx: str}, "total": int}
+    _chunk_lock = threading.Lock()
+
+    # ── Binary file chunk storage (on-disk) ──────────────────────────────
+    _FILE_CHUNK_BASE = os.path.join(tempfile.gettempdir(), "slcr_file_chunks")
+
+    def upload_chunk(self, upload_id: str, chunk_index: int, total_chunks: int, data: str) -> dict:
+        with self._chunk_lock:
+            if upload_id not in self._chunk_store:
+                self._chunk_store[upload_id] = {"chunks": {}, "total": total_chunks}
+            entry = self._chunk_store[upload_id]
+            entry["chunks"][chunk_index] = data
+            complete = len(entry["chunks"]) == entry["total"]
+        return self._ok({"received": chunk_index, "complete": complete, "upload_id": upload_id})
+
+    def _assemble_chunks(self, upload_id: str) -> Any:
+        with self._chunk_lock:
+            entry = self._chunk_store.pop(upload_id, None)
+        if entry is None:
+            raise ValueError(f"upload_id '{upload_id}' not found or already used")
+        assembled = "".join(entry["chunks"][i] for i in range(entry["total"]))
+        return json.loads(assembled)
+
+    def _resolve_geojson(self, geojson: Optional[Any], upload_id: Optional[str]) -> Any:
+        if upload_id:
+            return self._assemble_chunks(upload_id)
+        if geojson is None:
+            raise ValueError("Either geojson or upload_id must be provided")
+        return geojson
+
+    # ── Binary file chunk upload (writes chunks to disk) ─────────────────
+
+    def upload_file_chunk(
+        self,
+        upload_id: str,
+        file_index: int,
+        chunk_index: int,
+        total_chunks: int,
+        filename: str,
+        data: bytes,
+    ) -> dict:
+        """Store one binary chunk for a large file upload."""
+        file_dir = os.path.join(self._FILE_CHUNK_BASE, upload_id, f"file_{file_index}")
+        os.makedirs(file_dir, exist_ok=True)
+
+        # Write the chunk
+        with open(os.path.join(file_dir, f"chunk_{chunk_index:06d}"), "wb") as f:
+            f.write(data)
+
+        # Count received chunks for this file
+        received = len([n for n in os.listdir(file_dir) if n.startswith("chunk_")])
+        file_complete = received == total_chunks
+
+        if file_complete:
+            # Persist per-file metadata
+            meta_path = os.path.join(file_dir, "meta.json")
+            with open(meta_path, "w") as f:
+                json.dump({"filename": filename, "total_chunks": total_chunks}, f)
+
+        return self._ok({
+            "received": chunk_index,
+            "file_complete": file_complete,
+            "upload_id": upload_id,
+            "file_index": file_index,
+        })
+
+    def _assemble_file_chunks(self, upload_id: str, temp_dir: str) -> list[str]:
+        """
+        Assemble all files in an upload session into *temp_dir*.
+        Returns list of assembled file paths.
+        """
+        session_dir = os.path.join(self._FILE_CHUNK_BASE, upload_id)
+        if not os.path.isdir(session_dir):
+            raise ValueError(f"Upload session '{upload_id}' not found")
+
+        assembled_paths = []
+        file_dirs = sorted(
+            [d for d in os.listdir(session_dir) if d.startswith("file_")],
+            key=lambda d: int(d.split("_")[1]),
+        )
+        for file_dir_name in file_dirs:
+            file_dir = os.path.join(session_dir, file_dir_name)
+            meta_path = os.path.join(file_dir, "meta.json")
+            if not os.path.exists(meta_path):
+                raise ValueError(f"Incomplete upload in session '{upload_id}' ({file_dir_name})")
+            with open(meta_path) as f:
+                meta = json.load(f)
+            filename = meta["filename"]
+            total = meta["total_chunks"]
+            dest = os.path.join(temp_dir, filename)
+            with open(dest, "wb") as out_f:
+                for i in range(total):
+                    with open(os.path.join(file_dir, f"chunk_{i:06d}"), "rb") as chunk_f:
+                        out_f.write(chunk_f.read())
+            assembled_paths.append(dest)
+        return assembled_paths
+
+    def _cleanup_file_chunks(self, upload_id: str) -> None:
+        session_dir = os.path.join(self._FILE_CHUNK_BASE, upload_id)
+        if not os.path.isdir(session_dir):
+            return
+        try:
+            for root, dirs, files in os.walk(session_dir, topdown=False):
+                for fn in files:
+                    os.remove(os.path.join(root, fn))
+                for d in dirs:
+                    os.rmdir(os.path.join(root, d))
+            os.rmdir(session_dir)
+        except Exception:
+            pass
 
     def _ok(self, content: Any, status_code: int = 200) -> dict:
         return {"ok": True, "status_code": status_code, "content": content}
@@ -131,6 +244,13 @@ class MapplotService:
         gdfs = []
         idx = 0
         while True:
+            # Check for a pre-uploaded chunk reference first
+            upload_id = self._param(form, f"geojson_{idx}_upload_id")
+            if upload_id:
+                raw = self._assemble_chunks(upload_id)
+                gdfs.append(self._to_4326(self._geojson_to_gdf(raw)))
+                idx += 1
+                continue
             raw = form.get(f"geojson_{idx}")
             if raw is None:
                 break
@@ -514,8 +634,12 @@ class MapplotService:
         if query_type not in registry:
             return {"ok": False, "status_code": 400, "content": {"error": f"Unknown query_type '{query_type}'", "valid_types": list(registry.keys())}}
         try:
-            source = self._to_4326(self._geojson_to_gdf(form.get("geojson_0")))
-            target = self._to_4326(self._geojson_to_gdf(form.get("geojson_1")))
+            src_uid = self._param(form, "geojson_0_upload_id")
+            tgt_uid = self._param(form, "geojson_1_upload_id")
+            raw_source = self._assemble_chunks(src_uid) if src_uid else form.get("geojson_0")
+            raw_target = self._assemble_chunks(tgt_uid) if tgt_uid else form.get("geojson_1")
+            source = self._to_4326(self._geojson_to_gdf(raw_source))
+            target = self._to_4326(self._geojson_to_gdf(raw_target))
             extra = {k: (v[0] if isinstance(v, list) else v) for k, v in form.items() if k not in ("query_type", "geojson_0", "geojson_1")}
             result = registry[query_type]["fn"](source, target, **extra)
             if result.empty:
@@ -577,61 +701,144 @@ class MapplotService:
     def _sse(self, data: dict) -> str:
         return f"data: {json.dumps(data)}\n\n"
 
-    def upload_shapefile_sse(self, files: list[Any]):
-        if not files:
-            yield self._sse({"pct": 0, "phase": "error", "msg": "No file uploaded"})
-            return
+    def upload_shapefile_sse(self, files: list[Any], upload_id: Optional[str] = None):
         temp_dir = tempfile.mkdtemp()
         try:
-            yield self._sse({"pct": 10, "phase": "receiving", "msg": "Receiving files..."})
-            shp_file = None
-            zip_file = None
-            for f in files:
-                name = f.filename or f.name
-                dest = os.path.join(temp_dir, name)
-                with open(dest, "wb") as d:
-                    d.write(f.file.read())
-                    f.file.seek(0)
-                ext = os.path.splitext(name)[1].lower()
-                if ext == ".zip":
-                    zip_file = dest
-                elif ext == ".shp":
-                    shp_file = dest
-            target_path = shp_file
-            if zip_file:
-                with zipfile.ZipFile(zip_file, "r") as zr:
-                    zr.extractall(temp_dir)
-                priority = [".shp", ".gpkg", ".geojson", ".json", ".kml", ".gml", ".fgb"]
-                for ext in priority:
-                    hits = [os.path.join(root, fn) for root, _, fns in os.walk(temp_dir) for fn in fns if fn.lower().endswith(ext) and not fn.startswith("__MACOSX")]
-                    if hits:
-                        target_path = hits[0]
-                        break
+            target_path = None
+
+            if upload_id:
+                # ── Chunked path: assemble pre-uploaded binary chunks ──────
+                yield self._sse({"pct": 15, "phase": "receiving", "msg": "Assembling uploaded chunks..."})
+                try:
+                    assembled = self._assemble_file_chunks(upload_id, temp_dir)
+                except Exception as exc:
+                    yield self._sse({"pct": 0, "phase": "error", "msg": str(exc)})
+                    return
+
+                # Find the primary spatial file from the assembled files
+                zip_path = next((p for p in assembled if p.lower().endswith(".zip")), None)
+                shp_path = next((p for p in assembled if p.lower().endswith(".shp")), None)
+
+                if zip_path:
+                    yield self._sse({"pct": 30, "phase": "extracting", "msg": "Extracting archive..."})
+                    with zipfile.ZipFile(zip_path, "r") as zr:
+                        zr.extractall(temp_dir)
+                    priority = [".shp", ".gpkg", ".geojson", ".json", ".kml", ".gml", ".fgb"]
+                    for ext in priority:
+                        hits = [
+                            os.path.join(root, fn)
+                            for root, _, fns in os.walk(temp_dir)
+                            for fn in fns
+                            if fn.lower().endswith(ext) and not fn.startswith("__MACOSX")
+                        ]
+                        if hits:
+                            target_path = hits[0]
+                            break
+                elif shp_path:
+                    target_path = shp_path
+                else:
+                    # Use first assembled file directly
+                    target_path = assembled[0] if assembled else None
+
+            else:
+                # ── Direct path: files received in the request body ────────
+                if not files:
+                    yield self._sse({"pct": 0, "phase": "error", "msg": "No file uploaded"})
+                    return
+                yield self._sse({"pct": 10, "phase": "receiving", "msg": "Receiving files..."})
+                shp_file = None
+                zip_file = None
+                for f in files:
+                    name = f.filename or f.name
+                    dest = os.path.join(temp_dir, name)
+                    with open(dest, "wb") as d:
+                        d.write(f.file.read())
+                        f.file.seek(0)
+                    ext = os.path.splitext(name)[1].lower()
+                    if ext == ".zip":
+                        zip_file = dest
+                    elif ext == ".shp":
+                        shp_file = dest
+                target_path = shp_file
+                if zip_file:
+                    with zipfile.ZipFile(zip_file, "r") as zr:
+                        zr.extractall(temp_dir)
+                    priority = [".shp", ".gpkg", ".geojson", ".json", ".kml", ".gml", ".fgb"]
+                    for ext in priority:
+                        hits = [
+                            os.path.join(root, fn)
+                            for root, _, fns in os.walk(temp_dir)
+                            for fn in fns
+                            if fn.lower().endswith(ext) and not fn.startswith("__MACOSX")
+                        ]
+                        if hits:
+                            target_path = hits[0]
+                            break
+
             if not target_path:
                 yield self._sse({"pct": 0, "phase": "error", "msg": "No readable spatial file found"})
                 return
+
+            yield self._sse({"pct": 50, "phase": "reading", "msg": "Reading spatial data..."})
             gdf = gpd.read_file(target_path)
             if gdf.empty:
                 yield self._sse({"pct": 0, "phase": "error", "msg": "File contains no features"})
                 return
+
+            yield self._sse({"pct": 75, "phase": "crs_check", "msg": "Checking coordinate system..."})
             gdf, crs_meta = self._ensure_wgs84(gdf)
-            geojson = self._safe_json(gdf)
-            geojson["_crs"] = crs_meta
-            geojson["_feature_count"] = len(gdf)
-            geojson["_source_file"] = os.path.basename(target_path)
-            yield self._sse({"pct": 100, "phase": "done", "msg": f"Ready - {len(gdf):,} features loaded", "feature_count": len(gdf), "crs": crs_meta, "source_file": os.path.basename(target_path), "geojson": geojson})
+
+            yield self._sse({"pct": 90, "phase": "converting", "msg": "Converting to GeoJSON..."})
+            total_features = len(gdf)
+            source_file = os.path.basename(target_path)
+
+            # ── Stream features in ~1 MB GDF slices ─────────────────────
+            # Process small chunks of the GeoDataFrame at a time so the full
+            # GeoJSON is never held in memory — critical for large datasets.
+            BATCH_ROWS = 500
+            sent_count = 0
+
+            for start in range(0, total_features, BATCH_ROWS):
+                end = min(start + BATCH_ROWS, total_features)
+                chunk_dict = json.loads(gdf.iloc[start:end].to_json())
+                # Sanitise NaN / Inf in this batch only
+                for feat in chunk_dict.get("features", []):
+                    props = feat.get("properties") or {}
+                    for k, v in props.items():
+                        if isinstance(v, float) and (np.isnan(v) or np.isinf(v)):
+                            props[k] = None
+                sent_count = end
+                is_last = end >= total_features
+
+                yield self._sse({
+                    "pct": 100 if is_last else round(90 + sent_count / total_features * 8),
+                    "phase": "done" if is_last else "streaming",
+                    "msg": f"Ready - {total_features:,} features loaded" if is_last
+                           else f"Streaming {sent_count}/{total_features} features…",
+                    "chunk": chunk_dict,
+                    "sent": sent_count,
+                    "total": total_features,
+                    **({"feature_count": total_features, "crs": crs_meta, "source_file": source_file}
+                       if is_last else {}),
+                })
+                del chunk_dict  # free memory immediately
+
         except Exception as exc:
             yield self._sse({"pct": 0, "phase": "error", "msg": str(exc)})
         finally:
+            # Cleanup temp processing directory
             try:
-                for root, dirs, files in os.walk(temp_dir, topdown=False):
-                    for fn in files:
+                for root, dirs, fs in os.walk(temp_dir, topdown=False):
+                    for fn in fs:
                         os.remove(os.path.join(root, fn))
                     for d in dirs:
                         os.rmdir(os.path.join(root, d))
                 os.rmdir(temp_dir)
             except Exception:
                 pass
+            # Cleanup chunk session directory (if chunked upload)
+            if upload_id:
+                self._cleanup_file_chunks(upload_id)
 
     def _get_basemap(self, style: str):
         if style == "satellite":
@@ -654,8 +861,9 @@ class MapplotService:
             gdf.set_crs(epsg=4326, inplace=True)
         return gdf
 
-    def export_png(self, geojson: Any, basemap: str = "osm", basemap_alpha: float = 0.6) -> dict:
+    def export_png(self, geojson: Any = None, basemap: str = "osm", basemap_alpha: float = 0.6, upload_id: Optional[str] = None) -> dict:
         try:
+            geojson = self._resolve_geojson(geojson, upload_id)
             gdf = self._validate_geojson(geojson).to_crs(epsg=3857)
             fig, ax = plt.subplots(figsize=(16, 9), dpi=300)
             gdf.plot(ax=ax, facecolor="#78b4db", edgecolor="red", alpha=0.4)
@@ -669,8 +877,9 @@ class MapplotService:
         except Exception as exc:
             return self._error(str(exc))
 
-    def export_pdf(self, geojson: Any, basemap: str = "osm", basemap_alpha: float = 0.5, heading: str = "Map Export") -> dict:
+    def export_pdf(self, geojson: Any = None, basemap: str = "osm", basemap_alpha: float = 0.5, heading: str = "Map Export", upload_id: Optional[str] = None) -> dict:
         try:
+            geojson = self._resolve_geojson(geojson, upload_id)
             gdf = self._validate_geojson(geojson)
             bounds = gdf.total_bounds
             gdf_3857 = gdf.to_crs(epsg=3857)
@@ -700,8 +909,9 @@ class MapplotService:
         except Exception as exc:
             return self._error(str(exc))
 
-    def export_shapefile(self, geojson: dict, filename: str = "export") -> dict:
+    def export_shapefile(self, geojson: dict = None, filename: str = "export", upload_id: Optional[str] = None) -> dict:
         try:
+            geojson = self._resolve_geojson(geojson, upload_id)
             gdf = gpd.GeoDataFrame.from_features(geojson["features"])
             if gdf.crs is None:
                 gdf.set_crs(epsg=4326, inplace=True)
