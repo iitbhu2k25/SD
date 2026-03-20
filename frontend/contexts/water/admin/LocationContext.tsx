@@ -132,7 +132,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         }
 
         const result = await response.json();
-        const data = (Array.isArray(result) ? result : result?.message) as State[];
+        console.log('API Response:', result); // pehle ye add karo debug ke liye
+       const data = (Array.isArray(result) 
+         ? result 
+         : result?.message ?? result?.data ?? result?.states ?? []) as State[];
         const stateData: State[] = data.map((state: any) => ({
           id: state.id,
           name: state.name,
@@ -176,7 +179,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const result = await response.json();
-        const data = (Array.isArray(result) ? result : result?.message) as District[];
+        const data = (Array.isArray(result) 
+          ? result 
+          : result?.message ?? result?.data ?? []) as District[];
 
         const districtData: District[] = data.map((district: any) => ({
           id: district.id,
@@ -230,7 +235,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
         const result = await response.json();
-        const data = (Array.isArray(result) ? result : result?.message) as SubDistrict[];
+        const data = (Array.isArray(result) 
+          ? result 
+          : result?.message ?? result?.data ?? []) as SubDistrict[];
         const subDistrictData = data.map((subDistrict: any) => ({
           id: subDistrict.id,
           name: subDistrict.name,

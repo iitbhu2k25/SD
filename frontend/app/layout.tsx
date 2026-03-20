@@ -21,7 +21,7 @@ export const metadata = {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body className="flex flex-col h-screen overflow-hidden antialiased">
+      <body className="flex flex-col h-full  antialiased">
         <ClientWrapper>
           <Header />
           <Navbar />

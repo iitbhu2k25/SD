@@ -1582,7 +1582,7 @@ metaLines.forEach(([label, value]) => {
     const axL    = 12;
     const axB    = 14;
     const axT    = 10;
-    const legW   = 45;
+    const legW   = 58;
     const legGap = 5;
     const imgW   = CW - axL - legW - legGap;
     const imgH   = imgW * 0.68;
@@ -1590,6 +1590,11 @@ metaLines.forEach(([label, value]) => {
 
     for (let i = 0; i < mapImageUrls.length; i++) {
       const mapItem = mapImageUrls[i];
+      const rasterForYear =
+        clippedRasters.find((r) => r.year === mapItem.year) ??
+        clippedRasters[i] ??
+        null;
+      const customLegendData = rasterForYear?.legend_data ?? null;
 
       // ✅ Find this year's legend specifically
       const thisLegend =
@@ -1644,7 +1649,7 @@ metaLines.forEach(([label, value]) => {
       doc.text("Longitude", imgX + imgW / 2, imgY + imgH + 6, { align: "center" });
 
       // ── Legend (this year's own legend) ───────────────────────────────
-      if (thisLegend) {
+      if (thisLegend || customLegendData?.classes?.length) {
         const legX   = imgX + imgW + legGap;
         const legY   = imgY;
         const legPad = 3;
@@ -1666,16 +1671,60 @@ metaLines.forEach(([label, value]) => {
         doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
         doc.line(legX + 3, legY + titleH, legX + legW - 3, legY + titleH);
 
-        // Legend image
-        try {
-          doc.addImage(
-            thisLegend, "PNG",
-            legX + legPad,
-            legY + titleH + legPad,
-            legW - legPad * 2,
-            imgH - titleH - legPad * 2
-          );
-        } catch (_) {}
+        if (customLegendData?.classes?.length) {
+          const legendItems = customLegendData.classes;
+          const startY = legY + titleH + legPad + 2;
+          const rowH = Math.max(5.8, Math.min(7.2, (imgH - titleH - legPad * 2 - 2) / Math.max(legendItems.length, 1)));
+          const swatchSize = 4.2;
+          const textX = legX + legPad + swatchSize + 2.2;
+
+          legendItems.forEach((item: any, idx: number) => {
+            const rowY = startY + idx * rowH;
+            if (rowY + rowH > legY + imgH - 2) return;
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize, "FD");
+
+            if (item.color) {
+              const hex = String(item.color).replace("#", "");
+              if (hex.length === 6) {
+                const r = parseInt(hex.slice(0, 2), 16);
+                const g = parseInt(hex.slice(2, 4), 16);
+                const b = parseInt(hex.slice(4, 6), 16);
+                if (![r, g, b].some((v) => Number.isNaN(v))) {
+                  doc.setFillColor(r, g, b);
+                  doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize, "F");
+                  doc.setDrawColor(0, 0, 0);
+                  doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize);
+                }
+              }
+            }
+
+            doc.setTextColor(40, 40, 40);
+            doc.setFont("times", "normal");
+            doc.setFontSize(customLegendData?.product_type === "index_class" ? 7.2 : 7.6);
+            const primaryLabel = item.swci_range || item.label || "";
+            doc.text(String(primaryLabel), textX, rowY + 3.8);
+
+            if (item.swci_range && item.label) {
+              doc.setTextColor(95, 95, 95);
+              doc.setFontSize(6.5);
+              doc.text(String(item.label), textX, rowY + 6.8);
+            }
+          });
+        } else if (thisLegend) {
+          try {
+            doc.addImage(
+              thisLegend, "PNG",
+              legX + legPad,
+              legY + titleH + legPad,
+              legW - legPad * 2,
+              imgH - titleH - legPad * 2
+            );
+          } catch (_) {}
+        }
       }
 
       // ── Figure caption ────────────────────────────────────────────────

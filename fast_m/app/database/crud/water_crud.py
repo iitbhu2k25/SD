@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import sqlalchemy as sq
 from app.database.models.model_water import Stretches, Drain, WaterState, WaterDistrict, WaterSubDistrict, WaterSTP_villages, WaterTowns
 from sqlalchemy import func
+from typing import Iterable
 
 
 class Stretches_crud(CrudBase):
@@ -26,19 +27,35 @@ class Stretches_crud(CrudBase):
         
         # 5. RETURN A DICTIONARY matching the response model
         return {"stretch_ids": ids_list} 
+
+
+class River_crud(CrudBase):
+    def __init__(self, db: Session, Model=Stretches):
+        super().__init__(db, Model)
+        self.obj = None
+
+    def get_rivers(self, all_data: bool = True):
+        query = self.db.query(self.Model.River_Code)
+        query = query.distinct().order_by(self.Model.River_Code.asc())
+        return [row[0] for row in query.all()]
     
+
 class Drain_crud(CrudBase):
     def __init__(self,db:Session,Model=Drain):
         super().__init__(db,Model)
         self.obj = None
 
-    def get_drains(self,stretch_id:int,all_data:bool=True):
+    def get_drains(self,stretch_id:int | Iterable[int] | None,all_data:bool=True):
         # 1. SELECT only the Drain_No column
         query = self.db.query(self.Model.Drain_No)
         
         # 2. FILTER by Stretch_ID
-        # Using typical comparison: Model.Column == Value
-        if stretch_id is not None:
+        if isinstance(stretch_id, Iterable) and not isinstance(stretch_id, (str, bytes)):
+            stretch_ids = [int(value) for value in stretch_id if value is not None]
+            if not stretch_ids:
+                return {"drains": []}
+            query = query.filter(self.Model.Stretch_ID.in_(stretch_ids))
+        elif stretch_id is not None:
             query = query.filter(self.Model.Stretch_ID == stretch_id)
             
         # 3. DISTINCT & ORDER BY (Good practice to sort results)

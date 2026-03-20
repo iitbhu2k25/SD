@@ -5,6 +5,7 @@ import logging
 from app.api.schema.water_schema import (
     WaterAdminLocationInput,
     WaterAdminLocationOutput,
+    STPRiverOutput,
     Stp_response,
     Stp_Area,
     Stp_town_respons,
@@ -49,16 +50,17 @@ def process_water_raster(payload: WaterAdminLocationInput):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process water raster: {str(e)}",
         )
+@router.get("/get_river",response_model=list[STPRiverOutput],status_code=status.HTTP_200_OK)
+async def get_river(db:db_dependency):
+    return Stp_location.get_river(db)
 
-
-
-@router.post("/get_stretch",response_model=StretchesOutput,status_code=status.HTTP_201_CREATED)
+@router.post("/get_stretch",response_model=StretchesOutput,status_code=status.HTTP_200_OK)
 async def get_stretch(db:db_dependency,payload:StretchesInput):
     return StretchLocation.get_stretch(db,payload.river_code)
 
-@router.post("/get_drain",response_model=DrainOutput,status_code=status.HTTP_201_CREATED)
+@router.post("/get_drain",response_model=DrainOutput,status_code=status.HTTP_200_OK)
 async def get_drain(db:db_dependency,payload:DrainInput):
-    return StretchLocation.get_drain(db,payload.stretch_id)
+    return StretchLocation.get_drain(db,payload.resolved_stretch_ids())
 
 
 
@@ -137,3 +139,4 @@ async def get_villages(db:db_dependency,payload:Village_request,user: bool = Fal
 
 async def get_towns(db:db_dependency,payload:Town_request,user: bool = False):
     return Stp_location.get_town(db,payload)
+

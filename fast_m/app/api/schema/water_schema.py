@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from typing import Annotated,List,Optional,Text
 
 
@@ -71,10 +71,30 @@ class DrainOutput(BaseModel):
     drains: List[int]   
     
 class StretchesInput(BaseModel):
-    river_code: int
+    river_code: int = Field(validation_alias=AliasChoices("river_code", "River_Code"))
 
 class DrainInput(BaseModel):
-    stretch_id: int
+    stretch_id: Optional[int] = Field(
+        default=None,
+        validation_alias=AliasChoices("stretch_id", "Stretch_ID"),
+    )
+    stretch_ids: Optional[List[int]] = Field(
+        default=None,
+        validation_alias=AliasChoices("stretch_ids", "Stretch_IDs"),
+    )
+
+    @model_validator(mode="after")
+    def validate_stretch_filters(self):
+        if self.stretch_id is None and not self.stretch_ids:
+            raise ValueError("Either stretch_id or stretch_ids is required")
+        return self
+
+    def resolved_stretch_ids(self) -> List[int]:
+        if self.stretch_ids:
+            return [int(stretch_id) for stretch_id in self.stretch_ids]
+        if self.stretch_id is None:
+            return []
+        return [int(self.stretch_id)]
     
     
 class WaterDrainLocationInput(BaseModel):

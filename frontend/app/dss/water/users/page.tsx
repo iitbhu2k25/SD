@@ -305,6 +305,10 @@ const WaterMLDGraph = dynamic(
   () => import("../users/components/water_mld_graph"),
   { ssr: false }
 );
+const IndexChart = dynamic(
+  () => import("./components/IndexChart"),
+  { ssr: false }
+);
 import React, { useState } from 'react';
 import { RiverSystemProvider } from '@/contexts/water/users/DrainContext';
 import { MapProvider } from '@/contexts/water/users/DrainMapContext';
@@ -326,6 +330,7 @@ const MainContent = () => {
   const [waterBudgetData, setWaterBudgetData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [drainWaterBudgetData, setDrainWaterBudgetData] = useState<any>(null);
+  const [activeYear, setActiveYear] = useState<number | null>(null);
 
   const {
     selectedRiver,
@@ -395,7 +400,17 @@ const MainContent = () => {
 
       setRasterResponse(rasterResult);
 
-      const firstRaster = rasterResult.clipped_rasters[0];
+      const availableYearsLocal = Array.from(
+        new Set<number>(rasterResult.clipped_rasters.map((r: any) => r.year as number))
+      ).sort((a, b) => a - b);
+
+      const defaultYear =
+        availableYearsLocal.length > 0 ? Number(availableYearsLocal[0]) : null;
+      setActiveYear(defaultYear);
+
+      const firstRaster =
+        rasterResult.clipped_rasters.find((r: any) => r.year === defaultYear) ||
+        rasterResult.clipped_rasters[0];
 
       // ✅ KEY FIX: Map ko raster layer info do - yahi map update karta hai
       setRasterLayerInfo(firstRaster);
@@ -403,10 +418,10 @@ const MainContent = () => {
       const metadata = rasterResult.metadata;
 
       setWaterBudgetData({
-        totalWaterBudget: firstRaster?.volume_MLD || null,
+        totalWaterBudget: firstRaster?.volume_MLD ?? null,
         productType: metadata?.product_type || confirmationData.productType,
-        year: metadata?.year || confirmationData.year,
-        season: metadata?.season || confirmationData.season,
+        year: defaultYear || metadata?.year || confirmationData.year,
+        season: firstRaster?.season || metadata?.season || confirmationData.season,
         timeScale: metadata?.time_scale || confirmationData.timeScale,
         aggregationMethod: firstRaster?.aggregation || 'SUM',
         layersProcessed:
@@ -428,7 +443,7 @@ const MainContent = () => {
         river: confirmationData.river,
         stretch: confirmationData.stretch,
         drain: confirmationData.drain,
-        year: confirmationData.year,
+        year: defaultYear || confirmationData.year,
         season: confirmationData.season,
         productType: confirmationData.productType,
         timeScale: confirmationData.timeScale,
@@ -466,9 +481,32 @@ const MainContent = () => {
     setExportData(null);
     setWaterBudgetData(null);
     setDrainWaterBudgetData(null);
+    setActiveYear(null);
     // ✅ Reset map raster layer bhi
     setRasterLayerInfo(null);
     toast.info('Reset complete');
+  };
+
+  const handleYearChange = (year: number) => {
+    setActiveYear(year);
+    if (!rasterResponse?.clipped_rasters) return;
+
+    const rasterForYear = rasterResponse.clipped_rasters.find(
+      (r: any) => r.year === year
+    );
+
+    if (!rasterForYear) return;
+
+    setRasterLayerInfo(rasterForYear);
+    setWaterBudgetData((prev: any) => ({
+      ...prev,
+      totalWaterBudget: rasterForYear.volume_MLD ?? null,
+      year,
+      season: rasterForYear.season || prev?.season || 'Annual',
+    }));
+    setExportData((prev: any) =>
+      prev ? { ...prev, year, season: rasterForYear.season || prev.season } : prev
+    );
   };
 
   // ✅ FIX: Extra confirmSelections() call hataya - RiverSelector already karta hai
@@ -485,6 +523,8 @@ const MainContent = () => {
 
   const isBusy =
     loading || isMapLoading || stpOperation || reportLoading || isLoading;
+  const isIndexProduct =
+    waterBudgetData?.productType?.toLowerCase() === 'index';
 
   return (
     <div className="bg-gray-50 flex flex-col md:h-[850px]">
@@ -516,10 +556,10 @@ const MainContent = () => {
               <section className="space-y-6">
 
                 {/* Side-by-side row: Budget card (left) + Export card (right) */}
-                <div className="flex flex-row gap-4">
+                <div className={`flex gap-4 ${isIndexProduct ? 'flex-col' : 'flex-row'}`}>
 
                   {/* Left: Water Budget Card */}
-                  <WaterBudget {...waterBudgetData} />
+                  {!isIndexProduct && <WaterBudget {...waterBudgetData} />}
 
                   {/* Right: Export Card with PDFExportButton inside */}
                   <div className="flex-1 p-4 bg-green-50 rounded-xl border-2 border-green-300 shadow-sm flex flex-col justify-between min-h-[110px]">
@@ -548,11 +588,22 @@ const MainContent = () => {
 
                 </div>
 
-                <WaterMLDGraph
-                  rasterResponse={rasterResponse}
-                  timeScale={waterBudgetData.timeScale}
-                  productType={waterBudgetData.productType}
-                />
+                {!isIndexProduct && (
+                  <WaterMLDGraph
+                    rasterResponse={rasterResponse}
+                    timeScale={waterBudgetData.timeScale}
+                    productType={waterBudgetData.productType}
+                  />
+                )}
+
+                {isIndexProduct && (
+                  <IndexChart
+                    rasterResponse={rasterResponse}
+                    activeYear={activeYear}
+                    onYearChange={handleYearChange}
+                    timeScale={waterBudgetData.timeScale}
+                  />
+                )}
               </section>
             )}
         </div>

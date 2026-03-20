@@ -1,4 +1,5 @@
 import geopandas as gpd
+import csv
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import urllib.parse
@@ -12,7 +13,7 @@ from app.utils.network_conf import GeoConfig
 from app.utils.name import Unique_name
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.water.geospatial_service import GeospatialProcessor
-from app.database.crud.water_crud import Drain_crud, Stretches_crud, Stp_Villages_crud, Stp_District_crud, Stp_State_crud, Stp_towns_crud, Stp_SubDistrict_crud
+from app.database.crud.water_crud import Drain_crud, River_crud, Stretches_crud, Stp_Villages_crud, Stp_District_crud, Stp_State_crud, Stp_towns_crud, Stp_SubDistrict_crud
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,63 @@ class WaterAvailabilityMapper:
         except Exception as e:
             logger.error(f"Error fetching vector layer {layer_name}: {str(e)}")
             raise ValueError(f"Failed to fetch vector layer '{layer_name}': {str(e)}")
+
+    def _load_local_vector_layer(
+        self,
+        layer_name: str,
+        col_name: str,
+        id_list: List[Any],
+    ) -> gpd.GeoDataFrame:
+        """Fallback to bundled local shapefiles when GeoServer data is missing."""
+        layer_paths = {
+            self.layer_subdistrict: [
+                Path(__file__).resolve().parents[4] / "media" / "Gaurav_Data" / "shape_stp" / "subdistrict" / "STP_subdistrict.shp",
+                Path(__file__).resolve().parents[4] / "media" / "Rajat_data" / "shape_stp" / "subdistrict" / "STP_subdistrict.shp",
+            ],
+            self.layer_catchment: [
+                Path(__file__).resolve().parents[4] / "media" / "Gaurav_Data" / "shape_stp" / "Drain_stp" / "Catchment" / "Catchment.shp",
+                Path(__file__).resolve().parents[4] / "media" / "Rajat_data" / "shape_stp" / "Drain_stp" / "Catchment" / "Catchment.shp",
+            ],
+        }
+
+        candidate_paths = layer_paths.get(layer_name, [])
+        requested_ids = {str(value).strip() for value in id_list if value is not None}
+
+        for local_path in candidate_paths:
+            if not local_path.exists():
+                continue
+
+            try:
+                gdf = gpd.read_file(local_path)
+            except Exception as exc:
+                logger.warning("Failed to read local vector fallback %s: %s", local_path, exc)
+                continue
+
+            matched_column = next(
+                (column for column in gdf.columns if column.lower() == col_name.lower()),
+                None,
+            )
+            if matched_column is None:
+                logger.warning("Column %s not found in local vector fallback %s", col_name, local_path)
+                continue
+
+            filtered_gdf = gdf[gdf[matched_column].astype(str).str.strip().isin(requested_ids)].copy()
+            if filtered_gdf.empty:
+                logger.warning("No local %s features found in %s for ids %s", layer_name, local_path, sorted(requested_ids))
+                continue
+
+            logger.warning("Using local vector fallback %s for layer %s", local_path, layer_name)
+
+            if filtered_gdf.crs is None:
+                filtered_gdf.set_crs("EPSG:32644", inplace=True)
+            else:
+                filtered_gdf = filtered_gdf.to_crs("EPSG:32644")
+
+            return filtered_gdf
+
+        raise ValueError(
+            f"Failed to load local fallback for layer '{layer_name}' with {col_name}={sorted(requested_ids)}"
+        )
     
     def _get_or_create_generic_study_area(
         self, 
@@ -195,8 +253,14 @@ class WaterAvailabilityMapper:
         
         cql_ids = ",".join(f"'{x}'" if isinstance(x, str) else str(x) for x in id_list)
         cql_filter = f"{col_name} IN ({cql_ids})"
-        
-        source_gdf = self._fetch_vector_layer(layer_name, cql_filter)
+
+        try:
+            source_gdf = self._fetch_vector_layer(layer_name, cql_filter)
+        except ValueError as fetch_error:
+            try:
+                source_gdf = self._load_local_vector_layer(layer_name, col_name, id_list)
+            except ValueError:
+                raise fetch_error
         
         if source_gdf.empty:
             raise ValueError(f"No geometries found in {layer_name}")
@@ -289,6 +353,60 @@ class WaterAvailabilityMapper:
         except Exception as e:
             logger.error(f"Error calculating stats: {str(e)}", exc_info=True)
             raise
+
+    def _calculate_index_class_counts(self, raster_path: str) -> List[Dict[str, Any]]:
+        """Calculate per-class pixel counts for fixed index classes."""
+        try:
+            with rasterio.open(raster_path) as src:
+                data = src.read(1)
+                nodata = src.nodata
+
+                invalid = (
+                    np.isnan(data)
+                    | ((nodata is not None) & (data == nodata))
+                    | (data >= 9999)
+                    | (data == 256)
+                )
+                valid_data = data[~invalid]
+                total_valid = int(valid_data.size)
+
+                class_counts: List[Dict[str, Any]] = []
+                swci_classes = [
+                    item
+                    for item in getattr(self.processor, "SWCI_FIXED_CLASSES", [])
+                    if 1 <= int(item.get("class", 0)) <= 10
+                ]
+
+                for item in swci_classes:
+                    class_id = int(item["class"])
+                    lower = float(item["min"])
+                    upper = float(item["max"])
+
+                    if class_id == 10:
+                        class_mask = (valid_data >= lower) & (valid_data < 256)
+                    else:
+                        class_mask = (valid_data >= lower) & (valid_data < upper)
+
+                    pixel_count = int(np.sum(class_mask))
+                    percentage = round((pixel_count / total_valid) * 100, 2) if total_valid else 0.0
+
+                    class_counts.append(
+                        {
+                            "class": class_id,
+                            "color": item["color"],
+                            "label": item["label"],
+                            "swci_range": item.get("swci_range"),
+                            "min": lower,
+                            "max": upper,
+                            "pixel_count": pixel_count,
+                            "percentage": percentage,
+                        }
+                    )
+
+                return class_counts
+        except Exception as e:
+            logger.error(f"Error calculating index class counts: {str(e)}", exc_info=True)
+            return []
 
     def _process_single_layer(
         self,
@@ -466,7 +584,34 @@ class WaterAvailabilityMapper:
                         style_name=original_style_name,
                     )
                 legend_data = None
-            
+
+            class_pixel_counts: List[Dict[str, Any]] = []
+            if layer_type == "Index":
+                class_pixel_counts = self._calculate_index_class_counts(final_raster_path)
+                if legend_data and class_pixel_counts:
+                    count_lookup = {item["class"]: item for item in class_pixel_counts}
+                    legend_data["classes"] = [
+                        {
+                            **legend_class,
+                            "pixel_count": count_lookup.get(legend_class.get("class"), {}).get("pixel_count", 0),
+                            "percentage": count_lookup.get(legend_class.get("class"), {}).get("percentage", 0.0),
+                        }
+                        for legend_class in legend_data.get("classes", [])
+                    ]
+
+            raster_bbox: Optional[List[float]] = None
+            try:
+                with rasterio.open(final_raster_path) as src:
+                    bounds = src.bounds
+                    raster_bbox = [
+                        float(bounds.left),
+                        float(bounds.bottom),
+                        float(bounds.right),
+                        float(bounds.top),
+                    ]
+            except Exception as bbox_error:
+                logger.warning(f"Could not read raster bounds for year {year}: {bbox_error}")
+
             logger.info(f"{'='*70}\n")
 
             aggregation = self._get_time_scale_for_product(layer_type)
@@ -489,9 +634,11 @@ class WaterAvailabilityMapper:
                 # ⭐ Filtering statistics
                 "pixel_count": stats["pixel_count"],
                 "invalid_count": stats["invalid_count"],
+                "bbox": raster_bbox,
                 
                 # ⭐⭐⭐ DYNAMIC LEGEND DATA for frontend
                 "legend_data": legend_data,
+                "class_pixel_counts": class_pixel_counts if layer_type == "Index" else [],
             }
 
         except Exception as e:
@@ -661,6 +808,14 @@ class WaterAvailabilityMapper:
         if not processed_layers:
             raise ValueError("Processing failed for all requested years")
 
+        study_area_bbox: Optional[List[float]] = None
+        try:
+            minx, miny, maxx, maxy = study_area_gdf.total_bounds
+            if not any(np.isnan(value) for value in (minx, miny, maxx, maxy)):
+                study_area_bbox = [float(minx), float(miny), float(maxx), float(maxy)]
+        except Exception as bbox_error:
+            logger.warning(f"Could not derive study area bbox: {bbox_error}")
+
         # Prepare metadata
         return {
             "status": "success",
@@ -671,6 +826,7 @@ class WaterAvailabilityMapper:
             },
             
             "clipped_rasters": processed_layers,
+            "bbox": study_area_bbox,
 
             # Note: Top-level statistics usually represent the aggregate or the first layer. 
             # Since we now have multiple years, the frontend should ideally look inside 'clipped_rasters' 
@@ -688,6 +844,30 @@ class WaterAvailabilityMapper:
         }
 
 class Stp_location:
+    _river_name_map: Optional[Dict[int, str]] = None
+
+    @classmethod
+    def _load_river_name_map(cls) -> Dict[int, str]:
+        if cls._river_name_map is not None:
+            return cls._river_name_map
+
+        river_name_map: Dict[int, str] = {}
+        river_csv = Path(__file__).resolve().parents[4] / "media" / "Gaurav_Data" / "csv_file_stp" / "stp_river.csv"
+
+        if river_csv.exists():
+            try:
+                with river_csv.open("r", encoding="utf-8-sig", newline="") as csv_file:
+                    for row in csv.DictReader(csv_file):
+                        try:
+                            river_name_map[int(row["River_Code"])] = row["River_Name"].strip()
+                        except (KeyError, TypeError, ValueError):
+                            continue
+            except OSError as exc:
+                logger.warning("Failed to load river name map from %s: %s", river_csv, exc)
+
+        cls._river_name_map = river_name_map
+        return cls._river_name_map
+
     def get_state(db:Session,all_data: bool = False):
         states=Stp_State_crud(db).get_states(all_data)
         states=[{'id': state.state_code,'name':state.state_name} for state in states]
@@ -718,6 +898,24 @@ class Stp_location:
         Villages=[{'id': Village.id,'name':Village.village_name} for Village in Villages]
         return Villages
 
+    def get_town(db:Session,payload:dict):
+        return Stp_towns_crud(db).get_towns(payload.subdis_code, payload.all_data)
+
+    def get_all_town(db:Session,all_data:bool=True):
+        return Stp_towns_crud(db).get_all_towns(all_data)
+
+    @classmethod
+    def get_river(cls, db: Session, all_data: bool = False):
+        river_name_map = cls._load_river_name_map()
+        river_codes = River_crud(db).get_rivers(all_data=all_data)
+        return [
+            {
+                "River_Code": river_code,
+                "River_Name": river_name_map.get(river_code, f"River {river_code}"),
+            }
+            for river_code in river_codes
+        ]
+
 class StretchLocation:
     """Helper class for database operations."""
     
@@ -726,5 +924,5 @@ class StretchLocation:
         return Stretches_crud(db).get_stretches(river_code)
     
     @staticmethod
-    def get_drain(db: Session, stretch_id: int = None):
+    def get_drain(db: Session, stretch_id: int | list[int] | None = None):
         return Drain_crud(db).get_drains(stretch_id)

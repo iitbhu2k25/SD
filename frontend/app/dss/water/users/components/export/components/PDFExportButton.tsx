@@ -132,6 +132,92 @@
 import React, { useState, useEffect } from "react";
 import { generateWaterAnalysisPDF } from "./WaterAnalysisPDF";
 
+const GEOSERVER_URL =
+  process.env.NEXT_PUBLIC_GEOSERVER_URL ;
+const FAST_RASTER_WORKSPACE =
+  process.env.NEXT_PUBLIC_FAST_RASTER_WORKSPACE ;
+const DEFAULT_BBOX: [number, number, number, number] = [
+  81.76016558413825,
+  25.25164263659975,
+  83.05823116969096,
+  25.790631807071463,
+];
+
+const parseBBox = (value: unknown): [number, number, number, number] | null => {
+  if (!value) return null;
+
+  if (Array.isArray(value) && value.length >= 4) {
+    const parsed = value.slice(0, 4).map((item) => Number(item));
+    if (parsed.every((item) => Number.isFinite(item))) {
+      return parsed as [number, number, number, number];
+    }
+  }
+
+  if (typeof value === "string") {
+    const parsed = value
+      .split(",")
+      .map((item) => Number(item.trim()))
+      .slice(0, 4);
+    if (parsed.length === 4 && parsed.every((item) => Number.isFinite(item))) {
+      return parsed as [number, number, number, number];
+    }
+  }
+
+  if (typeof value === "object") {
+    const bbox = value as Record<string, unknown>;
+    const candidates: Array<[unknown, unknown, unknown, unknown]> = [
+      [bbox.minx, bbox.miny, bbox.maxx, bbox.maxy],
+      [bbox.left, bbox.bottom, bbox.right, bbox.top],
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = candidate.map((item) => Number(item));
+      if (parsed.every((item) => Number.isFinite(item))) {
+        return parsed as [number, number, number, number];
+      }
+    }
+  }
+
+  return null;
+};
+
+const formatBBox = ([minLon, minLat, maxLon, maxLat]: [number, number, number, number]) =>
+  `${minLon},${minLat},${maxLon},${maxLat}`;
+
+const getLayerBBoxFromCapabilities = (
+  capXml: Document | null,
+  layerName: string,
+): [number, number, number, number] | null => {
+  if (!capXml) return null;
+
+  let matchedBBox: [number, number, number, number] | null = null;
+
+  capXml.querySelectorAll("Layer").forEach((layerNode) => {
+    const nameNode = layerNode.querySelector(":scope > Name");
+    if (
+      nameNode?.textContent === `${FAST_RASTER_WORKSPACE}:${layerName}` ||
+      nameNode?.textContent === layerName
+    ) {
+      const llBbox = layerNode.querySelector("LatLonBoundingBox");
+      const node = llBbox ?? layerNode.querySelector("BoundingBox[SRS='EPSG:4326']");
+      if (!node) return;
+
+      const parsed = [
+        Number(node.getAttribute("minx") ?? ""),
+        Number(node.getAttribute("miny") ?? ""),
+        Number(node.getAttribute("maxx") ?? ""),
+        Number(node.getAttribute("maxy") ?? ""),
+      ];
+
+      if (parsed.every((item) => Number.isFinite(item))) {
+        matchedBBox = parsed as [number, number, number, number];
+      }
+    }
+  });
+
+  return matchedBBox;
+};
+
 interface PDFExportButtonProps {
   exportData: any;
   rasterResponse: any;
@@ -165,6 +251,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         const rasters = rasterResponse.clipped_rasters;
         const W = 800;
         const H = 600;
+        const responseBBox = parseBBox(rasterResponse?.bbox) ?? DEFAULT_BBOX;
 
         // ── Default BBOX ──────────────────────────────────────────────────
         let BBOX   = "81.76016558413825,25.25164263659975,83.05823116969096,25.790631807071463";
@@ -177,7 +264,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         try {
           const controller = new AbortController();
           const timeout    = setTimeout(() => controller.abort(), 5000);
-          const capUrl     = `/geoserver/api/water_Availability/wms?service=WMS&version=1.1.0&request=GetCapabilities`;
+          const capUrl     = `${GEOSERVER_URL}/${FAST_RASTER_WORKSPACE}/wms?service=WMS&version=1.1.0&request=GetCapabilities`;
           const capRes     = await fetch(capUrl, { credentials: "include", signal: controller.signal });
           clearTimeout(timeout);
 
@@ -189,7 +276,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           capXml.querySelectorAll("Layer").forEach((layerNode) => {
             const nameNode = layerNode.querySelector(":scope > Name");
             if (
-              nameNode?.textContent === `water_Availability:${firstRaster.layer_name}` ||
+              nameNode?.textContent === `${FAST_RASTER_WORKSPACE}:${firstRaster.layer_name}` ||
               nameNode?.textContent === firstRaster.layer_name
             ) {
               const llBbox = layerNode.querySelector("LatLonBoundingBox");
@@ -211,11 +298,13 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           console.warn("GetCapabilities failed/timeout, using default BBOX:", capErr);
         }
 
-        const loadImage = (src: string, useCredentials = false): Promise<HTMLImageElement> =>
+        const loadImage = (
+          src: string,
+          crossOriginMode: "anonymous" | "use-credentials" = "anonymous",
+        ): Promise<HTMLImageElement> =>
           new Promise((resolve, reject) => {
             const img = new Image();
-            if (useCredentials) img.crossOrigin = "use-credentials";
-            else img.crossOrigin = "anonymous";
+            img.crossOrigin = crossOriginMode;
             img.onload  = () => resolve(img);
             img.onerror = () => reject(new Error(`Failed: ${src}`));
             img.src = src;
@@ -261,17 +350,74 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         }
 
         // ── For each raster: composite bg + WMS layer ─────────────────────
+        const backgroundCache = new Map<string, HTMLCanvasElement>([[BBOX, bgCanvas]]);
+        const buildBackgroundCanvas = async (
+          bbox: [number, number, number, number],
+        ): Promise<HTMLCanvasElement> => {
+          const bboxString = formatBBox(bbox);
+          const cachedCanvas = backgroundCache.get(bboxString);
+          if (cachedCanvas) {
+            return cachedCanvas;
+          }
+
+          const [localMinLon, localMinLat, localMaxLon, localMaxLat] = bbox;
+          const nextBgCanvas = document.createElement("canvas");
+          nextBgCanvas.width = W;
+          nextBgCanvas.height = H;
+          const nextBgCtx = nextBgCanvas.getContext("2d")!;
+
+          try {
+            const zoom = 11;
+            const lon2tile = (lon: number, z: number) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
+            const lat2tile = (lat: number, z: number) => Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+            const tile2lon = (x: number, z: number) => x / Math.pow(2, z) * 360 - 180;
+            const tile2lat = (y: number, z: number) => { const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z); return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))); };
+            const lonToPx = (lon: number) => (lon - localMinLon) / (localMaxLon - localMinLon) * W;
+            const latToPx = (lat: number) => (localMaxLat - lat) / (localMaxLat - localMinLat) * H;
+
+            const xMin = lon2tile(localMinLon, zoom), xMax = lon2tile(localMaxLon, zoom);
+            const yMin = lat2tile(localMaxLat, zoom), yMax = lat2tile(localMinLat, zoom);
+
+            const tilePromises: Promise<void>[] = [];
+            for (let tx = xMin; tx <= xMax; tx++) {
+              for (let ty = yMin; ty <= yMax; ty++) {
+                const tileUrl = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`;
+                const px = Math.round(lonToPx(tile2lon(tx, zoom)));
+                const py = Math.round(latToPx(tile2lat(ty, zoom)));
+                const px2 = Math.round(lonToPx(tile2lon(tx + 1, zoom)));
+                const py2 = Math.round(latToPx(tile2lat(ty + 1, zoom)));
+                tilePromises.push(
+                  loadImage(tileUrl)
+                    .then((img) => { nextBgCtx.drawImage(img, px, py, px2 - px, py2 - py); })
+                    .catch(() => {})
+                );
+              }
+            }
+            await Promise.all(tilePromises);
+          } catch {
+            nextBgCtx.fillStyle = "#c8d8c8";
+            nextBgCtx.fillRect(0, 0, W, H);
+          }
+
+          backgroundCache.set(bboxString, nextBgCanvas);
+          return nextBgCanvas;
+        };
+
         const mapResults: { url: string; year: number }[] = [];
 
         for (const raster of rasters) {
+          const rasterBBox = parseBBox(raster?.bbox) ?? responseBBox;
+          const rasterBBoxString = formatBBox(rasterBBox);
+          const bgCanvasForRaster = await buildBackgroundCanvas(rasterBBox);
+
           const wmsUrl =
-            `/geoserver/api/water_Availability/wms?` +
+            `${GEOSERVER_URL}/${FAST_RASTER_WORKSPACE}/wms?` +
             new URLSearchParams({
               service:     "WMS",
               version:     "1.1.0",
               request:     "GetMap",
-              layers:      `water_Availability:${raster.layer_name}`,
-              bbox:        BBOX,
+              layers:      `${FAST_RASTER_WORKSPACE}:${raster.layer_name}`,
+              bbox:        rasterBBoxString,
               width:       String(W),
               height:      String(H),
               srs:         "EPSG:4326",
@@ -284,28 +430,35 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           canvas.width  = W;
           canvas.height = H;
           const ctx = canvas.getContext("2d")!;
-          ctx.drawImage(bgCanvas, 0, 0);
+          ctx.drawImage(bgCanvasForRaster, 0, 0);
 
           try {
-            const waterImg = await loadImage(wmsUrl, true);
+            const waterImg = await loadImage(wmsUrl, "anonymous");
             ctx.globalAlpha = 0.85;
             ctx.drawImage(waterImg, 0, 0, W, H);
             ctx.globalAlpha = 1.0;
           } catch {
             try {
-              const res  = await fetch(wmsUrl, { credentials: "include" });
-              const blob = await res.blob();
-              const b64  = await new Promise<string>((res2) => {
-                const reader = new FileReader();
-                reader.onload = () => res2(reader.result as string);
-                reader.readAsDataURL(blob);
-              });
-              const img2 = await loadImage(b64);
+              const waterImg = await loadImage(wmsUrl, "use-credentials");
               ctx.globalAlpha = 0.85;
-              ctx.drawImage(img2, 0, 0, W, H);
+              ctx.drawImage(waterImg, 0, 0, W, H);
               ctx.globalAlpha = 1.0;
-            } catch (e2) {
-              console.warn(`WMS failed for ${raster.layer_name}:`, e2);
+            } catch {
+              try {
+                const res  = await fetch(wmsUrl, { credentials: "include" });
+                const blob = await res.blob();
+                const b64  = await new Promise<string>((res2) => {
+                  const reader = new FileReader();
+                  reader.onload = () => res2(reader.result as string);
+                  reader.readAsDataURL(blob);
+                });
+                const img2 = await loadImage(b64, "anonymous");
+                ctx.globalAlpha = 0.85;
+                ctx.drawImage(img2, 0, 0, W, H);
+                ctx.globalAlpha = 1.0;
+              } catch (e2) {
+                console.warn(`WMS failed for ${raster.layer_name}:`, e2);
+              }
             }
           }
 
@@ -320,12 +473,12 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         for (const raster of rasters) {
           try {
             const legendUrl =
-              `/geoserver/api/water_Availability/wms?` +
+              `${GEOSERVER_URL}/${FAST_RASTER_WORKSPACE}/wms?` +
               new URLSearchParams({
                 service:        "WMS",
                 version:        "1.1.0",
                 request:        "GetLegendGraphic",
-                layer:          `water_Availability:${raster.layer_name}`,
+                layer:          `${FAST_RASTER_WORKSPACE}:${raster.layer_name}`,
                 format:         "image/png",
                 width:          "30",
                 height:         "30",
@@ -337,8 +490,20 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
                 ].join(";"),
               }).toString();
 
-            const legRes  = await fetch(legendUrl, { credentials: "include" });
+            let legRes = await fetch(legendUrl);
+            if (!legRes.ok) {
+              legRes = await fetch(legendUrl, { credentials: "include" });
+            }
+
+            if (!legRes.ok) {
+              throw new Error(`Legend fetch failed with status ${legRes.status}`);
+            }
+
             const legBlob = await legRes.blob();
+            if (!legBlob.size) {
+              throw new Error("Legend blob is empty");
+            }
+
             const legB64  = await new Promise<string>((resolve) => {
               const reader = new FileReader();
               reader.onload = () => resolve(reader.result as string);
