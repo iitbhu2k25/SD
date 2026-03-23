@@ -11,3 +11,4 @@ from app.database.models.basic.basic import (
 )
 
 from app.database.models.model_water import Stretches, Drain
+from app.database.models.model_rainwater import Rainwater_raster

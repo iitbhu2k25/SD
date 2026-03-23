@@ -43,3 +43,4 @@ jenkspy
 cartopy
 celery-progress
 pyjwt
+rioxarray
