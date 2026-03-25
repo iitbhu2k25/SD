@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBasicStore } from '../shared/store/basic.store';
 import { API_BASE_URL } from '../shared/utils/constants';
+import { fetchSewageThematic } from '../shared/services/population.service';
 import ModuleNav from '../shared/components/ModuleNav';
 import {
   Droplets, AlertCircle, CheckCircle2,
@@ -270,6 +271,8 @@ export default function SewageModule() {
     population2025,
     waterSupplyTotal,
     setSewageReportData,
+    setThematicMapData,
+    setThematicMapYear,
   } = useBasicStore();
   const reportHashRef = useRef('');
 
@@ -646,6 +649,54 @@ export default function SewageModule() {
         setSdDomSeasonal(makeSeasonal(yearlyBase, DOM_MULT));
         setSdDomYears(rows.map(r => r.year));
       }
+
+      // Fire sewage thematic map per-village (non-blocking — ignore errors)
+      if (confirmedLocation && rows.length > 0) {
+        // Always pass exact total population per year from result rows.
+        // This handles both manual (user-entered years) and modeled cases correctly.
+        const populationData: Record<string, number> = {};
+        for (const r of rows) populationData[r.year] = r.population;
+
+        const drainSum = sdDrains
+          .filter(d => d.drain_no || d.drain_id || d.drain_recharge)
+          .reduce((s, d) => s + (parseFloat(d.drain_recharge) || 0), 0);
+
+        fetchSewageThematic(
+          confirmedLocation,
+          {},  // year range not needed — population_data drives the years
+          {
+            water_supply: waterSupplyTotal ?? 0,
+            drain_recharge_sum: drainSum,
+            population_2025: population2025 ?? 0,
+            unmetered_supply: parseFloat(ufw) || 15,
+            population_data: populationData,
+            load_method: sdMode,  // manual=0.84 coeff, modeled=0.80 coeff
+          },
+        ).then((villageData: Record<string, any>) => {
+          if (!villageData || !Object.keys(villageData).length) return;
+          const tmd = useBasicStore.getState().thematicMapData;
+          if (!tmd?.features?.length) return;
+
+          const sewageYears = rows.map(r => Number(r.year)).sort((a, b) => a - b);
+
+          // Deep-merge: merge year values within each sewage method key instead of
+          // replacing the entire method object.
+          const mergedFeatures = tmd.features.map((f: any) => {
+            const code = String(f.properties?.village_code ?? '');
+            const sd = villageData[code] ?? {};
+            const props = { ...f.properties };
+            for (const [key, yearMap] of Object.entries(sd)) {
+              props[key] = { ...(props[key] ?? {}), ...(yearMap as any) };
+            }
+            return { ...f, properties: props };
+          });
+
+          // Use ONLY the current calculation years in available_years so the legend
+          // year dropdown shows exactly what the user entered (manual or modeled).
+          setThematicMapData({ ...tmd, features: mergedFeatures, available_years: sewageYears }, 'Population Based');
+          setThematicMapYear(sewageYears[sewageYears.length - 1]);
+        }).catch(() => {});
+      }
     } catch (e: any) { setSdErr(e.message); setSdDomSeasonal(null); setSdDomYears([]); }
     finally { setSdLoad(false); }
   };
@@ -741,12 +792,12 @@ export default function SewageModule() {
               <div style={{ display: 'flex', gap: 6 }}>
                 <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
                   onChange={e => { setWsInput(e.target.value); setWsResult(null); setWsErr(null); }} />
-                {waterSupplyTotal !== null && (
+                {/* {waterSupplyTotal !== null && (
                   <button type="button" onClick={() => setWsInput(waterSupplyTotal.toFixed(3))}
                     style={{ whiteSpace: 'nowrap', fontSize: 11, padding: '0 9px', borderRadius: 7, border: '1px solid #0369a1', background: '#0369a1', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
                     Use {waterSupplyTotal.toFixed(2)}
                   </button>
-                )}
+                )} */}
               </div>
             </div>
             <CalcButton onClick={handleWsCalc} loading={wsLoad} label="Calculate" />
@@ -1358,13 +1409,7 @@ export default function SewageModule() {
         </div>
       )}
 
-      {/* Drain mode stub */}
-      <div style={{ ...card, opacity: 0.55 }}>
-        <div style={{ padding: '12px 18px', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Construction size={15} color="#94a3b8" />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Drain-Based Sewage — Coming Soon</span>
-        </div>
-      </div>
+     
 
       <ModuleNav
         back={{ label: 'Water Supply', onClick: () => setActiveModule('water_supply') }}

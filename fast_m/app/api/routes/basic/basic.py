@@ -15,6 +15,7 @@ from app.api.schema.basic_schema import (
     RiverCodeRequest,
     SewageDemandRequest,
     SewageRequest,
+    SewageThematicRequest,
     StormwaterRunoffRequest,
     StretchIdRequest,
     StudyAreaMapRequest,
@@ -173,6 +174,14 @@ def institutional_water_demand(payload: InstitutionalWaterDemandRequest, db: db_
 def firefighting_water_demand(payload: FirefightingWaterDemandRequest, db: db_dependency):
     try:
         return BasicService(db).firefighting_water_demand(payload.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/sewage/thematic")
+def sewage_thematic(payload: SewageThematicRequest, db: db_dependency):
+    try:
+        return BasicService(db).sewage_thematic_map(payload.model_dump())
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

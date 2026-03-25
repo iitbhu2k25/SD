@@ -107,7 +107,8 @@ function ThematicMapLayer({
         const val = yearMap[selectedYear] ?? yearMap[String(selectedYear)];
         const pop2011 = p.population_2011 != null ? Number(p.population_2011).toLocaleString() : 'N/A';
         const WD_SET = new Set(['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand',
-          'Water Supply', 'Water Demand', 'Water Gap', 'Status']);
+          'Water Supply', 'Water Demand', 'Water Gap', 'Status',
+          'Population Based', 'Water Based', 'Drain Based']);
         const isWD = WD_SET.has(method);
         const isStatus = method === 'Status';
         const isGap = method === 'Water Gap';
@@ -1437,31 +1438,36 @@ export default function Map({
 
       {/* Thematic map toggle + legend */}
       {thematicMapData && thematicMapData.features.length > 0 && (() => {
-        const POP_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+        const POP_METHODS     = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
         const WD_METHODS_LIST = ['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand'];
         const WS_METHODS_LIST = ['Water Supply', 'Water Demand', 'Water Gap', 'Status'];
-        const ALL_WD_WS      = new Set([...WD_METHODS_LIST, ...WS_METHODS_LIST]);
+        const SD_METHODS_LIST = ['Population Based', 'Water Based', 'Drain Based'];
+        const ALL_MLD_SET     = new Set([...WD_METHODS_LIST, ...WS_METHODS_LIST, ...SD_METHODS_LIST]);
 
         const firstProps = thematicMapData.features[0]?.properties ?? {};
         const availableWD  = WD_METHODS_LIST.filter((m) => firstProps[m] != null);
         const availableWS  = WS_METHODS_LIST.filter((m) => firstProps[m] != null);
+        const availableSD  = SD_METHODS_LIST.filter((m) => firstProps[m] != null);
         const availablePop = POP_METHODS.filter((m) => firstProps[m] != null);
 
         const activeMethod = thematicMapMethod ?? '';
         // Context is determined purely by the active method key — NOT by whether data is loaded yet
         const isWSContext  = WS_METHODS_LIST.includes(activeMethod);
         const isWDContext  = WD_METHODS_LIST.includes(activeMethod);
+        const isSDContext  = SD_METHODS_LIST.includes(activeMethod);
         // Always show the full list for the active context; fall back to loaded data if context list is empty
         const availableMethods = isWSContext
           ? (availableWS.length > 0 ? availableWS : WS_METHODS_LIST)
           : isWDContext
           ? (availableWD.length > 0 ? availableWD : WD_METHODS_LIST)
+          : isSDContext
+          ? (availableSD.length > 0 ? availableSD : SD_METHODS_LIST)
           : (availablePop.length > 0 ? availablePop : POP_METHODS);
 
         const method = availableMethods.includes(activeMethod)
           ? activeMethod
           : (availableMethods[0] ?? 'Arithmetic');
-        const isWaterDemand = ALL_WD_WS.has(method);
+        const isWaterDemand = ALL_MLD_SET.has(method);
 
         const activeYear = thematicMapYear
           ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
@@ -1476,35 +1482,41 @@ export default function Map({
         const breaks = getQuantileBreaks(values, NUM_CLASSES);
         const minVal = values.length ? Math.min(...values) : 0;
         const maxVal = values.length ? Math.max(...values) : 0;
-        const fmt = (v: number) => isWaterDemand ? `${v.toFixed(4)} MLD` : Math.round(v).toLocaleString();
+        const fmt = (v: number) => isWaterDemand ? `${v.toFixed(2)} MLD` : v.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
         const labels: string[] = breaks.length
           ? [
               `≤ ${fmt(breaks[0])}`,
-              ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])} – ${fmt(b)}`),
+              ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])}–${fmt(b)}`),
               `> ${fmt(breaks[breaks.length - 1])}`,
             ]
-          : [`${fmt(minVal)} – ${fmt(maxVal)}`];
+          : [`${fmt(minVal)}–${fmt(maxVal)}`];
 
-        const selectStyle: React.CSSProperties = {
-          width: '100%', fontSize: 11, fontWeight: 600,
-          padding: '4px 6px', borderRadius: 6,
+        const sel: React.CSSProperties = {
+          width: '100%', fontSize: 10, fontWeight: 600,
+          padding: '3px 5px', borderRadius: 5,
           border: '1px solid #cbd5e1', background: '#f8fafc',
           color: '#1e293b', cursor: 'pointer',
         };
+        const revColors = [...CHOROPLETH_COLORS.slice(0, labels.length)].reverse();
+        const revLabels = [...labels].reverse();
 
         return (
           <div style={{
             position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
-            background: 'rgba(255,255,255,0.96)', borderRadius: 10,
+            background: 'rgba(255,255,255,0.97)', borderRadius: 9,
             border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-            padding: '10px 14px', minWidth: 210,
+            padding: '7px 9px', minWidth: 200,
           }}>
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Thematic Map</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>Thematic Map</span>
+              <span
+                title="Click on a village polygon on the map to see detailed population data"
+                style={{ fontSize: 12, color: '#94a3b8', cursor: 'help', lineHeight: 1, userSelect: 'none' }}
+              >ⓘ</span>
               <button type="button" onClick={() => setThematicLayerVisible((v) => !v)}
                 style={{
-                  fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                  fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 5,
                   border: '1px solid #cbd5e1',
                   background: thematicLayerVisible ? '#eff6ff' : '#f8fafc',
                   color: thematicLayerVisible ? '#2563eb' : '#64748b', cursor: 'pointer',
@@ -1513,55 +1525,70 @@ export default function Map({
               </button>
             </div>
 
+            {/* Info hint */}
+            <div style={{ fontSize: 9, color: '#64748b', marginBottom: 5, lineHeight: 1.3 }}>
+              Click on map to see village details
+            </div>
+
             {/* Method dropdown */}
             {availableMethods.length > 0 && (
-              <div style={{ marginBottom: 8 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>
-                  Method
-                </label>
-                <select value={method} onChange={(e) => onThematicMethodChange?.(e.target.value)} style={selectStyle}>
-                  {availableMethods.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
+              <div style={{ marginBottom: 4 }}>
+                <label style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Method</label>
+                <select value={method} onChange={(e) => onThematicMethodChange?.(e.target.value)} style={sel}>
+                  {availableMethods.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
             )}
 
             {/* Year dropdown */}
             {thematicMapData.available_years?.length > 1 && (
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>
-                  Year
-                </label>
-                <select value={activeYear ?? ''} onChange={(e) => onThematicYearChange?.(Number(e.target.value))} style={selectStyle}>
-                  {thematicMapData.available_years.map((yr) => (
-                    <option key={yr} value={yr}>{yr}</option>
-                  ))}
+              <div style={{ marginBottom: 5 }}>
+                <label style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Year</label>
+                <select value={activeYear ?? ''} onChange={(e) => onThematicYearChange?.(Number(e.target.value))} style={sel}>
+                  {thematicMapData.available_years.map((yr) => <option key={yr} value={yr}>{yr}</option>)}
                 </select>
               </div>
             )}
 
-            {/* Color legend */}
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {/* Color legend — vertical bar */}
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 5 }}>
+              <span style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 {method === 'Status' ? `Status (${activeYear})` : isWaterDemand ? `${method} MLD (${activeYear})` : `Population (${activeYear})`}
               </span>
               {method === 'Status' ? (
-                <>
+                <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {[['#16a34a', 'Sufficient'], ['#dc2626', 'Deficit']].map(([color, label]) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                      <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
-                      <span style={{ fontSize: 10, color: '#374151' }}>{label}</span>
+                    <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
+                      <div style={{ width: 18, height: 16, background: color, flexShrink: 0, borderRadius: '2px 0 0 2px' }} />
+                      <div style={{ flex: 1, padding: '0 6px', fontSize: 9.5, color: '#1e293b', fontWeight: 600, background: color + '22', height: 16, display: 'flex', alignItems: 'center', borderRadius: '0 2px 2px 0' }}>
+                        {label}
+                      </div>
                     </div>
                   ))}
-                </>
+                </div>
               ) : (
-                CHOROPLETH_COLORS.slice(0, labels.length).map((color, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                    <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
+                <div style={{ marginTop: 4, display: 'flex', gap: 5, alignItems: 'stretch' }}>
+                  {/* Vertical color bar */}
+                  <div style={{ display: 'flex', flexDirection: 'column', width: 18, flexShrink: 0 }}>
+                    {revColors.map((color, i) => (
+                      <div key={i} style={{
+                        flex: 1, background: color, minHeight: 15,
+                        borderTop: i === 0 ? '1px solid rgba(0,0,0,0.2)' : 'none',
+                        borderLeft: '1px solid rgba(0,0,0,0.2)',
+                        borderRight: '1px solid rgba(0,0,0,0.2)',
+                        borderBottom: i === revColors.length - 1 ? '1px solid rgba(0,0,0,0.2)' : 'none',
+                      }} />
+                    ))}
                   </div>
-                ))
+                  {/* Labels aligned to each band */}
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                    {revLabels.map((label, i) => (
+                      <div key={i} style={{ flex: 1, minHeight: 15, display: 'flex', alignItems: 'center' }}>
+                        <span style={{ fontSize: 9, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>

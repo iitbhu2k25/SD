@@ -234,6 +234,29 @@ export async function fetchWaterDemandThematic(
   });
 }
 
+export interface SewageThematicParams {
+  water_supply: number;
+  drain_recharge_sum: number;
+  population_2025: number;
+  unmetered_supply: number;
+  population_data?: Record<string, number>;  // {year: total_pop} — exact totals from result rows
+  load_method?: 'manual' | 'modeled';
+}
+
+export async function fetchSewageThematic(
+  location: ConfirmedLocation,
+  params: { year?: number; start_year?: number; end_year?: number },
+  sewageParams: SewageThematicParams,
+) {
+  const { villages_props, subdistrict_props } = buildProps(location);
+  return post('sewage/thematic', {
+    ...yearFields(params),
+    villages_props,
+    subdistrict_props,
+    ...sewageParams,
+  });
+}
+
 // ── Fetch exactly 2025 population for the currently selected method ──────────
 // Called by PopulationModule when the user's chosen forecast range doesn't include 2025.
 // Returns the total population at year 2025 (number) or null on failure.

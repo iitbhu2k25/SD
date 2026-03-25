@@ -561,7 +561,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
           const method = availableMethods.includes(activeMethod) ? activeMethod : (availableMethods[0] ?? 'Arithmetic');
           const activeYear = thematicMapYear
             ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];
-          const fmt = (v: number) => isWDWS ? `${v.toFixed(4)} MLD` : Math.round(v).toLocaleString();
+          const fmt = (v: number) => isWDWS ? `${v.toFixed(2)} MLD` : v.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
           const values = isStatus ? [] : thematicMapData.features
             .map((f: any) => { const ym = f.properties?.[method]; return ym?.[activeYear] ?? ym?.[String(activeYear)]; })
             .filter((v: any): v is number => typeof v === 'number' && !isNaN(v));
@@ -571,59 +571,91 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
           const labels: string[] = isStatus
             ? ['Deficit', 'Sufficient']
             : breaks.length
-            ? [`≤ ${fmt(breaks[0])}`,
-               ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])} – ${fmt(b)}`),
-               `> ${fmt(breaks[breaks.length - 1])}`]
-            : [`${fmt(minVal)} – ${fmt(maxVal)}`];
+            ? [`≤ ${fmt(breaks[0])}`, ...breaks.slice(1).map((b, i) => `${fmt(breaks[i])}–${fmt(b)}`), `> ${fmt(breaks[breaks.length - 1])}`]
+            : [`${fmt(minVal)}–${fmt(maxVal)}`];
           const COLORS = isStatus ? ['#dc2626', '#16a34a'] : ['#ffffb2', '#fecc5c', '#fd8d3c', '#f03b20', '#bd0026'];
+          const revColors = [...COLORS.slice(0, labels.length)].reverse();
+          const revLabels = [...labels].reverse();
           const sel: React.CSSProperties = {
-            width: '100%', fontSize: 11, fontWeight: 600, padding: '4px 6px',
-            borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc',
+            width: '100%', fontSize: 10, fontWeight: 600, padding: '3px 5px',
+            borderRadius: 5, border: '1px solid #cbd5e1', background: '#f8fafc',
             color: '#1e293b', cursor: 'pointer',
           };
           return (
             <div style={{
               position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
-              background: 'rgba(255,255,255,0.96)', borderRadius: 10,
+              background: 'rgba(255,255,255,0.97)', borderRadius: 9,
               border: '1px solid #e2e8f0', boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-              padding: '10px 14px', minWidth: 210,
+              padding: '7px 9px', minWidth: 200,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Thematic Map</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>Thematic Map</span>
+                <span title="Click on a village polygon on the map to see detailed population data"
+                  style={{ fontSize: 12, color: '#94a3b8', cursor: 'help', lineHeight: 1, userSelect: 'none' }}>ⓘ</span>
                 <button type="button" onClick={() => setThematicLayerVisible(v => !v)}
-                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6,
+                  style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 5,
                     border: '1px solid #cbd5e1', cursor: 'pointer',
                     background: thematicLayerVisible ? '#eff6ff' : '#f8fafc',
                     color: thematicLayerVisible ? '#2563eb' : '#64748b' }}>
                   {thematicLayerVisible ? 'Hide' : 'Show'}
                 </button>
               </div>
+              <div style={{ fontSize: 9, color: '#64748b', marginBottom: 5, lineHeight: 1.3 }}>
+                Click on map to see village details
+              </div>
               {availableMethods.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>Method</label>
+                <div style={{ marginBottom: 4 }}>
+                  <label style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Method</label>
                   <select value={method} onChange={e => setThematicMapMethod(e.target.value)} style={sel}>
                     {availableMethods.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               )}
               {thematicMapData.available_years?.length > 1 && (
-                <div style={{ marginBottom: 10 }}>
-                  <label style={{ fontSize: 10, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 3 }}>Year</label>
+                <div style={{ marginBottom: 5 }}>
+                  <label style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Year</label>
                   <select value={activeYear ?? ''} onChange={e => setThematicMapYear(Number(e.target.value))} style={sel}>
                     {thematicMapData.available_years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
                   </select>
                 </div>
               )}
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Population ({activeYear})
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 5 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {isWDWS ? `${method} MLD (${activeYear})` : `Population (${activeYear})`}
                 </span>
-                {COLORS.slice(0, labels.length).map((color, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                    <span style={{ width: 16, height: 12, background: color, border: '1px solid #aaa', borderRadius: 2, flexShrink: 0 }} />
-                    <span style={{ fontSize: 10, color: '#374151' }}>{labels[i]}</span>
+                {isStatus ? (
+                  <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {[['#16a34a', 'Sufficient'], ['#dc2626', 'Deficit']].map(([color, label]) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: 18, height: 16, background: color, flexShrink: 0, borderRadius: '2px 0 0 2px' }} />
+                        <div style={{ flex: 1, padding: '0 6px', fontSize: 9.5, color: '#1e293b', fontWeight: 600, background: color + '22', height: 16, display: 'flex', alignItems: 'center', borderRadius: '0 2px 2px 0' }}>
+                          {label}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <div style={{ marginTop: 4, display: 'flex', gap: 5, alignItems: 'stretch' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: 18, flexShrink: 0 }}>
+                      {revColors.map((color, i) => (
+                        <div key={i} style={{
+                          flex: 1, background: color, minHeight: 15,
+                          borderTop: i === 0 ? '1px solid rgba(0,0,0,0.2)' : 'none',
+                          borderLeft: '1px solid rgba(0,0,0,0.2)',
+                          borderRight: '1px solid rgba(0,0,0,0.2)',
+                          borderBottom: i === revColors.length - 1 ? '1px solid rgba(0,0,0,0.2)' : 'none',
+                        }} />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                      {revLabels.map((label, i) => (
+                        <div key={i} style={{ flex: 1, minHeight: 15, display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontSize: 9, color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );

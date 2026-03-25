@@ -570,6 +570,130 @@ class BasicService:
             result[method] = method_result
         return result
 
+    def sewage_thematic_map(self, payload: dict[str, Any]):
+        """Returns per-village sewage demand (MLD) keyed by village_code.
+        No geometry — frontend merges into existing population GeoJSON.
+
+        Two modes:
+        - population_data provided (manual OR modeled exact values):
+            Use the supplied {year: total_population} directly.
+            Distribute to villages proportionally by their 2011 census share.
+        - population_data absent:
+            Fall back to arithmetic projection per village from census stats.
+        """
+        water_supply   = float(payload.get("water_supply", 0) or 0)
+        drain_recharge = float(payload.get("drain_recharge_sum", 0) or 0)
+        unmetered      = float(payload.get("unmetered_supply", 15) or 15)
+        mul            = (135 + unmetered) / 1_000_000
+
+        villages    = self._ensure_village_subdistrict(payload.get("villages_props", []))
+        subdistrict = payload.get("subdistrict_props", [])
+
+        if not villages:
+            return {}
+
+        pop_data_raw = payload.get("population_data")  # {year_str: total_pop}
+
+        if pop_data_raw:
+            # ── Mode A: caller provides exact total population per year ─────────
+            # Mirror the sewage_demand formulas exactly, then distribute per village.
+            #   Manual:  pop_based coeff = 0.84
+            #   Modeled: pop_based coeff = 0.80
+            # water_based and drain_based both scale by (pop_val / pop_2025).
+            load_method  = payload.get("load_method", "modeled")
+            pop_coeff    = 0.84 if load_method == "manual" else 0.80
+            pop_2025     = float(payload.get("population_2025", 0) or 0)
+
+            pop_data = {int(k): float(v) for k, v in pop_data_raw.items()}
+            years    = sorted(pop_data.keys())
+            total_pop_2011 = sum(float(v["population"]) for v in villages)
+
+            # Step 1: compute total sewage demand per year (same as sewage_demand)
+            total_pop_based:   dict[int, float] = {}
+            total_water_based: dict[int, float] = {}
+            total_drain_based: dict[int, float] = {}
+            for yr in years:
+                pop_val = pop_data[yr]   # user's entered total population
+                total_pop_based[yr]   = pop_val * mul * pop_coeff
+                total_water_based[yr] = (pop_val / pop_2025) * 0.84 * water_supply if pop_2025 > 0 else 0.0
+                total_drain_based[yr] = (pop_val / pop_2025) * drain_recharge      if pop_2025 > 0 else 0.0
+
+            # Step 2: distribute to each village by 2011 census population share
+            result: dict[str, dict] = {}
+            for v in villages:
+                vid      = int(v["id"])
+                pop_2011 = float(v["population"])
+                share    = (pop_2011 / total_pop_2011) if total_pop_2011 > 0 else 0.0
+
+                result[str(vid)] = {
+                    "Population Based": {yr: round(share * total_pop_based[yr],   4) for yr in years},
+                    "Water Based":      {yr: round(share * total_water_based[yr], 4) for yr in years},
+                    "Drain Based":      {yr: round(share * total_drain_based[yr], 4) for yr in years},
+                }
+            return result
+
+        # ── Mode B: arithmetic projection per village (modeled fallback) ────────
+        base_year   = 2011
+        single_year = payload.get("year")
+        start_year  = payload.get("start_year")
+        end_year    = payload.get("end_year")
+
+        if single_year:
+            forecast_years = [int(single_year)]
+        elif start_year is not None and end_year is not None:
+            forecast_years = list(range(int(start_year), int(end_year) + 1))
+        else:
+            return {}
+
+        sub_ids   = self._extract_id_list(subdistrict)
+        stats_map = {x["subdistrict_code"]: x for x in self._population_stats(sub_ids)}
+
+        village_pops: dict[int, dict[int, float]] = {}
+        for v in villages:
+            vid      = int(v["id"])
+            pop_2011 = float(v["population"])
+            sid      = int(v.get("subDistrictId", 0))
+            item     = stats_map.get(sid)
+            pops: dict[int, float] = {base_year: pop_2011}
+            for yr in forecast_years:
+                if item and item.get("total_p7"):
+                    pops[yr] = max(0.0, pop_2011 + (
+                        item["linear_annual_growth"] * (yr - base_year)
+                    ) * (pop_2011 / item["total_p7"]))
+                else:
+                    pops[yr] = pop_2011
+            village_pops[vid] = pops
+
+        total_pop_yr: dict[int, float] = {}
+        for yr in [base_year] + forecast_years:
+            total_pop_yr[yr] = sum(vp[yr] for vp in village_pops.values())
+
+        pop_2025_b = float(payload.get("population_2025", 0) or 0)
+        result = {}
+        for v in villages:
+            vid  = int(v["id"])
+            pops = village_pops[vid]
+
+            pop_based:   dict[int, float] = {}
+            water_based: dict[int, float] = {}
+            drain_based: dict[int, float] = {}
+
+            for yr in [base_year] + forecast_years:
+                pop_yr    = pops[yr]
+                tot_yr    = total_pop_yr[yr] or 1.0
+                share     = pop_yr / tot_yr
+                pop_ratio = (tot_yr / pop_2025_b) if pop_2025_b > 0 else 0.0
+                pop_based[yr]   = round(pop_yr * mul * 0.80, 4)
+                water_based[yr] = round(share * pop_ratio * water_supply * 0.84, 4)
+                drain_based[yr] = round(share * pop_ratio * drain_recharge, 4)
+
+            result[str(vid)] = {
+                "Population Based": pop_based,
+                "Water Based":      water_based,
+                "Drain Based":      drain_based,
+            }
+        return result
+
     def water_supply_thematic_map(self, payload: dict[str, Any]):
         """Returns per-village Water Supply / Water Demand / Water Gap / Status (MLD).
         No geometry — frontend merges into existing population GeoJSON."""

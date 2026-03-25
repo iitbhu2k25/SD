@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useBasicStore, type ActiveModule } from '../shared/store/basic.store';
 import LocationSelector from '../shared/components/LocationSelector';
 import DrainLocationSelector from '../shared/components/DrainLocationSelector';
@@ -52,6 +52,7 @@ export default function BasicDashboard() {
     population:   'Arithmetic',
     water_demand: 'Domestic',
     water_supply: 'Water Supply',
+    sewage:       'Population Based',
   };
 
   const handleTabClick = (key: ActiveModule) => {
@@ -63,6 +64,26 @@ export default function BasicDashboard() {
   const isConfirmed = !!confirmedLocation;
   const [leftOpen,  setLeftOpen]  = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+  const [rightWidth, setRightWidth] = useState(RIGHT_W);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, width: 0 });
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, width: rightWidth };
+    const onMove = (ev: MouseEvent) => {
+      const dx = dragStartRef.current.x - ev.clientX;
+      setRightWidth(Math.max(300, Math.min(960, dragStartRef.current.width + dx)));
+    };
+    const onUp = () => {
+      setIsDragging(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const handleModeClick = (newMode: LocationMode) => {
     if (newMode === mode && leftOpen) {
@@ -300,16 +321,44 @@ export default function BasicDashboard() {
             )}
           </div>
 
+          {/* ── DRAGGER between map and right panel ── */}
+          {isConfirmed && rightOpen && (
+            <div
+              onMouseDown={handleDragStart}
+              title="Drag to resize"
+              style={{
+                width: 14, flexShrink: 0, cursor: 'col-resize', zIndex: 25,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: isDragging ? '#dbeafe' : '#f1f5f9',
+                borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0',
+                transition: 'background 0.15s', userSelect: 'none',
+              }}
+            >
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                pointerEvents: 'none',
+              }}>
+                <span style={{ fontSize: 9, color: isDragging ? '#2563eb' : '#94a3b8', fontWeight: 700 }}>◀</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {[0,1,2,3].map(i => (
+                    <div key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: isDragging ? '#2563eb' : '#cbd5e1' }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 9, color: isDragging ? '#2563eb' : '#94a3b8', fontWeight: 700 }}>▶</span>
+              </div>
+            </div>
+          )}
+
           {/* ── RIGHT PANEL (flex sibling — does NOT overlap the map) ── */}
           {isConfirmed && (
             <div style={{
-              width: rightOpen ? RIGHT_W : 0,
+              width: rightOpen ? rightWidth : 0,
               flexShrink: 0,
               overflow: 'hidden',
-              transition: `width ${EASE}`,
+              transition: isDragging ? 'none' : `width ${EASE}`,
             }}>
               <div style={{
-                width: RIGHT_W,
+                width: rightWidth,
                 height: '100%',
                 background: '#fff',
                 borderLeft: '1px solid #e2e8f0',

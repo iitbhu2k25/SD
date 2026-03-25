@@ -175,5 +175,19 @@ class VillageCodesRequest(BaseModel):
     village_codes: int | str | list[int | str] | None = None
 
 
+class SewageThematicRequest(BaseModel):
+    year: int | None = None
+    start_year: int | None = None
+    end_year: int | None = None
+    villages_props: list[dict[str, Any]] = Field(default_factory=list)
+    subdistrict_props: list[dict[str, Any]] = Field(default_factory=list)
+    water_supply: float = 0.0
+    drain_recharge_sum: float = 0.0
+    population_2025: float = 0.0
+    unmetered_supply: float = 15.0
+    population_data: dict[str, float] | None = None  # {year: total_pop}
+    load_method: Literal["manual", "modeled"] = "modeled"
+
+
 class StudyAreaMapRequest(BaseModel):
     village_codes: list[int | str]
