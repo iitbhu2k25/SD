@@ -75,7 +75,7 @@ const MapContext = createContext<MapContextType>({
   isMapLoading: false,
   zoomToFeature: () => {},
   resetMapView: () => {},
-  geoServerUrl: "/geoserver/api",
+  geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   defaultWorkspace: "dss_vector",
   ADMIN_LAYER_NAMES,
   loading: false,

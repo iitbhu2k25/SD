@@ -26,7 +26,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <Header />
           <Navbar />
 
-          <main className="flex-1 flex flex-col w-full min-h-screen overflow-hidden">
+          <main className="flex-1 flex flex-col w-full min-h-0 overflow-hidden">
             {children}
           </main>
 

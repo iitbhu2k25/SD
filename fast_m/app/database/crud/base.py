@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from fastapi_pagination import Page,add_pagination,paginate
 import sqlalchemy as sq
 
 class CrudBase:
