@@ -738,6 +738,7 @@ export default function SewageModule() {
       stormResult,
       rawItems: rawItems as any[] | null,
       rawCoeff,
+      domesticMode: sdMode,
     };
     const nextHash = JSON.stringify(payload);
     if (nextHash !== reportHashRef.current) {
@@ -762,6 +763,7 @@ export default function SewageModule() {
     stormResult,
     rawItems,
     rawCoeff,
+    sdMode,
     setSewageReportData,
   ]);
 

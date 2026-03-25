@@ -62,6 +62,7 @@ export interface SewageReportData {
   stormResult: any;
   rawItems: any[] | null;
   rawCoeff: number | null;
+  domesticMode: 'manual' | 'modeled';
 }
 
 interface BasicStore {
