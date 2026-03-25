@@ -1,6 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from fastapi.responses import FileResponse
 from app.api.schema.water_schema import StretchesOutput, DrainOutput, DrainInput, StretchesInput, WaterDrainLocationInput
 import logging
+from pathlib import Path
+import shutil
+import tempfile
+import requests
+from requests.auth import HTTPBasicAuth
 
 from app.api.schema.water_schema import (
     WaterAdminLocationInput,
@@ -18,6 +24,83 @@ from app.api.service.water.water_service import StretchLocation, WaterAvailabili
 from app.database.config.dependency import db_dependency
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _download_raster_via_wms_geotiff(
+    mapper: WaterAvailabilityMapper,
+    layer_name: str,
+    workspace: str,
+    temp_dir: Path,
+) -> Path | None:
+    processor = mapper.processor
+    auth = HTTPBasicAuth(processor.username, processor.password)
+
+    layer_url = (
+        f"{processor.geoserver_url}/rest/workspaces/{workspace}/layers/{layer_name}.json"
+    )
+    layer_resp = requests.get(layer_url, auth=auth, timeout=20)
+    if layer_resp.status_code != 200:
+        return None
+
+    layer_json = layer_resp.json()
+    resource_href = layer_json.get("layer", {}).get("resource", {}).get("href")
+    if not resource_href:
+        return None
+
+    coverage_resp = requests.get(resource_href, auth=auth, timeout=20)
+    if coverage_resp.status_code != 200:
+        return None
+
+    coverage_json = coverage_resp.json().get("coverage", {})
+    bbox = coverage_json.get("latLonBoundingBox") or coverage_json.get("nativeBoundingBox")
+    if not bbox:
+        return None
+
+    minx = bbox.get("minx")
+    miny = bbox.get("miny")
+    maxx = bbox.get("maxx")
+    maxy = bbox.get("maxy")
+    bbox_crs = str(bbox.get("crs") or "EPSG:4326")
+    if None in (minx, miny, maxx, maxy):
+        return None
+
+    minx = float(minx)
+    miny = float(miny)
+    maxx = float(maxx)
+    maxy = float(maxy)
+    span_x = max(maxx - minx, 1e-9)
+    span_y = max(maxy - miny, 1e-9)
+    width = 2048
+    height = max(256, min(4096, int(round(width * (span_y / span_x)))))
+
+    wms_url = f"{processor.geoserver_url}/wms"
+    params = {
+        "service": "WMS",
+        "version": "1.1.1",
+        "request": "GetMap",
+        "layers": f"{workspace}:{layer_name}",
+        "styles": "",
+        "srs": bbox_crs,
+        "bbox": f"{minx},{miny},{maxx},{maxy}",
+        "width": width,
+        "height": height,
+        "format": "image/geotiff",
+        "transparent": "true",
+    }
+
+    wms_resp = requests.get(wms_url, params=params, auth=auth, timeout=60)
+    if wms_resp.status_code != 200:
+        logger.warning(
+            "WMS GeoTIFF fallback failed for %s:%s with status %s",
+            workspace,
+            layer_name,
+            wms_resp.status_code,
+        )
+        return None
+
+    raster_path = temp_dir / f"{layer_name}.tif"
+    raster_path.write_bytes(wms_resp.content)
+    return raster_path
 
 
 
@@ -94,6 +177,67 @@ def process_drain_raster(payload: WaterDrainLocationInput):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process drain raster: {str(e)}",
+        )
+
+
+@router.get(
+    "/download_raster",
+    status_code=status.HTTP_200_OK,
+    response_class=FileResponse,
+)
+def download_raster(
+    layer_name: str,
+    background_tasks: BackgroundTasks,
+    workspace: str = "dss_raster",
+    filename: str | None = None,
+):
+    try:
+        mapper = WaterAvailabilityMapper()
+        temp_dir = Path(tempfile.mkdtemp(prefix="water_raster_download_"))
+        download_result = mapper.processor.download_raster_from_geoserver(
+            layer_name=layer_name,
+            workspace=workspace,
+            output_dir=temp_dir,
+        )
+
+        raster_path: Path | None = None
+        if download_result and download_result.get("raster_path"):
+            raster_path = Path(download_result["raster_path"])
+        else:
+            raster_path = _download_raster_via_wms_geotiff(
+                mapper=mapper,
+                layer_name=layer_name,
+                workspace=workspace,
+                temp_dir=temp_dir,
+            )
+
+        if raster_path is None:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Raster download failed or layer not found in GeoServer.",
+            )
+
+        if not raster_path.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Downloaded raster file was not found on the server.",
+            )
+
+        background_tasks.add_task(shutil.rmtree, temp_dir, True)
+        return FileResponse(
+            path=str(raster_path),
+            media_type="image/tiff",
+            filename=filename or raster_path.name,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Water raster download failed: %s", str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to download raster: {str(e)}",
         )
     
 

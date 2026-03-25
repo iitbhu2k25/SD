@@ -1165,6 +1165,86 @@
 import React, { useState, useEffect } from "react";
 import { generateWaterAnalysisPDF } from "./WaterAnalysisPDF";
 
+interface LegendClass {
+  class: number;
+  color: string;
+  min: number;
+  max: number;
+  label: string;
+}
+
+interface LegendData {
+  region_min: number;
+  region_max: number;
+  region_mean: number;
+  classes: LegendClass[];
+}
+
+interface ClassPixelCount {
+  class: number;
+  color: string;
+  label: string;
+  pixel_count: number;
+}
+
+interface IndexRasterLike {
+  year?: number;
+  legend_data?: LegendData;
+  class_pixel_counts?: ClassPixelCount[];
+}
+
+const computeClassShares = (
+  raster: IndexRasterLike
+): { label: string; color: string; pct: number }[] => {
+  const classCounts = (raster.class_pixel_counts ?? [])
+    .filter(
+      (item) =>
+        item.class >= 1 &&
+        item.class <= 10 &&
+        Number.isFinite(item.pixel_count) &&
+        (item.pixel_count ?? 0) > 0
+    )
+    .sort((a, b) => a.class - b.class);
+
+  if (classCounts.length > 0) {
+    const totalPixelCount =
+      classCounts.reduce((sum, item) => sum + (item.pixel_count ?? 0), 0) || 1;
+
+    return classCounts.map((item) => ({
+      label: item.label,
+      color: item.color,
+      pct: ((item.pixel_count ?? 0) / totalPixelCount) * 100,
+    }));
+  }
+
+  const legendData = raster.legend_data;
+  if (!legendData) return [];
+
+  const validClasses = legendData.classes.filter(
+    (item) => item.min !== 9999 && item.max !== 9999
+  );
+  if (validClasses.length === 0) return [];
+
+  const mean = legendData.region_mean;
+  const totalRange = legendData.region_max - legendData.region_min || 1;
+  const sigma = totalRange / 3;
+
+  const weights = validClasses.map((item) => {
+    const mid = (item.min + item.max) / 2;
+    const rangeWidth = item.max - item.min;
+    const gaussian = Math.exp(-0.5 * Math.pow((mid - mean) / sigma, 2));
+    return rangeWidth * gaussian;
+  });
+
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || 1;
+
+  return validClasses.map((item, index) => ({
+    label: item.label,
+    color: item.color,
+    pct: (weights[index] / totalWeight) * 100,
+  }));
+};
+
 interface PDFExportButtonProps {
   exportData: any;
   rasterResponse: any;
@@ -1466,6 +1546,98 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
   };
 
   // ── Click handler ────────────────────────────────────────
+  const captureIndexCharts = async (): Promise<{ url: string; year: number }[]> => {
+    try {
+      const Plotly = (await import("plotly.js-dist-min")).default;
+      const rasters = [...(rasterResponse?.clipped_rasters ?? [])].sort(
+        (a, b) => (a.year ?? 0) - (b.year ?? 0)
+      );
+      const results: { url: string; year: number }[] = [];
+
+      for (const raster of rasters) {
+        const year = Number(raster?.year);
+        if (!Number.isFinite(year)) continue;
+
+        const visibleShares = computeClassShares(raster).filter(
+          (share) => share.pct > 0.05
+        );
+        if (visibleShares.length === 0) continue;
+
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "fixed";
+        tempDiv.style.left = "-10000px";
+        tempDiv.style.top = "0";
+        tempDiv.style.width = "880px";
+        tempDiv.style.height = "640px";
+        document.body.appendChild(tempDiv);
+
+        try {
+          await Plotly.newPlot(
+            tempDiv,
+            [
+              {
+                type: "pie",
+                hole: 0.56,
+                values: visibleShares.map((item) => Number(item.pct.toFixed(2))),
+                labels: visibleShares.map((item) => item.label),
+                marker: {
+                  colors: visibleShares.map((item) => item.color),
+                  line: { color: "#f8fafc", width: 3 },
+                },
+                textinfo: "percent",
+                textposition: "outside",
+                textfont: { size: 18, color: "#334155" },
+                automargin: true,
+                hoverinfo: "skip",
+                sort: false,
+                direction: "clockwise",
+              },
+            ],
+            {
+              paper_bgcolor: "#ffffff",
+              plot_bgcolor: "#ffffff",
+              margin: { t: 28, r: 64, b: 28, l: 64 },
+              showlegend: false,
+              annotations: [
+                {
+                  text: `<b>${year}</b>`,
+                  x: 0.5,
+                  y: 0.5,
+                  xanchor: "center",
+                  yanchor: "middle",
+                  showarrow: false,
+                  font: { size: 24, color: "#0f172a" },
+                },
+              ],
+            },
+            {
+              responsive: false,
+              displayModeBar: false,
+              staticPlot: true,
+            }
+          );
+
+          const imageUrl = (await (Plotly as any).toImage(tempDiv, {
+            format: "png",
+            width: 1100,
+            height: 800,
+            scale: 2,
+          })) as string;
+
+          results.push({ url: imageUrl, year });
+        } finally {
+          Plotly.purge(tempDiv);
+          tempDiv.remove();
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.warn("Index donut chart capture failed:", error);
+      return [];
+    }
+  };
+
   const handleDownload = () => {
     setIsGenerating(true);
     setStatus("loading");
@@ -1476,7 +1648,10 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
 
     setTimeout(async () => {
       try {
-        const capturedChart = await captureChart();
+        const isIndexProduct =
+          String(exportData?.productType ?? "").toLowerCase() === "index";
+        const capturedIndexCharts = isIndexProduct ? await captureIndexCharts() : [];
+        const capturedChart = isIndexProduct ? null : await captureChart();
 
         const rawYear   = String(exportData.year);
         const yearArr   = rawYear.split(",").map((y) => parseInt(y.trim(), 10)).filter(Boolean);
@@ -1487,6 +1662,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
         console.log("📤 PDF ko ja raha data:", {
           mapImageUrlsCount:    mapImageUrls.length,
           legendImageUrlsCount: legendImageUrls.length,
+          chartImageUrlsCount: capturedIndexCharts.length,
           chartImageUrl:        capturedChart ? `✅ (${capturedChart.length} chars)` : "❌ null",
           startYear,
           endYear,
@@ -1498,6 +1674,7 @@ export const PDFExportButton: React.FC<PDFExportButtonProps> = ({
           subdistrictCodes,
           mapImageUrls:    mapImageUrls.length    > 0 ? mapImageUrls    : undefined,
           legendImageUrls: legendImageUrls.length > 0 ? legendImageUrls : undefined,
+          chartImageUrls:  capturedIndexCharts.length > 0 ? capturedIndexCharts : undefined,
           chartImageUrl:   capturedChart ?? undefined,
         });
 

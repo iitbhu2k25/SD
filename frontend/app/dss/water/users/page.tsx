@@ -341,7 +341,15 @@ const MainContent = () => {
   } = useRiverSystem();
 
   // ✅ FIX: setRasterLayerInfo add kiya - map ko raster data milega
-  const { loading, isMapLoading, stpOperation, setCatchmentLayer, setRasterLayerInfo } = useMap();
+  const { loading, isMapLoading, stpOperation, setCatchmentLayer, setRasterLayerInfo, rasterLayerInfo } = useMap();
+
+  const availableYears: number[] = React.useMemo(() => {
+    if (!rasterResponse?.clipped_rasters) return [];
+    const yearSet = new Set<number>(
+      rasterResponse.clipped_rasters.map((r: any) => r.year as number)
+    );
+    return Array.from(yearSet).sort((a, b) => a - b);
+  }, [rasterResponse]);
 
   const transformRasterResponseToWaterBudget = (
     rasterResponse: any,
@@ -559,7 +567,14 @@ const MainContent = () => {
                 <div className={`flex gap-4 ${isIndexProduct ? 'flex-col' : 'flex-row'}`}>
 
                   {/* Left: Water Budget Card */}
-                  {!isIndexProduct && <WaterBudget {...waterBudgetData} />}
+                  {!isIndexProduct && (
+                    <WaterBudget
+                      {...waterBudgetData}
+                      availableYears={availableYears}
+                      activeYear={activeYear}
+                      onYearChange={handleYearChange}
+                    />
+                  )}
 
                   {/* Right: Export Card with PDFExportButton inside */}
                   <div className="flex-1 p-4 bg-green-50 rounded-xl border-2 border-green-300 shadow-sm flex flex-col justify-between min-h-[110px]">
@@ -593,6 +608,8 @@ const MainContent = () => {
                     rasterResponse={rasterResponse}
                     timeScale={waterBudgetData.timeScale}
                     productType={waterBudgetData.productType}
+                    activeYear={activeYear}
+                    currentRaster={rasterLayerInfo}
                   />
                 )}
 
@@ -602,6 +619,7 @@ const MainContent = () => {
                     activeYear={activeYear}
                     onYearChange={handleYearChange}
                     timeScale={waterBudgetData.timeScale}
+                    currentRaster={rasterLayerInfo}
                   />
                 )}
               </section>

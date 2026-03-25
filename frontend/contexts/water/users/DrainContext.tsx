@@ -43,6 +43,7 @@ export interface RiverSelectionsData {
 }
 
 export interface ClipRasters {
+  legend_data: null;
   original_name: string;
   layer_name: string;
   layer_type: string;

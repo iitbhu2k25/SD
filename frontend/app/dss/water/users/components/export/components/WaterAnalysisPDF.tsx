@@ -1172,17 +1172,26 @@ interface WaterAnalysisPDFOptions {
   subdistrictCodes?: number[];
   mapImageUrls?:    { url: string; year: number }[];
   legendImageUrls?: { url: string; year: number }[];  // ✅ per-raster legends
+  chartImageUrls?:  { url: string; year: number }[];
   chartImageUrl?: string;
 }
 
 export async function generateWaterAnalysisPDF(
   options: WaterAnalysisPDFOptions
 ): Promise<void> {
-  const { exportData, rasterResponse, mapImageUrls, legendImageUrls, chartImageUrl } = options;
+  const {
+    exportData,
+    rasterResponse,
+    mapImageUrls,
+    legendImageUrls,
+    chartImageUrls,
+    chartImageUrl,
+  } = options;
 
 const { season, productType, timeScale } = exportData;
   const clippedRasters   = rasterResponse?.clipped_rasters ?? [];
   const totalWaterBudget = clippedRasters[0]?.volume_MLD ?? 0;
+  const isIndexProduct   = String(productType ?? "").toLowerCase() === "index";
 
   // ✅ Start/End year — clipped_rasters se derive karo (most reliable source)
   const rasterYears  = clippedRasters.map((r: RasterData) => r.year).filter(Boolean) as number[];
@@ -1549,18 +1558,20 @@ metaLines.forEach(([label, value]) => {
   ensureSpace(30); hRule(); sectionHeading("4. Results");
   addText("Pixel-level water balance components are first computed as depth (mm) and then converted to volume (million liters) using the 0.25 km2 pixel area, allowing aggregation from local to basin scale. For the analysis period, annual totals of precipitation, evapotranspiration, runoff, and net water balance are derived, with indicative averages of about 930 mm of precipitation and 400 mm of evapotranspiration, yielding an ET/P ratio near 0.43 that is consistent with an agriculture-dominated Indo-Gangetic alluvial basin where the remaining water is distributed between runoff, infiltration, and changes in storage.");
 
-  // Water Budget Summary card
-  ensureSpace(45);
-  doc.setFillColor(240, 249, 255); doc.setDrawColor(22, 78, 99); doc.setLineWidth(0.6);
-  doc.roundedRect(M, y, CW, 38, 4, 4, "FD");
-  doc.setFontSize(12); doc.setFont("times", "bold"); doc.setTextColor(22, 78, 99);
-  doc.text("Water Budget Summary", M + 6, y + 10);
-  doc.setFontSize(22); doc.setFont("times", "bold"); doc.setTextColor(0, 0, 0);
-  const budgetStr = totalWaterBudget.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  doc.text(`${budgetStr} MLD`, PW / 2, y + 24, { align: "center" });
-  doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(100, 100, 100);
-  doc.text("Million Liters per Day (MLD)", PW / 2, y + 32, { align: "center" });
-  y += 44;
+  if (!isIndexProduct) {
+    // Water Budget Summary card
+    ensureSpace(45);
+    doc.setFillColor(240, 249, 255); doc.setDrawColor(22, 78, 99); doc.setLineWidth(0.6);
+    doc.roundedRect(M, y, CW, 38, 4, 4, "FD");
+    doc.setFontSize(12); doc.setFont("times", "bold"); doc.setTextColor(22, 78, 99);
+    doc.text("Water Budget Summary", M + 6, y + 10);
+    doc.setFontSize(22); doc.setFont("times", "bold"); doc.setTextColor(0, 0, 0);
+    const budgetStr = totalWaterBudget.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    doc.text(`${budgetStr} MLD`, PW / 2, y + 24, { align: "center" });
+    doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(100, 100, 100);
+    doc.text("Million Liters per Day (MLD)", PW / 2, y + 32, { align: "center" });
+    y += 44;
+  }
 
   ensureSpace(20);
   doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(0, 0, 0);
@@ -1740,7 +1751,7 @@ metaLines.forEach(([label, value]) => {
   }
 
   // Raster Details
-  if (clippedRasters.length > 0) {
+  if (!isIndexProduct && clippedRasters.length > 0) {
     ensureSpace(20);
     sectionHeading("Processed Raster Layers", 2);
     clippedRasters.forEach((raster, idx) => {
@@ -1762,7 +1773,61 @@ metaLines.forEach(([label, value]) => {
   // ==============================================
   //  CHART
   // ==============================================
-  if (chartImageUrl) {
+  if (isIndexProduct && chartImageUrls && chartImageUrls.length > 0) {
+    newPage();
+    sectionHeading("Year-wise Index Class Distribution", 2);
+    addText("The following donut charts show year-wise class distribution for the selected index product. Each chart summarizes the percentage share of SWCI classes for that year.");
+
+    const sortedChartImages = [...chartImageUrls].sort((a, b) => a.year - b.year);
+    const chartsPerPage = 2;
+    const cardW = CW * 0.7;
+    const imageW = cardW - 14;
+    const imageH = imageW * (800 / 1100);
+    const cardH = imageH + 18;
+    const cardX = M + (CW - cardW) / 2;
+
+    for (let index = 0; index < sortedChartImages.length; index += 1) {
+      if (index > 0 && index % chartsPerPage === 0) {
+        newPage();
+      }
+
+      const rowItems = sortedChartImages.slice(index, index + 1);
+      ensureSpace(cardH + 10);
+
+      rowItems.forEach((item) => {
+        const x = cardX;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(x, y, cardW, cardH, 3, 3, "FD");
+
+        try {
+          doc.addImage(item.url, "PNG", x + 7, y + 6, imageW, imageH);
+        } catch (_) {
+          doc.setFontSize(9);
+          doc.setFont("times", "italic");
+          doc.setTextColor(150, 0, 0);
+          doc.text("[Chart image could not be loaded]", x + cardW / 2, y + cardH / 2, {
+            align: "center",
+          });
+        }
+
+        doc.setFontSize(9);
+        doc.setFont("times", "italic");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Year ${item.year}`, x + cardW / 2, y + cardH - 5, { align: "center" });
+      });
+
+      y += cardH + 10;
+    }
+
+    doc.setFontSize(9);
+    doc.setFont("times", "italic");
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Figure: Year-wise ${productType} class distribution - ${season} ${year}-${endYearFinal}`, PW / 2, y, { align: "center" });
+    y += 10;
+  } else if (chartImageUrl) {
     ensureSpace(100);
     sectionHeading("Year-wise Water Volume Trend", 2);
     addText("The following chart shows the year-wise variation in water volume (MLD) for the selected product and time scale. The dashed line represents the long-term average across the analysis period.");

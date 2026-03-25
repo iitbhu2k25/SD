@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import Plotly from 'plotly.js-dist-min';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,6 +36,9 @@ interface ClassPixelCount {
 
 interface ClippedRaster {
   year: number;
+  layer_name?: string;
+  workspace?: string;
+  original_name?: string;
   volume_MLD?: number;
   pixel_count?: number;
   invalid_count?: number;
@@ -60,9 +63,16 @@ interface IndexChartProps {
   activeYear?: number | null;
   onYearChange?: (year: number) => void;
   timeScale?: string;
+  currentRaster?: Partial<ClippedRaster> | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const PIXEL_COUNT_MULTIPLIER = 0.25;
+const FAST_M_BASE_URL = process.env.NEXT_PUBLIC_FAST_URL || '/fastapi';
+
+const getAdjustedPixelCount = (pixelCount?: number) =>
+  (pixelCount ?? 0) * PIXEL_COUNT_MULTIPLIER;
 
 const computeClassShares = (
   raster: ClippedRaster
@@ -129,25 +139,49 @@ const toExcelSafeText = (value?: string) => {
   return `'${value}`;
 };
 
+const getClassPercentageMap = (raster: ClippedRaster) => {
+  const classCounts = (raster.class_pixel_counts ?? []).filter(
+    (item) =>
+      item.class >= 1 &&
+      item.class <= 10 &&
+      Number.isFinite(item.pixel_count) &&
+      (item.pixel_count ?? 0) > 0
+  );
+
+  const totalPixelCount =
+    classCounts.reduce((sum, item) => sum + (item.pixel_count ?? 0), 0) || 1;
+
+  return new Map(
+    classCounts.map((item) => [
+      item.class,
+      ((item.pixel_count ?? 0) / totalPixelCount) * 100,
+    ])
+  );
+};
+
 const downloadCSV = (raster: ClippedRaster | null) => {
   if (!raster) return;
 
+  const classPercentageMap = getClassPercentageMap(raster);
   const metaLines = [
     `Product: Index`,
     `Exported on: ${new Date().toLocaleDateString('en-IN')}`,
     `Year: ${raster.year}`,
+    `*SWCI: Soil Water Content Index`,
     '',
   ];
-  const header = 'Class,Class Name,SWCI Range,Pixel Count';
+  const header = 'Class,Class Name,SWCI Range,Area (Km\u00B2),Area(%)';
   const rows   = (raster.class_pixel_counts ?? []).map((item) =>
     [
       item.class,
       escapeCSVCell(item.label),
       escapeCSVCell(toExcelSafeText(item.swci_range)),
-      item.pixel_count ?? 0,
+      getAdjustedPixelCount(item.pixel_count),
+      escapeCSVCell(`${(classPercentageMap.get(item.class) ?? 0).toFixed(2)}%`),
     ].join(',')
   );
-  const blob = new Blob([[...metaLines, header, ...rows].join('\n')], {
+  const csvContent = [...metaLines, header, ...rows].join('\n');
+  const blob = new Blob(['\uFEFF', csvContent], {
     type: 'text/csv;charset=utf-8;',
   });
   const url = URL.createObjectURL(blob);
@@ -156,6 +190,64 @@ const downloadCSV = (raster: ClippedRaster | null) => {
   a.download = `Index_Class_Pixel_Count_${raster.year}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+const sanitizeFilename = (value: string) =>
+  value
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'clipped_raster';
+
+const buildTiffFilename = (productType: string, raster: ClippedRaster) =>
+  sanitizeFilename(
+    [productType, raster.season && raster.season !== 'Annual' ? raster.season : null, raster.year]
+      .filter(Boolean)
+      .join('_')
+  );
+
+const downloadTIFF = async (
+  raster: ClippedRaster | null,
+  productType: string
+) => {
+  if (!raster?.layer_name || !raster.workspace) return;
+
+  const fileName = buildTiffFilename(productType, raster);
+  const query = new URLSearchParams({
+    layer_name: raster.layer_name,
+    workspace: raster.workspace,
+    filename: fileName,
+    format: 'tiff',
+  });
+  const response = await fetch(
+    `${FAST_M_BASE_URL}/water/download_raster?${query.toString()}`,
+    {
+      credentials: 'include',
+    }
+  );
+
+  if (!response.ok) {
+    let errorMessage = `TIFF download failed (${response.status})`;
+
+    try {
+      const errorPayload = await response.json();
+      if (typeof errorPayload?.error === 'string') {
+        errorMessage = errorPayload.error;
+      }
+    } catch {
+      // Keep fallback message if JSON parsing fails.
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = `${fileName}.tif`;
+  link.click();
+  URL.revokeObjectURL(blobUrl);
 };
 
 // ─── Donut Chart ──────────────────────────────────────────────────────────────
@@ -263,16 +355,18 @@ const IndexHistogram: React.FC<{
 
     const trace: Plotly.Data = {
       x: classLabels,
-      y: classMeta.map((item) => item.pixel_count ?? 0),
+      y: classMeta.map((item) => getAdjustedPixelCount(item.pixel_count)),
       type: 'bar',
       marker: {
         color: classMeta.map((item) => item.color),
         line: { color: '#ffffff', width: 1 },
       },
-      hovertext: classMeta.map(
-        (item) =>
-          `<b>Year:</b> ${year ?? ''}<br><b>Class:</b> ${item.class}<br><b>${item.label}</b><br><b>Pixel Count:</b> ${(item.pixel_count ?? 0).toLocaleString("en-IN")}`
-      ),
+      hovertext: classMeta.map((item) => {
+        const adjustedPixelCount = getAdjustedPixelCount(item.pixel_count);
+        return `<b>Year:</b> ${year ?? ''}<br><b>Class:</b> ${item.class}<br><b>${item.label}</b><br><b>Area (km²):</b> ${adjustedPixelCount.toLocaleString("en-IN", {
+          maximumFractionDigits: 2,
+        })}`;
+      }),
       hoverinfo: 'text',
     };
 
@@ -287,7 +381,7 @@ const IndexHistogram: React.FC<{
         tickfont: { size: 10 },
       },
       yaxis: {
-        title:     { text: 'Pixel Count', font: { size: 11 } },
+        title:     { text: 'Area (km²)', font: { size: 11 } },
         showgrid:  true,
         gridcolor: '#e5e7eb',
         tickfont:  { size: 10 },
@@ -328,6 +422,7 @@ const IndexChart: React.FC<IndexChartProps> = ({
   activeYear,
   onYearChange,
   timeScale = 'yearly',
+  currentRaster = null,
 }) => {
   const allData = useMemo(() => {
     if (!rasterResponse?.clipped_rasters?.length) return [];
@@ -347,14 +442,37 @@ const IndexChart: React.FC<IndexChartProps> = ({
         : allData[0] ?? null,
     [allData, activeYear]
   );
+  const downloadRaster = useMemo(
+    () =>
+      currentRaster?.layer_name && currentRaster?.workspace
+        ? ({ ...(activeRaster ?? {}), ...currentRaster } as ClippedRaster)
+        : activeRaster,
+    [activeRaster, currentRaster]
+  );
 
   const displayYear = activeRaster?.year ?? null;
   const histogramData = useMemo(
     () => activeRaster?.class_pixel_counts ?? [],
     [activeRaster]
   );
+  const [isTiffDownloading, setIsTiffDownloading] = useState(false);
 
   const handleCSV = useCallback(() => downloadCSV(activeRaster), [activeRaster]);
+  const handleTIFF = useCallback(async () => {
+    if (isTiffDownloading) return;
+
+    try {
+      setIsTiffDownloading(true);
+      await downloadTIFF(downloadRaster, 'Index');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to download TIFF file.';
+      console.error(message);
+      window.alert(message);
+    } finally {
+      setIsTiffDownloading(false);
+    }
+  }, [downloadRaster, isTiffDownloading]);
 
   if (!rasterResponse || allData.length === 0) {
     return (
@@ -380,26 +498,54 @@ const IndexChart: React.FC<IndexChartProps> = ({
               : 'Annual'} · {allData[0]?.year}–{allData[allData.length - 1]?.year}
           </p>
         </div>
-        <button
-          onClick={handleCSV}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
-                     bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95
-                     transition-all duration-150 shadow-sm whitespace-nowrap"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-3.5 w-3.5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleTIFF}
+            disabled={
+              !downloadRaster?.layer_name ||
+              !downloadRaster?.workspace ||
+              isTiffDownloading
+            }
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
+                       bg-blue-600 text-white hover:bg-blue-700 active:scale-95 disabled:bg-blue-300 disabled:cursor-not-allowed
+                       transition-all duration-150 shadow-sm whitespace-nowrap"
           >
-            <path
-              fillRule="evenodd"
-              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Download CSV
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3.5 w-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            {isTiffDownloading ? 'Downloading TIF...' : 'Download TIF'}
+          </button>
+
+          <button
+            onClick={handleCSV}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
+                       bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95
+                       transition-all duration-150 shadow-sm whitespace-nowrap"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3.5 w-3.5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Download CSV
+          </button>
+        </div>
       </div>
 
       {/* ── Two Column: Donut | Histogram ── */}
@@ -483,7 +629,7 @@ const IndexChart: React.FC<IndexChartProps> = ({
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
           <div className="mb-2">
             <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              Selected Year Class Pixel Count
+              Selected Year Class Area (km²)
             </p>
             
           </div>

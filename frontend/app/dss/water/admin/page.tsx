@@ -575,7 +575,7 @@ const MainContent = () => {
     selectedStateName,
   } = useLocation();
 
-  const { loading } = useMap();
+  const { loading, rasterLayerInfo } = useMap();
   const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
@@ -765,6 +765,8 @@ const MainContent = () => {
                       rasterResponse={rasterResponse}
                       timeScale={waterBudgetData.timeScale}
                       productType={waterBudgetData.productType}
+                      activeYear={activeYear}
+                      currentRaster={rasterLayerInfo}
                     />
                   </section>
                 )}
@@ -777,6 +779,7 @@ const MainContent = () => {
                       activeYear={activeYear}
                       onYearChange={handleYearChange}
                       timeScale={waterBudgetData.timeScale}
+                      currentRaster={rasterLayerInfo}
                     />
                   </section>
                 )}
