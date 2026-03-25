@@ -11,6 +11,10 @@ import React, {
 import { useRiverSystem } from "@/contexts/water/users/DrainContext";
 import { DRAIN_LAYER_NAMES } from "@/interface/raster_context";
 import {ClipRasters} from "@/contexts/water/users/DrainContext";
+
+const WATER_PRIMARY_LAYER: string | null = null;
+const WATER_BOUNDARY_LAYER: string | null = DRAIN_LAYER_NAMES.BOUNDARY;
+const WATER_CATCHMENT_LAYER = "Catchment";
 interface LayerFilter {
   filterField: string | null;
   filterValue: number[] |string[] | null;
@@ -18,7 +22,7 @@ interface LayerFilter {
 
 
 interface MapContextType {
-  primaryLayer: string;
+  primaryLayer: string | null;
   riverLayer: string | null;
   stretchLayer: string | null;
   drainLayer: string | null;
@@ -35,7 +39,7 @@ interface MapContextType {
   
   stpOperation: boolean;
   setstpOperation: (operation: boolean) => void;
-  setPrimaryLayer: (layer: string) => void;
+  setPrimaryLayer: (layer: string | null) => void;
   setRiverLayer: (layer: string | null) => void;
   setStretchLayer: (layer: string | null) => void;
   setDrainLayer: (layer: string | null) => void;
@@ -73,7 +77,7 @@ interface MapProviderProps {
 
 // Create the map context with default values
 const MapContext = createContext<MapContextType>({
-  primaryLayer: DRAIN_LAYER_NAMES.INDIA,
+  primaryLayer: WATER_PRIMARY_LAYER,
   riverLayer: null,
   stretchLayer: null,
   drainLayer: null,
@@ -123,12 +127,12 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "dss_vector",
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
-  const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
+  const [primaryLayer, setPrimaryLayer] = useState<string | null>(WATER_PRIMARY_LAYER);
+  const [boundarylayer, setboundarylayer] = useState<string | null>(WATER_BOUNDARY_LAYER);
   const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER); 
   const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH); 
   const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); 
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(null); 
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(WATER_CATCHMENT_LAYER); 
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(true);
@@ -230,7 +234,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
         filterValue: selectedDrain !== null ? [selectedDrain] : null
       });
       console.log("Selected Drain no:", selectedDrain);
-      setCatchmentLayer(DRAIN_LAYER_NAMES.CATCHMENT);
+      setCatchmentLayer(WATER_CATCHMENT_LAYER);
       setCatchmentFilter({
         filterField: "Drain_No", 
         filterValue: selectedDrain !== null ? [selectedDrain] : null,

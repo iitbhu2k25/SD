@@ -209,6 +209,7 @@ const Maping: React.FC = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [showHeaderButtons, setShowHeaderButtons] = useState<boolean>(false);
   const [activeYear, setActiveYear] = useState<number | null>(null);
+  const [legendData, setLegendData] = useState<any>(null);
 
   const [showRiverLayer, setShowRiverLayer] = useState<boolean>(true);
   const [showStretchLayer, setShowStretchLayer] = useState<boolean>(true);
@@ -494,6 +495,7 @@ const Maping: React.FC = () => {
       setSelectedradioLayer(null);
       setShowLegend(false);
       setActiveYear(null);
+      setLegendData(null);
       return;
     }
 
@@ -516,91 +518,128 @@ const Maping: React.FC = () => {
         setRasterLayerInfo(rasterForYear);
         setSelectedradioLayer(rasterForYear.layer_name);
         setShowLegend(true);
+        setLegendData(rasterForYear.legend_data ?? null);
       }
     }
   }, [activeYear, displayRaster]);
 
-  // Handle primary layer
+  // Handle primary layer and boundary layer independently
   useEffect(() => {
-    if (!mapInstanceRef.current || !primaryLayer) return;
+    if (!mapInstanceRef.current) return;
 
-    setIsLoading(true);
     setError(null);
-
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
-    const boundaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`;
-
-    const primaryVectorSource = new VectorSource({
-      format: new GeoJSON(),
-      url: primaryWfsUrl,
-    });
-
-    const boundaryVectorSource = new VectorSource({
-      format: new GeoJSON(),
-      url: boundaryWfsUrl,
-    });
-
-    const primaryVectorLayer = new VectorLayer({
-      source: primaryVectorSource,
-      style: createVectorStyle("primary", showTitles),
-      zIndex: 1,
-      visible: true,
-    });
-
-    const boundaryVectorLayer = new VectorLayer({
-      source: boundaryVectorSource,
-      style: new Style({
-        stroke: new Stroke({
-          color: "#301934",
-          width: 2,
-        }),
-        fill: new Fill({
-          color: "rgba(48, 25, 52, 0.1)", // Very transparent fill for boundary
-        }),
-      }),
-      zIndex: 2,
-      visible: true,
-    });
-
-    const handleFeaturesLoaded = (event: any) => {
-      const numFeatures = event.features ? event.features.length : 0;
-      setFeatureCounts((prev) => ({ ...prev, primary: numFeatures }));
-      setIsLoading(false);
-
-      const primaryExtent = primaryVectorSource.getExtent();
-      if (primaryExtent && primaryExtent.some((val) => isFinite(val))) {
-        mapInstanceRef.current?.getView().fit(primaryExtent, {
-          padding: [50, 50, 50, 50],
-          duration: 1000,
-        });
-      }
-    };
-
-    const handleFeaturesError = () => {
-      setIsLoading(false);
-      setError("Failed to load primary features");
-    };
-
-    primaryVectorSource.on("featuresloadend", handleFeaturesLoaded);
-    primaryVectorSource.on("featuresloaderror", handleFeaturesError);
 
     if (primaryLayerRef.current) {
       mapInstanceRef.current.removeLayer(primaryLayerRef.current);
+      primaryLayerRef.current = null;
     }
     if (boundaryLayerRef.current) {
       mapInstanceRef.current.removeLayer(boundaryLayerRef.current);
+      boundaryLayerRef.current = null;
     }
 
-    mapInstanceRef.current.addLayer(boundaryVectorLayer);
-    mapInstanceRef.current.addLayer(primaryVectorLayer);
-    primaryLayerRef.current = primaryVectorLayer;
-    boundaryLayerRef.current = boundaryVectorLayer;
+    if (!primaryLayer && !boundarylayer) {
+      setFeatureCounts((prev) => ({ ...prev, primary: 0 }));
+      return;
+    }
+
+    setIsLoading(true);
+
+    const cleanups: Array<() => void> = [];
+
+    if (boundarylayer) {
+      const boundaryVectorSource = new VectorSource({
+        format: new GeoJSON(),
+        url: `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`,
+      });
+
+      const boundaryVectorLayer = new VectorLayer({
+        source: boundaryVectorSource,
+        style: new Style({
+          stroke: new Stroke({
+            color: "#301934",
+            width: 2,
+          }),
+          fill: new Fill({
+            color: "rgba(48, 25, 52, 0.1)",
+          }),
+        }),
+        zIndex: 2,
+        visible: true,
+      });
+
+      const handleBoundaryLoaded = () => {
+        if (!primaryLayer && !hasSelections) {
+          const boundaryExtent = boundaryVectorSource.getExtent();
+          if (boundaryExtent && boundaryExtent.some((val) => isFinite(val))) {
+            mapInstanceRef.current?.getView().fit(boundaryExtent, {
+              padding: [50, 50, 50, 50],
+              duration: 1000,
+            });
+          }
+        }
+      };
+
+      boundaryVectorSource.on("featuresloadend", handleBoundaryLoaded);
+      cleanups.push(() =>
+        boundaryVectorSource.un("featuresloadend", handleBoundaryLoaded),
+      );
+
+      mapInstanceRef.current.addLayer(boundaryVectorLayer);
+      boundaryLayerRef.current = boundaryVectorLayer;
+    }
+
+    if (primaryLayer) {
+      const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+
+      const primaryVectorSource = new VectorSource({
+        format: new GeoJSON(),
+        url: primaryWfsUrl,
+      });
+
+      const primaryVectorLayer = new VectorLayer({
+        source: primaryVectorSource,
+        style: createVectorStyle("primary", showTitles),
+        zIndex: 1,
+        visible: true,
+      });
+
+      const handlePrimaryLoaded = (event: any) => {
+        const numFeatures = event.features ? event.features.length : 0;
+        setFeatureCounts((prev) => ({ ...prev, primary: numFeatures }));
+        setIsLoading(false);
+
+        const primaryExtent = primaryVectorSource.getExtent();
+        if (primaryExtent && primaryExtent.some((val) => isFinite(val))) {
+          mapInstanceRef.current?.getView().fit(primaryExtent, {
+            padding: [50, 50, 50, 50],
+            duration: 1000,
+          });
+        }
+      };
+
+      const handlePrimaryError = () => {
+        setIsLoading(false);
+        setError("Failed to load primary features");
+      };
+
+      primaryVectorSource.on("featuresloadend", handlePrimaryLoaded);
+      primaryVectorSource.on("featuresloaderror", handlePrimaryError);
+      cleanups.push(() => {
+        primaryVectorSource.un("featuresloadend", handlePrimaryLoaded);
+        primaryVectorSource.un("featuresloaderror", handlePrimaryError);
+      });
+
+      mapInstanceRef.current.addLayer(primaryVectorLayer);
+      primaryLayerRef.current = primaryVectorLayer;
+    } else {
+      setIsLoading(false);
+    }
 
     return () => {
-      primaryVectorSource.un("featuresloadend", handleFeaturesLoaded);
-      primaryVectorSource.un("featuresloaderror", handleFeaturesError);
+      cleanups.forEach((cleanup) => cleanup());
     };
-  }, [primaryLayer, boundarylayer, defaultWorkspace, showTitles]);
+  }, [primaryLayer, boundarylayer, defaultWorkspace, showTitles, hasSelections]);
 
   // Create river system layer helper
   const createRiverSystemLayer = (
@@ -892,6 +931,7 @@ const Maping: React.FC = () => {
     if (!rasterLayerInfo) {
       setRasterLoading(false);
       setLegendUrl(null);
+      setLegendData(null);
       setShowLegend(false);
       return;
     }
@@ -918,6 +958,7 @@ const Maping: React.FC = () => {
 
       const legendUrlString = `${layerUrl}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetLegendGraphic&FORMAT=image/png&LAYER=${fullLayerName}&LEGEND_OPTIONS=fontAntiAliasing:true;fontSize:12;fontColor:0x000000;bgColor:0xFFFFFF;dpi:96`;
       setLegendUrl(legendUrlString);
+      setLegendData(rasterLayerInfo.legend_data ?? null);
 
       setTimeout(() => {
         const newLayer = new ImageLayer({
@@ -1539,26 +1580,123 @@ const Maping: React.FC = () => {
           </div>
         )} */}
 
-        {legendUrl && rasterLayerInfo && (
-          <div className="absolute bottom-16 right-16 z-20 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-2xl">
-            <div className="flex justify-between items-center ">
-              <span className="text-sm font-bold text-gray-700">Legend</span>
-              <button
-                onClick={() => setLegendUrl(null)}
-                className="text-gray-400 hover:text-gray-600"
+        {(legendUrl || legendData) && rasterLayerInfo && (
+          <button
+            onClick={() => setShowLegend(!showLegend)}
+            className="absolute bottom-4 right-4 z-20 bg-white/80 p-2.5 rounded-xl shadow-lg border border-white/50 hover:bg-white transition-all duration-200 flex items-center gap-2 text-sm font-semibold text-gray-700 group cursor-pointer backdrop-blur-sm"
+            title={showLegend ? "Hide Legend" : "Show Legend"}
+          >
+            <div
+              className={`transition-transform duration-300 ${showLegend ? "rotate-180" : ""}`}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-blue-600"
               >
-                ×
+                <path d="M2 3h20" />
+                <path d="M2 12h20" />
+                <path d="M2 21h20" />
+              </svg>
+            </div>
+            <span className="group-hover:text-blue-700">Legend</span>
+          </button>
+        )}
+
+        {showLegend && (legendData || legendUrl) && rasterLayerInfo && (
+          <div className="absolute bottom-16 right-4 z-20 bg-white/95 p-0 rounded-xl shadow-2xl border border-gray-100 w-[240px] backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden">
+            <div className="flex justify-between items-center p-3 bg-gray-50/80 border-b border-gray-100">
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                  Legend
+                </span>
+                <span
+                  className="text-xs font-bold text-gray-800 leading-tight truncate max-w-[180px]"
+                  title={rasterLayerInfo?.layer_name || "Layer Info"}
+                >
+                  {legendData?.display_name || rasterLayerInfo?.layer_name || "Layer Info"}
+                </span>
+                {legendData?.product_type !== "index_class" ? (
+                  <span className="text-[11px] text-red-500 font-semibold mt-0.5">
+                    Unit: MLD
+                  </span>
+                ) : null}
+              </div>
+              <button
+                onClick={() => setShowLegend(false)}
+                className="text-gray-400 hover:text-red-500 hover:bg-red-100 rounded-full p-1 transition-all cursor-pointer"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
-            <Image
-              src={legendUrl}
-              alt="Layer Legend"
-              className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
-              width={100}
-              height={100}
-              onErrorCapture={() => setError("Failed to load legend")}
-              unoptimized // remove this if the image domain is configured in next.config.js
-            />
+
+            <div className="p-4 bg-white max-h-[300px] overflow-y-auto custom-scrollbar">
+              {legendData ? (
+                <div className="flex flex-col space-y-1">
+                  {legendData.classes.map((item: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex items-start"
+                      style={{ gap: "4pt" }}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: item.color,
+                          width: "20px",
+                          height: "20px",
+                          border: "0.5px solid #000000",
+                          minWidth: "20px",
+                        }}
+                      />
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-xs text-gray-700 font-medium">
+                          {item.swci_range || item.label}
+                        </span>
+                        {item.swci_range && item.label ? (
+                          <span className="text-[11px] text-gray-500">
+                            {item.label}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                legendUrl && (
+                  <div className="flex justify-center">
+                    <Image
+                      src={legendUrl}
+                      alt="Layer Legend"
+                      className="max-w-full h-auto rounded-lg border border-gray-200 object-contain"
+                      width={100}
+                      height={100}
+                      onErrorCapture={() => setError("Failed to load legend")}
+                      unoptimized
+                    />
+                  </div>
+                )
+              )}
+            </div>
           </div>
         )}
 

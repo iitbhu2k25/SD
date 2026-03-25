@@ -1122,7 +1122,7 @@
 
 'use client';
 
-import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import Plotly from 'plotly.js-dist-min';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1130,6 +1130,9 @@ import Plotly from 'plotly.js-dist-min';
 interface ClippedRaster {
     year: number;
     volume_MLD: number;
+    layer_name?: string;
+    workspace?: string;
+    original_name?: string;
     layer_type?: string;
     season?: string;
 }
@@ -1148,7 +1151,11 @@ interface WaterMLDGraphProps {
     rasterResponse: RasterResponse | null;
     timeScale?: string;
     productType?: string;
+    activeYear?: number | null;
+    currentRaster?: Partial<ClippedRaster> | null;
 }
+
+const FAST_M_BASE_URL = process.env.NEXT_PUBLIC_FAST_URL || '/fastapi';
 
 // ─── CSV Download Helper ──────────────────────────────────────────────────────
 
@@ -1180,12 +1187,73 @@ const downloadCSV = (
     URL.revokeObjectURL(url);
 };
 
+const sanitizeFilename = (value: string) =>
+    value
+        .trim()
+        .replace(/[^a-zA-Z0-9-_]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'clipped_raster';
+
+const buildTiffFilename = (productType: string, raster: ClippedRaster) =>
+    sanitizeFilename(
+        [
+            productType,
+            raster.season && raster.season !== 'Annual' ? raster.season : null,
+            raster.year,
+        ]
+            .filter(Boolean)
+            .join('_')
+    );
+
+const downloadTIFF = async (raster: ClippedRaster | null, productType: string) => {
+    if (!raster?.layer_name || !raster.workspace) return;
+
+    const fileName = buildTiffFilename(productType, raster);
+    const query = new URLSearchParams({
+        layer_name: raster.layer_name,
+        workspace: raster.workspace,
+        filename: fileName,
+        format: 'tiff',
+    });
+    const response = await fetch(
+        `${FAST_M_BASE_URL}/water/download_raster?${query.toString()}`,
+        {
+            credentials: 'include',
+        }
+    );
+
+    if (!response.ok) {
+        let errorMessage = `TIFF download failed (${response.status})`;
+
+        try {
+            const errorPayload = await response.json();
+            if (typeof errorPayload?.error === 'string') {
+                errorMessage = errorPayload.error;
+            }
+        } catch {
+            // Keep fallback message if JSON parsing fails.
+        }
+
+        throw new Error(errorMessage);
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${fileName}.tif`;
+    link.click();
+    URL.revokeObjectURL(blobUrl);
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const WaterMLDGraph: React.FC<WaterMLDGraphProps> = ({
     rasterResponse,
     timeScale = 'yearly',
     productType = 'Water Budget',
+    activeYear = null,
+    currentRaster = null,
 }) => {
     const plotRef = useRef<HTMLDivElement>(null);
 
@@ -1204,6 +1272,23 @@ const WaterMLDGraph: React.FC<WaterMLDGraphProps> = ({
     const lowestVal  = useMemo(() => data.length ? Math.min(...data.map(d => d.mld)) : 0, [data]);
     const peakYear   = useMemo(() => data.find(d => d.mld === peakVal)?.year,   [data, peakVal]);
     const lowestYear = useMemo(() => data.find(d => d.mld === lowestVal)?.year, [data, lowestVal]);
+    const activeRaster = useMemo(
+        () =>
+            activeYear !== null
+                ? rasterResponse?.clipped_rasters?.find((r) => r.year === activeYear) ??
+                  rasterResponse?.clipped_rasters?.[0] ??
+                  null
+                : rasterResponse?.clipped_rasters?.[0] ?? null,
+        [activeYear, rasterResponse]
+    );
+    const downloadRaster = useMemo(
+        () =>
+            currentRaster?.layer_name && currentRaster?.workspace
+                ? ({ ...(activeRaster ?? {}), ...currentRaster } as ClippedRaster)
+                : activeRaster,
+        [activeRaster, currentRaster]
+    );
+    const [isTiffDownloading, setIsTiffDownloading] = useState(false);
 
     // ── Build & render Plotly chart ──────────────────────────────────────────
     useEffect(() => {
@@ -1254,12 +1339,16 @@ const WaterMLDGraph: React.FC<WaterMLDGraphProps> = ({
             font: { family: 'IBM Plex Sans, sans-serif', color: '#374151' },
             margin: { t: 20, r: 20, b: 70, l: 60 },
             xaxis: {
-                title: { text: 'Year', font: { size: 12 } },
-                showgrid: true,
-                gridcolor: '#e5e7eb',
-                tickfont:  { size: 12 },
-                zeroline:  false,
-            },
+    title: { text: 'Year', font: { size: 12 } },
+    showgrid: true,
+    gridcolor: '#e5e7eb',
+    tickfont:  { size: 12 },
+    zeroline:  false,
+    tickmode: 'array',
+    tickvals: years.map(Number),
+    ticktext: years,
+    dtick: 1,
+},
             yaxis: {
                 title: { text: 'Volume (MLD)', font: { size: 12 } },
                 showgrid: true,
@@ -1349,6 +1438,21 @@ const WaterMLDGraph: React.FC<WaterMLDGraphProps> = ({
     const handleCSVDownload = useCallback(() => {
         downloadCSV(data, productType, timeScale, rasterResponse?.metadata?.season);
     }, [data, productType, timeScale, rasterResponse]);
+    const handleTiffDownload = useCallback(async () => {
+        if (isTiffDownloading) return;
+
+        try {
+            setIsTiffDownloading(true);
+            await downloadTIFF(downloadRaster, productType);
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : 'Failed to download TIFF file.';
+            console.error(message);
+            window.alert(message);
+        } finally {
+            setIsTiffDownloading(false);
+        }
+    }, [downloadRaster, isTiffDownloading, productType]);
 
     // ── Empty state ──────────────────────────────────────────────────────────
     if (!rasterResponse || data.length === 0) {
@@ -1378,18 +1482,38 @@ const WaterMLDGraph: React.FC<WaterMLDGraphProps> = ({
                 </div>
 
                 {/* ── CSV Download Button ── */}
-                <button
-                    onClick={handleCSVDownload}
-                    title="Download data as CSV"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
-                               bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95
-                               transition-all duration-150 shadow-sm whitespace-nowrap"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    Download CSV
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleTiffDownload}
+                        title="Download raster as TIF"
+                        disabled={
+                            !downloadRaster?.layer_name ||
+                            !downloadRaster?.workspace ||
+                            isTiffDownloading
+                        }
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
+                                   bg-blue-600 text-white hover:bg-blue-700 active:scale-95 disabled:bg-blue-300 disabled:cursor-not-allowed
+                                   transition-all duration-150 shadow-sm whitespace-nowrap"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        {isTiffDownloading ? 'Downloading TIF...' : 'Download TIF'}
+                    </button>
+
+                    <button
+                        onClick={handleCSVDownload}
+                        title="Download data as CSV"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer
+                                   bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95
+                                   transition-all duration-150 shadow-sm whitespace-nowrap"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                        Download CSV
+                    </button>
+                </div>
             </div>
 
             {/* ── Plotly chart container ── */}

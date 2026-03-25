@@ -7,8 +7,30 @@ import React, {
   ReactNode,
 } from "react";
 
-import { api } from "@/services/api";
 import { River, Stretch, Catchment, Drain, Layer_name } from "@/interface/raster_context";
+
+const FAST_M_BASE_URL = process.env.NEXT_PUBLIC_FAST_URL || "/fastapi";
+
+async function fetchFastM<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${FAST_M_BASE_URL}${path}`, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      typeof data?.detail === "string" ? data.detail : `HTTP error! Status: ${response.status}`,
+    );
+  }
+
+  return data as T;
+}
 
 export interface RiverSelectionsData {
   river: number | null;
@@ -21,6 +43,7 @@ export interface RiverSelectionsData {
 }
 
 export interface ClipRasters {
+  legend_data: null;
   original_name: string;
   layer_name: string;
   layer_type: string;
@@ -184,12 +207,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchRivers = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get("/location/get_river");
-        if (response.status > 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = response.message as River[];
+        const data = await fetchFastM<River[]>("/water/get_river");
         const riverData: River[] = data.map((river: any) => ({
           River_Name: river.River_Name,
           River_Code: river.River_Code,
@@ -215,16 +233,12 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
     const fetchStretches = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/water/get_stretch", {
-          body: {
+        const data = await fetchFastM<StretchIds>("/water/get_stretch", {
+          method: "POST",
+          body: JSON.stringify({
             river_code: selectedRiver,
-          },
+          }),
         });
-        if (response.status > 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = response.message as StretchIds;
         setAllStretchIds(data.stretch_ids);
       } catch (error) {
         console.log("Error fetching stretches:", error);
@@ -253,17 +267,13 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
     const fetchDrains = async () => {
       try {
-        const response = await api.post("/water/get_drain", {
-          body: {
+        const data = await fetchFastM<DrainIds>("/water/get_drain", {
+          method: "POST",
+          body: JSON.stringify({
             stretch_id: selectedStretch,
             all_data: true,
-          },
+          }),
         });
-        if (response.status > 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = (await response.message) as DrainIds;
         setAllDrainIds(data.drains);
       } catch (error) {
         console.log("Error fetching drains:", error);
@@ -343,15 +353,10 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
 
       console.log("📤 Calling fetchRasterData API with payload:", payload);
 
-      const response = await api.post("/water/process_drain_raster", {
-        body: payload,
+      const apiData = await fetchFastM<RasterApiResponse>("/water/process_drain_raster", {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
-
-      if (response.status > 201) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const apiData = response.message as RasterApiResponse;
       const rasterLayers = apiData.clipped_rasters;
 
       console.log("✅ fetchRasterData API response:", rasterLayers);

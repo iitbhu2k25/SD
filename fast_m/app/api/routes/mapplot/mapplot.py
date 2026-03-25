@@ -1,11 +1,33 @@
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.schema.mapplot.mapplot_schema import ExportMapRequest, GeoJSONToShapefileRequest
+from app.api.schema.mapplot.mapplot_schema import (
+    ChunkUploadRequest,
+    ExportMapRequest,
+    GeoJSONToShapefileRequest,
+)
 from app.api.service.mapplot.mapplot_service import MapplotService
 
 router = APIRouter()
 service = MapplotService()
+
+
+@router.post("/chunk")
+def upload_chunk(payload: ChunkUploadRequest):
+    """Receive one 1 MB slice of a GeoJSON payload.
+
+    The client splits large GeoJSON strings into 1 MB chunks and POSTs each
+    one here.  Once all chunks for an ``upload_id`` have arrived, subsequent
+    export/spatial endpoints can reference the data by ``upload_id`` instead
+    of embedding the full GeoJSON in the request body.
+    """
+    out = service.upload_chunk(
+        payload.upload_id,
+        payload.chunk_index,
+        payload.total_chunks,
+        payload.data,
+    )
+    return JSONResponse(content=out["content"], status_code=out["status_code"])
 
 
 @router.post("/spatial/process")
@@ -47,12 +69,34 @@ def get_shapefile(
     return JSONResponse(content=out["content"], status_code=out["status_code"])
 
 
+@router.post("/upload-file-chunk")
+async def upload_file_chunk(
+    upload_id: str = Form(...),
+    file_index: int = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    data: UploadFile = File(...),
+):
+    """Receive one binary chunk of a large shapefile upload.
+
+    The client slices each file into 5 MB pieces and POSTs them here with
+    ``upload_id`` / ``file_index`` / ``chunk_index`` metadata.  Once all
+    chunks are stored on disk the client calls ``POST /upload-shapefile``
+    with the same ``upload_id`` to trigger SSE-based processing.
+    """
+    chunk_bytes = await data.read()
+    out = service.upload_file_chunk(upload_id, file_index, chunk_index, total_chunks, filename, chunk_bytes)
+    return JSONResponse(content=out["content"], status_code=out["status_code"])
+
+
 @router.post("/upload-shapefile")
 async def upload_shapefile(request: Request):
     form = await request.form()
     files = form.getlist("file")
+    upload_id = form.get("upload_id") or None  # present only for chunked uploads
     return StreamingResponse(
-        service.upload_shapefile_sse(files),
+        service.upload_shapefile_sse(files, upload_id=upload_id),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -60,7 +104,12 @@ async def upload_shapefile(request: Request):
 
 @router.post("/export/png")
 def export_png(payload: ExportMapRequest):
-    out = service.export_png(payload.geojson, payload.basemap or "osm", float(payload.basemap_alpha or 0.6))
+    out = service.export_png(
+        geojson=payload.geojson,
+        basemap=payload.basemap or "osm",
+        basemap_alpha=float(payload.basemap_alpha or 0.6),
+        upload_id=payload.upload_id,
+    )
     if not out["ok"]:
         return JSONResponse(content=out["content"], status_code=out["status_code"])
     return Response(content=out["content"], media_type="image/png")
@@ -68,7 +117,13 @@ def export_png(payload: ExportMapRequest):
 
 @router.post("/export/pdf")
 def export_pdf(payload: ExportMapRequest):
-    out = service.export_pdf(payload.geojson, payload.basemap or "osm", float(payload.basemap_alpha or 0.5), payload.heading or "Map Export")
+    out = service.export_pdf(
+        geojson=payload.geojson,
+        basemap=payload.basemap or "osm",
+        basemap_alpha=float(payload.basemap_alpha or 0.5),
+        heading=payload.heading or "Map Export",
+        upload_id=payload.upload_id,
+    )
     if not out["ok"]:
         return JSONResponse(content=out["content"], status_code=out["status_code"])
     return Response(content=out["content"], media_type="application/pdf")
@@ -76,7 +131,11 @@ def export_pdf(payload: ExportMapRequest):
 
 @router.post("/export/shapefile")
 def export_shapefile(payload: GeoJSONToShapefileRequest):
-    out = service.export_shapefile(payload.geojson, payload.filename or "export")
+    out = service.export_shapefile(
+        geojson=payload.geojson,
+        filename=payload.filename or "export",
+        upload_id=payload.upload_id,
+    )
     if not out["ok"]:
         return JSONResponse(content=out["content"], status_code=out["status_code"])
     return Response(content=out["content"], media_type="application/zip")

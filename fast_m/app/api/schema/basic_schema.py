@@ -38,6 +38,24 @@ class SewageRequest(BaseModel):
     unmetered_supply: float | None = 0
 
 
+class DrainDemandInput(BaseModel):
+    drain_no: str | int
+    drain_id: str | int
+    drain_recharge: float
+
+
+class SewageDemandRequest(BaseModel):
+    load_method: Literal["manual", "modeled"]
+    # manual: user-supplied {year: population} pairs
+    population_data: dict[str, float] | None = None
+    # modeled: forecasted {year: population} from store
+    computed_population: dict[str, float] | None = None
+    water_supply: float | None = None
+    drains: list[DrainDemandInput] = Field(default_factory=list)
+    population_2025: float | None = None
+    unmetered_supply: float = 15
+
+
 class PeakSewageFlowRequest(BaseModel):
    
     population_data: dict[str, float]
@@ -94,6 +112,30 @@ class FirefightingWaterDemandRequest(BaseModel):
     domestic_forecast: dict[str, float]
 
 
+class WaterSupplyThematicRequest(BaseModel):
+    year: int | None = None
+    start_year: int | None = None
+    end_year: int | None = None
+    villages_props: list[dict[str, Any]] = Field(default_factory=list)
+    subdistrict_props: list[dict[str, Any]] = Field(default_factory=list)
+    total_supply: float = 0.0
+    demand_by_year: dict[str, float] = Field(default_factory=dict)
+
+
+class WaterDemandThematicRequest(BaseModel):
+    year: int | None = None
+    start_year: int | None = None
+    end_year: int | None = None
+    villages_props: list[dict[str, Any]] = Field(default_factory=list)
+    subdistrict_props: list[dict[str, Any]] = Field(default_factory=list)
+    per_capita_consumption: float = 135.0
+    floating_percentage: float = 0.0
+    facility_lpcd: float = 0.0
+    inst_demand: dict[str, float] | None = None
+    ff_demand: dict[str, float] | None = None
+    total_population_2011: float = 0.0
+
+
 class CohortRequest(BaseModel):
     year: int | None = None
     start_year: int | None = None
@@ -131,6 +173,20 @@ class DrainNoRequest(BaseModel):
 class VillageCodesRequest(BaseModel):
     village_code: int | str | list[int | str] | None = None
     village_codes: int | str | list[int | str] | None = None
+
+
+class SewageThematicRequest(BaseModel):
+    year: int | None = None
+    start_year: int | None = None
+    end_year: int | None = None
+    villages_props: list[dict[str, Any]] = Field(default_factory=list)
+    subdistrict_props: list[dict[str, Any]] = Field(default_factory=list)
+    water_supply: float = 0.0
+    drain_recharge_sum: float = 0.0
+    population_2025: float = 0.0
+    unmetered_supply: float = 15.0
+    population_data: dict[str, float] | None = None  # {year: total_pop}
+    load_method: Literal["manual", "modeled"] = "modeled"
 
 
 class StudyAreaMapRequest(BaseModel):
