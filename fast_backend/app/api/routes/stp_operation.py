@@ -32,13 +32,13 @@ async def get_priority_category(db:db_dependency,user: Annotated[bool, Depends(v
 @router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority_visual_display(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
-    return STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
+    return await STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
 
 @router.post("/stp_priority",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority(db:db_dependency,payload: STPCategory,user: Annotated[bool, Depends(validate_user)]):
     raster_path,raster_weights=Stp_service.get_raster(db,payload)
-    return STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
+    return  await STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
 
 @router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
@@ -68,13 +68,13 @@ async def get_raster_suitability(db:db_dependency,category:str,user: Annotated[b
 @router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
-    return STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
+    return await STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
 
     
 @router.post("/stp_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
-    return STPsuitabilityMapper().create_suitability_map(db,payload)
+    return await STPsuitabilityMapper().create_suitability_map(db,payload)
 
 
 @router.post("/stp_suitability_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
@@ -105,7 +105,7 @@ async def stp_suitability_area(db:db_dependency,user: Annotated[bool, Depends(va
 @router.post("/stp_suitability_area")
 @validate
 async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area,user: Annotated[bool, Depends(validate_user)]):
-    return STP_Area().stp_area_finding(db,payload)
+    return await STP_Area().stp_area_finding(db,payload)
         
    
 

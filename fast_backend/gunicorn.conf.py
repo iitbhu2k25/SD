@@ -1,9 +1,9 @@
 import multiprocessing
-workers = multiprocessing.cpu_count()
+workers = int(multiprocessing.cpu_count()/2)+1
 threads = 1
 bind = "0.0.0.0:7000"
 worker_class = "uvicorn.workers.UvicornWorker"
-timeout = 120
+timeout = 60
 keepalive = 30
 loglevel = "info"
 max_requests = 1000

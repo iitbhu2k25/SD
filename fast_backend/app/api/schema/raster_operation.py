@@ -87,38 +87,15 @@ class ReclassRule(BaseModel):
 class RasterReclassify(BaseModel):
     file_id:      str
     raster_type:  RasterType
-    rules:        List[ReclassRule]
-    nodata_value: Optional[str] = None
+    classes: int
+    method:    str
+    src_nodata: Optional[str] = None
 
-    # Populated after casting
-    nodata_cast: Optional[float | int] = None
-
-    @model_validator(mode="after")
-    def cast_all(self):
-        if not self.rules:
-            raise ValueError("At least one rule is required")
-
-        dtype = self.raster_type
-
-        # Cast every rule in-place
-        for i, rule in enumerate(self.rules, start=1):
-            rule.apply_dtype(dtype, i)
-
-        # Cast nodata
-        if self.nodata_value is not None:
-            try:
-                self.nodata_cast = cast_to_dtype(self.nodata_value, dtype)
-            except ValueError as e:
-                raise ValueError(f"nodata_value: {e}") from e
-
-        return self
+   
     
 class Edliudian(BaseModel):
     file_id: str
-    distance_units: str = "GEO"
-    target_values: Optional[List[int]] = None
-    max_distance: Optional[float] = None
-    src_nodata: str
+    
     
 
 
@@ -155,7 +132,7 @@ class FlowAccumulationParams(BaseModel):
 
 
 class SLDUpdate(BaseModel):
-    sld: str
+    sld: str|None
     layername: str
 
 
@@ -173,9 +150,9 @@ class TpiParams(BaseModel):
     @model_validator(mode="after")
     def validate_radius(self):
         if self.radius < 1:
-            raise ValueError("radius must be >= 1")
+            raise ValueError("radius must be greater than 1")
         if self.radius >500:
-            raise ValueError("radius must be <= 500")
+            raise ValueError("radius must be lower than 500")
         return self
 
 

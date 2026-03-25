@@ -751,7 +751,7 @@ class STPPriorityMapper:
             dest.write(out_array,1)
         return output_path
     
-    def visual_priority_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
+    async def visual_priority_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         raster_path=spt_service.Stp_service.get_priority_visual(db)
         raster_path = [{"file_name": i.file_name,
                         "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
@@ -762,8 +762,8 @@ class STPPriorityMapper:
             final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
             final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
             unique_store_name =Unique_name.unique_name(self.config.raster_store)
-            status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-            geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
+            _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+            await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
             response.append({
                 "workspace": self.config.raster_workspace,
                 "layer_name": layer_name,
@@ -771,7 +771,7 @@ class STPPriorityMapper:
             })
         return response
     
-    def create_priority_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
+    async def create_priority_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
         if len(raster_paths) != len(weights):
             raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
         self.processor.align_rasters(raster_paths)
@@ -792,16 +792,14 @@ class STPPriorityMapper:
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path,clip=clip,place=place,logic="priority")
         final_path1=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
-        tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
-        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-        if status:
-            return {
+        tatus,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        return {
                 "workspace": self.config.raster_workspace,
                 "layer_name": layer_name,
                 "csv_path":csv_path,
                 "csv_details":csv_details
             }
-        return False
 
       
 class STPsuitabilityMapper:
@@ -1003,7 +1001,7 @@ class STPsuitabilityMapper:
             raster_weights.append(i[1])
         return raster_path,raster_weights,constraintion_raster
     
-    def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
+    async def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext('STP_suitability','tif') 
@@ -1011,19 +1009,17 @@ class STPsuitabilityMapper:
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="suitability")
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
-        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-        if status:
-            return {
+        _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        return {
                 "workspace": self.config.raster_workspace,
                 "layer_name": layer_name,
                 "vector_name":vector_name,
                 "clip_villages":clip,
                 "csv_details":csv_details
             }
-        return False
 
-    def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
+    async def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
             raster_path=spt_service.Stp_service.get_suitability_visual(db,all_data=True)
             raster_path = [{"file_name": i.file_name,
@@ -1038,8 +1034,8 @@ class STPsuitabilityMapper:
                 else:
                     final_path=self.processor.clip_to_town_buffer(i['path'],clip=clip)
                 unique_store_name =Unique_name.unique_name(self.config.raster_store)
-                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
+                _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -1048,7 +1044,7 @@ class STPsuitabilityMapper:
             return response
         
         except Exception as e:
-            print(e)
+      
             return False
      
 class STP_Area:
@@ -1177,8 +1173,9 @@ class STP_Area:
         #     print(f"   • Area: {row['area_ha']:.2f} ha")
         #     print(f"   • Difference from Required: {row['closeness']:.2f} ha\n")
         return selected
-    def stp_area_finding(self,db:db_dependency,payload:STP_suitability_Area):
-        raster_path=geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)['raster_path']
+    async def stp_area_finding(self,db:db_dependency,payload:STP_suitability_Area):
+        raster_path=await geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)
+        raster_path=raster_path['raster_path']
         MLD_CAPACITY=payload.MLD_CAPACITY
         land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
         required_area_ha = MLD_CAPACITY * land_per_mld +(payload.CUSTOM_LAND_PER_MLD if payload.CUSTOM_LAND_PER_MLD else 0)

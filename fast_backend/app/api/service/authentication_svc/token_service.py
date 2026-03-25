@@ -37,16 +37,14 @@ class TokenManager:
     @staticmethod
     async def regenerate_access_token(db:Session,token:str,expire_time:timedelta|None=None):
         try:
-            print("temp1")
+    
             if token is None:
                 raise TokenNone(CustomExceptionDetail="Refresh token is missing")
-            print("temp2")
-            print(type(token))
             payload=TokenManager.validate_token(token)
-            print("temp3")
+            
             if payload.get('sub@x') is None:
                 raise Invalid_Token(CustomExceptionDetail="refresh token failed")
-            print("temp4")
+            
             stored_token = await redis_manager.get(f"refresh:dss_{payload.get('sub@x')}") == token
             if not stored_token:
                 raise Invalid_Token(CustomExceptionDetail="refresh token is invalid")

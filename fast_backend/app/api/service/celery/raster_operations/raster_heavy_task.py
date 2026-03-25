@@ -2,33 +2,252 @@ import subprocess
 from pathlib import Path
 import tempfile
 import asyncio
+import re
+import zipfile
+from requests import Session
 from app.conf.logging import logger
 import json
-from typing import Optional,List
+from typing import Any, Dict, Optional,List
 from uuid import uuid4
 import numpy as np
 import rasterio
-from app.api.schema.raster_operation import RasterReclassify,ReclassRule
+from rasterio.enums import Resampling
+from rasterio.warp import transform_bounds
+from pyproj import CRS as ProjCRS
+from app.api.schema.raster_operation import RasterReclassify,ReclassRule, rasterMetaSchame, rasteroperSchema
 from whitebox.whitebox_tools import WhiteboxTools
-import time
+import math
 import os
 from app.conf.celery import app
 from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
 from app.database.config.dependency import celery_session
-from app.database.crud.raster_operations import rasterOperCrud
+from app.database.crud.raster_operations import rasterMetacrud, rasterOperCrud, rasterstorecrud
 from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.utils.name import Unique_name
+import jenkspy
+
+import numpy as np
+
 
 wbt = WhiteboxTools()
 wbt.set_whitebox_dir(os.environ["WBT_PATH"])
 wbt.set_working_dir("/tmp")
 
 raster_workspace="raster_work"
-raster_default_sld="/home/app/media/Rajat_data/default_sld.xml"
 
 work_state=["started","in_progress","completed","failed"]
 
+class RasterMetaData:
+    def _safe_float(self, value):
+        if value is None:
+            return None
+        if isinstance(value, np.ma.core.MaskedConstant) or (
+            hasattr(value, "_mask") and np.ma.is_masked(value)
+        ):
+            return None
+        if isinstance(value, (float, np.floating)):
+            if math.isnan(value) or math.isinf(value):
+                return None
+        return float(value)
+
+    def _crs_units(self, src) -> str:
+        """Return the linear unit name of the CRS (e.g. 'metre', 'foot', 'degree')."""
+        if not src.crs:
+            return "unknown"
+        try:
+            proj_crs = ProjCRS.from_user_input(src.crs)
+            if proj_crs.is_geographic:
+                return "degree"
+            axis_info = proj_crs.axis_info
+            if axis_info:
+                return axis_info[0].unit_name  # e.g. 'metre', 'US survey foot'
+        except Exception:
+            pass
+        return getattr(src.crs, "linear_units", "unknown") or "unknown"
+
+    def _format_resolution(self, res_x: float, res_y: float, unit: str) -> Dict[str, Any]:
+        """Return resolution with human-readable values and unit label."""
+
+        def _humanize(value: float, unit: str):
+            if unit == "degree":
+                approx_m = value * 111_320
+                return {
+                    "value": round(value, 8),
+                    "unit": "degree",
+                    "approx_metres": round(approx_m, 2),
+                }
+            if unit in ("metre", "meter", "meters", "metres"):
+                if value < 1:
+                    return {"value": round(value * 100, 4), "unit": "cm"}
+                if value >= 1000:
+                    return {"value": round(value / 1000, 4), "unit": "km"}
+                return {"value": round(value, 4), "unit": "m"}
+            if "foot" in unit or "feet" in unit:
+                metres = value * 0.3048
+                return {
+                    "value": round(metres, 4),
+                    "unit": "m",
+                    "original_value": round(value, 4),
+                    "original_unit": unit,
+                }
+            return {"value": round(value, 6), "unit": unit}
+
+        return {
+            "x": _humanize(abs(res_x), unit),
+            "y": _humanize(abs(res_y), unit),
+        }
+
+    def _format_file_size(self, size_bytes: int) -> Dict[str, Any]:
+        if size_bytes < 1024:
+            return {"value": size_bytes, "unit": "B"}
+        if size_bytes < 1024**2:
+            return {"value": round(size_bytes / 1024, 2), "unit": "KB"}
+        if size_bytes < 1024**3:
+            return {"value": round(size_bytes / 1024**2, 2), "unit": "MB"}
+        return {"value": round(size_bytes / 1024**3, 2), "unit": "GB"}
+
+    def _basic_info(self, src, file_path: Path) -> Dict[str, Any]:
+        file_path = Path(file_path)
+        size_bytes = file_path.stat().st_size
+        return {
+            "file_name": file_path.name,
+            "file_size": self._format_file_size(size_bytes),
+            "driver": src.driver,
+            "width": src.width,
+            "height": src.height,
+            "band_count": src.count,
+            "dtypes": src.dtypes[0],
+            "nodata": self._safe_float(src.nodata),
+        }
+
+    def _spatial_info(self, src) -> Dict[str, Any]:
+        unit = self._crs_units(src)
+
+        bounds_wgs84 = None
+        if src.crs:
+            raw = transform_bounds(src.crs, "EPSG:4326", *src.bounds)
+            bounds_wgs84 = {
+                "west": self._safe_float(raw[0]),
+                "south": self._safe_float(raw[1]),
+                "east": self._safe_float(raw[2]),
+                "north": self._safe_float(raw[3]),
+                "unit": "degree",
+            }
+
+        b = src.bounds
+        return {
+            "crs": src.crs.to_string() if src.crs else None,
+            "crs_unit": unit,
+            "bounds": {
+                "west": self._safe_float(b.left),
+                "south": self._safe_float(b.bottom),
+                "east": self._safe_float(b.right),
+                "north": self._safe_float(b.top),
+                "unit": unit,
+            },
+            "bounds_wgs84": bounds_wgs84,
+            "resolution": self._format_resolution(src.res[0], src.res[1], unit),
+        }
+
+    def _advanced_info(self, src) -> Dict[str, Any]:
+        return {
+            "compression": src.compression.value if src.compression else None,
+            "is_tiled": src.is_tiled,
+            "block_shapes": src.block_shapes,
+            "overviews": {i + 1: src.overviews(i + 1) for i in range(src.count)},
+            "is_cog_like": (
+                src.driver == "GTiff"
+                and src.is_tiled
+                and bool(src.overviews(1))
+            ),
+        }
+
+    def _band_info(self, src, compute_stats: bool):
+        bands = []
+        for i in range(1, src.count + 1):
+            band_meta = {
+                "band_number": i,
+                "dtype": src.dtypes[i - 1],
+                "color_interpretation": (
+                    src.colorinterp[i - 1].name if src.colorinterp else None
+                ),
+            }
+            if compute_stats:
+                band_meta.update(self._sampled_stats(src, i))
+            bands.append(band_meta)
+        return bands
+
+    def _sampled_stats(self, src, band_index: int, target_pixels: int = 1024 * 1024):
+        """
+        Returns sampled stats for a single band of a raster.
+        """
+        total_pixels = src.width * src.height
+
+        if total_pixels <= target_pixels:
+            # Small raster — read the whole thing at full resolution
+            out_height, out_width = src.height, src.width
+        else:
+            scale = math.sqrt(target_pixels / total_pixels)
+            out_height = max(1, int(src.height * scale))
+            out_width = max(1, int(src.width * scale))
+
+        data = src.read(
+            band_index,
+            out_shape=(out_height, out_width),
+            resampling=Resampling.nearest,  # preserve original values
+            masked=True,                    # auto-applies nodata mask
+        )
+
+        valid = data.compressed() if np.ma.is_masked(data) else data.flatten()
+
+        if valid.size == 0:
+            return {
+                "min": None,
+                "max": None,
+                "mean": None,
+                "std": None,
+                "sample_note": "no valid pixels found across entire raster",
+            }
+
+        return {
+            "min": self._safe_float(valid.min()),
+            "max": self._safe_float(valid.max()),
+            "mean": self._safe_float(valid.mean()),
+            "std": self._safe_float(valid.std()),
+            "sample_note": (
+                f"decimated full raster to {out_width}×{out_height} "
+                f"({valid.size:,} valid pixels out of {out_width * out_height:,} sampled)"
+            ),
+        }
+    
+    def celery_output(self,db:Session,file_id: str,file_name: str = None, layer_name: str = None, file_path: str = None,compute_stats: bool = True):
+        rasteroperSchemaObj=rasteroperSchema(
+            file_id=file_id,
+            layer_name=layer_name,
+            file_path=str(file_path),
+            file_name=file_name,
+            parent_id=None,
+            raster_type="operated"
+        )
+        rasterstorecrud(db).create_details(rasteroperSchemaObj)
+        with rasterio.open(file_path) as src:
+            rasterMetaSchameObj=rasterMetaSchame(
+                **self._basic_info(src, file_path),
+                **self._spatial_info(src),
+                **self._advanced_info(src),
+                bands= self._band_info(src, compute_stats),
+                tags= src.tags(),
+                file_id= file_id, 
+            )
+        rasterMetacrud(db).create_details(rasterMetaSchameObj)
+
+def update_raster_info(file_id: str,file_name: str = None, layer_name: str = None, file_path: str = None,compute_stats: bool = True):
+    Rmo=RasterMetaData()
+    with celery_session() as session:
+        Rmo.celery_output(session,file_id,file_name,layer_name,file_path,compute_stats)
+        
+        
 
 def celery_task_update(task_id: str, status: str, progress: int=0,layer_name:str = None,result_path:str=None):
     if status =="started":
@@ -92,198 +311,107 @@ def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
     return "continuous"
 
 
-def _normalize_nodata(input_path: str):
-    input_path = Path(input_path)
-    output_path = input_path.parent / f"{uuid4()}.tif"
 
-    if not input_path.exists():
-        raise FileNotFoundError(f"Input raster not found: {input_path}")
+def _run_cmd(cmd):
+    """Run shell command safely"""
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception(f"Command failed:\n{cmd}\n{result.stderr}")
+    return result.stdout
 
-    result = subprocess.run(
-        ["gdalinfo", "-json", str(input_path)],
-        capture_output=True,
-        text=True,
-        check=True
-    )
-
-    metadata = json.loads(result.stdout)
-    band = metadata["bands"][0]
-
-    current_nodata = band.get("noDataValue", None)
-    dtype = band.get("type")
-
-    logger.info(f"Detected dtype: {dtype}")
-    logger.info(f"Detected nodata: {current_nodata}")
-
-    if dtype in ("Float32", "Float64"):
-        standard_nodata = -9999.0
-        extreme_threshold = -1e30  # catch float32 min
-    elif dtype in ("Int16", "Int32"):
-        standard_nodata = -9999
-        extreme_threshold = None
-    elif dtype in ("Byte", "UInt16"):
-        standard_nodata = 0
-        extreme_threshold = None
+def _get_utm_epsg(lon, lat):
+    """Compute UTM EPSG code"""
+    zone = int((lon + 180) / 6) + 1
+    if lat >= 0:
+        return 32600 + zone
     else:
-        standard_nodata = -9999
-        extreme_threshold = None
+        return 32700 + zone
+    
+def _get_centroid(shp_path):
+    """Extract centroid (lon, lat) from ogrinfo"""
+    cmd = f'ogrinfo -ro -so -al "{shp_path}"'
+    output = _run_cmd(cmd)
 
-    if current_nodata is None:
-        logger.info("NoData not defined. Assigning standard nodata.")
-        command = [
-            "gdal_translate",
-            "-a_nodata", str(standard_nodata),
-            "-co", "COMPRESS=LZW",
-            "-co", "TILED=YES",
-            "-co", "BIGTIFF=YES",
-            str(input_path),
-            str(output_path),
-        ]
-        subprocess.run(command, check=True)
-        return str(output_path),str(standard_nodata)
+    match = re.search(r'Extent: \((.*?),(.*?)\) - \((.*?),(.*?)\)', output)
+    if not match:
+        raise Exception("Could not extract extent")
 
+    xmin, ymin, xmax, ymax = map(float, match.groups())
+    lon = (xmin + xmax) / 2
+    lat = (ymin + ymax) / 2
 
-    if current_nodata == standard_nodata:
-        logger.info("NoData already standardized.")
-        return str(input_path),str(standard_nodata)
+    return lon, lat
 
-    logger.info(
-        f"Replacing NoData values: {current_nodata} → {standard_nodata}"
-    )
-
-    if dtype in ("Float32", "Float64"):
-        # Catch both exact nodata and extreme float contamination
-        calc_expr = (
-            f"where((A=={current_nodata}) | (A<{extreme_threshold}), "
-            f"{standard_nodata}, A)"
-        )
-    else:
-        calc_expr = f"where(A=={current_nodata}, {standard_nodata}, A)"
-
-    command = [
-        "gdal_calc.py",
-        "-A", str(input_path),
-        "--outfile", str(output_path),
-        "--calc", calc_expr,
-        "--NoDataValue", str(standard_nodata),
-        "--type", dtype,
-        "--co", "COMPRESS=LZW",
-        "--co", "TILED=YES",
-        "--co", "BIGTIFF=YES",
-    ]
-
-    try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
-        logger.info("NoData normalization completed successfully")
-        return str(output_path),str(standard_nodata)
-
-    except subprocess.CalledProcessError as e:
-        logger.error("Failed to normalize NoData")
-        logger.error(e.stderr)
-        raise RuntimeError(f"GDAL error: {e.stderr}")
-
-
-
-# -------------------------------------
-
-def _get_best_crs_for_india(input_path: str) -> str:
-    """Determine best CRS (UTM or EPSG:7755) based on raster extent."""
-
-    result = subprocess.run(
-        ["gdalinfo", "-json", input_path],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    metadata = json.loads(result.stdout)
-
-    if "wgs84Extent" not in metadata:
-        raise ValueError("Unable to detect raster geographic extent.")
-
-    coords = metadata["wgs84Extent"]["coordinates"][0]
-    longitudes = [pt[0] for pt in coords]
-
-    min_lon = min(longitudes)
-    max_lon = max(longitudes)
-    lon_span = max_lon - min_lon
-
-    # Multi-zone India coverage
-    if lon_span > 6:
-        return "EPSG:7755"
-
-    centroid_lon = (min_lon + max_lon) / 2
-    zone = int((centroid_lon + 180) / 6) + 1
-    return f"EPSG:326{zone}"
-
-def _get_current_epsg(input_path: str) -> Optional[str]:
-    with rasterio.open(input_path) as src:
-        if src.crs and src.crs.to_epsg():
-            return f"EPSG:{src.crs.to_epsg()}"
-    return None
-
+@app.task(bind=True,name='celery_ecluidian_tools',queue='heavy_task')
 def celery_euclidean_distance(
+    self,
     input_path: str,
     output_path: str,
-    target_values: Optional[List[int]] = None,
-    max_distance: Optional[float] = None,
-    distance_units: str = "GEO",
     timeout: int = 3600,
 ):
-    
-    input_path = Path(input_path)
-    output_path = Path(output_path)
-
-    if distance_units not in ("GEO", "PIXEL"):
-        raise ValueError("distance_units must be 'GEO' or 'PIXEL'")
-    best_crs = _get_best_crs_for_india(str(input_path))
-    current_epsg = _get_current_epsg(str(input_path))
-
-    working_input = input_path
-    if distance_units == "GEO":
-        if current_epsg != best_crs.replace("EPSG:", ""):
-            reprojected_path = input_path.parent / f"{uuid4()}ecludian_proj.tif"
-            celery_reprojection(input_path,reprojected_path,best_crs)
-            working_input = reprojected_path
-
-    command = [
-        "gdal_proximity.py",
-        str(working_input),
-        str(output_path),
-        "-distunits", distance_units,
-        "-ot", "Float32",
-        "-co", "COMPRESS=LZW",
-        "-co", "TILED=YES",
-        "-co", "BIGTIFF=YES",
-        "-nodata", str("nodata_value"),
-    ]
-
-    if target_values:
-        values_str = ",".join(map(str, target_values))
-        command += ["-values", values_str]
-
-    if max_distance and max_distance > 0:
-        command += ["-maxdist", str(max_distance)]
-
-    logger.info(f"Running GDAL proximity: {' '.join(command)}")
-
+    celery_task_update(
+        task_id=self.request.id,
+        status="started",
+    )
     try:
-        subprocess.run(
-            command,
-            check=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        with tempfile.TemporaryDirectory(prefix="ecluidian_") as tmp_dir:
+            with zipfile.ZipFile(input_path, 'r') as z:
+                z.extractall(tmp_dir)
+            shp_path = None
 
-        logger.info("Euclidean distance completed successfully")
+            for root, dirs, files in os.walk(tmp_dir):
+                for file in files:
+                    if file.lower().endswith(".shp"):
+                        shp_path = os.path.join(root, file)
+                        break
+                if shp_path:
+                    break
+            lon, lat = _get_centroid(shp_path)
+            epsg = _get_utm_epsg(lon, lat)
+            celery_task_update(
+                task_id=self.request.id,
+                status="running",
+                progress=40,
+            )
+            PROJECTED_SHP = os.path.join(tmp_dir, "projected.shp")
+            RASTER_POINTS = os.path.join(tmp_dir, "points.tif")
+            _run_cmd(f'ogr2ogr -t_srs EPSG:{epsg} "{PROJECTED_SHP}" "{shp_path}"')
+            layer_name = os.path.splitext(os.path.basename(PROJECTED_SHP))[0]
+            _run_cmd(
+                f'gdal_rasterize '
+                f'-burn 1 '
+                f'-tr 30 30 '
+                f'-ot Byte '
+                f'-of GTiff '
+                f'-l {layer_name} '
+                f'"{PROJECTED_SHP}" "{RASTER_POINTS}"'
+            )
 
-        # Cleanup temporary reprojection
-        if working_input != input_path:
-            working_input.unlink(missing_ok=True)
-
-        return str(output_path)
-
+            celery_task_update(
+                task_id=self.request.id,
+                status="running",
+                progress=80,
+            )
+            _run_cmd(
+                f'gdal_proximity.py '
+                f'"{RASTER_POINTS}" "{output_path}" '
+                f'-values 1 '
+                f'-distunits GEO '
+                f'-ot Float32 '
+                f'-nodata -9999 '
+                f'--config GDAL_CACHEMAX 512'
+            )
+            unique_store_name =Unique_name.unique_name("raster_store")
+            _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+            file_name=output_path.split("/")[-1].split(".")[0]
+            update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
+            celery_task_update(
+                task_id=self.request.id,
+                status="completed",
+                progress=100,
+                layer_name=layer_name,
+                result_path=output_path
+            )
     except subprocess.CalledProcessError as e:
         logger.error("GDAL proximity failed")
         logger.error(e.stderr)
@@ -292,6 +420,7 @@ def celery_euclidean_distance(
     except subprocess.TimeoutExpired:
         logger.error("GDAL proximity timed out")
         raise RuntimeError("Euclidean distance computation timed out")
+
 
 def _update_stats(nodata_out:float,output_path: str):
     with rasterio.open(output_path, "r+") as ds:
@@ -311,96 +440,79 @@ def _update_stats(nodata_out:float,output_path: str):
         ds.update_tags(1, **stats)  
         ds.nodata = nodata_out  
 
+def _reclass_break(method, data, num_classes):
+    if method == "quantile":
+        return  np.percentile(data, np.linspace(0, 100, num_classes + 1))
+    elif method == "equal":
+        return np.linspace(data.min(), data.max(), num_classes + 1)
+    elif method == "jenks":
+        return jenkspy.jenks_breaks(data, n_classes=num_classes)
+    
 
-def _infer_output_type(rules: List[ReclassRule], nodata_out: float) -> str:
-    all_values = [r.new_value_cast for r in rules if r.new_value_cast is not None]
+@app.task(bind=True,name='celery_reclassify_tools',queue='heavy_task')
+def reclassify_raster(
+    self, 
+    input_path: str,
+    output_path: str,
+    method: str,
+    classes:int,
+    src_nodata: str
+):
+    celery_task_update(
+        task_id=self.request.id,
+        status="started",
+    )
+    with rasterio.open(input_path) as src:
+        arr = src.read(1)
+        profile = src.profile
+        nodata = src.nodata
+    if nodata is not None:
+        mask = arr != nodata
+        data = arr[mask]
+    else:
+        mask = np.ones_like(arr, dtype=bool)
+        data = arr.flatten()
+    
 
-    if not all_values:
-        return "Int16"
+    breaks = _reclass_break(method, data, classes)
+    nodata_out = -9999
+    classified = np.zeros_like(arr, dtype=np.int32)
+    celery_task_update(
+        task_id=self.request.id,
+        status="running",
+        progress=40,
+    )
 
-    if any(isinstance(v, float) and not float(v).is_integer() for v in all_values):
-        return "Float32"
+    for i in range(classes):
+        lower = breaks[i]
+        upper = breaks[i + 1]
 
-    # Include nodata in range check so output type can always represent it
-    all_values_with_nodata = all_values + [nodata_out]
-
-    max_val = max(abs(v) for v in all_values_with_nodata)
-    all_non_negative = all(v >= 0 for v in all_values_with_nodata)
-
-    if max_val <= 255 and all_non_negative:
-        return "Byte"
-
-    if max_val <= 32767:
-        return "Int16"
-
-    return "Int32"
-
-def _build_calc_expression(rules: List[ReclassRule], nodata_val: float) -> str:
-    expr = str(nodata_val)
-
-    for rule in reversed(rules):
-
-        # Base condition: always exclude NoData pixels first
-        nodata_guard = f"(A!={nodata_val})"
-
-        if rule.value is not None:
-            condition = f"({nodata_guard}&(A=={rule.value}))"
-
+        if i == classes - 1:
+            cond = (arr >= lower) & (arr <= upper)
         else:
-            parts = [nodata_guard]
-            if rule.min is not None:
-                parts.append(f"(A>={rule.min})")
-            if rule.max is not None:
-                parts.append(f"(A<{rule.max})")
-            # No min/max = catch-all, but still guarded by nodata
-            condition = "&".join(parts)
+            cond = (arr >= lower) & (arr < upper)
 
-        expr = f"where({condition}, {rule.new_value}, {expr})"
+        classified[cond] = i + 1
 
-    return expr
+    
 
-def reclassify_raster(params: RasterReclassify, input_path: str, output_path: str):
+    classified[~mask] = nodata_out
+    profile.update(dtype=rasterio.int32, count=1, nodata=nodata_out)
 
-    input_path, src_nodata = _normalize_nodata(input_path)
+    with rasterio.open(output_path, "w", **profile) as dst:
+        dst.write(classified, 1)
 
-    nodata_out = (
-    params.nodata_cast if params.nodata_value is not None
-    else (src_nodata   if src_nodata          is not None
-    else -9999.0)
-    )
-
-    out_type = _infer_output_type(params.rules, nodata_out)
-    expression = _build_calc_expression(params.rules, nodata_out)
-
-
-    cmd = [
-        "gdal_calc.py",
-        "-A", input_path,
-        "--outfile",     output_path,
-        "--calc",        expression,
-        "--NoDataValue", str(nodata_out),
-        "--type",        out_type,
-        "--format",      "GTiff",
-        "--co",          "COMPRESS=LZW",
-        "--co",          "TILED=YES",
-        "--overwrite",
-        "--quiet",
-    ]
-
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"gdal_calc.py failed (exit {result.returncode}):\n{result.stderr}"
-        )
-
-    _update_stats(nodata_out, output_path)
-    return output_path
+    unique_store_name =Unique_name.unique_name("raster_store")
+    _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+    file_name=output_path.split("/")[-1].split(".")[0]
+    update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
+    celery_task_update(
+        task_id=self.request.id,
+        status="completed",
+        progress=100,
+        layer_name=layer_name,
+        result_path=output_path
+    )    
 
 
 @app.task(bind=True,name='celery_projection_tools',queue='heavy_task')
@@ -441,16 +553,18 @@ def celery_reprojection(
         )
 
         logger.info("Reprojection completed successfully")
-        logger.debug(result.stdout)
+        _update_stats(float(src_nodata), output_path)
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except subprocess.CalledProcessError as e:
@@ -598,7 +712,6 @@ def _run_flow_direction(
     logger.info("Flow direction complete [%s]", algorithm)
 
 
-
 def _run_flow_accumulation(
     dem_path: str,
     output_path: str,
@@ -702,7 +815,7 @@ def _run_tpi(
     if not os.path.exists(output_path):
         raise RuntimeError("WhiteboxTools produced no output")
 
-    logger.info("TPI calculation finished")
+    logger.info("TPI calculation completed")
 
 def _run_twi(
     dem_path:    str,
@@ -807,15 +920,18 @@ def compute_flow_accumulation_task(
 
 
         logger.info("Flow accumulation complete [pid=%s]: %s", os.getpid(), output_path)
+        
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -825,6 +941,7 @@ def compute_flow_accumulation_task(
             status="failed",
         )
         raise
+
 
 @app.task(bind=True,name='celery_flow_direction_tools',queue='heavy_task')
 def compute_flow_direction_task(
@@ -851,7 +968,6 @@ def compute_flow_direction_task(
             task_id=self.request.id,
             status="running",
             progress=40,
-            
             )
             _run_flow_direction(
                 dem_path=dem_path,
@@ -863,17 +979,18 @@ def compute_flow_direction_task(
             status="running",
             progress=70,
            
-        )
-        
+        )        
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -912,15 +1029,17 @@ def compute_slope_task(
             units=units,
         )
         
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -950,16 +1069,19 @@ def compute_tpi_task(
             output_path=output_path,
             radius=radius,
         )
-        _update_stats(float(src_nodata), output_path)
+       
+        
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
         
@@ -1001,17 +1123,17 @@ def compute_twi_task(
                 tmp_dir=tmp_dir,
                 algorithm=algorithm,
             )
-
-        
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except (FileNotFoundError, PermissionError, ValueError) as e:
@@ -1078,15 +1200,18 @@ def resample_raster_task(
         )
         
         _update_stats(float(src_nodata),output_path)
+        
+        unique_store_name =Unique_name.unique_name("raster_store")
+        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
+        file_name=output_path.split("/")[-1].split(".")[0]
+        update_raster_info(file_id=self.request.id,file_name=file_name,layer_name=layer_name,file_path=output_path)
         celery_task_update(
             task_id=self.request.id,
             status="completed",
             progress=100,
-            layer_name=self.request.id,
+            layer_name=layer_name,
             result_path=output_path
         )
-        unique_store_name =Unique_name.unique_name("raster_store")
-        _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
         
 
     except (FileNotFoundError, PermissionError, ValueError) as e:

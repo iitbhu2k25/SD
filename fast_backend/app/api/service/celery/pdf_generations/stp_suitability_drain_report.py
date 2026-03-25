@@ -767,7 +767,7 @@ class StpDocument:
         for layer in layer_names:
             try:
                 if hasattr(layer, 'layer_name'):
-                    resp = Geoserver().raster_download(
+                    resp = Geoserver().celery_raster_download(
                         temp_path=self.folder_path+"/geoserver", 
                         layer_name=layer.layer_name
                     )

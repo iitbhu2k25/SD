@@ -1,5 +1,7 @@
+import tempfile
 import uuid
 import shutil
+import zipfile
 from fastapi.responses import FileResponse
 import rasterio
 from rasterio.enums import Resampling
@@ -71,8 +73,9 @@ class RasterOperation:
         self.MAX_SIZE_BYTES = 500 * 1024 * 1024
         self.geo=Geoserver()
         self.workspace="raster_work"
+        self.vector_workspace="vector_work"
         self.default_sld="/home/app/media/Rajat_data/default_sld.xml"
-    async def _get_file_path(self, file_id: str) -> Path:
+    async def _get_file_path_raster(self, file_id: str) -> Path:
         file_path = await self.get_redis.get(f"raster:{file_id}")
         if not file_path:
             raise ValueError("Invalid or expired file_id")
@@ -80,9 +83,16 @@ class RasterOperation:
         if file_path.exists():
             return file_path
         raise FileNotFoundError("Temporary file missing")
+    
+    async def _get_file_path_vector(self, file_id: str) -> Path:
+        file_path = await self.get_redis.get(f"vector:{file_id}")
+        if not file_path:
+            raise ValueError("Invalid or expired file_id")
+        file_path = Path(file_path)
+        if file_path.exists():
+            return file_path
+        raise FileNotFoundError("Temporary file missing")
 
-    def _get_Nodata(self):
-        pass
 
     def _safe_float(self, value):
         if value is None:
@@ -278,7 +288,7 @@ class RasterOperation:
         return layer_name
     
     async def _make_raster_info(self,db:Session, file_id: str, file_name: str = None, compute_stats: bool = True) -> Dict[str, Any]:
-        file_path = await self._get_file_path(file_id)
+        file_path = await self._get_file_path_raster(file_id)
         layer_name= await self._upload_geoserver(file_path)
         rasteroperSchemaObj=rasteroperSchema(
             file_id=file_id,
@@ -327,6 +337,71 @@ class RasterOperation:
         await self._make_raster_info(db,file_id,file_name.split(".")[0])
         return file_id
 
+    async def _validate_shapefile_zip(self,zip_path):
+        required_extensions = {'.shp', '.dbf', '.shx'}
+        found_extensions = set()
+        base_names = set()
+
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            file_list = z.namelist()
+
+            for file in file_list:
+                name, ext = os.path.splitext(os.path.basename(file))
+                ext = ext.lower()
+
+                if ext in required_extensions:
+                    found_extensions.add(ext)
+                    base_names.add(name)
+
+        # Check required files
+        missing = required_extensions - found_extensions
+
+        # Check same base filename
+        valid_base = len(base_names) == 1
+        if len(missing) == 0 and valid_base:
+            return True
+        else:
+            raise CustomException(status_code=400,detail="Invalid shapefile zip")
+
+    async def _unique_vector_name(self,zip_path):
+        new_name = str(uuid.uuid4())
+        temp_dir = tempfile.mkdtemp()
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as z:
+                z.extractall(temp_dir)
+
+            base_name = None
+            for file in os.listdir(temp_dir):
+                if file.endswith('.shp'):
+                    base_name = os.path.splitext(file)[0]
+                    break
+
+            if not base_name:
+                raise ValueError("No .shp file found")
+
+       
+            for file in os.listdir(temp_dir):
+                old_path = os.path.join(temp_dir, file)
+                name, ext = os.path.splitext(file)
+
+                if name == base_name:
+                    new_file = new_name + ext
+                    new_path = os.path.join(temp_dir, new_file)
+                    os.rename(old_path, new_path)
+
+           
+            output_zip_path = os.path.join(
+                os.path.dirname(zip_path),
+                f"{new_name}.zip"
+            )
+            with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
+                for file in os.listdir(temp_dir):
+                    z.write(os.path.join(temp_dir, file), file)
+
+            return new_name,output_zip_path
+        finally:
+            shutil.rmtree(temp_dir)
+    
     async def chunk_upload(self, file: UploadFile,upload_id:str,chunk_index: int) -> str:
         
         chunk_dir = self.chunk_dir / upload_id
@@ -362,13 +437,32 @@ class RasterOperation:
                 status_code=500,
                 detail="Failed to write chunk"
             )
-
         return "Chunk uploaded successfully"
     
+    async def validate_vector(self,output_path:Path):
+        await self._validate_shapefile_zip(output_path)
+        layer_name, output_zip_path = await self._unique_vector_name(output_path)
+        return layer_name,output_zip_path
+    
+    async def merge_raster_chunks(self,db:Session,file_id:str,filename:str,output_path:Path):
+        await self.get_redis.setex(f"raster:{file_id}", 10800, str(output_path)) 
+        await self._make_raster_info(db,file_id,filename.split(".")[0])
+        return {"file_id": file_id,"layer_name":file_id,"filename":filename.split(".")[0]}
+
+
+    async def merge_vector_chunks(self,file_id:str,filename:str,output_path:Path,db:Session):
+        layer_name,output_zip_path=await self.validate_vector(output_path)
+        await Geoserver().upload_vector(self.vector_workspace,"user_upload_vector",output_zip_path,layer_name.split(".")[0])
+        await self.get_redis.setex(f"vector:{layer_name}", 10800, str(output_zip_path))
+        return {"file_id": layer_name, "file_name": filename.split(".")[0]}
+
+        
+
+
     async def merge_chunks(self, db:Session,upload_id: str,filename: str,total_chunks: int) -> str:
         file_ext = Path(filename).suffix.lower()
-        if file_ext not in (".tif", ".tiff"):
-            raise HTTPException(status_code=404, detail="Invalid file format — only .tif / .tiff accepted")
+        if file_ext not in (".tif", ".tiff",".zip"):
+            raise HTTPException(status_code=404, detail="Invalid file format — only .tif / .tiff or .zip accepted")
         file_id = str(uuid.uuid4())
         chunk_dir = self.chunk_dir / upload_id
         if not chunk_dir.exists():
@@ -390,12 +484,17 @@ class RasterOperation:
 
 
         shutil.rmtree(chunk_dir)
-        await self.get_redis.setex(f"raster:{file_id}", 10800, str(output_path)) 
-        await self._make_raster_info(db,file_id,filename.split(".")[0])
-        return {"file_id": file_id,"layer_name":file_id,"filename":filename.split(".")[0]}
+        if file_ext in (".tif", ".tiff"):
+            return await self.merge_raster_chunks(db,file_id,filename,output_path)
+        elif file_ext == ".zip":
+            return await self.merge_vector_chunks(file_id,filename,output_path,db)
+        
 
     async def updatesld(self,payload:SLDUpdate):
-        await Geoserver().apply_sld_content(self.workspace,payload.layername,payload.sld)
+        if payload.sld ==None:
+            await Geoserver().remove_sld_from_layer(self.workspace,payload.layername)
+        else:
+            await Geoserver().apply_sld_content(self.workspace,payload.layername,payload.sld)
 
     async def get_info(self,db:Session,file_id:str):
         resp1=rasterstorecrud(db).get_details(file_id)
@@ -412,58 +511,80 @@ class RasterOperation:
         try:
             epsg_code = EPSG[payload.target_epsg].value
             crs="EPSG:"+str(epsg_code)
-            file_path=await self._get_file_path(payload.file_id)
-            output_path = self.temp_dir / f"reprojected_{crs}_{time.time()}.tif"
-            return celery_reprojection.delay(str(file_path),str(output_path),crs,payload.src_nodata,payload.resampling)
+            file_path=await self._get_file_path_raster(payload.file_id)
+            output_path = self.temp_dir / f"reprojected_{crs}_{uuid.uuid4()}.tif"
+            celery_obj=celery_reprojection.delay(str(file_path),str(output_path),crs,payload.src_nodata,payload.resampling)
+            await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+            return celery_obj.id
         except KeyError:
             raise ValueError("Invalid EPSG")
 
 
-    def reclassify(self,db:Session,payload:RasterReclassify):
-        file_path=self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"reclassified_{time.time()}.tif"
-        return reclassify_raster(payload,str(file_path),str(output_path))
+    async def reclassify(self,db:Session,payload:RasterReclassify):
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"reclassified_{uuid.uuid4()}.tif"
+        celery_obj= reclassify_raster.delay(str(file_path),str(output_path),payload.method,payload.classes,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
+
+        
 
     
     async def edludian(self,db:Session,payload:Edliudian):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"ecludian_{time.time()}.tif"
-        return celery_euclidean_distance(str(file_path),str(output_path),payload.target_values,payload.max_distance,payload.distance_units)
+        file_path=await self._get_file_path_vector(payload.file_id)
+        output_path = self.temp_dir / f"ecludian_{uuid.uuid4()}.tif"
+        celery_obj= celery_euclidean_distance.delay(str(file_path),str(output_path))
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
     
     async def flow_direction(self,db:Session,payload:FlowDirectionParams):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"flow_direction_{time.time()}.tif"
-        return compute_flow_direction_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"flow_direction_{uuid.uuid4()}.tif"
+        celery_obj= compute_flow_direction_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
     
     async def flow_accumulation(self,db:Session,payload:FlowAccumulationParams):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"flow_accumulation_{time.time()}.tif"
-        return compute_flow_accumulation_task.delay(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,str(file_path),str(output_path),payload.src_nodata)
-
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"flow_accumulation_{uuid.uuid4()}.tif"
+        celery_obj= compute_flow_accumulation_task.delay(payload.fill_depressions,payload.algorithm,payload.output_type,payload.log_transform,str(file_path),str(output_path),payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
+    
     async def slope(self,db:Session,payload:SlopeParams):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"slope_{time.time()}.tif"
-        return compute_slope_task.delay(str(file_path),str(output_path),payload.units,payload.src_nodata)
-
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"slope_{uuid.uuid4()}.tif"
+        celery_obj= compute_slope_task.delay(str(file_path),str(output_path),payload.units,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
+    
     async def tpi(self,db:Session,payload:TpiParams):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"tpi_{time.time()}.tif"
-        return compute_tpi_task.delay(str(file_path),str(output_path),payload.radius,payload.src_nodata)
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"tpi_{uuid.uuid4()}.tif"
+        celery_obj= compute_tpi_task.delay(str(file_path),str(output_path),payload.radius,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
 
+    
     async def twi(self,db:Session,payload:TwiParams):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"twi_{time.time()}.tif"
-        return compute_twi_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
-
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"twi_{uuid.uuid4()}.tif"
+        celery_obj= compute_twi_task.delay(str(file_path),str(output_path),payload.algorithm,payload.fill_depressions,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
+    
     async def test_resolution(self,db:Session,payload:CellResize):
-        file_path=await self._get_file_path(payload.file_id)
+        file_path=await self._get_file_path_raster(payload.file_id)
         return dry_run_resample(file_path,payload.target_cell,payload.algorithm)
+
     
     async def execute_resolution(self,db:Session,payload:CellResize):
-        file_path=await self._get_file_path(payload.file_id)
-        output_path = self.temp_dir / f"resolution_{time.time()}.tif"
-        return resample_raster_task.delay(str(file_path),str(output_path),payload.target_cell,payload.algorithm,payload.src_nodata)
-       
+        file_path=await self._get_file_path_raster(payload.file_id)
+        output_path = self.temp_dir / f"resolution_{uuid.uuid4()}.tif"
+        celery_obj= resample_raster_task.delay(str(file_path),str(output_path),payload.target_cell,payload.algorithm,payload.src_nodata)
+        await self.get_redis.setex(f"raster:{celery_obj.id}", 10800, str(output_path))
+        return celery_obj.id
+    
     async def raster_download(self,db:Session,file_id:str):
         db_obj=rasterOperCrud(db).get_task(file_id)
         file_path=db_obj.file_path

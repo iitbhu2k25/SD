@@ -415,7 +415,7 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     unique_store_name =Unique_name.unique_name("wqi_store")
 
     sld_path,sld_name=raster_obj.sld_path(file_path=str(path))
-    status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
+    status,layer_name=geo.upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
     status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
     sync_redis_client.hset(self.request.root_id+"_Result", mapping={param: layer_name})
 
@@ -615,7 +615,7 @@ def start_weight_raster(self,result:list):
     unique_store_name =Unique_name.unique_name("wqi_store")
     
     sld_path,sld_name=raster_obj.sld_path(file_path=str(ans),overlay=True)
-    status,layer_name=geo.publish_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
+    status,layer_name=geo.upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
     status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
     
     sync_redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})

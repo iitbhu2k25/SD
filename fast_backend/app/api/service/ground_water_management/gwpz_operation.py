@@ -598,7 +598,7 @@ class GWAPriorityMapper:
         self.processor = RasterProcess(self.config)
         self.vectorProcess=VectorProcess()
         
-    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
+    async def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
         try:
             raster_path=Gwzp_service.get_GWA_Priority_visual(db)
             raster_path = [{"file_name": i.file_name,
@@ -611,8 +611,8 @@ class GWAPriorityMapper:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 unique_store_name = Unique_name.unique_name(self.config.raster_store)
-                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
+                status,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -637,27 +637,21 @@ class GWAPriorityMapper:
         final_name = Unique_name.unique_name_with_ext("Ground_water_Potential","tif")
         return constrained_path ,self.processor.clip_to_basin(constrained_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
   
-    def create_gwpz_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
-        try:
-            constrained_path,final_path=self._overlay(raster_paths,None,weights)
-            sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=False)
-            final_name = Unique_name.unique_name_with_ext("Ground_water_Potential","tif")
-            final_path1=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
-            csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
-            unique_store_name = Unique_name.unique_name(self.config.raster_store)
-            tatus,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
-            status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-            if status:
-                return {
-                    "workspace": self.config.raster_workspace,
-                    "layer_name": layer_name,
-                    "csv_path":csv_path,
-                    "csv_details":csv_details
-                }
-            return False
-        except Exception as e:
-            print(e)
-            return False
+    async def create_gwpz_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
+        constrained_path,final_path=self._overlay(raster_paths,None,weights)
+        sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=False)
+        final_name = Unique_name.unique_name_with_ext("Ground_water_Potential","tif")
+        final_path1=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
+        csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place=place,logic="priority")
+        unique_store_name = Unique_name.unique_name(self.config.raster_store)
+        tatus,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        return {
+                "workspace": self.config.raster_workspace,
+                "layer_name": layer_name,
+                "csv_path":csv_path,
+                "csv_details":csv_details
+        }
 
 class GWPumpingMapper:
     def __init__(self, config: GeoConfig = None):
@@ -732,7 +726,7 @@ class GWPumpingMapper:
             rank+= 1
 
         return table
-    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
+    async def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
             raster_path=GWPL_service.get_GWPL_visual(db)
             raster_path = [{"file_name": i.file_name,
@@ -744,8 +738,8 @@ class GWPumpingMapper:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
                 unique_store_name = Unique_name.unique_name(self.config.raster_store)
-                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
+                status,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -757,25 +751,23 @@ class GWPumpingMapper:
             print(e)
             return False
         
-    def create_gwpz_map(self,db:db_dependency,payload:List,reverse:bool=False) -> str:
+    async def create_gwpz_map(self,db:db_dependency,payload:List,reverse:bool=False) -> str:
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext('GWPL_raster','tif') 
         final_path1,vector_name,clip=self._cliping_raster(final_path,final_name,payload)
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
-        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-        if status:
-            return {
-                "status": "success",
-                "workspace": self.config.raster_workspace,
-                "store": self.config.raster_store,
-                "layer_name": layer_name,
-                "vector_name":vector_name,
-                "type": "raster",
+        status,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        return {
+            "status": "success",
+            "workspace": self.config.raster_workspace,
+            "store": self.config.raster_store,
+            "layer_name": layer_name,
+            "vector_name":vector_name,
+            "type": "raster",
             }
-        return False
     
     def __well_distance(self,wells_gdf:pd.DataFrame):
         road_paths="/home/app/media/Rajat_data/shape_stp/Roads/Roads.shp"
@@ -903,7 +895,7 @@ class MARSuitabilityMapper:
         final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=payload.clip,place="Drain")
         return final_path,payload.clip
     
-    def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
+    async def get_visual_raster(self,db:db_dependency,clip:List[int]=None,place:str="Drain") -> str:
         try:
             raster_path=MARSuitability_svc.get_MAR_visual(db)
             raster_path = [{"file_name": i.file_name,
@@ -915,9 +907,9 @@ class MARSuitabilityMapper:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place="Drain")
                 unique_store_name = Unique_name.unique_name("mar_suitability")
-                status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+                status,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
                 sld_name=Unique_name.unique_name(layer_name)
-                status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)  
+                await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=sld_name)  
                 response.append({
                     "workspace": self.config.raster_workspace,
                     "layer_name": layer_name,
@@ -929,7 +921,7 @@ class MARSuitabilityMapper:
             print(e)
             return False
 
-    def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
+    async def create_suitability_map(self,db:db_dependency,payload:List,reverse:bool=False):
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         constrained_path,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext("MAR_suitability","tif")
@@ -937,19 +929,17 @@ class MARSuitabilityMapper:
         sld_path,sld_name=RasterProcess().processRaster(final_path1,reverse=reverse)
         csv_path,csv_details=self.processor.clip_details(raster_path=final_path1,clip=clip,place="Admin",logic="suitability")
         unique_store_name = Unique_name.unique_name(self.config.raster_store)
-        status,layer_name=geo.publish_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
-        status=geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-        if status:
-            return {
-                "status": "success",
-                "workspace": self.config.raster_workspace,
-                "store": self.config.raster_store,
-                "layer_name": layer_name,
-                "type": "raster",
-                "csv_path":csv_path,
-                "csv_details":csv_details
+        status,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
+        await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        return {
+            "status": "success",
+            "workspace": self.config.raster_workspace,
+            "store": self.config.raster_store,
+            "layer_name": layer_name,
+            "type": "raster",
+            "csv_path":csv_path,
+            "csv_details":csv_details
             }
-        return False
     
 
 
