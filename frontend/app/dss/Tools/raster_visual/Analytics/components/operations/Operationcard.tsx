@@ -1,5 +1,5 @@
 import React from "react";
-import { OperationDef } from "./registry";
+import { OperationDef } from "@/contexts/raster_operations/registry";
 
 interface Props {
   op: OperationDef;

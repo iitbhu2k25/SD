@@ -2,4 +2,4 @@
 export { default as OperationsPanel } from "./Operationspanel";
 export { default as OperationCard } from "./Operationcard";
 export { default as OperationForm } from "./Operationform";
-export * from "./registry";
+export * from "@/contexts/raster_operations/registry";

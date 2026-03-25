@@ -6,32 +6,28 @@ import {
   OperationCategory,
   OperationDef,
   getOperationsByCategory,
-} from "./registry";
+} from "@/contexts/raster_operations/registry";
 import OperationCard from "./Operationcard";
 import OperationForm from "./Operationform";
 import TaskPanel from "./Taskpanel";
-import { useOperationTask } from "./Useoperationtask";
+import { useOperationTask } from "@/contexts/raster_operations/Useoperationtask";
 import { api } from "@/services/api";
 
 type View = "list" | "form" | "task";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OperationsPanel
-// ─────────────────────────────────────────────────────────────────────────────
-
 const OperationsPanel: React.FC = () => {
-  const { layer,details } = useRaster();
-
-  const [view,          setView         ] = useState<View>("list");
+  const { layer, details, taskState, setTaskState } = useRaster(); 
+  const [view,           setView          ] = useState<View>("list");
   const [activeCategory, setActiveCategory] = useState<OperationCategory | "all">("all");
-  const [selectedOp,    setSelectedOp   ] = useState<OperationDef | null>(null);
-  const [search,        setSearch       ] = useState("");
+  const [selectedOp,     setSelectedOp    ] = useState<OperationDef | null>(null);
+  const [search,         setSearch        ] = useState("");
 
   const hasLayer = !!layer;
 
-  const { taskState, execute, reset } = useOperationTask(
+  const { execute, reset } = useOperationTask(
     details?.file_id ?? "",
-    details?.nodata ?? ""
+    details?.nodata  ?? "",
+    setTaskState,              // ← injected
   );
 
   // ── Filtered list ──────────────────────────────────────────────────────
@@ -78,40 +74,36 @@ const OperationsPanel: React.FC = () => {
   };
 
   const handleViewOnMap = (layerName: string) => {
-    // Integrate with your map context — load the GeoServer WMS layer
     console.log("[OperationsPanel] View on map:", layerName);
-    // e.g. mapContext.addWmsLayer(layerName)
   };
 
   const handleDownload = async (fileId: string) => {
-  try {
-    const res = await api.get<Blob>(`/tools/raster/download/${fileId}`, {
-      responseType: "blob",
-    });
+    try {
+      const res = await api.get<Blob>(`/tools/raster/download/${fileId}`, {
+        responseType: "blob",
+      });
 
-    if (!res.message) return;
+      if (!res.message) return;
 
-    const url = window.URL.createObjectURL(res.message);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileId}raster.tif`;
-    document.body.appendChild(a);
-    a.click();
-
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Download failed", error);
-  }
-};
+      const url = window.URL.createObjectURL(res.message);
+      const a   = document.createElement("a");
+      a.href     = url;
+      a.download = `${fileId}raster.tif`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed", error);
+    }
+  };
 
   // ── Task view ──────────────────────────────────────────────────────────
   if (view === "task" && selectedOp) {
     return (
       <TaskPanel
         op={selectedOp}
-        taskState={taskState}
+        taskState={taskState}          // ← from context
         onBack={() => setView("form")}
         onReset={handleReset}
         onViewOnMap={handleViewOnMap}
@@ -178,7 +170,10 @@ const OperationsPanel: React.FC = () => {
           style={{ color: "var(--text-primary)", fontFamily: "var(--font-body)" }}
         />
         {search && (
-          <button onClick={() => setSearch("")} style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", display: "flex" }}>
+          <button
+            onClick={() => setSearch("")}
+            style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", display: "flex" }}
+          >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

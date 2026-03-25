@@ -14,9 +14,10 @@ export interface ColorStop {
 
 export interface SLDConfig {
   layerName: string;
-  colorStops: ColorStop[];
-  interpolation: "linear" | "discrete";
+  colorStops?: ColorStop[];
+  interpolation?: "linear" | "discrete";
   opacity: number;
+  renderMode?: 'singleband_pseudocolor' | 'singleband_gray';
 }
 
 export interface UploadResponse {
@@ -221,3 +222,25 @@ export interface WMSLayerState {
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
 export type RasterPanelTab = "layers" | "basemap" | "details" | "operations";
+
+export type TaskStatus = "idle" | "submitting" | "pending" | "running" | "completed" | "failed";
+
+export interface TaskLog {
+  timestamp: string;
+  message: string;
+}
+
+export interface TaskResult {
+  file_id: string;
+  layer_name: string;
+  file_name: string;
+}
+
+export interface TaskState {
+  taskId: string | null;
+  status: TaskStatus;
+  progress: number;          // 0–100
+  logs: TaskLog[];
+  result: TaskResult | null;
+  error: string | null;
+}

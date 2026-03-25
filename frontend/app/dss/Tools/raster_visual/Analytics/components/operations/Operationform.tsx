@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { OperationDef, OperationParam, getCategoryDef } from "./registry";
+import { OperationDef, OperationParam, getCategoryDef } from "@/contexts/raster_operations/registry";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OperationForm — Dynamic param form for the selected operation

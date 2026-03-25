@@ -284,8 +284,8 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
               },
             }
           );
-
           const data = (await response.message) as ClipRasters[];
+          console.log("data",data)
           setDisplayRaster(data);
         } catch (error) {
           console.log("Error fetching raster data:", error);

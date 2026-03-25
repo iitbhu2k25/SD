@@ -305,37 +305,7 @@ export const OPERATIONS: OperationDef[] = [
     ],
   },
 
-  {
-    id: "interpolation",
-    label: "Interpolation",
-    description: "Interpolate raster from point data",
-    category: "transform",
-    icon: "M4 4h16v16H4z",
-    accentColor: "--amber",
-    params: [
-      {
-        key: "method",
-        label: "Method",
-        type: "select",
-        default: "idw",
-        options: [
-          { label: "IDW", value: "idw" },
-          { label: "Linear", value: "linear" },
-          { label: "Nearest", value: "nearest" },
-        ],
-      },
-      {
-        key: "cell_size",
-        label: "Output Cell Size",
-        type: "number",
-        default: 30,
-        min: 1,
-        max: 10000,
-        step: 1,
-        unit: "map units",
-      },
-    ],
-  },
+  
 
   // ── Classification ───────────────────────────────────────
   {
@@ -352,22 +322,25 @@ export const OPERATIONS: OperationDef[] = [
         type: "number",
         default: 5,
         min: 2,
-        max: 20,
+        max: 10,
         step: 1,
+      },
+      {
+        key: "method",
+        label: "classification method",
+        type: "select",
+        default: "quantile",
+        options: [
+          { label: "Quantile", value: "quantile" },
+          { label: "Equal Interval", value: "equal" },
+          
+        ],
       },
     ],
   },
 
   // ── Distance ─────────────────────────────────────────────
-  {
-    id: "euclidean_distance",
-    label: "Euclidean Distance",
-    description: "Distance to nearest source cell",
-    category: "distance",
-    icon: "M12 22s8-4 8-10",
-    accentColor: "--orange",
-    params: [],
-  },
+  
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

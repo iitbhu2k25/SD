@@ -1,8 +1,11 @@
+import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 import { useAuthStore } from "@/store/authStore";
-let isRefreshing = false;
-let refreshPromise: Promise<string> | null = null;
 import { performLogout } from "@/utils/logout";
 import { toast } from "react-toastify";
+
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
 interface RequestOptions {
@@ -16,34 +19,65 @@ interface RequestOptions {
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL;
 
-function buildQuery(params?: Record<string, string | number>): string {
-  if (!params) return "";
-  return `?${new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)]),
-  )}`;
+function extractMessage(data: any): string {
+  if (!data) return "Something went wrong";
+  if (typeof data === "string") return data;
+
+  if (Array.isArray(data?.detail)) {
+    return data.detail
+      .map((err: any) => err?.msg ?? "Validation error")
+      .join(", ");
+  }
+  if (typeof data?.detail === "string") return data.detail;
+
+  return data?.message ?? data?.error ?? "Something went wrong";
 }
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly data: any,
+  ) {
+    super(extractMessage(data));
+    this.name = "ApiError";
+  }
+}
+
+// Axios instance
+const axiosInstance = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true,
+});
 
 async function callBackend(
   method: HttpMethod,
   endpoint: string,
   options: RequestOptions = {},
-): Promise<Response> {
-  const { headers = {}, params, body, authToken } = options;
+): Promise<AxiosResponse> {
+  const { headers = {}, params, body, authToken, responseType } = options;
 
   const token = authToken ?? useAuthStore.getState().accessToken;
-  const url = `${BASE_URL}${endpoint}${buildQuery(params)}`;
   const isFormData = body instanceof FormData;
 
-  return fetch(url, {
+  const axiosResponseType: ResponseType =
+    responseType === "blob" ? "blob" :
+    responseType === "text" ? "text" : "json";
+
+  const config: AxiosRequestConfig = {
     method,
-    credentials: "include",
+    url: endpoint,
+    params,
+    withCredentials: true,
+    responseType: axiosResponseType,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
       ...(isFormData ? {} : headers),
     },
-    ...(body ? { body: isFormData ? body : JSON.stringify(body) } : {}),
-  });
+    ...(body ? { data: isFormData ? body : body } : {}), 
+  };
+
+  return axiosInstance.request(config);
 }
 
 async function refreshAccessToken(): Promise<string> {
@@ -54,18 +88,17 @@ async function refreshAccessToken(): Promise<string> {
   isRefreshing = true;
 
   refreshPromise = (async () => {
-    const res = await fetch(`${TOKEN_URL}`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (res.status >= 400) {
+    try {
+      const res = await axios.post(`${TOKEN_URL}`, null, {
+        withCredentials: true,
+      });
+      useAuthStore.getState().setAccessToken(res.data);
+      return res.data.access_token;
+    } catch (err) {
       toast.error("All Sessions expired. Please login again.");
       await performLogout();
-      return;
+      return "";
     }
-    const data = await res.json();
-    useAuthStore.getState().setAccessToken(data);
-    return data.access_token;
   })();
 
   try {
@@ -76,47 +109,44 @@ async function refreshAccessToken(): Promise<string> {
   }
 }
 
-async function parseResponse<T>(
-  res: Response,
-  responseType?: RequestOptions["responseType"],
-): Promise<T | null> {
-  if (res.status === 204) return null;
-  if (responseType === "blob") return (await res.blob()) as T;
-  if (responseType === "text") return (await res.text()) as T;
-
-  return (await res.json()) as T;
-}
-
 export async function request<T>(
   method: HttpMethod,
   endpoint: string,
   options: RequestOptions = {},
   retry = true,
 ): Promise<{ status: number; message: T | null }> {
-  let res = await callBackend(method, endpoint, options);
+  try {
+    const res = await callBackend(method, endpoint, options);
+    const data = res.status === 204 ? null : (res.data as T);
+    return { status: res.status, message: data };
 
-  if (res.status === 401 && retry) {
-    const newToken = await refreshAccessToken();
+  } catch (error: any) {
+  
+    if (axios.isAxiosError(error) && error.response?.status === 401 && retry) {
+      const newToken = await refreshAccessToken();
 
-    res = await callBackend(method, endpoint, {
-      ...options,
-      authToken: newToken,
-    });
+      try {
+        const retryRes = await callBackend(method, endpoint, {
+          ...options,
+          authToken: newToken,
+        });
+        const data = retryRes.status === 204 ? null : (retryRes.data as T);
+        return { status: retryRes.status, message: data };
+
+      } catch (retryError: any) {
+        if (axios.isAxiosError(retryError) && retryError.response) {
+          throw new ApiError(retryError.response.status, retryError.response.data);
+        }
+        throw retryError;
+      }
+    }
+
+    if (axios.isAxiosError(error) && error.response) {
+      throw new ApiError(error.response.status, error.response.data);
+    }
+
+    throw error;
   }
-
-  const data = await parseResponse<T>(res, options.responseType);
-
-  if (!res.ok) {
-    throw {
-      status: res.status,
-      message: data,
-    };
-  }
-
-  return {
-    status: res.status,
-    message: data,
-  };
 }
 
 export const api = {

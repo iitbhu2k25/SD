@@ -64,81 +64,131 @@ interface MapViewProps {
 // ── NativeLegend ──────────────────────────────────────────────────────────────
 const NativeLegend: React.FC<{
   entries: LegendEntry[];
+  interpolation: "linear" | "discrete";
   onClose: () => void;
-}> = ({ entries, onClose }) => {
-  const stops = entries
+}> = ({ entries, interpolation, onClose }) => {
+  const isContinuous = interpolation === "linear";
+
+  // Gradient stops string for the colour bar (used in both modes)
+  const gradientStops = entries
     .map((e, i) => {
       const pct = entries.length <= 1 ? 50 : (i / (entries.length - 1)) * 100;
       return `${e.color} ${pct.toFixed(1)}%`;
     })
     .join(", ");
 
-  const barHeight = Math.max(entries.length * 28, 80);
+  const header = (
+    <div className="flex items-center px-3 py-2 border-b border-slate-100 bg-slate-50">
+      <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 flex-shrink-0" />
+      <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+        Legend
+      </span>
+    </div>
+  );
 
-  return (
-    <div
-      className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
-      style={{ width: "100%", minWidth: 150, maxWidth: 260 }}
-    >
-      {/* Header */}
-      <div className="flex items-center px-3 py-2 border-b border-slate-100 bg-slate-50">
-        <div className="w-2 h-2 rounded-full bg-blue-500 mr-2 flex-shrink-0" />
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Legend
-        </span>
-      </div>
-
-      {entries.length === 0 ? (
+  if (entries.length === 0) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+        style={{ minWidth: 150, maxWidth: 260 }}>
+        {header}
         <div className="px-4 py-6 text-center">
           <p className="text-sm text-slate-400">No legend data</p>
         </div>
-      ) : (
-        <div className="px-3 pb-3 pt-2 flex gap-3 items-stretch w-full">
-          {/* Gradient bar */}
-          <div className="flex-shrink-0" style={{ width: 16 }}>
+      </div>
+    );
+  }
+
+  // ── Continuous ramp ──────────────────────────────────────────────────────
+  if (isContinuous) {
+    const TICK_COUNT  = entries.length;                  // one tick per class
+    const ROW_HEIGHT  = 20;                              // px per tick
+    const RAMP_HEIGHT = Math.max(TICK_COUNT * ROW_HEIGHT, 60);
+
+    return (
+      <div
+        className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+        style={{ minWidth: 150, maxWidth: 220 }}
+      >
+        {header}
+        <div className="px-3 pb-3 pt-2 flex gap-2 items-stretch">
+          {/* Gradient bar — full height, smooth ramp */}
+          <div className="flex-shrink-0" style={{ width: 16, height: RAMP_HEIGHT }}>
             <div
-              className="rounded-full border border-slate-200"
+              className="rounded-full border border-slate-200 h-full"
               style={{
-                height: barHeight,
                 background:
                   entries.length > 1
-                    ? `linear-gradient(to bottom, ${stops})`
+                    ? `linear-gradient(to bottom, ${gradientStops})`
                     : entries[0].color,
               }}
             />
           </div>
 
-          {/* Labels */}
-          <div
-            className="flex flex-col justify-between"
-            style={{ height: barHeight, flex: 1, minWidth: 0 }}
-          >
-            {entries.map((entry, i) => (
-              <div key={i} className="flex items-center gap-2 min-h-0">
-                {/* Swatch */}
+          {/* One label per class, evenly spaced */}
+          <div className="relative flex-1" style={{ height: RAMP_HEIGHT, minWidth: 0 }}>
+            {entries.map((entry, i) => {
+              const pct =
+                TICK_COUNT === 1 ? 50 : (i / (TICK_COUNT - 1)) * 100;
+              return (
                 <span
-                  className="flex-shrink-0 rounded border border-white"
+                  key={i}
+                  className="absolute text-[11px] font-mono text-slate-600 leading-none"
                   style={{
-                    display: "inline-block",
-                    width: 12,
-                    height: 12,
-                    background: entry.color,
-                    opacity: entry.opacity,
-                    boxShadow: `0 0 0 1px ${entry.color}66`,
+                    top: `${pct}%`,
+                    transform: "translateY(-50%)",
+                    left: 0,
+                    right: 0,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
-                />
-                {/* Label — larger, non-truncating */}
-                <span
-                  className="text-xs font-mono text-slate-700 leading-tight break-all"
-                  title={entry.label}
                 >
                   {entry.label}
                 </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // ── Classified (discrete) — swatch per class ─────────────────────────────
+  const barHeight = Math.max(entries.length * 24, 80);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+      style={{ minWidth: 150, maxWidth: 260 }}>
+      {header}
+      <div className="px-3 pb-3 pt-2 flex gap-3 items-stretch w-full">
+        {/* Stacked colour blocks */}
+        <div className="flex-shrink-0 rounded border border-slate-200 overflow-hidden flex flex-col"
+          style={{ width: 16, height: barHeight }}>
+          {entries.map((e, i) => (
+            <div key={i} style={{ flex: 1, background: e.color, opacity: e.opacity }} />
+          ))}
+        </div>
+        {/* Labels */}
+        <div className="flex flex-col justify-between" style={{ height: barHeight, flex: 1, minWidth: 0 }}>
+          {entries.map((entry, i) => (
+            <div key={i} className="flex items-center gap-1.5 min-h-0">
+              <span
+                className="flex-shrink-0 rounded-sm border border-white shadow-sm"
+                style={{
+                  display: "inline-block",
+                  width: 10, height: 10,
+                  background: entry.color,
+                  opacity: entry.opacity,
+                }}
+              />
+              <span className="text-[11px] font-mono text-slate-700 leading-tight truncate"
+                title={entry.label}>
+                {entry.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -276,23 +326,23 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
     const mapInstanceRef = useRef<Map | null>(null);
     const rasterLayerRef = useRef<ImageLayer<ImageWMS> | null>(null);
     const vectorLayerRef = useRef<VectorTileLayer | null>(null);
+    const uploadedVectorLayerRef = useRef<ImageLayer<ImageWMS> | null>(null);
     const baseLayerRef = useRef<TileLayer<OSM | XYZ> | null>(null);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activePanel, setActivePanel] = useState<string | null>(null);
 
     const {
-      rasterFileName,
       removeLayer,
       legendEntries,
-      legendEntriesLoading,
-      fetchLegendEntries,
       setLegendEntries,
+      legendInterpolation,
+      vectorLayer,
     } = useRaster();
 
     useEffect(() => {
-      if (rasterFileName) setActivePanel("layers");
-    }, [rasterFileName]);
+      if (legendUrl) setActivePanel("layers");
+    }, [legendUrl]);
 
     const handleRemoveLayer = () => {
       if (mapInstanceRef.current && rasterLayerRef.current) {
@@ -388,6 +438,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
         }
         rasterLayerRef.current = null;
         vectorLayerRef.current = null;
+        uploadedVectorLayerRef.current = null;
         baseLayerRef.current = null;
       };
     }, []);
@@ -406,6 +457,55 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
       if (rasterLayerRef.current)
         rasterLayerRef.current.setOpacity(layerOpacity / 100);
     }, [layerOpacity]);
+
+    // ── Uploaded vector layer ─────────────────────────────────────────────
+    useEffect(() => {
+      if (!mapInstanceRef.current) return;
+      const map = mapInstanceRef.current;
+
+      // Remove previous uploaded vector layer
+      if (uploadedVectorLayerRef.current) {
+        map.removeLayer(uploadedVectorLayerRef.current);
+        uploadedVectorLayerRef.current = null;
+      }
+
+      if (!vectorLayer) return;
+
+      const fullLayerName = `${Vector_workspace}:${vectorLayer.file_id}`;
+      const wmsSource = new ImageWMS({
+        url: GEOSERVER_URL,
+        params: {
+          LAYERS: fullLayerName,
+          FORMAT: "image/png",
+          TRANSPARENT: true,
+          VERSION: "1.3.0",
+        },
+        ratio: 1,
+        serverType: "geoserver",
+      });
+
+      const olLayer = new ImageLayer({
+        source: wmsSource,
+        visible: true,
+        opacity: 1,
+        zIndex: 15,
+      });
+
+      map.addLayer(olLayer);
+      uploadedVectorLayerRef.current = olLayer;
+
+      // Zoom to vector extent
+      getWMSExtent4326(fullLayerName).then((extent4326) => {
+        if (!extent4326 || !mapInstanceRef.current) return;
+        const view = mapInstanceRef.current.getView();
+        const viewProj = view.getProjection().getCode();
+        const extent =
+          viewProj === "EPSG:4326"
+            ? extent4326
+            : transformExtent(extent4326, "EPSG:4326", viewProj);
+        view.fit(extent, { padding: [40, 40, 40, 40], duration: 500, maxZoom: 14 });
+      });
+    }, [vectorLayer]);
 
     // ── Imperative API ───────────────────────────────────────────────────
     useImperativeHandle(ref, () => ({
@@ -698,7 +798,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
             title="Layer Controls"
             onClose={() => setActivePanel(null)}
           >
-            {rasterFileName ? (
+            {legendUrl ? (
               <>
                
                 <div className="space-y-2 mb-3">
@@ -923,6 +1023,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
           <div className="absolute bottom-20 right-3 z-20">
             <NativeLegend
               entries={legendEntries}
+              interpolation={legendInterpolation}
               onClose={() => onLegendUrlChange(null)}
             />
           </div>

@@ -1,6 +1,6 @@
 import React from "react";
-import { TaskState } from "./Useoperationtask";
-import { OperationDef } from "./registry";
+import { OperationDef } from "@/contexts/raster_operations/registry";
+import { TaskState } from "@/interface/raster_operations";
 
 interface Props {
   op: OperationDef;

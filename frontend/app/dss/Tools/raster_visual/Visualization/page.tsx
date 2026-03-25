@@ -48,7 +48,7 @@ const Visualization: React.FC = () => {
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState<boolean>(false);
   const [activePanel, setActivePanel] = useState<string | null>('modules');
-  const [selectedBaseMap, setSelectedBaseMap] = useState<string>("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState<string>("osm");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedModule, setSelectedModule] = useState<string>("");
   const [rasterFileName, setRasterFileName] = useState<string>("");
