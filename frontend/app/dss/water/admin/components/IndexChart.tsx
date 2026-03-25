@@ -42,7 +42,7 @@ interface ClippedRaster {
   volume_MLD?: number;
   pixel_count?: number;
   invalid_count?: number;
-  legend_data?: LegendData;
+  legend_data?: LegendData | null;
   class_pixel_counts?: ClassPixelCount[];
   season?: string;
   aggregation?: string;
