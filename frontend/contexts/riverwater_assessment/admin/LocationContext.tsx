@@ -89,6 +89,7 @@ export interface LocationContextType {
   selectedState: number | null;
   selectedDistricts: number[];
   selectedSubDistricts: number[];
+  selectedYear: "" | "2025";
   selectionsLocked: boolean;
   isLoading: boolean;
   error: string | null;
@@ -112,6 +113,7 @@ export interface LocationContextType {
   setSelectedDistricts: (districtIds: number[]) => void;
   setSelectedSubDistricts: (subDistrictIds: number[]) => void;
   handleAreaConfirm: () => void;
+  returnToSelection: () => void;
   confirmSelections: () => boolean;
   lockSelections: () => void;
   resetSelections: () => void;
@@ -131,6 +133,7 @@ export interface LocationContextType {
   
   selectedSeason: "premonsoon" | "monsoon" | "postmonsoon" | "";
   setSelectedSeason: (season: "premonsoon" | "monsoon" | "postmonsoon" | "") => void;
+  setSelectedYear: (year: "" | "2025") => void;
 }
 
 interface LocationProviderProps {
@@ -152,6 +155,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   const [selectedState, setSelectedState] = useState<number | null>(null);
   const [selectedDistricts, setSelectedDistricts] = useState<number[]>([]);
   const [selectedSubDistricts, setSelectedSubDistricts] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<"" | "2025">("");
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +209,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/state", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/state`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -245,7 +249,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/district/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/district/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -283,7 +287,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch("/django/subdistrict/", {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/subdistrict/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -360,7 +364,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     signal?: AbortSignal
   ): Promise<WaterQualityGeoJSON> => {
     const requestBody = { Sub_District_Code: subDistrictCodes };
-    const response = await fetch(`/django/rwm/shapefile/subdistbased/${season}/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/subdistbased/${season}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -548,7 +552,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     try {
       const response = await fetch(
-        `/django/rwm/water_quality/subdistbased/${normalizedSeason}/`,
+        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/water_quality/subdistbased/${normalizedSeason}`,
         {
           method: "POST",
           headers: {
@@ -655,6 +659,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedState(stateId);
     setSelectedDistricts([]);
     setSelectedSubDistricts([]);
+    setSelectedYear("");
     setSelectionsLocked(false);
     setAreaConfirmed(false);
     clearWaterQualityData();
@@ -666,6 +671,11 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
   };
 
   const lockSelections = () => setSelectionsLocked(true);
+
+  const returnToSelection = (): void => {
+    setSelectionsLocked(false);
+    setAreaConfirmed(false);
+  };
 
   const confirmSelections = (): boolean => {
     if (
@@ -684,6 +694,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedState(null);
     setSelectedDistricts([]);
     setSelectedSubDistricts([]);
+    setSelectedYear("");
     setSelectionsLocked(false);
     setError(null);
     setAreaConfirmed(false);
@@ -712,6 +723,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
+    selectedYear,
     selectionsLocked,
     isLoading,
     error,
@@ -731,6 +743,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectedDistricts: updateSelectedDistricts,
     setSelectedSubDistricts: updateSelectedSubDistricts,
     handleAreaConfirm,
+    returnToSelection,
     confirmSelections,
     lockSelections,
     resetSelections,
@@ -744,6 +757,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     
     selectedSeason,
     setSelectedSeason,
+    setSelectedYear,
   };
 
   return (

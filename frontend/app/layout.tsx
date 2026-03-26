@@ -20,17 +20,25 @@ export const metadata = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en">
-      <body className="flex flex-col h-full  antialiased">
+    <html lang="en" className="h-full">
+      <body className="h-full antialiased">
         <ClientWrapper>
-          <Header />
-          <Navbar />
+          <div className="flex min-h-screen flex-col">
+            <div className="shrink-0">
+              <Header />
+            </div>
+            <div className="shrink-0">
+              <Navbar />
+            </div>
 
-          <main className="flex-1 flex flex-col w-full min-h-0 overflow-hidden">
-            {children}
-          </main>
+            <main className="flex w-full flex-1 flex-col">
+              {children}
+            </main>
 
-          <Footer />
+            <div className="shrink-0">
+              <Footer />
+            </div>
+          </div>
         </ClientWrapper>
       </body>
     </html>

@@ -1,49 +1,30 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 import { useStretch } from "@/contexts/riverwater_assessment/drain/LocationContext";
 import { useStretchMap } from "@/contexts/riverwater_assessment/drain/MapContext";
 import MultiSelect from "../../admin/components/multiselect";
-import { Lock, MapPin, AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 const StretchLocation: React.FC = () => {
   const {
     stretches,
     selectedStretches,
+    selectedYear,
     selectedSeason,
     selectionsLocked,
     isLoading,
     error,
     isLoadingMapLayers,
     mapLayersError,
-    waterQualityData,
     isLoadingWaterQuality,
     waterQualityError,
-    areaConfirmed,
     setSelectedStretches,
     setSelectedSeason,
+    setSelectedYear,
     confirmSelections,
     resetSelections,
   } = useStretch();
-
-  // Season options - same as admin
-  const seasonOptions = [
-    {
-      value: "premonsoon",
-      label: "Pre-Monsoon",
-      description: "March to May - Summer season data",
-    },
-    {
-      value: "monsoon",
-      label: "Monsoon",
-      description: "June to September - Rainy season data",
-    },
-    {
-      value: "postmonsoon",
-      label: "Post-Monsoon",
-      description: "October to February - Winter season data",
-    },
-  ];
   const { removeInterpolationLayer, resetView } = useStretchMap();
 
   const handleStretchesChange = useCallback(
@@ -53,13 +34,6 @@ const StretchLocation: React.FC = () => {
       }
     },
     [selectionsLocked, setSelectedStretches],
-  );
-
-  const handleSeasonChange = useCallback(
-    (season: "premonsoon" | "monsoon" | "postmonsoon" | "") => {
-      setSelectedSeason(season);
-    },
-    [setSelectedSeason],
   );
 
   const handleConfirm = useCallback(() => {
@@ -77,10 +51,6 @@ const StretchLocation: React.FC = () => {
     value: stretch.Stretch_ID.toString(), // Use Stretch_ID as value
     label: `${stretch.stretch_name}`,
   }));
-
-  const selectedSeasonDetails = seasonOptions.find(
-    (s) => s.value === selectedSeason,
-  );
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-md space-y-6">
@@ -111,7 +81,7 @@ const StretchLocation: React.FC = () => {
       )}
 
       {/* River Stretch + Season Selection — side by side */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] items-end gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] items-end gap-4">
         {/* River Stretch */}
         <div>
           <MultiSelect
@@ -136,7 +106,25 @@ const StretchLocation: React.FC = () => {
           )}
         </div>
 
-        {/* Season */}
+        <div>
+          <label
+            htmlFor="year-dropdown"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+          >
+            Year:
+          </label>
+          <select
+            id="year-dropdown"
+            className="w-full cursor-pointer rounded-md border border-blue-300 px-2 py-2 text-sm shadow-sm hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value as "" | "2025")}
+            disabled={isLoading}
+          >
+            <option value="">Select Year</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+
         <div>
           <label
             htmlFor="season-dropdown"
@@ -146,7 +134,7 @@ const StretchLocation: React.FC = () => {
           </label>
           <select
             id="season-dropdown"
-            className="w-full cursor-pointer rounded-md border border-blue-300 px-2 py-2 text-sm shadow-sm hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
+            className="w-full cursor-pointer rounded-md border border-blue-300 px-2 py-2 text-sm shadow-sm hover:border-blue-500 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 bg-white"
             value={selectedSeason}
             onChange={(e) =>
               setSelectedSeason(

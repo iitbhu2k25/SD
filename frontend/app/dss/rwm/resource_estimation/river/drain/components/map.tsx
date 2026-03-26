@@ -23,49 +23,12 @@ import {
   type WaterQualityParameter,
 } from "@/contexts/riverwater_assessment/drain/MapContext";
 import { useStretchChart } from "@/contexts/riverwater_assessment/drain/ChartContext";
+import {
+  getBackendAttributeName,
+  getParameterLabel as getParameterBaseLabel,
+} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
 import { fromLonLat, toLonLat } from "ol/proj";
 import { METERS_PER_UNIT } from "ol/proj/Units";
-
-// Mapping from frontend attribute keys to backend GeoJSON property names
-const attributeMapping: Record<string, string> = {
-  ph: "pH",
-  tds: "TDS_mg_L_",
-  ec: "EC__S_cm_",
-  temperature: "Temperatur",
-  turbidity: "Turbidity_",
-  dissolvedOxygen: "DO_mg_L_",
-  orp: "ORP",
-  tss: "TSS_mg_L_",
-  cod: "COD_mg_L_",
-  bod: "BOD_mg_L_",
-  ts: "TS_mg_L_",
-  chloride: "Chloride_m",
-  nitrate: "Nitrate_mg",
-  hardness: "Hardness_m",
-  faecalColiform: "Faecal_Col",
-  totalColiform: "Total_Coli",
-  wqi: "WQI",
-};
-
-const parameterLabels: Record<string, string> = {
-  ph: "pH",
-  tds: "TDS",
-  ec: "EC",
-  temperature: "Temperature",
-  turbidity: "Turbidity",
-  dissolvedOxygen: "Dissolved Oxygen",
-  orp: "ORP",
-  tss: "TSS",
-  cod: "COD",
-  bod: "BOD",
-  ts: "Total Solids",
-  chloride: "Chloride",
-  nitrate: "Nitrate",
-  hardness: "Hardness",
-  faecalColiform: "Faecal Coliform",
-  totalColiform: "Total Coliform",
-  wqi: "WQI",
-};
 
 const StretchMapComponent: React.FC = () => {
   const { selectedStretches, selectedSeason, areaConfirmed, waterQualityData } =
@@ -117,6 +80,8 @@ const StretchMapComponent: React.FC = () => {
   const [scale, setScale] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isOpacityControlOpen, setIsOpacityControlOpen] = useState(false);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Tooltip state for hover over water quality points
@@ -142,6 +107,17 @@ const StretchMapComponent: React.FC = () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isInterpolationDisplayed) {
+      setIsOpacityControlOpen(false);
+      setIsLegendOpen(false);
+    }
+
+    if (!legendData || !isInterpolationDisplayed) {
+      setIsLegendOpen(false);
+    }
+  }, [isInterpolationDisplayed, legendData]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -186,11 +162,11 @@ const StretchMapComponent: React.FC = () => {
 
           const activeParameter = selectedAttribute || "ph";
           const backendKey =
-            attributeMapping[activeParameter as keyof typeof attributeMapping] || activeParameter;
+            getBackendAttributeName(activeParameter) || activeParameter;
           const dataValue =
             properties[backendKey] ?? properties[activeParameter] ?? "N/A";
 
-          const paramLabel = parameterLabels[activeParameter] || activeParameter;
+          const paramLabel = getParameterBaseLabel(activeParameter);
 
           setTooltipData({
             visible: true,
@@ -717,17 +693,6 @@ const StretchMapComponent: React.FC = () => {
           </div>
         )}
 
-        {legendData && (
-          <SimpleLegend
-            min={legendData.min}
-            max={legendData.max}
-            mean={legendData.mean}
-            parameter={legendData.parameter}
-            isVisible={isInterpolationDisplayed}
-            colors={legendData.colors}
-          />
-        )}
-
         {/* Map Controls - Bottom Right */}
         <div
           className={`absolute z-10 flex flex-col gap-2 ${isFullscreen ? "bottom-10 right-4" : "bottom-10 right-4"
@@ -808,17 +773,34 @@ const StretchMapComponent: React.FC = () => {
           </button>
         </div>
 
-        {/* Opacity Slider Control - Enhanced Version */}
-        {isInterpolationDisplayed && (
-          <div
-            className={`absolute z-10 ${isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
-              }`}
-          >
-            <div className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px] transition-colors duration-300">
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-3">
+        <div className="absolute bottom-2 left-2 z-10 flex flex-col gap-2">
+          {(isInterpolationDisplayed || (legendData && isInterpolationDisplayed)) && (
+            <div className="flex flex-wrap gap-2">
+              {legendData && isInterpolationDisplayed && !isLegendOpen && (
+                <button
+                  onClick={() => setIsLegendOpen(true)}
+                  className="rounded-full border border-gray-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all hover:bg-white"
+                >
+                  Legend
+                </button>
+              )}
+
+              {isInterpolationDisplayed && !isOpacityControlOpen && (
+                <button
+                  onClick={() => setIsOpacityControlOpen(true)}
+                  className="rounded-full border border-gray-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all hover:bg-white"
+                >
+                  Opacity Control
+                </button>
+              )}
+            </div>
+          )}
+
+          {isInterpolationDisplayed && isOpacityControlOpen && (
+            <div className="w-[280px] max-w-[calc(100vw-1rem)] rounded-lg border border-gray-300 bg-white/95 p-4 shadow-lg backdrop-blur-sm">
+              <div className="mb-3 flex items-center gap-3">
                 <svg
-                  className="w-5 h-5 text-blue-600"
+                  className="h-5 w-5 text-blue-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -839,73 +821,47 @@ const StretchMapComponent: React.FC = () => {
                 <h4 className="text-sm font-semibold text-gray-700">
                   Layer Opacity
                 </h4>
-                <span className="text-sm font-medium text-blue-600 ml-auto">
+                <span className="ml-auto text-sm font-medium text-blue-600">
                   {Math.round(interpolationOpacity * 100)}%
                 </span>
+                <button
+                  onClick={() => setIsOpacityControlOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full cursor-pointer text-lg leading-none text-gray-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                  aria-label="Close opacity control"
+                >
+                  ×
+                </button>
               </div>
 
-              {/* Slider Section */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={interpolationOpacity}
-                    onChange={(e) =>
-                      setInterpolationOpacity(parseFloat(e.target.value))
-                    }
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    style={{
-                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
-                        }%, #e5e7eb ${interpolationOpacity * 100
-                        }%, #e5e7eb 100%)`,
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>0%</span>
-                    <span>50%</span>
-                    <span>100%</span>
-                  </div>
+              <div className="relative">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={interpolationOpacity}
+                  onChange={(e) =>
+                    setInterpolationOpacity(parseFloat(e.target.value))
+                  }
+                  className="slider h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
+                      }%, #e5e7eb ${interpolationOpacity * 100
+                      }%, #e5e7eb 100%)`,
+                  }}
+                />
+                <div className="mt-1 flex justify-between text-xs text-gray-400">
+                  <span>0%</span>
+                  <span>50%</span>
+                  <span>100%</span>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Coordinates and Scale Display - Bottom Left */}
-        {coordinates && (
-          <div className="absolute z-10 bg-white/90 border border-gray-300 rounded-lg p-3 shadow-lg bottom-2 left-2">
-            <div className="space-y-1 text-xs">
-              {/* Coordinates */}
-              <div className="flex items-center gap-2">
-                <svg
-                  className="w-3 h-3 text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <span className="text-gray-700 font-mono">
-                  {coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
-                </span>
-              </div>
-
-              {/* Scale */}
-              {/* {scale && (
+          {coordinates && (
+            <div className="rounded-lg border border-gray-300 bg-white/90 p-3 shadow-lg">
+              <div className="space-y-1 text-xs">
                 <div className="flex items-center gap-2">
                   <svg
                     className="w-3 h-3 text-gray-500"
@@ -917,16 +873,34 @@ const StretchMapComponent: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
                   <span className="text-gray-700 font-mono">
-                    Scale: {scale}
+                    {coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
                   </span>
                 </div>
-              )} */}
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {legendData && (
+          <SimpleLegend
+            min={legendData.min}
+            max={legendData.max}
+            mean={legendData.mean}
+            parameter={legendData.parameter}
+            isVisible={Boolean(isLegendOpen && isInterpolationDisplayed)}
+            colors={legendData.colors}
+            onClose={() => setIsLegendOpen(false)}
+          />
         )}
         {/* Tooltip Element */}
         <div

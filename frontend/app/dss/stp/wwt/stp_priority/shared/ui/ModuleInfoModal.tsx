@@ -1,6 +1,8 @@
 "use client";
 
 // This modal shows basic information about the module.
+import CloseIcon from "./icons/CloseIcon";
+
 interface ModuleInfoModalProps {
   open: boolean;
   onClose: () => void;
@@ -45,36 +47,35 @@ export default function ModuleInfoModal({
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
-        <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 shadow-2xl">
-          <div className="flex items-center justify-between rounded-t-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-3 text-white">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-white/20 p-2 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center px-3 py-4 sm:px-4">
+        <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 shadow-2xl">
+          <div className="flex items-start justify-between gap-3 rounded-t-2xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-3 text-white sm:px-5">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-white/20 p-2 backdrop-blur-sm cursor-pointer ">
                 <InfoIcon />
               </div>
-              <h3 className="text-lg font-bold tracking-tight">{title}</h3>
+              <h3 className="text-base font-bold tracking-tight sm:text-lg">{title}</h3>
             </div>
             <button
               onClick={onClose}
               className="rounded-lg p-2 text-white/80 transition hover:bg-white/20 hover:text-white"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <CloseIcon className="h-5 w-5" strokeWidth={2.5} />
             </button>
           </div>
 
-          <div className="p-4">
-            <div className="mb-4 overflow-hidden rounded-xl border bg-white shadow">
-              <img src={imageSrc} alt={imageAlt} className="h-40 w-full object-contain" />
+          <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.95fr)] lg:items-start">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+              <div className="flex min-h-[320px] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(191,219,254,0.35),_rgba(255,255,255,1)_62%)] p-4 sm:min-h-[420px] sm:p-6 lg:min-h-[560px]">
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="max-h-[280px] w-full object-contain sm:max-h-[380px] lg:max-h-[520px]"
+                />
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="flex flex-col gap-4">
               {points.map((point, index) => (
                 <div
                   key={index}
@@ -85,18 +86,18 @@ export default function ModuleInfoModal({
                   <p className="text-sm text-gray-600">{point}</p>
                 </div>
               ))}
-            </div>
 
-            {learnMoreHref && (
-              <div className="mt-5 flex justify-center">
-                <button
-                  onClick={() => window.open(learnMoreHref, "_blank", "noopener,noreferrer")}
-                  className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                >
-                  {learnMoreLabel}
-                </button>
-              </div>
-            )}
+              {learnMoreHref && (
+                <div className="pt-1">
+                  <button
+                    onClick={() => window.open(learnMoreHref, "_blank", "noopener,noreferrer")}
+                    className="w-full rounded-full border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+                  >
+                    {learnMoreLabel}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
