@@ -19,7 +19,8 @@ const INDIA_CENTER = fromLonLat([82.8, 22.5]); // Center of India
 const INDIA_ZOOM = 5;
 
 // GeoServer URL
-const GEOSERVER_URL = process.env.NEXT_PUBLIC_GEOSERVER_URL || "http://geoserver:8080/geoserver";
+const GEOSERVER_URL = process.env.NEXT_PUBLIC_GEOSERVER_URL;
+const WORKSPACE = process.env.NEXT_PUBLIC_FAST_WORKSPACE
 
 /* ---------------- PROPS ---------------- */
 
@@ -97,7 +98,7 @@ const Map: React.FC<MapProps> = ({ layerInfo, onReset, wqiPoints, wqiRasterLayer
     // Create India Vector layer (for thicker lines)
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
-        url: `${GEOSERVER_URL}/dss_vector/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=dss_vector:India&outputFormat=application/json`,
+        url: `${GEOSERVER_URL}/${WORKSPACE}/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
         format: new GeoJSON(),
       }),
       style: new Style({
@@ -192,7 +193,7 @@ const Map: React.FC<MapProps> = ({ layerInfo, onReset, wqiPoints, wqiRasterLayer
       source: new TileWMS({
         url: `${GEOSERVER_URL}/wms`,
         params: {
-          LAYERS: `dss_vector:${layerInfo.layerName}`,
+          LAYERS: `${WORKSPACE}:${layerInfo.layerName}`,
           TILED: true,
           FORMAT: "image/png",
           TRANSPARENT: true,

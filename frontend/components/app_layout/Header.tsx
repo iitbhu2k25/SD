@@ -5,7 +5,7 @@ import Image from 'next/image';
 export default function Header() {
   return (
     <header
-      className="w-full py-2 sm:py-3 lg:py-4 bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg border-b border-blue-200 relative"
+      className="w-full bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg border-b border-blue-200 relative"
       style={{
         backgroundImage: "url('/Images/header/header_bg.gif')",
         backgroundSize: "cover",

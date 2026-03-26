@@ -71,15 +71,15 @@ export default function LocationSelector({ onConfirm }: LocationSelectorProps) {
   };
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-md">
-      <div className="grid grid-cols-1 gap-4 mb-4">
+    <div className="rounded-2xl border border-stone-200 border-t-2 border-t-blue-400 bg-[linear-gradient(180deg,#faf8f5_0%,#eef4fb_100%)] p-2.5 shadow-sm sm:p-4">
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:mb-4 sm:gap-4">
         <div>
-          <label htmlFor="state-dropdown" className="block text-sm font-semibold text-gray-700 mb-2">
+          <label htmlFor="state-dropdown" className="mb-1.5 block text-xs font-semibold text-gray-700 sm:mb-2 sm:text-sm">
             State:
           </label>
           <select
             id="state-dropdown"
-            className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-lg border border-stone-300 bg-white/90 p-2 text-xs transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 sm:p-2.5 sm:text-sm"
             value={selectedState ?? ""}
             onChange={handleStateSelect}
             disabled={selectionsLocked || isLoading}
@@ -112,13 +112,12 @@ export default function LocationSelector({ onConfirm }: LocationSelectorProps) {
         />
       </div>
 
-      <div className="flex space-x-4 mt-4">
+      <div className="mt-3 flex flex-col gap-2.5 sm:mt-4 sm:flex-row sm:gap-3">
         <button
-          className={`${
-            selectedSubDistricts.length > 0 && !selectionsLocked
-              ? "bg-blue-500 hover:bg-blue-700"
-              : "bg-gray-400 cursor-not-allowed"
-          } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+          className={`${selectedSubDistricts.length > 0 && !selectionsLocked
+            ? "bg-linear-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 hover:scale-[1.02] shadow-blue-200"
+            : "bg-stone-300 cursor-not-allowed"
+            } w-full rounded-full px-3.5 py-2 text-xs font-semibold text-white shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 sm:w-auto sm:px-4 sm:text-sm`}
           onClick={handleConfirm}
           disabled={selectedSubDistricts.length === 0 || selectionsLocked || isLoading}
         >
@@ -126,12 +125,12 @@ export default function LocationSelector({ onConfirm }: LocationSelectorProps) {
         </button>
 
         <button
-          className="bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:bg-red-300 disabled:cursor-not-allowed disabled:hover:bg-red-300"
+          className="w-full rounded-full bg-slate-500 px-3.5 py-2 text-xs font-semibold text-white shadow-md transition duration-200 hover:bg-slate-400 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:hover:bg-stone-300 disabled:hover:scale-100 sm:w-auto sm:px-4 sm:text-sm"
           onClick={handleReset}
           disabled={selectedState === null}
-        >                                                                                                                                                       
+        >
           Edit
-        </button>             
+        </button>
       </div>
 
       {isLoading && (

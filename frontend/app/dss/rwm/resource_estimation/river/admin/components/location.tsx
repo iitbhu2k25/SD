@@ -30,6 +30,7 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
+    selectedYear,
     selectionsLocked,
     isLoading,
     error,
@@ -39,6 +40,7 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
     confirmSelections,
     selectedSeason, // ADD THIS
     setSelectedSeason,
+    setSelectedYear,
   } = useLocation();
 
   const { handleGlobalReset } = useApp();
@@ -163,7 +165,7 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
         </div>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
         {/* State Selection */}
         <div>
           <label
@@ -214,6 +216,27 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
           label="Sub-District"
           placeholder="--Choose Sub-Districts--"
         />
+      </div>
+
+      <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div>
+          <label
+            htmlFor="year-dropdown"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600"
+          >
+            Year:
+          </label>
+          <select
+            id="year-dropdown"
+            className="w-full cursor-pointer rounded-md border border-blue-300 bg-white px-2 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value as "" | "2025")}
+            disabled={isLoading}
+          >
+            <option value="">Select Year</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
 
         <div>
           <label
@@ -222,7 +245,6 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
           >
             Season:
           </label>
-
           <select
             id="season-dropdown"
             className="w-full cursor-pointer rounded-md border border-blue-300 bg-white px-2 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
@@ -234,41 +256,38 @@ const Location: React.FC<LocationProps> = ({ onConfirm, onReset }) => {
             }
             disabled={isLoading}
           >
-            <option value="" >--Choose a Season--</option>
+            <option value="">--Choose a Season--</option>
             <option value="premonsoon">Pre Monsoon</option>
             <option value="monsoon">Monsoon</option>
             <option value="postmonsoon">Post Monsoon</option>
           </select>
         </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="mt-2 flex items-center gap-3">
-        <button
-          className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            selectedState && selectedDistricts.length > 0 && !selectionsLocked
-              ? "cursor-pointer bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
-              : "bg-gray-300 text-gray-500 cursor-not-allowed"
-          }`}
-          onClick={handleConfirm}
-          disabled={
-            !selectedState ||
-            selectedDistricts.length === 0 ||
-            selectionsLocked ||
-            isLoading
-          }
-        >
-          {/* ...SVG... */}
-          Confirm Selection
-        </button>
-        <button
-          className="inline-flex cursor-pointer items-center rounded-md bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-          onClick={handleReset}
-          disabled={isLoading}
-        >
-          {/* ...SVG... */}
-          Reset
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              selectedState && selectedDistricts.length > 0 && !selectionsLocked
+                ? "cursor-pointer bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+            onClick={handleConfirm}
+            disabled={
+              !selectedState ||
+              selectedDistricts.length === 0 ||
+              selectionsLocked ||
+              isLoading
+            }
+          >
+            Confirm Selection
+          </button>
+          <button
+            className="inline-flex w-full cursor-pointer items-center justify-center rounded-md bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleReset}
+            disabled={isLoading}
+          >
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   );

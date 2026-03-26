@@ -275,7 +275,7 @@ const Navbar = (): JSX.Element => {
         className={`${isSticky
             ? "bg-slate-900/98 shadow-2xl fixed top-0 left-0 w-full backdrop-blur-sm border-b border-slate-700/50"
             : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900"
-          } py-3.5 relative transition-all duration-300 z-[200]`}
+          }  relative transition-all duration-300 z-[200]`}
       >
         <div className="container mx-auto px-4 lg:px-6">
           {/* Mobile menu button */}

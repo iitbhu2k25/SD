@@ -5,7 +5,7 @@ import HLSVideoPlayer from '@/components/HlsPlayer';
 import HomeHeader from '@/app/dss/home/home_header/home_header';
 export default function Home() {
   return (
-    <div>
+    <div className='h-full'>
       <HomeHeader />
       <GridSection />
       <StepCardsGrid />

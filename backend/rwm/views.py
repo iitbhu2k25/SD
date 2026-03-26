@@ -76,7 +76,7 @@ GEOSERVER_URL = "http://geoserver:8080/geoserver"
 GEOSERVER_USER = "admin"
 GEOSERVER_PASSWORD = "geoserver"
 WORKSPACE = "dss_vector"
-wms_base_url = "/geoserver"  # Frontend fetches rasters from geoserver
+wms_base_url = "/geoserver"  # Frontend fetches rasters from geoserver #it is not being used 
 
 # Add this at the top of your file
 BACKEND_PARAMETER_DISPLAY_NAMES = {
@@ -2392,7 +2392,7 @@ def create_multi_resolution_idw(
             },
         ]
 
-        workspace = "dss_vector"
+        workspace = "myworkspace"
         safe_attribute = (
             decoded_attribute.replace("(", "")
             .replace(")", "")
@@ -4154,10 +4154,6 @@ def perform_interpolation(
         sld_body = create_sld_style(layer_name, color_stops)
         style_name = f"{layer_name}_style"
         try:
-            delete_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles/{style_name}?recurse=true&purge=true"
-            delete_response = requests.delete(delete_style_url, auth=auth)
-
-            time.sleep(0.5)
             create_style_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/styles"
             style_json = {
                 "style": {"name": style_name, "filename": f"{style_name}.sld"}
@@ -4337,37 +4333,236 @@ def admin_wqi_profile(request):
     qualified = f"{workspace}:{bare_layer}"
     auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
     tiff_bytes = None
+    errors = []
+    fast_timeout = 12
+    full_timeout = 22
 
-    wcs_candidates = [
-        (f"{GEOSERVER_URL}/{workspace}/wcs", {
-            "service": "WCS", "version": "2.0.1", "request": "GetCoverage",
-            "coverageId": qualified, "format": "image/tiff",
-        }),
-        (f"{GEOSERVER_URL}/{workspace}/wcs", {
-            "service": "WCS", "version": "1.0.0", "request": "GetCoverage",
-            "coverage": qualified, "format": "GeoTIFF",
-        }),
-        (f"{GEOSERVER_URL}/ows", {
-            "service": "WCS", "version": "2.0.1", "request": "GetCoverage",
-            "coverageId": qualified, "format": "image/tiff",
-        }),
-    ]
-    for url, params in wcs_candidates:
+    def _is_binary_download(resp):
+        if resp.status_code not in [200, 201] or not resp.content:
+            return False
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        if any(tag in content_type for tag in ["xml", "text/", "html", "json"]):
+            return False
+        body_start = resp.content[:120].lower()
+        if body_start.startswith(b"<?xml") or b"<ows:exceptionreport" in body_start:
+            return False
+        return True
+
+    def _request_candidate(url, params=None, timeout=fast_timeout):
         try:
-            resp = requests.get(url, params=params, auth=auth, timeout=30)
-            if resp.status_code == 200 and resp.content:
-                ct = (resp.headers.get("Content-Type") or "").lower()
-                body_start = resp.content[:120].lower()
-                if not any(tag in ct for tag in ["xml", "text/", "html", "json"]) \
-                        and not body_start.startswith(b"<?xml"):
-                    tiff_bytes = resp.content
-                    break
+            resp = requests.get(
+                url,
+                params=params,
+                auth=auth,
+                timeout=timeout,
+            )
+        except requests.RequestException as e:
+            errors.append(f"{url}: request error {str(e)}")
+            return None
+
+        if _is_binary_download(resp):
+            return resp.content
+
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        details = resp.text[:180] if resp.text else ""
+        errors.append(f"{url}: HTTP {resp.status_code}, {content_type}, {details}")
+        return None
+
+    def _get_layer_bbox():
+        default_bbox = (-180.0, -90.0, 180.0, 90.0, "EPSG:4326")
+        try:
+            layer_url = f"{GEOSERVER_URL}/rest/layers/{workspace}:{bare_layer}.json"
+            layer_resp = requests.get(layer_url, auth=auth, timeout=fast_timeout)
+            if layer_resp.status_code != 200:
+                return default_bbox
+
+            layer_json = layer_resp.json()
+            resource_href = layer_json.get("layer", {}).get("resource", {}).get("href")
+            if not resource_href:
+                return default_bbox
+
+            cov_resp = requests.get(resource_href, auth=auth, timeout=fast_timeout)
+            if cov_resp.status_code != 200:
+                return default_bbox
+
+            cov_json = cov_resp.json().get("coverage", {})
+            ll_bbox = cov_json.get("latLonBoundingBox") or {}
+            nat_bbox = cov_json.get("nativeBoundingBox") or {}
+
+            if all(k in ll_bbox for k in ("minx", "miny", "maxx", "maxy")):
+                return (
+                    float(ll_bbox["minx"]),
+                    float(ll_bbox["miny"]),
+                    float(ll_bbox["maxx"]),
+                    float(ll_bbox["maxy"]),
+                    "EPSG:4326",
+                )
+
+            if all(k in nat_bbox for k in ("minx", "miny", "maxx", "maxy")):
+                return (
+                    float(nat_bbox["minx"]),
+                    float(nat_bbox["miny"]),
+                    float(nat_bbox["maxx"]),
+                    float(nat_bbox["maxy"]),
+                    str(nat_bbox.get("crs") or "EPSG:4326"),
+                )
         except Exception:
-            continue
+            pass
+
+        return default_bbox
+
+    fast_candidates = [
+        (
+            f"{GEOSERVER_URL}/{workspace}/wcs",
+            {
+                "service": "WCS",
+                "version": "2.0.1",
+                "request": "GetCoverage",
+                "coverageId": qualified,
+                "format": "image/tiff",
+            },
+        ),
+        (
+            f"{GEOSERVER_URL}/{workspace}/wcs",
+            {
+                "service": "WCS",
+                "version": "1.0.0",
+                "request": "GetCoverage",
+                "coverage": qualified,
+                "format": "GeoTIFF",
+            },
+        ),
+        (
+            f"{GEOSERVER_URL}/ows",
+            {
+                "service": "WCS",
+                "version": "2.0.1",
+                "request": "GetCoverage",
+                "coverageId": qualified,
+                "format": "image/tiff",
+            },
+        ),
+    ]
+    for url, params in fast_candidates:
+        tiff_bytes = _request_candidate(url, params=params, timeout=fast_timeout)
+        if tiff_bytes is not None:
+            break
+
+    if tiff_bytes is None:
+        direct_store_urls = [
+            f"{GEOSERVER_URL}/rest/workspaces/{workspace}/coveragestores/{bare_layer}/file.geotiff",
+            f"{GEOSERVER_URL}/rest/workspaces/{workspace}/coveragestores/{bare_layer}/file.tif",
+        ]
+        for store_url in direct_store_urls:
+            tiff_bytes = _request_candidate(store_url, timeout=8)
+            if tiff_bytes is not None:
+                break
+
+    if tiff_bytes is None:
+        minx, miny, maxx, maxy, bbox_crs = _get_layer_bbox()
+        bbox_str = f"{minx},{miny},{maxx},{maxy}"
+        width = 2048
+        span_x = max(maxx - minx, 1e-9)
+        span_y = max(maxy - miny, 1e-9)
+        height = int(round(width * (span_y / span_x)))
+        height = max(256, min(4096, height))
+
+        extent_candidates = [
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified,
+                    "crs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/{workspace}/wcs",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified,
+                    "CRS": bbox_crs,
+                    "BBOX": bbox_str,
+                    "WIDTH": width,
+                    "HEIGHT": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "2.0.1",
+                    "request": "GetCoverage",
+                    "coverageId": qualified,
+                    "format": "image/tiff",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified,
+                    "crs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/ows",
+                {
+                    "service": "WCS",
+                    "version": "1.0.0",
+                    "request": "GetCoverage",
+                    "coverage": qualified,
+                    "CRS": bbox_crs,
+                    "BBOX": bbox_str,
+                    "WIDTH": width,
+                    "HEIGHT": height,
+                    "format": "GeoTIFF",
+                },
+            ),
+            (
+                f"{GEOSERVER_URL}/wms",
+                {
+                    "service": "WMS",
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "layers": qualified,
+                    "styles": "",
+                    "srs": bbox_crs,
+                    "bbox": bbox_str,
+                    "width": width,
+                    "height": height,
+                    "format": "image/geotiff",
+                    "transparent": "true",
+                },
+            ),
+        ]
+        for url, params in extent_candidates:
+            tiff_bytes = _request_candidate(url, params=params, timeout=full_timeout)
+            if tiff_bytes is not None:
+                break
 
     if tiff_bytes is None:
         return JsonResponse(
-            {"success": False, "error": "Could not download raster from GeoServer. Generate interpolation first."},
+            {
+                "success": False,
+                "error": "Could not download raster from GeoServer. Generate interpolation first.",
+                "details": errors[:12],
+            },
             status=404,
         )
 
@@ -4667,6 +4862,206 @@ def get_river_buffer_service(stretch_ids):
         return None
 
 
+def _perform_local_interpolation_for_pdf(
+    river_buffer_gdf,
+    points_gdf,
+    attribute,
+    season,
+    data_type,
+    resolution,
+    power=2,
+    unique_id=None,
+):
+    """
+    Local-only interpolation for synchronous PDF generation.
+    Writes a temporary clipped GeoTIFF and returns stats/color stops without
+    publishing anything to GeoServer.
+    """
+    try:
+        if river_buffer_gdf is None or river_buffer_gdf.empty:
+            raise ValueError("No river buffer data available")
+        if points_gdf is None or points_gdf.empty:
+            raise ValueError("No water quality points available")
+
+        normalized_season = (season or "").strip().lower()
+        local_points_gdf = points_gdf.copy()
+        local_buffer_gdf = river_buffer_gdf.copy()
+
+        if attribute not in local_points_gdf.columns:
+            if attribute == "Total_Coli" and normalized_season in {
+                "postmonsoon",
+                "post_monsoon",
+                "post-monsoon",
+            }:
+                raise ValueError(
+                    "Attribute 'Total_Coli' is not available for postmonsoon data"
+                )
+
+            available_cols = list(local_points_gdf.columns)[:12]
+            raise ValueError(
+                f"Attribute '{attribute}' not found in points data. Available columns: {available_cols}"
+            )
+
+        local_points_gdf = local_points_gdf[local_points_gdf[attribute].notna()].copy()
+        if local_points_gdf.empty:
+            raise ValueError(f"No valid data points found for attribute: {attribute}")
+
+        local_points_gdf[attribute] = pd.to_numeric(
+            local_points_gdf[attribute], errors="coerce"
+        )
+        local_points_gdf = local_points_gdf[local_points_gdf[attribute].notna()].copy()
+        if local_points_gdf.empty:
+            raise ValueError(f"No numeric data points found for attribute: {attribute}")
+
+        if local_buffer_gdf.crs is None:
+            local_buffer_gdf = local_buffer_gdf.set_crs("EPSG:4326")
+        elif str(local_buffer_gdf.crs) != "EPSG:4326":
+            local_buffer_gdf = local_buffer_gdf.to_crs("EPSG:4326")
+
+        if local_points_gdf.crs is None:
+            local_points_gdf = local_points_gdf.set_crs("EPSG:4326")
+        elif str(local_points_gdf.crs) != "EPSG:4326":
+            local_points_gdf = local_points_gdf.to_crs("EPSG:4326")
+
+        centroid = local_buffer_gdf.geometry.unary_union.centroid
+        utm_zone = int((centroid.x + 180) / 6) + 1
+        utm_hemisphere = "north" if centroid.y >= 0 else "south"
+        utm_crs = (
+            f"EPSG:326{utm_zone}"
+            if utm_hemisphere == "north"
+            else f"EPSG:327{utm_zone}"
+        )
+
+        buffer_proj = local_buffer_gdf.to_crs(utm_crs)
+        points_proj = local_points_gdf.to_crs(utm_crs)
+
+        minx, miny, maxx, maxy = buffer_proj.total_bounds
+        bounds = tuple(buffer_proj.total_bounds)
+        cell_size = resolution
+        x_coords = np.arange(minx, maxx, cell_size)
+        y_coords = np.arange(miny, maxy, cell_size)
+        grid_x, grid_y = np.meshgrid(x_coords, y_coords[::-1])
+
+        coords = np.array([(geom.x, geom.y) for geom in points_proj.geometry])
+        values = points_proj[attribute].astype(float).values
+        k = min(12, len(coords))
+        tree = cKDTree(coords)
+        xi = np.column_stack([grid_x.ravel(), grid_y.ravel()])
+        dists, idxs = tree.query(xi, k=k)
+        if k == 1:
+            dists = dists[:, np.newaxis]
+            idxs = idxs[:, np.newaxis]
+
+        dists[dists == 0] = 1e-10
+        weights = 1 / (dists**power)
+        interpolated_values = np.sum(weights * values[idxs], axis=1) / np.sum(
+            weights, axis=1
+        )
+        idw_grid = interpolated_values.reshape(grid_x.shape)
+
+        transform = from_origin(minx, maxy, cell_size, cell_size)
+        mask = rasterize(
+            [(mapping(buffer_proj.unary_union), 1)],
+            out_shape=idw_grid.shape,
+            transform=transform,
+            fill=0,
+            dtype=np.uint8,
+        ).astype(bool)
+        interpolated_grid = np.where(mask, idw_grid, np.nan)
+
+        temp_dir = tempfile.gettempdir()
+        if unique_id is None:
+            unique_id = str(uuid.uuid4())[:8]
+
+        layer_name = (
+            f"pdf_interp_{attribute}_{season}_{data_type}_{unique_id}".replace(" ", "_")
+            .replace("(", "")
+            .replace(")", "")
+            .replace("/", "_")
+        )
+        raw_tiff_path = os.path.join(temp_dir, f"{layer_name}.tif")
+
+        with rasterio.open(
+            raw_tiff_path,
+            "w",
+            driver="GTiff",
+            height=interpolated_grid.shape[0],
+            width=interpolated_grid.shape[1],
+            count=1,
+            dtype=interpolated_grid.dtype,
+            crs=utm_crs,
+            transform=transform,
+            nodata=-9999,
+        ) as dst:
+            output_array = np.where(np.isnan(interpolated_grid), -9999, interpolated_grid)
+            dst.write(output_array, 1)
+
+        with rasterio.open(raw_tiff_path) as src:
+            out_image, out_transform = rasterio.mask.mask(
+                src, buffer_proj.geometry, crop=True, filled=True, nodata=-9999
+            )
+            out_meta = src.meta.copy()
+            out_meta.update(
+                {
+                    "driver": "GTiff",
+                    "height": out_image.shape[1],
+                    "width": out_image.shape[2],
+                    "transform": out_transform,
+                    "nodata": -9999,
+                }
+            )
+
+        clipped_tiff_path = os.path.join(temp_dir, f"{layer_name}_clipped.tif")
+        with rasterio.open(clipped_tiff_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+
+        if os.path.exists(raw_tiff_path):
+            os.remove(raw_tiff_path)
+
+        clipped_array = np.ma.masked_equal(out_image[0], -9999)
+        clipped_array = np.ma.masked_invalid(clipped_array)
+        if clipped_array.count() == 0:
+            raise ValueError("No valid interpolated raster data after clipping")
+
+        vmin = float(clipped_array.min())
+        vmax = float(clipped_array.max())
+        vmean = float(clipped_array.mean())
+        color_stops = get_parameter_color_scheme(attribute, vmin, vmax)
+
+        from rasterio.warp import transform_bounds
+
+        extent_4326 = transform_bounds(utm_crs, "EPSG:4326", *bounds)
+        return {
+            "status": "success",
+            "message": "Local PDF interpolation completed successfully",
+            "layer_name": layer_name,
+            "tiff_path": clipped_tiff_path,
+            "extent": list(extent_4326),
+            "statistics": {
+                "min": float(vmin),
+                "max": float(vmax),
+                "mean": float(vmean),
+                "std": float(np.ma.std(clipped_array)),
+            },
+            "color_stops": color_stops,
+            "processing_info": {
+                "utm_crs": str(utm_crs),
+                "utm_zone": int(utm_zone),
+                "resolution": int(resolution),
+                "k_neighbors": int(k),
+                "power": int(power),
+                "valid_points": int(len(local_points_gdf)),
+                "grid_cells": int(grid_x.size),
+                "masked_cells": int(mask.sum()),
+            },
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Local PDF interpolation failed: {str(e)}",
+        }
+
+
 def batch_interpolation_internal(
     river_data,
     river_buffer_data,
@@ -4674,7 +5069,8 @@ def batch_interpolation_internal(
     points_data,
     attributes,
     season,
-    subdistrict_codes,
+    identifier_codes,
+    data_type,
 ):
     """
     INTERNAL: Batch interpolation + map generation
@@ -4687,13 +5083,24 @@ def batch_interpolation_internal(
         buffer_gdf = gpd.GeoDataFrame.from_features(
             river_buffer_data["features"], crs="EPSG:4326"
         )
-        subdist_gdf = gpd.GeoDataFrame.from_features(
-            subdist_data["features"], crs="EPSG:4326"
+        subdist_features = (
+            subdist_data.get("features", [])
+            if isinstance(subdist_data, dict)
+            else []
+        )
+        if subdist_features:
+            subdist_gdf = gpd.GeoDataFrame.from_features(
+                subdist_features, crs="EPSG:4326"
+            )
+        else:
+            subdist_gdf = buffer_gdf.copy()
+        points_gdf = gpd.GeoDataFrame.from_features(
+            points_data["features"], crs="EPSG:4326"
         )
 
         # Fix subdist CRS if needed
         bounds_check = subdist_gdf.total_bounds
-        if abs(bounds_check[0]) > 180:
+        if len(bounds_check) == 4 and not np.isnan(bounds_check[0]) and abs(bounds_check[0]) > 180:
             subdist_gdf = subdist_gdf.set_crs("EPSG:32644", allow_override=True).to_crs(
                 "EPSG:4326"
             )
@@ -4703,38 +5110,36 @@ def batch_interpolation_internal(
         failed_count = 0
 
         for idx, attribute in enumerate(attributes):
+            display_name = BACKEND_PARAMETER_DISPLAY_NAMES.get(attribute, attribute)
+            local_result = None
 
             try:
-                # Step 1: Run interpolation (creates raster, saves to temp file)
-                result = perform_interpolation(
-                    river_data=river_data,
-                    river_buffer_data=river_buffer_data,
-                    points_data=points_data,
+                # Step 1: Run local-only interpolation for PDF generation
+                local_result = _perform_local_interpolation_for_pdf(
+                    river_buffer_gdf=buffer_gdf,
+                    points_gdf=points_gdf,
                     attribute=attribute,
                     season=season,
-                    data_type="subdistbased",
+                    data_type=data_type,
                     resolution=30,
                     power=2,
+                    unique_id=str(uuid.uuid4())[:8],
                 )
 
-                result["attribute"] = attribute
-                result["index"] = idx
-                color_stops = result.get("color_stops", [])
+                local_result["attribute"] = attribute
+                local_result["index"] = idx
+                color_stops = local_result.get("color_stops", [])
 
-                if result.get("status") == "success":
-                    # Step 2: Generate map from the saved raster
-                    # Get raster file path from temp directory
-                    temp_dir = tempfile.gettempdir()
-                    layer_name = (
-                        f"interp_{attribute}_{season}_subdistbased".replace(" ", "_")
-                        .replace("(", "")
-                        .replace(")", "")
-                        .replace("/", "_")
-                    )
-                    tiff_path = os.path.join(temp_dir, f"{layer_name}_clipped.tif")
+                if local_result.get("status") == "success":
+                    tiff_path = local_result.get("tiff_path")
+                    layer_name = local_result.get("layer_name", "")
+                    if not tiff_path or not os.path.exists(tiff_path):
+                        raise ValueError(
+                            f"Temporary raster not found for attribute {attribute}"
+                        )
 
                     # Get UTM CRS from result
-                    utm_crs = result["processing_info"]["utm_crs"]
+                    utm_crs = local_result["processing_info"]["utm_crs"]
 
                     # Generate map
                     map_result = generate_map_from_raster(
@@ -4746,26 +5151,63 @@ def batch_interpolation_internal(
                         utm_crs=utm_crs,
                         color_stops=color_stops,
                     )
+                    if not map_result.get("success"):
+                        raise ValueError(
+                            map_result.get(
+                                "error",
+                                f"Map generation failed for attribute {attribute}",
+                            )
+                        )
 
-                    # Add map to result
-                    result["map_image"] = map_result
+                    result_payload = {
+                        "status": "success",
+                        "attribute": display_name,
+                        "index": idx,
+                        "interpolation": local_result,
+                        "map_image": map_result.get("map_image"),
+                        "legend_image": map_result.get("legend_image"),
+                        "map_statistics": map_result.get("statistics"),
+                        "layer_name": layer_name,
+                        "geoserver_layer": "",
+                        "color_stops": color_stops,
+                    }
 
                     successful_count += 1
                 else:
                     failed_count += 1
+                    result_payload = {
+                        "status": "error",
+                        "attribute": display_name,
+                        "index": idx,
+                        "message": local_result.get(
+                            "message", "Local PDF interpolation failed"
+                        ),
+                        "interpolation": local_result,
+                    }
 
-                results.append(result)
+                results.append(result_payload)
 
             except Exception as e:
                 failed_count += 1
                 results.append(
                     {
                         "status": "error",
-                        "attribute": attribute,
+                        "attribute": display_name,
                         "index": idx,
                         "message": str(e),
                     }
                 )
+            finally:
+                temp_tiff_path = (
+                    local_result.get("tiff_path")
+                    if isinstance(local_result, dict)
+                    else None
+                )
+                if temp_tiff_path and os.path.exists(temp_tiff_path):
+                    try:
+                        os.remove(temp_tiff_path)
+                    except OSError:
+                        pass
 
         return {
             "status": "success" if successful_count > 0 else "error",
@@ -4774,6 +5216,7 @@ def batch_interpolation_internal(
                 "successful": successful_count,
                 "failed": failed_count,
                 "season": season,
+                "data_type": data_type,
             },
             "results": results,
         }
@@ -5109,6 +5552,223 @@ from main.celery import (
 from celery.result import AsyncResult
 
 
+def _prepare_pdf_report_context(data):
+    attributes = data.get("attributes", [])
+    season = data.get("season", "premonsoon")
+    data_type = data.get("data_type", "subdistbased")
+
+    if not attributes:
+        raise ValueError("attributes are required")
+
+    if data_type == "subdistbased":
+        subdistrict_codes = data.get("subdistrict_codes", [])
+        if not subdistrict_codes:
+            raise ValueError("subdistrict_codes are required for subdistbased reports")
+
+        river_gdf = load_and_clip_rivers(subdistrict_codes)
+        buffer_gdf = load_and_clip_river_buffer(subdistrict_codes, True)
+
+        geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
+        codes_str = ",".join(f"'{code}'" for code in subdistrict_codes)
+        params = {
+            "service": "WFS",
+            "version": "1.0.0",
+            "request": "GetFeature",
+            "typeName": f"{WORKSPACE}:B_subdistrict",
+            "outputFormat": "application/json",
+            "CQL_FILTER": f"SUBDIS_COD IN ({codes_str})",
+        }
+
+        auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+        boundary_response = requests.get(
+            geoserver_wfs_url, params=params, auth=auth, timeout=30
+        )
+        boundary_response.raise_for_status()
+        boundary_geojson = boundary_response.json()
+
+        identifier_codes = subdistrict_codes
+        stretch_ids = None
+    elif data_type == "stretchbased":
+        stretch_ids = data.get("stretch_ids", [])
+        if not stretch_ids:
+            raise ValueError("stretch_ids are required for stretchbased reports")
+
+        river_geojson = get_stretch_lines_service(stretch_ids)
+        if not river_geojson:
+            raise ValueError("Failed to fetch stretch line geometries")
+        river_gdf = gpd.GeoDataFrame.from_features(
+            river_geojson["features"], crs="EPSG:4326"
+        )
+
+        buffer_geojson = get_river_buffer_service(stretch_ids)
+        if not buffer_geojson:
+            raise ValueError("Failed to fetch river buffer data")
+        buffer_gdf = gpd.GeoDataFrame.from_features(
+            buffer_geojson["features"], crs="EPSG:4326"
+        )
+
+        geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
+        params = {
+            "service": "WFS",
+            "version": "1.0.0",
+            "request": "GetFeature",
+            "typeName": f"{WORKSPACE}:basin_boundary",
+            "outputFormat": "application/json",
+        }
+
+        auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
+        boundary_response = requests.get(
+            geoserver_wfs_url, params=params, auth=auth, timeout=30
+        )
+        boundary_geojson = (
+            boundary_response.json()
+            if boundary_response.status_code == 200
+            else buffer_geojson
+        )
+        if not boundary_geojson.get("features"):
+            boundary_geojson = buffer_geojson
+
+        identifier_codes = stretch_ids
+        subdistrict_codes = None
+    else:
+        raise ValueError("data_type must be subdistbased or stretchbased")
+
+    points_gdf = get_points_shapefile_gdf(
+        data_type=data_type,
+        season=season,
+        sub_district_codes=(
+            subdistrict_codes if data_type == "subdistbased" else None
+        ),
+        stretch_ids=stretch_ids if data_type == "stretchbased" else None,
+    )
+
+    return {
+        "attributes": attributes,
+        "season": season,
+        "data_type": data_type,
+        "identifier_codes": identifier_codes,
+        "river_data": json.loads(river_gdf.to_json()),
+        "river_buffer_data": json.loads(buffer_gdf.to_json()),
+        "subdist_data": boundary_geojson,
+        "points_data": json.loads(points_gdf.to_json()),
+    }
+
+
+def _build_direct_pdf_report_result(batch_result, season, data_type, identifier_codes):
+    if batch_result.get("status") == "error":
+        return {
+            "status": "failed",
+            "message": batch_result.get("message", "Failed to generate report data"),
+            "summary": {
+                "total_attributes": 0,
+                "successful": 0,
+                "failed": 0,
+                "season": season,
+                "data_type": data_type,
+            },
+            "results": [],
+            "metadata": {
+                "timestamp": time.time(),
+                "identifier_codes": identifier_codes,
+                "processing_complete": False,
+            },
+        }
+
+    summary = batch_result.get("summary", {})
+    successful = int(summary.get("successful", 0))
+    results = batch_result.get("results", [])
+    failure_message = ""
+
+    if successful == 0:
+        for item in results:
+            if isinstance(item, dict) and item.get("message"):
+                failure_message = item["message"]
+                break
+
+    return {
+        "status": "completed" if successful > 0 else "failed",
+        "message": failure_message if successful == 0 else "",
+        "summary": {
+            "total_attributes": int(summary.get("total_attributes", 0)),
+            "successful": successful,
+            "failed": int(summary.get("failed", 0)),
+            "season": season,
+            "data_type": data_type,
+        },
+        "results": results,
+        "metadata": {
+            "timestamp": time.time(),
+            "identifier_codes": identifier_codes,
+            "processing_complete": successful > 0,
+        },
+    }
+
+
+def _make_json_safe(value):
+    if isinstance(value, dict):
+        return {str(key): _make_json_safe(val) for key, val in value.items()}
+
+    if isinstance(value, (list, tuple)):
+        return [_make_json_safe(item) for item in value]
+
+    if isinstance(value, np.generic):
+        value = value.item()
+
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+
+    return value
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+@authentication_classes([])
+def download_pdf_report_data(request):
+    """
+    Synchronous report-data endpoint for admin and drain PDF downloads.
+    Returns interpolation and map payload directly without Celery/WebSockets.
+    """
+    try:
+        data = json.loads(request.body)
+        context = _prepare_pdf_report_context(data)
+        batch_result = batch_interpolation_internal(
+            river_data=context["river_data"],
+            river_buffer_data=context["river_buffer_data"],
+            subdist_data=context["subdist_data"],
+            points_data=context["points_data"],
+            attributes=context["attributes"],
+            season=context["season"],
+            identifier_codes=context["identifier_codes"],
+            data_type=context["data_type"],
+        )
+
+        response_data = _build_direct_pdf_report_result(
+            batch_result=batch_result,
+            season=context["season"],
+            data_type=context["data_type"],
+            identifier_codes=context["identifier_codes"],
+        )
+        response_data = _make_json_safe(response_data)
+
+        response_status = (
+            status.HTTP_200_OK
+            if response_data["status"] == "completed"
+            else status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+        return Response(response_data, status=response_status)
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response(
+            {"status": "failed", "message": str(e), "results": []},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @csrf_exempt
 @api_view(["POST", "GET"])
 @permission_classes([AllowAny])  # <-- removes 401
@@ -5125,97 +5785,18 @@ def start_pdf_report_job(request):
 
     try:
         data = json.loads(request.body)
-
-        # Extract parameters
-        attributes = data.get("attributes", [])
-        # points_data = data.get("points_data")
-        season = data.get("season", "premonsoon")
-        data_type = data.get("data_type", "subdistbased")
-
-        # Load river data based on data_type
-        if data_type == "subdistbased":
-            subdistrict_codes = data.get("subdistrict_codes", [])
-
-            river_gdf = load_and_clip_rivers(subdistrict_codes)
-            buffer_gdf = load_and_clip_river_buffer(subdistrict_codes, True)
-
-            # Load boundaries from GeoServer
-            geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
-            codes_str = ",".join(f"'{code}'" for code in subdistrict_codes)
-
-            params = {
-                "service": "WFS",
-                "version": "1.0.0",
-                "request": "GetFeature",
-                "typeName": f"{WORKSPACE}:B_subdistrict",
-                "outputFormat": "application/json",
-                "CQL_FILTER": f"SUBDIS_COD IN ({codes_str})",
-            }
-
-            auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
-            boundary_response = requests.get(
-                geoserver_wfs_url, params=params, auth=auth, timeout=30
-            )
-            boundary_geojson = boundary_response.json()
-
-            identifier_codes = subdistrict_codes
-
-        elif data_type == "stretchbased":
-            stretch_ids = data.get("stretch_ids", [])
-
-            river_geojson = get_stretch_lines_service(stretch_ids)
-            river_gdf = gpd.GeoDataFrame.from_features(
-                river_geojson["features"], crs="EPSG:4326"
-            )
-
-            buffer_geojson = get_river_buffer_service(stretch_ids)
-            buffer_gdf = gpd.GeoDataFrame.from_features(
-                buffer_geojson["features"], crs="EPSG:4326"
-            )
-
-            # Fetch basin boundary
-            geoserver_wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
-            params = {
-                "service": "WFS",
-                "version": "1.0.0",
-                "request": "GetFeature",
-                "typeName": f"{WORKSPACE}:basin_boundary",
-                "outputFormat": "application/json",
-            }
-
-            auth = (GEOSERVER_USER, GEOSERVER_PASSWORD)
-            boundary_response = requests.get(
-                geoserver_wfs_url, params=params, auth=auth, timeout=30
-            )
-            boundary_geojson = (
-                boundary_response.json()
-                if boundary_response.status_code == 200
-                else buffer_geojson
-            )
-
-            identifier_codes = stretch_ids
-
-        points_gdf = get_points_shapefile_gdf(
-            data_type=data_type,
-            season=season,
-            sub_district_codes=(
-                subdistrict_codes if data_type == "subdistbased" else None
-            ),
-            stretch_ids=stretch_ids if data_type == "stretchbased" else None,
-        )
-
-        points_data = json.loads(points_gdf.to_json())
+        context = _prepare_pdf_report_context(data)
 
         # SUBMIT CELERY JOB (non-blocking, returns immediately)
         celery_result = submit_batch_interpolation_job.delay(
-            attributes=attributes,
-            river_data=json.loads(river_gdf.to_json()),
-            river_buffer_data=json.loads(buffer_gdf.to_json()),
-            subdist_data=boundary_geojson,
-            points_data=points_data,
-            season=season,
-            data_type=data_type,
-            identifier_codes=identifier_codes,
+            attributes=context["attributes"],
+            river_data=context["river_data"],
+            river_buffer_data=context["river_buffer_data"],
+            subdist_data=context["subdist_data"],
+            points_data=context["points_data"],
+            season=context["season"],
+            data_type=context["data_type"],
+            identifier_codes=context["identifier_codes"],
         )
 
         chord_job_id = celery_result.id
@@ -5224,7 +5805,7 @@ def start_pdf_report_job(request):
             {
                 "status": "processing",
                 "job_id": str(chord_job_id),
-                "message": f"Processing {len(attributes)} attributes in parallel...",
+                "message": f"Processing {len(context['attributes'])} attributes in parallel...",
                 "status_url": f"/rwm/job-status/{chord_job_id}/",
                 "result_url": f"/rwm/job-result/{chord_job_id}/",
             },
@@ -6876,7 +7457,7 @@ def upload_river_shapefile_recovered_duplicate(request):
 
         publisher = GeoServerPublisher(
             geoserver_url=GEOSERVER_URL,  # Use the global: http://geoserver:8080/geoserver
-            workspace=WORKSPACE,  # Use same workspace as raster upload (dss_vector)
+            workspace=WORKSPACE,  # Use same workspace as raster upload (myworkspace)
         )
 
         publish_result = publisher.publish(zip_for_geoserver, layer_name)
@@ -7307,7 +7888,7 @@ def general_interpolate_wqi_recovered_duplicate(request):
         points_gdf["wqi_score"] = points_gdf["wqi_score"].astype(float)
 
         # Step 2: Fetch buffer polygon from GeoServer WFS
-        # Both buffer and raster use same workspace (dss_vector)
+        # Both buffer and raster use same workspace (myworkspace)
         wfs_url = f"{GEOSERVER_URL}/{WORKSPACE}/ows"
         params = {
             "service": "WFS",
@@ -7471,7 +8052,7 @@ def general_interpolate_wqi_recovered_duplicate(request):
 
         tiff_path = clipped_tiff_path
 
-        # Step 8: Upload to GeoServer (to dss_vector)
+        # Step 8: Upload to GeoServer (to myworkspace)
         upload_url = f"{GEOSERVER_URL}/rest/workspaces/{WORKSPACE}/coveragestores/{raster_layer_name}/file.geotiff?configure=all"
         with open(tiff_path, "rb") as f:
             headers = {"Content-Type": "image/tiff"}

@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
+import { Info } from "lucide-react";
+import RiverWaterManagementAdmin from "./admin/page";
+import RiverWaterManagementDrain from "./drain/page";
+import GeneralRiverWaterManagement from "./general/page";
+import RiverInfoModal from "./components/RiverInfoModal";
 
-// Types remain the same
 type ViewType = "admin" | "user";
 type BasinType = "varuna" | "general" | null;
 
@@ -12,11 +16,6 @@ interface ModernSwitchProps {
   value: ViewType;
   onChange: (value: ViewType) => void;
 }
-
-// Import corresponding river water management components
-import RiverWaterManagementAdmin from "./admin/page"; // update relative path if different
-import RiverWaterManagementDrain from "./drain/page";
-import GeneralRiverWaterManagement from "./general/page";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -31,14 +30,15 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   return (
     <div className="flex items-center space-x-4">
       <span
-        className={`text-xl font-medium transition-colors ${value === "admin" ? "text-blue-600" : "text-gray-500"
-          }`}
+        className={`text-xl font-medium transition-colors ${
+          value === "admin" ? "text-blue-600" : "text-gray-500"
+        }`}
       >
         {leftLabel}
       </span>
 
       <div
-        className="relative w-20 h-10 bg-gray-200 rounded-full cursor-pointer transition-all duration-300 hover:bg-gray-300"
+        className="relative h-10 w-20 cursor-pointer rounded-full bg-gray-200 transition-all duration-300 hover:bg-gray-300"
         onClick={handleToggle}
         role="switch"
         aria-checked={value === "user"}
@@ -51,13 +51,14 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
         }}
       >
         <div
-          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
-            }`}
+          className={`absolute left-1 top-1 h-8 w-8 transform rounded-full shadow-lg transition-all duration-300 ease-in-out ${
+            value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
+          }`}
         >
-          <div className="flex items-center justify-center w-full h-full">
+          <div className="flex h-full w-full items-center justify-center">
             {value === "admin" ? (
               <svg
-                className="w-4 h-4 text-white"
+                className="h-4 w-4 text-white"
                 fill="currentColor"
                 viewBox="0 0 20 20"
                 aria-hidden="true"
@@ -70,7 +71,7 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
               </svg>
             ) : (
               <svg
-                className="w-4 h-4 text-white"
+                className="h-4 w-4 text-white"
                 fill="currentColor"
                 viewBox="0 0 20 20"
                 aria-hidden="true"
@@ -87,8 +88,9 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
       </div>
 
       <span
-        className={`text-xl font-medium transition-colors ${value === "user" ? "text-green-600" : "text-gray-500"
-          }`}
+        className={`text-xl font-medium transition-colors ${
+          value === "user" ? "text-green-600" : "text-gray-500"
+        }`}
       >
         {rightLabel}
       </span>
@@ -96,61 +98,207 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
   );
 };
 
+const LandingRiverVisual: React.FC = () => {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,_#ddecfb_0%,_#edf6fd_24%,_#f7fbff_56%,_#ffffff_100%)]" />
+      <div className="absolute inset-x-0 top-0 h-[56vh] bg-[radial-gradient(circle_at_20%_15%,_rgba(125,211,252,0.3),_transparent_30%),radial-gradient(circle_at_82%_18%,_rgba(59,130,246,0.18),_transparent_26%),linear-gradient(180deg,_rgba(191,219,254,0.45)_0%,_rgba(255,255,255,0)_100%)]" />
+
+      <div className="absolute left-[6%] top-[18%] h-72 w-72 rounded-full bg-cyan-100/55 blur-3xl" />
+      <div className="absolute right-[10%] top-[12%] h-80 w-80 rounded-full bg-sky-200/45 blur-3xl" />
+      <div className="absolute bottom-[18%] left-[22%] h-64 w-64 rounded-full bg-blue-100/50 blur-3xl" />
+
+      <div className="absolute inset-x-[5%] top-[14%] hidden h-[54vh] rounded-[3rem] border border-white/50 bg-white/18 shadow-[0_28px_90px_rgba(20,89,143,0.12)] backdrop-blur-[2px] lg:block" />
+
+      <svg
+        className="absolute inset-0 h-full w-full opacity-95"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M-120 92C94 34 304 57 515 148C690 224 867 282 1047 254C1216 228 1331 175 1548 213V-20H-120Z"
+          fill="rgba(255,255,255,0.42)"
+        />
+        <path
+          d="M-140 288C66 216 249 214 428 290C623 372 804 442 1000 410C1176 382 1307 289 1538 324V946H-140Z"
+          fill="rgba(255,255,255,0.52)"
+        />
+        <path
+          d="M-120 170C77 84 253 108 433 183C615 260 797 311 992 281C1166 255 1300 159 1548 215"
+          fill="none"
+          stroke="rgba(34,91,142,0.12)"
+          strokeWidth="104"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-112 176C86 98 258 122 435 194C621 270 802 322 997 293C1172 267 1309 173 1555 228"
+          fill="none"
+          stroke="rgba(103,194,230,0.24)"
+          strokeWidth="58"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-106 182C92 106 262 129 438 201C625 276 807 330 1001 302C1177 276 1315 182 1560 238"
+          fill="none"
+          stroke="rgba(204,244,255,0.95)"
+          strokeWidth="16"
+          strokeLinecap="round"
+          strokeDasharray="28 26"
+          className="river-flow river-flow-slow"
+        />
+        <path
+          d="M-94 182C99 114 267 138 441 208C627 282 811 339 1005 311C1179 286 1321 191 1564 247"
+          fill="none"
+          stroke="rgba(255,255,255,0.92)"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray="8 24"
+          className="river-flow river-flow-fast"
+        />
+      </svg>
+    </div>
+  );
+};
+
 const RiverWaterManagementPage: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
   const [selectedBasin, setSelectedBasin] = useState<BasinType>(null);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const handleViewChange = (newView: ViewType): void => {
     setActiveView(newView);
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-4 shadow-lg">
+    <div className="flex min-h-screen flex-col">
+      <header className="grid w-full grid-cols-1 gap-3 bg-gradient-to-r from-blue-500 to-blue-200 py-4 text-white shadow-lg lg:grid-cols-2">
         <div className="container mx-auto px-8">
-          <h1 className="text-4xl font-bold">River Water Quality Assessment</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-4xl font-bold">
+              River Water Quality Assessment
+            </h1>
+            {selectedBasin === "varuna" && (
+              <button
+                type="button"
+                onClick={() => setIsInfoModalOpen(true)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-white/15 text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:bg-white/25 hover:shadow-md"
+                aria-label="Open river module information"
+                title="Module information"
+              >
+                <Info size={16} />
+              </button>
+            )}
+          </div>
         </div>
         {selectedBasin === "varuna" && (
-          <div className="flex justify-center w-full items-center font-medium">
+          <div className="flex w-full items-center justify-center font-medium">
             <ModernSwitch
               leftLabel="Admin"
               rightLabel="Stretch"
               value={activeView}
-              onChange={setActiveView}
+              onChange={handleViewChange}
             />
           </div>
         )}
       </header>
 
-      <main className="flex-1 relative transition-all duration-500 ease-in-out">
-        {/* 1️⃣ BASIN QUESTION */}
+      <main className="relative flex-1 transition-all duration-500 ease-in-out">
         {selectedBasin === null && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-            <div className="text-center space-y-8">
-              <h2 className="text-2xl font-semibold text-gray-800 text-center">
-                What do you want to work on?
-              </h2>
+          <div className="absolute inset-0 overflow-hidden">
+            <LandingRiverVisual />
 
-              <div className="flex justify-center gap-6">
-                <button
-                  onClick={() => setSelectedBasin("varuna")}
-                  className="px-8 py-4 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition cursor-pointer"
-                >
-                  Varuna Basin
-                </button>
+            <div className="relative z-10 flex min-h-full items-center justify-center px-6 py-8 sm:px-10">
+              <div className="w-full max-w-4xl">
+                <div className="mx-auto max-w-2xl text-center">
+                  <h2 className="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl lg:text-5xl">
+                    River Water Quality Assessment Workspace
+                  </h2>
+                  <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
+                    Select a basin to continue to the appropriate workflow.
+                  </p>
+                </div>
 
-                <button
-                  onClick={() => setSelectedBasin("general")}
-                  className="px-8 py-4 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 transition cursor-pointer"
-                >
-                  Other Basins
-                </button>
+                <div className="mx-auto mt-8 w-full max-w-3xl rounded-[2rem] border border-white/70 bg-white/60 p-4 shadow-[0_24px_80px_rgba(15,76,129,0.14)] backdrop-blur-xl sm:p-5">
+                  <div className="relative mb-5 h-36 overflow-hidden rounded-[1.5rem] border border-white/60 bg-[linear-gradient(180deg,_rgba(223,242,252,0.9)_0%,_rgba(239,246,255,0.85)_100%)] sm:h-40">
+                    <div className="absolute inset-x-[-10%] top-6 h-16 rounded-[999px] bg-sky-100/70 blur-2xl" />
+                    <div className="absolute inset-x-[-10%] bottom-4 h-16 rounded-[999px] bg-cyan-100/60 blur-2xl" />
+                    <svg
+                      className="absolute inset-0 h-full w-full"
+                      viewBox="0 0 900 240"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M-50 122C73 82 195 86 314 126C425 163 531 214 644 202C739 192 819 145 952 165"
+                        fill="none"
+                        stroke="rgba(23,84,136,0.12)"
+                        strokeWidth="56"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M-42 126C78 90 198 94 316 132C428 169 534 220 646 209C742 199 822 152 958 171"
+                        fill="none"
+                        stroke="rgba(56,189,248,0.22)"
+                        strokeWidth="26"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M-36 130C82 97 202 101 319 137C431 173 538 225 649 214C746 205 827 158 963 177"
+                        fill="none"
+                        stroke="rgba(248,252,255,0.98)"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray="18 14"
+                        className="river-flow river-flow-slow"
+                      />
+                    </svg>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <button
+                      onClick={() => setSelectedBasin("varuna")}
+                      className="group w-full cursor-pointer overflow-hidden rounded-[1.4rem] border border-sky-200/80 bg-[linear-gradient(135deg,_rgba(9,76,130,0.96)_0%,_rgba(29,120,187,0.92)_60%,_rgba(111,204,232,0.88)_100%)] px-5 py-5 text-left text-white shadow-[0_16px_34px_rgba(23,84,136,0.2)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(23,84,136,0.24)]"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xl font-bold">Varuna Basin</p>
+                          <p className="mt-2 text-sm leading-6 text-blue-50/90">
+                            Dedicated river assessment workflow.
+                          </p>
+                        </div>
+                        <span className="text-xl text-white/80 transition-transform duration-300 group-hover:translate-x-1">
+                          {"->"}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setSelectedBasin("general");
+                        setIsInfoModalOpen(false);
+                      }}
+                      className="group w-full cursor-pointer overflow-hidden rounded-[1.4rem] border border-cyan-200/80 bg-[linear-gradient(135deg,_rgba(7,104,117,0.94)_0%,_rgba(18,145,158,0.9)_54%,_rgba(126,227,214,0.86)_100%)] px-5 py-5 text-left text-white shadow-[0_16px_34px_rgba(8,117,128,0.18)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(8,117,128,0.22)]"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xl font-bold">Other Basins</p>
+                          <p className="mt-2 text-sm leading-6 text-cyan-50/90">
+                            Flexible workflow for other river systems.
+                          </p>
+                        </div>
+                        <span className="text-xl text-white/80 transition-transform duration-300 group-hover:translate-x-1">
+                          {"->"}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* 2️⃣ VARUNA FLOW */}
         {selectedBasin === "varuna" && (
           <>
             {activeView === "admin" && <RiverWaterManagementAdmin />}
@@ -158,9 +306,37 @@ const RiverWaterManagementPage: React.FC = () => {
           </>
         )}
 
-        {/* 3️⃣ GENERAL FLOW */}
         {selectedBasin === "general" && <GeneralRiverWaterManagement />}
       </main>
+
+      <RiverInfoModal
+        isOpen={selectedBasin === "varuna" && isInfoModalOpen}
+        mode={activeView}
+        onClose={() => setIsInfoModalOpen(false)}
+      />
+
+      <style jsx>{`
+        .river-flow {
+          animation: riverDrift 9s linear infinite;
+        }
+
+        .river-flow-slow {
+          animation-duration: 12s;
+        }
+
+        .river-flow-fast {
+          animation-duration: 6s;
+        }
+
+        @keyframes riverDrift {
+          from {
+            stroke-dashoffset: 0;
+          }
+          to {
+            stroke-dashoffset: -240;
+          }
+        }
+      `}</style>
     </div>
   );
 };

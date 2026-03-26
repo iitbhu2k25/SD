@@ -4,6 +4,10 @@ import React, { useState } from "react";
 import { useLocation } from "@/contexts/riverwater_assessment/admin/LocationContext";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  WQ_PARAMETERS,
+  getBackendAttributeName,
+} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
 import LoadingOverlay from "../../components/loadingOverlay";
 
 interface PollJobResult {
@@ -18,26 +22,6 @@ interface PollJobResult {
   };
 }
 
-const WQ_PARAMETERS = [
-  { key: "ph", label: "pH", unit: "" },
-  { key: "tds", label: "TDS", unit: "mg/L" },
-  { key: "ec", label: "EC", unit: "uS/cm" },
-  { key: "temperature", label: "Temperature", unit: "C" },
-  { key: "turbidity", label: "Turbidity", unit: "NTU" },
-  { key: "dissolvedOxygen", label: "Dissolved Oxygen", unit: "mg/L" },
-  { key: "orp", label: "ORP", unit: "mV" },
-  { key: "tss", label: "TSS", unit: "mg/L" },
-  { key: "cod", label: "COD", unit: "mg/L" },
-  { key: "bod", label: "BOD", unit: "mg/L" },
-  { key: "ts", label: "Total Solids", unit: "mg/L" },
-  { key: "chloride", label: "Chloride", unit: "mg/L" },
-  { key: "nitrate", label: "Nitrate", unit: "mg/L" },
-  { key: "hardness", label: "Hardness", unit: "mg/L" },
-  { key: "faecalColiform", label: "Faecal Coliform", unit: "MPN/100ml" },
-  { key: "totalColiform", label: "Total Coliform", unit: "MPN/100ml" },
-  { key: "wqi", label: "Water Quality Index" },
-];
-
 const reportParameters = WQ_PARAMETERS.filter((param) => param.key !== "wqi");
 
 const PdfReportSection: React.FC = () => {
@@ -50,25 +34,6 @@ const PdfReportSection: React.FC = () => {
   const [pdfStatus, setPdfStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
-  const attributeMapping: { [key: string]: string } = {
-    ph: "pH",
-    tds: "TDS_mg_L_",
-    ec: "EC__S_cm_",
-    temperature: "Temperatur",
-    turbidity: "Turbidity_",
-    dissolvedOxygen: "DO_mg_L_",
-    orp: "ORP",
-    tss: "TSS_mg_L_",
-    cod: "COD_mg_L_",
-    bod: "BOD_mg_L_",
-    ts: "TS_mg_L_",
-    chloride: "Chloride_m",
-    nitrate: "Nitrate_mg",
-    hardness: "Hardness_m",
-    faecalColiform: "Faecal_Col",
-    totalColiform: "Total_Coli",
-    WQI: "WQI",
-  };
 
   const [completedParameters, setCompletedParameters] = useState(0);
 
@@ -91,8 +56,7 @@ const PdfReportSection: React.FC = () => {
 
       // Map frontend parameter keys to backend attribute names
       const backendAttributes = selectedParameters.map(
-        (param) =>
-          attributeMapping[param as keyof typeof attributeMapping] || param,
+        (param) => getBackendAttributeName(param) || param,
       );
 
       // Always include WQI
@@ -104,7 +68,7 @@ const PdfReportSection: React.FC = () => {
       console.log("   Season:", selectedSeason);
 
       // ==================== FETCH DATA FROM BACKEND ====================
-      const response = await fetch(`/django/rwm/start-pdf-report/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/start-pdf-report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -152,7 +116,6 @@ const PdfReportSection: React.FC = () => {
             `✅ ${data.attribute} completed (${completedParameters}/${backendAttributes.length})`,
           );
         } else if (data.status === "completed" && data.summary) {
-          // ==================== ALL TASKS COMPLETED ====================
           console.log("🎉 All interpolations completed!");
           console.log("   Summary:", data.summary);
           console.log("   Total results:", data.results.length);
@@ -166,8 +129,6 @@ const PdfReportSection: React.FC = () => {
           };
 
           ws.close();
-
-          // Generate PDF
           generatePDF(result);
         } else if (data.status === "error") {
           console.log("❌ Error:", data.message);
@@ -1435,7 +1396,7 @@ const PdfReportSection: React.FC = () => {
   };
 
   const handleDeselectTopTen = () => {
-    const topTenKeys = new Set(
+    const topTenKeys = new Set<string>(
       reportParameters
         .map((param) => param.key)
         .filter((key) => TOP_TEN_PRIORITY[key] !== undefined),
