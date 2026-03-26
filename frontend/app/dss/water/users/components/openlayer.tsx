@@ -550,7 +550,7 @@ const Maping: React.FC = () => {
     if (boundarylayer) {
       const boundaryVectorSource = new VectorSource({
         format: new GeoJSON(),
-        url: `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`,
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${boundarylayer}&outputFormat=application/json&srsname=EPSG:3857`,
       });
 
       const boundaryVectorLayer = new VectorLayer({
@@ -590,7 +590,7 @@ const Maping: React.FC = () => {
     }
 
     if (primaryLayer) {
-      const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+      const primaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
       const primaryVectorSource = new VectorSource({
         format: new GeoJSON(),
@@ -872,7 +872,7 @@ const Maping: React.FC = () => {
     // 2. Define the Catchment Source (Direct CQL Filter)
     const catchmentSource = new VectorSource({
       format: new GeoJSON(),
-      url: `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:Catchment&outputFormat=application/json&srsname=EPSG:3857&cql_filter=Drain_No=${selectedDrain}`,
+      url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:Catchment&outputFormat=application/json&srsname=EPSG:3857&cql_filter=Drain_No=${selectedDrain}`,
     });
 
     // 3. Define the Catchment Layer
@@ -937,7 +937,7 @@ const Maping: React.FC = () => {
     }
 
     try {
-      const layerUrl = "/geoserver/api/wms";
+      const layerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`;
       const workspace = rasterLayerInfo.workspace || "raster_work";
       const layerName =
         rasterLayerInfo.layer_name || "Clipped_STP_Priority_Map";

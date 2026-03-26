@@ -1,0 +1,33 @@
+export interface PanelSizeSettings {
+  widthOpen: string;
+  mobileWidthOpen: string;
+  widthClosed: string;
+  defaultOpen: boolean;
+}
+
+export interface RightPanelSettings extends PanelSizeSettings {
+  minWidthPercent: number;
+  maxWidthPercent: number;
+}
+
+export interface PanelSettings {
+  left: PanelSizeSettings;
+  right: RightPanelSettings;
+}
+
+export const stpSuitabilityPanelSettings: PanelSettings = {
+  left: {
+    widthOpen: "18%",
+    mobileWidthOpen: "min(18rem, calc(100vw - 4rem))",
+    widthClosed: "0px",
+    defaultOpen: true,
+  },
+  right: {
+    widthOpen: "38%",
+    mobileWidthOpen: "min(24rem, calc(100vw - 4rem))",
+    widthClosed: "0px",
+    defaultOpen: true,
+    minWidthPercent: 25,
+    maxWidthPercent: 45,
+  },
+};

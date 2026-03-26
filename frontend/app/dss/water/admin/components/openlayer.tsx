@@ -207,7 +207,7 @@ const Maping: React.FC<MappingProps> = ({
       } = raster;
 
       const rasterSource = new ImageWMS({
-        url: "/geoserver/api/wms",
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`,
         params: {
           SERVICE: "WMS",
           REQUEST: "GetMap",
@@ -258,7 +258,7 @@ const Maping: React.FC<MappingProps> = ({
       // 3. Construct the GetLegendGraphic URL
       // We add LEGEND_OPTIONS to make it look cleaner (forceLabels, font, etc.)
       const legendRequestUrl =
-        `/geoserver/api/wms?` +
+        `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms?` +
         `REQUEST=GetLegendGraphic&` +
         `VERSION=1.0.0&` +
         `FORMAT=image/png&` +
@@ -311,7 +311,7 @@ const Maping: React.FC<MappingProps> = ({
           const fullLayerName = `${raster.workspace}:${raster.layer_name}`;
           const styleId = raster.style;
           const legendRequestUrl =
-            `/geoserver/api/wms?` +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms?` +
             `REQUEST=GetLegendGraphic&` +
             `VERSION=1.0.0&` +
             `FORMAT=image/png&` +
@@ -603,7 +603,7 @@ const Maping: React.FC<MappingProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const primaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
@@ -665,7 +665,7 @@ const Maping: React.FC<MappingProps> = ({
 
     setIsLoading(true);
 
-    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+    const secondaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
       ? LayerFilterValue.map((v) => `'${v}'`).join(",")
       : `'${LayerFilterValue}'`
       })`;

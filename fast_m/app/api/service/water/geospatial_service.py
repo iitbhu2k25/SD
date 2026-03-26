@@ -15,8 +15,14 @@ import numpy as np
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+from app.conf.settings import Settings
 
 logger = logging.getLogger(__name__)
+GEOSERVER_URL = Settings().GEOSERVER_URL
+GEOSERVER_USER = Settings().GEOSERVER_USERNAME
+GEOSERVER_PASSWORD = Settings().GEOSERVER_PASSWORD
+WORKSPACE = Settings().GEOSERVER_WORKSPACE
+TEMP_DIR = Settings().TEMP_DIR
 
 
 class GeospatialProcessor:
@@ -25,8 +31,8 @@ class GeospatialProcessor:
     Handles vector/raster clipping, GeoServer interactions, and file management.
     """
 
-    def __init__(self, output_dir: Path, geoserver_config=None):
-        self.output_dir = output_dir
+    def __init__(self, output_dir: Path = None, geoserver_config=None):
+        self.output_dir = output_dir if output_dir is not None else Path(TEMP_DIR)
         self.default_crs = "EPSG:32644"  # UTM Zone 44N for India
 
         # GeoServer configuration
@@ -42,9 +48,6 @@ class GeospatialProcessor:
             self.username = config.username
             self.password = config.password
 
-        # Ensure output directory exists
-        if not self.output_dir.exists():
-            self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _ensure_crs(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """Ensure GeoDataFrame has correct CRS"""
@@ -201,8 +204,10 @@ class GeospatialProcessor:
             Path to zip file or None if failed
         """
         try:
-            zip_filename = f"{layer_name}.zip"
-            output_zip_path = self.output_dir / zip_filename
+            import os as _os
+            fd, tmp_zip = tempfile.mkstemp(suffix=".zip", prefix=layer_name)
+            _os.close(fd)
+            output_zip_path = Path(tmp_zip)
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_shp = Path(temp_dir) / f"{layer_name}.shp"

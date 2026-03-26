@@ -10,12 +10,15 @@ from rasterio.mask import mask
 import numpy as np
 from requests import Session
 from app.utils.network_conf import GeoConfig
+from app.conf.settings import Settings
 from app.utils.name import Unique_name
 from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.api.service.water.geospatial_service import GeospatialProcessor
 from app.database.crud.water_crud import Drain_crud, River_crud, Stretches_crud, Stp_Villages_crud, Stp_District_crud, Stp_State_crud, Stp_towns_crud, Stp_SubDistrict_crud
 
 logger = logging.getLogger(__name__)
+
+TEMP_DIR = Settings().TEMP_DIR
 
 
 class WaterAvailabilityMapper:
@@ -54,11 +57,12 @@ class WaterAvailabilityMapper:
     
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
-        self.output_path = Path(self.config.output_path)
-        self.processor = GeospatialProcessor(self.output_path)
+        import tempfile
+        self.temp_dir = Path(tempfile.gettempdir())
+        self.processor = GeospatialProcessor(self.temp_dir)
         
         # GeoServer configuration
-        self.vector_workspace = "dss_vector"
+        self.vector_workspace = Settings().GEOSERVER_WORKSPACE
         self.raster_workspace = "dss_raster"
         self.vector_store_name = "vector_store"
         
@@ -298,10 +302,13 @@ class WaterAvailabilityMapper:
             )
             logger.info(f"✅ Published vector layer: {layer_name}")
             return layer_name
-            
+
         except Exception as e:
             logger.error(f"Failed to publish vector: {str(e)}")
             raise ValueError(f"Failed to publish vector layer: {str(e)}")
+        finally:
+            if zip_path and zip_path.exists():
+                zip_path.unlink(missing_ok=True)
     
     def _apply_edge_coverage_filter(
     self,
