@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'channels',
     'rsq',
-    'management',
     'mapplot',
 ]
 
@@ -52,7 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "management.middleware.auth_middleware.TokenAuthenticationMiddleware",
+   
 ]
 
 ROOT_URLCONF = "main.urls"
@@ -140,7 +139,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://slcrdss.in",
     "https://*.slcrdss.in",
     "http://localhost:3000",
-    "https://lems-two.vercel.app",
+    "https://slcrdss.xyz",
     
 
     # Add your frontend domain here
@@ -148,7 +147,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://slcrdss.in",
     "https://*.slcrdss.in",
-    "https://lems-two.vercel.app",
+    "https://slcrdss.xyz",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -168,7 +167,7 @@ CORS_ALLOWED_HEADERS = [
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'management.middleware.auth_middleware.JWTAuthentication',
+    
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
@@ -185,7 +184,7 @@ ALLOWED_HOSTS = [
     ".slcrdss.in",
     "kalki.space",
     'localhost',
-    'lems-two.vercel.app',
+    "slcrdss.xyz",
     # Add any other IPs you need
 ]
 # Media files (User uploaded files)

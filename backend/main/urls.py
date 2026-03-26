@@ -12,7 +12,6 @@ urlpatterns = [
     path("django/datahub/", include("datahub.urls")),
     path("django/extract/",include("extract.urls")),
     path("django/rsq/",include("rsq.urls")),
-    path("django/management/",include("management.urls")),
     path("django/mapplot/",include("mapplot.urls")),
     
 ]
