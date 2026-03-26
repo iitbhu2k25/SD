@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { BarChart2, Download, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+const BACKEND_URL =   `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
 
 interface WqiSummaryTableProps {
   fileLabel: string;
@@ -197,7 +197,7 @@ const WqiSummaryTable: React.FC<WqiSummaryTableProps> = ({
                     const fileExtension = rasterDownloadFormat === "png" ? "png" : "tif";
                     const fullFileName = `${safeFile}.${fileExtension}`;
                     const apiBase = BACKEND_URL.replace(/\/+$/, "");
-                    const url = `${apiBase}/django/rwm/general/download-raster?layer_name=${encodeURIComponent(layerNameWithWorkspace)}&workspace=${encodeURIComponent(wqiRaster.workspace)}&filename=${encodeURIComponent(fullFileName)}&format=${encodeURIComponent(rasterDownloadFormat)}`;
+                    const url = `${apiBase}/rwm/general/download-raster?layer_name=${encodeURIComponent(layerNameWithWorkspace)}&workspace=${encodeURIComponent(wqiRaster.workspace)}&filename=${encodeURIComponent(fullFileName)}&format=${encodeURIComponent(rasterDownloadFormat)}`;
 
                     setIsRasterDownloading(true);
                     const toastId = toast.loading(`Preparing ${activeParameter} ${rasterDownloadFormat.toUpperCase()}...`);

@@ -18,15 +18,6 @@ export interface Stretch {
   River_Code: number;
 }
 
-interface StretchGeoJsonFeature {
-  properties?: Record<string, unknown>;
-}
-
-interface StretchGeoJsonResponse {
-  type?: string;
-  features?: StretchGeoJsonFeature[];
-}
-
 // GeoJSON types for map data
 export interface GeoJSONFeature {
   id: string;
@@ -94,6 +85,7 @@ export interface StretchContextType {
   // Stretch data
   stretches: Stretch[];
   selectedStretches: string[];
+  selectedYear: "" | "2025";
   selectionsLocked: boolean;
   isLoading: boolean;
   error: string | null;
@@ -117,8 +109,10 @@ export interface StretchContextType {
   // Actions
   setSelectedStretches: (stretchIds: string[]) => void;
   setSelectedSeason: (season: "premonsoon" | "monsoon" | "postmonsoon" | "") => void;
+  setSelectedYear: (year: "" | "2025") => void;
   setSelectionsLocked: (locked: boolean) => void;
   handleAreaConfirm: () => void;
+  returnToSelection: () => void;
   confirmSelections: () => boolean;
   lockSelections: () => void;
   resetSelections: () => void;
@@ -178,46 +172,6 @@ interface StretchProviderProps {
 
 const StretchContext = createContext<StretchContextType | undefined>(undefined);
 
-const normalizeStretchRecord = (
-  raw: Record<string, unknown>
-): Stretch | null => {
-  const stretchId = Number(
-    raw.Stretch_ID ?? raw.stretch_code ?? raw.stretch_id ?? raw.id
-  );
-
-  if (!Number.isFinite(stretchId)) {
-    return null;
-  }
-
-  const riverCode = Number(raw.River_Code ?? raw.river_code ?? 0);
-  const stretchName =
-    String(
-      raw.stretch_name ??
-        raw.Stretch_Name ??
-        raw.Stretch_Na ??
-        `Stretch ${stretchId}`
-    ).trim() || `Stretch ${stretchId}`;
-
-  return {
-    stretch_name: stretchName,
-    stretch_code: stretchId,
-    Stretch_ID: stretchId,
-    River_Code: Number.isFinite(riverCode) ? riverCode : 0,
-  };
-};
-
-const dedupeAndSortStretches = (stretchList: Stretch[]): Stretch[] => {
-  const uniqueStretches = new Map<number, Stretch>();
-
-  stretchList.forEach((stretch) => {
-    uniqueStretches.set(stretch.Stretch_ID, stretch);
-  });
-
-  return Array.from(uniqueStretches.values()).sort((a, b) =>
-    a.stretch_name.localeCompare(b.stretch_name)
-  );
-};
-
 export const StretchProvider: React.FC<StretchProviderProps> = ({
   children,
 }) => {
@@ -225,6 +179,7 @@ export const StretchProvider: React.FC<StretchProviderProps> = ({
 
   const [stretches, setStretches] = useState<Stretch[]>([]);
   const [selectedStretches, setSelectedStretches] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<"" | "2025">("");
   const [selectionsLocked, setSelectionsLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -344,46 +299,19 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
     try {
       console.log("📡 Making stretches API request...");
-      const response = await fetch(`/django/rwm/stretches/`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/stretches`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      const primaryData = await response.json();
-      const primaryStretches = Array.isArray(primaryData)
-        ? primaryData
-            .map((item) =>
-              normalizeStretchRecord(item as Record<string, unknown>)
-            )
-            .filter((item): item is Stretch => item !== null)
-        : [];
+      const data: Stretch[] = await response.json();
+      console.log("✅ Fetched stretches:", data.length, "items");
 
-      let stretchData = dedupeAndSortStretches(primaryStretches);
+      setStretches(data);
 
-      if (stretchData.length === 0) {
-        const fallbackResponse = await fetch(`/django/all-stretches`);
-
-        if (!fallbackResponse.ok) {
-          throw new Error(
-            `Fallback stretches API error! Status: ${fallbackResponse.status}`
-          );
-        }
-
-        const fallbackData: StretchGeoJsonResponse =
-          await fallbackResponse.json();
-        const fallbackStretches = (fallbackData.features || [])
-          .map((feature) => normalizeStretchRecord(feature.properties || {}))
-          .filter((item): item is Stretch => item !== null);
-
-        stretchData = dedupeAndSortStretches(fallbackStretches);
-      }
-
-      console.log("Fetched stretches:", stretchData.length, "items");
-      setStretches(stretchData);
-
-      if (stretchData.length === 0) {
-        setError("No stretches found from API or shapefile source.");
+      if (data.length === 0) {
+        setError("No stretches found.");
       }
     } catch (error: any) {
       console.log("❌ Error fetching stretches:", error);
@@ -401,7 +329,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       console.log("Fetching map layers...");
 
       // Fetch basin data
-      const basinResponse = await fetch(`/django/basin`);
+      const basinResponse = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/basic/basin`);
       if (!basinResponse.ok) {
         throw new Error(`Basin API error! Status: ${basinResponse.status}`);
       }
@@ -410,7 +338,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
       console.log("Fetched basin data:", basinGeoJSON);
 
       // Fetch river data
-      const riverResponse = await fetch(`/django/rwm/river/`);
+      const riverResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river`);
       if (!riverResponse.ok) {
         throw new Error(`River API error! Status: ${riverResponse.status}`);
       }
@@ -420,7 +348,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
       // Fetch river buffer data
       const riverBufferResponse = await fetch(
-        `/django/rwm/river_100m_buffer/stretchbased/`
+        `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/stretchbased`
       );
       if (!riverBufferResponse.ok) {
         throw new Error(
@@ -461,7 +389,7 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
 
   try {
     const response = await fetch(
-      `/django/rwm/shapefile/stretchbased/${season}/`,
+      `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/stretchbased/${season}`,
       {
         method: "POST",
         headers: {
@@ -529,10 +457,10 @@ const fetchAllSeasonsWaterQualityData = async (
     Stretch_ID: stretchIds,
   };
 
-  // Temporarily exclude postmonsoon until data is available
-  const seasons: Array<"premonsoon" | "monsoon"> = [
+  const seasons: Array<"premonsoon" | "monsoon" | "postmonsoon"> = [
     "premonsoon",
     "monsoon",
+    "postmonsoon",
   ];
 
   console.log("Making parallel seasonal API requests for:", seasons);
@@ -542,7 +470,7 @@ const fetchAllSeasonsWaterQualityData = async (
     const responses = await Promise.all(
       seasons.map((season) =>
         fetch(
-          `/django/rwm/shapefile/stretchbased/${season}/`,
+          `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/shapefile/stretchbased/${season}`,
           {
             method: "POST",
             headers: {
@@ -678,6 +606,11 @@ const clearAllSeasonalData = (): void => {
 
   const lockSelections = () => setSelectionsLocked(true);
 
+  const returnToSelection = (): void => {
+    setSelectionsLocked(false);
+    setAreaConfirmed(false);
+  };
+
   const confirmSelections = (): boolean => {
     if (selectedStretches.length > 0 && !selectionsLocked) {
       handleAreaConfirm();
@@ -689,6 +622,7 @@ const clearAllSeasonalData = (): void => {
 
   const resetSelections = (): void => {
     setSelectedStretches([]);
+    setSelectedYear("");
     setSelectionsLocked(false);
     setError(null);
     setAreaConfirmed(false);
@@ -720,7 +654,7 @@ const clearAllSeasonalData = (): void => {
     };
 
     try {
-      const response = await fetch(`/django/rwm/stretch_lines/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/stretch_lines`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -776,7 +710,7 @@ const clearAllSeasonalData = (): void => {
   };
 
   try {
-    const response = await fetch(`/django/rwm/river_100m_buffer/stretchbased/`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/stretchbased`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -824,6 +758,7 @@ const clearStretchBuffer = (): void => {
   const contextValue: StretchContextType = {
     stretches,
     selectedStretches,
+    selectedYear,
     selectionsLocked,
     isLoading,
     error,
@@ -839,8 +774,10 @@ const clearStretchBuffer = (): void => {
     selectedSeason,
     setSelectedStretches: updateSelectedStretches,
     setSelectedSeason,
+    setSelectedYear,
     setSelectionsLocked,
     handleAreaConfirm,
+    returnToSelection,
     confirmSelections,
     lockSelections,
     resetSelections,

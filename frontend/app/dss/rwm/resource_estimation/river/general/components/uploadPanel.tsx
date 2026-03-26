@@ -21,7 +21,7 @@ interface LayerInfo {
 }
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+  `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
 
 // File size limit: 10MB
 const MAX_FILE_SIZE_MB = 10;
@@ -99,7 +99,7 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
       }, 200);
 
       const response = await fetch(
-        `${API_BASE_URL}/django/rwm/general/upload`,
+        `${API_BASE_URL}/rwm/general/upload`,
         {
           method: "POST",
           body: formData,

@@ -28,6 +28,10 @@ import { Point } from "ol/geom";
 import { bbox as bboxStrategy } from "ol/loadingstrategy";
 import { useLocation } from "@/contexts/riverwater_assessment/admin/LocationContext";
 import { useApp } from "@/contexts/riverwater_assessment/admin/AppContext";
+import {
+  getBackendAttributeName,
+  getParameterLabel,
+} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -90,7 +94,7 @@ const baseMaps: Record<string, BaseMapDefinition> = {
 };
 
 // Workspace used for GeoServer layer names (can be overridden via env var)
-const WORKSPACE = "dss_vector";
+const WORKSPACE = `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}`;
 
 interface LegendData {
   mean?: number;
@@ -164,7 +168,6 @@ interface MapContextType {
   ) => void;
   currentInterpolationParam: string | null;
   currentInterpolationLayerName: string | null;
-  attributeMapping: Record<string, string>;
   interpolationOpacity: number;
   setInterpolationOpacity: (opacity: number) => void;
   resetView: () => void;
@@ -223,7 +226,6 @@ const MapContext = createContext<MapContextType>({
   },
   currentInterpolationParam: null,
   currentInterpolationLayerName: null,
-  attributeMapping: {},
   interpolationOpacity: 1,
   setInterpolationOpacity: () => { },
   resetView: () => { },
@@ -299,46 +301,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
   const interpolationLayerRef = useRef<TileLayer<any> | null>(null);
 
-  const attributeMapping = {
-    pH: "pH",
-    "TDS (ppm)": "TDS_mg_L_",
-    "EC (μS/cm)": "EC__S_cm_",
-    Temperature: "Temperatur",
-    "Turbidity (FNU)": "Turbidity_",
-    "DO (mg/L)": "DO_mg_L_",
-    ORP: "ORP",
-    "TSS (mg/l)": "TSS_mg_L_",
-    COD: "COD_mg_L_",
-    "BOD (mg/l)": "BOD_mg_L_",
-    "TS (mg/l)": "TS_mg_L_",
-    "Chloride (mg/l)": "Chloride_m",
-    Nitrate: "Nitrate_mg",
-    "Hardness(mg/l)": "Hardness_m",
-    "Faecal Coliform (CFU/100 mL)": "Faecal_Col",
-    "Total Coliform (CFU/100 mL)": "Total_Coli",
-    WQI: "WQI",
-  };
-
-  // Inside MapProvider, after your state declarations
-  const waterQualityParameters = [
-    { key: "pH", label: "pH", unit: "" },
-    { key: "TDSmgL", label: "TDS", unit: "mg/L" },
-    { key: "ECScm", label: "EC", unit: "S/cm" },
-    { key: "Temperatur", label: "Temperature", unit: "°C" },
-    { key: "Turbidity", label: "Turbidity", unit: "NTU" },
-    { key: "DOmgL", label: "Dissolved Oxygen", unit: "mg/L" },
-    { key: "ORP", label: "ORP", unit: "mV" },
-    { key: "TSSmgL", label: "TSS", unit: "mg/L" },
-    { key: "CODmgL", label: "COD", unit: "mg/L" },
-    { key: "BODmgL", label: "BOD", unit: "mg/L" },
-    { key: "TSmgL", label: "Total Solids", unit: "mg/L" },
-    { key: "Chloridem", label: "Chloride", unit: "mg/L" },
-    { key: "Nitratemg", label: "Nitrate", unit: "mg/L" },
-    { key: "Hardnessm", label: "Hardness", unit: "mg/L" },
-    { key: "FaecalCol", label: "Faecal Coliform", unit: "MPN/100ml" },
-    { key: "TotalColi", label: "Total Coliform", unit: "MPN/100ml" },
-    { key: "WQI", label: "Water Quality Index", unit: "" },
-  ];
 
   const {
     selectedState,
@@ -488,11 +450,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
     const apiCalls = [
       {
-        url: "/django/rwm/river/",
+        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river`,
         name: "rivers",
       },
       {
-        url: "/django/rwm/river_100m_buffer/subdistbased/",
+        url: `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/river_100m_buffer/subdistbased`,
         name: "riverBuffer",
       },
     ];
@@ -947,7 +909,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const indiaLayer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:India&outputFormat=application/json`,
       }),
       style: boundaryLayerStyle,
       zIndex: 1,
@@ -1026,7 +988,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const layer = new VectorLayer({
       source: new VectorSource({
         format: new GeoJSON(),
-        url: `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
           cqlFilter
         )}`,
       }),
@@ -1072,7 +1034,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
       //   `Attempting to zoom to ${layerName} with filter: ${cqlFilter}`
       // );
 
-      const wfsUrl = `/geoserver/api/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
+      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${WORKSPACE}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${WORKSPACE}:${layerName}&outputFormat=application/json&CQL_FILTER=${encodeURIComponent(
         cqlFilter
       )}`;
 
@@ -1663,12 +1625,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
       // Map the display parameter to backend parameter name
       const backendAttribute =
-        attributeMapping[parameter as keyof typeof attributeMapping] ||
-        parameter;
+        getBackendAttributeName(parameter) || parameter;
 
-      const url = `/django/rwm/interpolate/${encodeURIComponent(
+      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
         backendAttribute
-      )}/${analysisType}/${season}/`;
+      )}/${analysisType}/${season}`;
 
       // Prepare request body with all required data
       const requestBody = {
@@ -1715,7 +1676,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
 
         // Create TileWMS source with proper URL
         const wmsSource = new TileWMS({
-          url: wms_url,
+          url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wms`,
           params: {
             LAYERS: primary_layer,
             FORMAT: "image/png",
@@ -1783,13 +1744,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
         setIsInterpolationLoading(false);
 
         // Update legend data with the response information
-        const parameterInfo = Object.entries(attributeMapping).find(
-          ([key, value]) => value === parameter || key === parameter
-        )?.[0];
-
-        const paramLabel =
-          waterQualityParameters.find((p) => p.key === parameterInfo)?.label ||
-          parameter;
+        const paramLabel = getParameterLabel(parameter);
 
         setLegendData({
           min: data.statistics.min,
@@ -1907,7 +1862,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     removeInterpolationLayer,
     currentInterpolationParam,
     currentInterpolationLayerName,
-    attributeMapping,
     interpolationOpacity,
     setInterpolationOpacity: changeInterpolationOpacity,
     resetView,
@@ -1960,3 +1914,4 @@ export const useMap = (): MapContextType => {
   }
   return context;
 };
+

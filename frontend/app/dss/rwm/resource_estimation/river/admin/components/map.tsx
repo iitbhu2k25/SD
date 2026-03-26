@@ -13,6 +13,11 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useChart } from "@/contexts/riverwater_assessment/admin/ChartContext";
+import {
+  WATER_QUALITY_PARAMETERS,
+  getBackendAttributeName,
+  getParameterLabel as getParameterBaseLabel,
+} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
 import SimpleLegend from "../../drain/components/legend";
 
 type BaseMapDefinition = {
@@ -75,7 +80,6 @@ const MapComponent: React.FC = () => {
     removeInterpolationLayer,
     legendData,
     currentInterpolationParam,
-    attributeMapping,
     interpolationOpacity,
     setInterpolationOpacity,
     isSubDistrictDisplayed,
@@ -101,6 +105,9 @@ const MapComponent: React.FC = () => {
   // UI State
   const [isBasemapPanelOpen, setIsBasemapPanelOpen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isOpacityControlOpen, setIsOpacityControlOpen] =
+    useState<boolean>(false);
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false);
   const [coordinates, setCoordinates] = useState<{
     lat: number;
     lon: number;
@@ -113,14 +120,11 @@ const MapComponent: React.FC = () => {
   const [selectedDropdownParam, setSelectedDropdownParam] = useState("");
   const [showLayerPanel, setShowLayerPanel] = useState(false);
   const { selectedAttribute } = useChart();
-  const waterQualityParameters = Object.keys(attributeMapping).map((key) => {
-    const unitMatch = key.match(/\(([^)]+)\)/);
-    return {
-      key,
-      label: key.replace(/\s*\([^)]+\)\s*/g, "").trim(),
-      unit: unitMatch?.[1] || "",
-    };
-  });
+  const waterQualityParameters = WATER_QUALITY_PARAMETERS.map((param) => ({
+    key: param.key,
+    label: param.label,
+    unit: param.unit || "",
+  }));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -153,6 +157,17 @@ const MapComponent: React.FC = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isInterpolationDisplayed) {
+      setIsOpacityControlOpen(false);
+      setIsLegendOpen(false);
+    }
+
+    if (!legendData || !isInterpolationDisplayed || !isInterpolationVisible) {
+      setIsLegendOpen(false);
+    }
+  }, [isInterpolationDisplayed, isInterpolationVisible, legendData]);
 
   // Initialize map container
   useEffect(() => {
@@ -213,18 +228,11 @@ const MapComponent: React.FC = () => {
               // Keep point tooltip values tied to chart-selected parameter.
               const activeParameter = selectedAttribute || "ph";
               const backendKey =
-                attributeMapping[
-                  activeParameter as keyof typeof attributeMapping
-                ] || activeParameter;
+                getBackendAttributeName(activeParameter) || activeParameter;
               const dataValue =
                 properties[backendKey] ?? properties[activeParameter] ?? "N/A";
 
-              const paramLabel =
-                activeParameter === "dissolvedOxygen"
-                  ? "Dissolved Oxygen"
-                  : activeParameter === "ph"
-                    ? "pH"
-                    : activeParameter;
+              const paramLabel = getParameterBaseLabel(activeParameter);
 
               return (
                 <div className="flex flex-col gap-1">
@@ -271,7 +279,6 @@ const MapComponent: React.FC = () => {
   }, [
     mapInstance,
     selectedAttribute,
-    attributeMapping,
   ]);
 
   // Fullscreen handling
@@ -579,70 +586,6 @@ const MapComponent: React.FC = () => {
                 )}
               </div>
             )}
-
-          {/* Opacity Slider Control - Add this AFTER the Interpolation Control Panel */}
-          {isInterpolationDisplayed && (
-            <div
-              className={`absolute z-[10] ${isFullscreen ? "bottom-80 left-2" : "bottom-80 left-2"
-                }`}
-            >
-              <div className="bg-white/50 hover:bg-white border border-gray-300 rounded-lg p-4 shadow-lg min-w-[300px] transition-colors duration-300">
-                <div className="flex items-center gap-3 mb-3">
-                  <svg
-                    className="w-5 h-5 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                  <h4 className="text-sm font-semibold text-gray-700">
-                    Layer Opacity
-                  </h4>
-                  <span className="text-sm font-medium text-blue-600 ml-auto">
-                    {Math.round(interpolationOpacity * 100)}%
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="relative">
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={interpolationOpacity}
-                      onChange={(e) =>
-                        setInterpolationOpacity(parseFloat(e.target.value))
-                      }
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                      style={{
-                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
-                          }%, #e5e7eb ${interpolationOpacity * 100
-                          }%, #e5e7eb 100%)`,
-                      }}
-                    />
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>0%</span>
-                      <span>50%</span>
-                      <span>100%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Basemap Selector */}
           <div
@@ -974,42 +917,41 @@ const MapComponent: React.FC = () => {
               </div>
             )}
 
-          {/* Coordinates and Scale Display */}
           <div
-            className={`absolute z-10 bg-white/90 border border-gray-300 rounded-lg p-3 shadow-lg ${isFullscreen ? "bottom-2 left-2" : "bottom-2 left-2"
+            className={`absolute z-10 flex flex-col gap-2 ${isFullscreen ? "bottom-2 left-2" : "bottom-2 left-2"
               }`}
           >
-            <div className="space-y-1 text-xs">
-              {coordinates && (
-                <div className="flex items-center gap-2">
-                  <svg
-                    className="w-3 h-3 text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                  <span className="text-gray-700 font-mono">
-                    {coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
-                  </span>
+            {(isInterpolationDisplayed ||
+              (legendData && isInterpolationDisplayed && isInterpolationVisible)) && (
+                <div className="flex flex-wrap gap-2">
+                  {legendData &&
+                    isInterpolationDisplayed &&
+                    isInterpolationVisible &&
+                    !isLegendOpen && (
+                    <button
+                      onClick={() => setIsLegendOpen(true)}
+                      className="rounded-full border border-gray-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all hover:bg-white"
+                    >
+                      Legend
+                    </button>
+                  )}
+
+                  {isInterpolationDisplayed && !isOpacityControlOpen && (
+                    <button
+                      onClick={() => setIsOpacityControlOpen(true)}
+                      className="rounded-full border border-gray-300 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all hover:bg-white"
+                    >
+                      Opacity Control
+                    </button>
+                  )}
                 </div>
               )}
-              {/* {scale && (
-                <div className="flex items-center gap-2">
+
+            {isInterpolationDisplayed && isOpacityControlOpen && (
+              <div className="w-[280px] max-w-[calc(100vw-1rem)] rounded-lg border border-gray-300 bg-white/95 p-4 shadow-lg backdrop-blur-sm">
+                <div className="mb-3 flex items-center gap-3">
                   <svg
-                    className="w-3 h-3 text-gray-500"
+                    className="h-5 w-5 text-blue-600"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -1018,15 +960,86 @@ const MapComponent: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                   </svg>
-                  <span className="text-gray-700 font-mono">
-                    Scale: {scale}
+                  <h4 className="text-sm font-semibold text-gray-700">
+                    Layer Opacity
+                  </h4>
+                  <span className="ml-auto text-sm font-medium text-blue-600">
+                    {Math.round(interpolationOpacity * 100)}%
                   </span>
+                  <button
+                    onClick={() => setIsOpacityControlOpen(false)}
+                    className="flex h-7 w-7 items-center justify-center rounded-full cursor-pointer text-lg leading-none text-gray-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                    aria-label="Close opacity control"
+                  >
+                    ×
+                  </button>
                 </div>
-              )} */}
-            </div>
+
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={interpolationOpacity}
+                    onChange={(e) =>
+                      setInterpolationOpacity(parseFloat(e.target.value))
+                    }
+                    className="slider h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200"
+                    style={{
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${interpolationOpacity * 100
+                        }%, #e5e7eb ${interpolationOpacity * 100
+                        }%, #e5e7eb 100%)`,
+                    }}
+                  />
+                  <div className="mt-1 flex justify-between text-xs text-gray-400">
+                    <span>0%</span>
+                    <span>50%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {coordinates && (
+              <div className="rounded-lg border border-gray-300 bg-white/90 p-3 shadow-lg">
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-3 h-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    <span className="text-gray-700 font-mono">
+                      {coordinates.lat.toFixed(6)}, {coordinates.lon.toFixed(6)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {legendData && (
@@ -1035,8 +1048,11 @@ const MapComponent: React.FC = () => {
               max={legendData.max ?? 0}
               mean={legendData.mean ?? 0}
               parameter={legendData.parameter ?? ""}
-              isVisible={isInterpolationDisplayed}
+              isVisible={Boolean(
+                isLegendOpen && isInterpolationDisplayed && isInterpolationVisible
+              )}
               colors={legendData.colors}
+              onClose={() => setIsLegendOpen(false)}
             />
           )}
 

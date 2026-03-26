@@ -78,7 +78,7 @@ interface CsvEntry {
     error?: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
 const RASTER_PARALLEL_LIMIT = 3;
 
 const arrowCueAnimation = `
@@ -234,7 +234,7 @@ const CsvUploadPanel: React.FC<CsvUploadPanelProps> = ({
             formData.append("file", entry.file);
             formData.append("layer_name", layerName);
 
-            const response = await fetch(`${API_BASE_URL}/django/rwm/general/upload-csv`, {
+            const response = await fetch(`${API_BASE_URL}/rwm/general/upload-csv`, {
                 method: "POST",
                 body: formData,
             });
@@ -318,7 +318,7 @@ const CsvUploadPanel: React.FC<CsvUploadPanelProps> = ({
 
         try {
             updateEntry(entry.id, { status: "generating_raster", error: undefined });
-            const response = await fetch(`${API_BASE_URL}/django/rwm/general/interpolate-wqi`, {
+            const response = await fetch(`${API_BASE_URL}/rwm/general/interpolate-wqi`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
