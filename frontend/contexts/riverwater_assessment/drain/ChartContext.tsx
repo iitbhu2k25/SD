@@ -239,7 +239,7 @@ export const StretchChartProvider: React.FC<StretchChartProviderProps> = ({
     const seasons: Array<"premonsoon" | "monsoon" | "postmonsoon"> = [
       "premonsoon",
       "monsoon",
-      // "postmonsoon", // Commented out - no data available yet
+      "postmonsoon",
     ];
 
     // Iterate through all seasons and build comparison structure

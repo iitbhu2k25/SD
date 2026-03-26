@@ -19,7 +19,10 @@ urlpatterns = [
     path('health/geoserver', views.geoserver_health_check, name='geoserver_health'),
 
 
-# NEW ASYNC ROUTES
+# DIRECT PDF REPORT ROUTE (temporarily disabled)
+    # path('download-pdf-report', views.download_pdf_report_data, name='download_pdf_report_data'),
+
+# ASYNC PDF ROUTES
     path('start-pdf-report', views.start_pdf_report_job, name='start_pdf_report_job'),
     path('job-status/<str:job_id>', views.get_job_status, name='get_job_status'),
     path('job-result/<str:job_id>', views.get_job_result, name='get_job_result'),

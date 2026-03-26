@@ -23,66 +23,16 @@ import XYZ from "ol/source/XYZ";
 import { fromLonLat, transformExtent } from "ol/proj";
 import { useStretch } from "./LocationContext";
 import { useStretchApp } from "./AppContext";
+import {
+  WQ_PARAMETERS,
+  BACKEND_PARAMETER_MAPPING,
+  getBackendAttributeName,
+  getParameterDefinition,
+} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
 
-// Water Quality Parameters Configuration - MOVED TO TOP
-export const WQ_PARAMETERS = [
-  { key: "ph", label: "pH", unit: "", range: "6.5-8.5" },
-  { key: "tds", label: "TDS", unit: "mg/L", range: "≤500" },
-  { key: "ec", label: "EC", unit: "μS/cm", range: "" },
-  { key: "temperature", label: "Temperature", unit: "°C", range: "" },
-  { key: "turbidity", label: "Turbidity", unit: "NTU", range: "≤1" },
-  {
-    key: "dissolvedOxygen",
-    label: "Dissolved Oxygen",
-    unit: "mg/L",
-    range: "≥5",
-  },
-  { key: "orp", label: "ORP", unit: "mV", range: "" },
-  { key: "tss", label: "TSS", unit: "mg/L", range: "" },
-  { key: "cod", label: "COD", unit: "mg/L", range: "≤3" },
-  { key: "bod", label: "BOD", unit: "mg/L", range: "≤2" },
-  { key: "ts", label: "Total Solids", unit: "mg/L", range: "" },
-  { key: "chloride", label: "Chloride", unit: "mg/L", range: "≤250" },
-  { key: "nitrate", label: "Nitrate", unit: "mg/L", range: "≤45" },
-  { key: "hardness", label: "Hardness", unit: "mg/L", range: "≤200" },
-  {
-    key: "faecalColiform",
-    label: "Faecal Coliform",
-    unit: "MPN/100ml",
-    range: "≤0",
-  },
-  {
-    key: "totalColiform",
-    label: "Total Coliform",
-    unit: "MPN/100ml",
-    range: "≤50",
-  },
-  { key: "wqi", label: "Water Quality Index", unit: "", range: "0-100" },
-];
 
-// Export the type for use in other components
-export type WaterQualityParameter = (typeof WQ_PARAMETERS)[0];
-
-// Parameter mapping for backend API
-export const BACKEND_PARAMETER_MAPPING: Record<string, string> = {
-  ph: "pH",
-  tds: "TDS_mg_L_",
-  ec: "EC__S_cm_",
-  temperature: "Temperatur",
-  turbidity: "Turbidity_",
-  dissolvedOxygen: "DO_mg_L_",
-  orp: "ORP",
-  tss: "TSS_mg_L_",
-  cod: "COD_mg_L_",
-  bod: "BOD_mg_L_",
-  ts: "TS_mg_L_",
-  chloride: "Chloride_m",
-  nitrate: "Nitrate_mg",
-  hardness: "Hardness_m",
-  faecalColiform: "Faecal_Col",
-  totalColiform: "Total_Coli",
-  wqi: "WQI",
-};
+export type WaterQualityParameter = (typeof WQ_PARAMETERS)[number];
+export { WQ_PARAMETERS, BACKEND_PARAMETER_MAPPING };
 
 // Base maps configuration
 interface BaseMapDefinition {
@@ -284,6 +234,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
   const waterQualityLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const interpolationLayerRef = useRef<TileLayer<TileWMS> | null>(null);
   const stretchLinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const stretchHighlightFrameRef = useRef(0);
 
   const [mapContainer, setMapContainer] = useState<HTMLDivElement | null>(null);
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
@@ -328,15 +279,84 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
 
   const { mapActions } = useStretchApp();
 
+  const activeBufferData =
+    selectedStretches.length > 0 && stretchBufferData?.features?.length
+      ? stretchBufferData
+      : riverBufferData;
+
+  const getStretchLineStyles = (feature: any) => {
+    const stretchId = String(feature.get("Stretch_ID") ?? "");
+    const isSelectedStretch = selectedStretches.includes(stretchId);
+    const hasSelection = selectedStretches.length > 0;
+
+    if (!isSelectedStretch) {
+      return new Style({
+        stroke: new Stroke({
+          color: hasSelection
+            ? "rgba(255, 255, 255, 0.18)"
+            : "rgba(255, 107, 53, 0.75)",
+          width: hasSelection ? 1.4 : 2,
+          lineCap: "round",
+        }),
+      });
+    }
+
+    const pulse = 0.5 + 0.5 * Math.sin(stretchHighlightFrameRef.current / 3);
+    const glowOpacity = 0.28 + pulse * 0.2;
+    const glowWidth = 6.2 + pulse * 1.3;
+
+    return [
+      new Style({
+        stroke: new Stroke({
+          color: "rgba(8, 47, 73, 0.82)",
+          width: 4.4,
+          lineCap: "round",
+        }),
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: `rgba(56, 189, 248, ${glowOpacity.toFixed(2)})`,
+          width: glowWidth + 0.3,
+          lineCap: "round",
+        }),
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: "#0F4C81",
+          width: 3.25,
+          lineCap: "round",
+        }),
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: "rgba(125, 211, 252, 0.92)",
+          width: 1.9,
+          lineCap: "round",
+          lineDash: [20, 14],
+          lineDashOffset: -stretchHighlightFrameRef.current * 2.6,
+        }),
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: "rgba(224, 242, 254, 0.88)",
+          width: 0.95,
+          lineCap: "round",
+          lineDash: [4, 24],
+          lineDashOffset: -stretchHighlightFrameRef.current * 4.4,
+        }),
+      }),
+    ];
+  };
+
   // Helper functions for parameter handling
   const getParameterByKey = (
     key: string
   ): WaterQualityParameter | undefined => {
-    return WQ_PARAMETERS.find((param) => param.key === key);
+    return getParameterDefinition(key) || undefined;
   };
 
   const getBackendParameterName = (key: string): string => {
-    return BACKEND_PARAMETER_MAPPING[key] || key;
+    return getBackendAttributeName(key) || key;
   };
 
   // Register map actions with parent context
@@ -462,17 +482,21 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
 
   // Display river buffer layer
   useEffect(() => {
-    if (!mapInstanceRef.current || !riverBufferData?.features?.length) return;
+    if (!mapInstanceRef.current || !activeBufferData?.features?.length) return;
 
     const map = mapInstanceRef.current;
     console.log(
       "Adding river buffer layer with",
-      riverBufferData.features.length,
+      activeBufferData.features.length,
       "features"
     );
 
+    if (riverBufferLayerRef.current) {
+      map.removeLayer(riverBufferLayerRef.current);
+    }
+
     const bufferSource = new VectorSource({
-      features: new GeoJSON().readFeatures(riverBufferData, {
+      features: new GeoJSON().readFeatures(activeBufferData, {
         featureProjection: "EPSG:3857",
       }),
     });
@@ -497,7 +521,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     setIsRiverBufferDisplayed(true);
 
     console.log("River buffer layer added successfully");
-  }, [riverBufferData]);
+  }, [activeBufferData]);
 
   // Display water quality points
   useEffect(() => {
@@ -576,12 +600,12 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
         console.log("Fitting map to river buffer extent");
         map.getView().fit(extent, {
           padding: [50, 50, 50, 50],
-          maxZoom: 9.5,
+          maxZoom: selectedStretches.length > 0 ? 13.5 : 9.5,
           duration: 800,
         });
       }
     }
-  }, [riverBufferData]);
+  }, [activeBufferData, selectedStretches.length]);
 
   // Display stretch lines layer
   useEffect(() => {
@@ -605,20 +629,23 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
       map.removeLayer(stretchLinesLayerRef.current);
     }
 
-    const stretchLinesSource = new VectorSource({
-      features: new GeoJSON().readFeatures(stretchLinesData, {
+    const lineFeatures = new GeoJSON()
+      .readFeatures(stretchLinesData, {
         featureProjection: "EPSG:3857",
-      }),
+      })
+      .filter((feature) => {
+        if (!selectedStretches.length) return true;
+        const stretchId = String(feature.get("Stretch_ID") ?? "");
+        return selectedStretches.includes(stretchId);
+      });
+
+    const stretchLinesSource = new VectorSource({
+      features: lineFeatures,
     });
 
     const stretchLinesLayer = new VectorLayer({
       source: stretchLinesSource,
-      style: new Style({
-        stroke: new Stroke({
-          color: "#FF6B35",
-          width: 2,
-        }),
-      }),
+      style: (feature) => getStretchLineStyles(feature),
       zIndex: 15,
     });
 
@@ -627,8 +654,63 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     map.addLayer(stretchLinesLayer);
     setIsStretchLinesDisplayed(true);
 
+    const extent = stretchLinesSource.getExtent();
+    if (
+      selectedStretches.length > 0 &&
+      extent &&
+      extent.some((coord: number) => isFinite(coord))
+    ) {
+      map.getView().fit(extent, {
+        padding: [60, 60, 60, 60],
+        maxZoom: 13.5,
+        duration: 900,
+      });
+    }
+
     console.log("Stretch lines layer added successfully");
-  }, [stretchLinesData]);
+  }, [stretchLinesData, selectedStretches]);
+
+  useEffect(() => {
+    if (!stretchLinesLayerRef.current) return;
+
+    stretchLinesLayerRef.current.setStyle((feature) =>
+      getStretchLineStyles(feature),
+    );
+    stretchLinesLayerRef.current.changed();
+  }, [selectedStretches]);
+
+  useEffect(() => {
+    if (!selectedStretches.length || !stretchLinesLayerRef.current) return;
+
+    let animationFrameId = 0;
+    let lastTimestamp = 0;
+
+    const animateSelectedStretch = (timestamp: number) => {
+      if (timestamp - lastTimestamp >= 90) {
+        lastTimestamp = timestamp;
+        stretchHighlightFrameRef.current =
+          (stretchHighlightFrameRef.current + 1) % 1000;
+        stretchLinesLayerRef.current?.changed();
+        mapInstanceRef.current?.render();
+      }
+
+      animationFrameId = window.requestAnimationFrame(animateSelectedStretch);
+    };
+
+    animationFrameId = window.requestAnimationFrame(animateSelectedStretch);
+
+    /*
+    const intervalId = window.setInterval(() => {
+      stretchHighlightFrameRef.current =
+        (stretchHighlightFrameRef.current + 1) % 1000;
+      stretchLinesLayerRef.current?.changed();
+    }, 90);
+    */
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, [selectedStretches, isStretchLinesDisplayed]);
 
   // Cleanup
   useEffect(() => {
@@ -722,9 +804,9 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
         `Generating interpolation for ${parameterInfo.label} (${backendAttribute}), stretch-based, ${season}`
       );
 
-      const url = `/django/rwm/interpolate/${encodeURIComponent(
+      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(
         backendAttribute
-      )}/stretchbased/${season}/`;
+      )}/stretchbased/${season}`;
 
       const requestBody = {
         Stretch_ID: stretchIds,
@@ -797,11 +879,11 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     console.log("Style name:", style_name);
     console.log("Extent:", extent);
 
-    const workspace = "dss_vector"; // Extract from primary_layer or hardcode
+    const workspace = `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}`; // Extract from primary_layer or hardcode
     const fullStyleName = `${workspace}:${style_name}`;
 
     const wmsSource = new TileWMS({
-      url: wms_url,
+      url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wms`,
       params: {
         LAYERS: primary_layer,
         FORMAT: "image/png",
@@ -881,7 +963,7 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
 
     const wmsLayer = new TileLayer({
       source: new TileWMS({
-        url: `/geoserver/api/wms`,
+        url: `${process.env.NEXT_PUBLIC_FAST_WORKSPACE}/wms`,
         params: {
           LAYERS: `riverwater_assessment:${parameter.toLowerCase()}_${season}_stretch_interpolation`,
           TILED: true,
@@ -922,7 +1004,10 @@ export const StretchMapProvider: React.FC<StretchMapProviderProps> = ({
     let targetLayer = null;
     let maxZoom = 12;
 
-    if (riverBufferLayerRef.current) {
+    if (stretchLinesLayerRef.current && selectedStretches.length > 0) {
+      targetLayer = stretchLinesLayerRef.current;
+      maxZoom = 13.5;
+    } else if (riverBufferLayerRef.current) {
       targetLayer = riverBufferLayerRef.current;
       maxZoom = 12;
     } else if (waterQualityLayerRef.current) {
@@ -1094,3 +1179,4 @@ export const useStretchMap = (): StretchMapContextType => {
 // Export additional types and constants
 export { baseMaps };
 export type { BaseMapDefinition, LegendData };
+

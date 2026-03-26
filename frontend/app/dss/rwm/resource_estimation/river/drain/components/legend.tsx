@@ -6,7 +6,9 @@ interface SimpleLegendProps {
   mean: number;
   parameter: string;
   isVisible: boolean;
-  colors?: Array<{value: number, color: string, label: string}>;  // ADD THIS
+  colors?: Array<{ value: number; color: string; label: string }>;
+  className?: string;
+  onClose?: () => void;
 }
 
 const SimpleLegend: React.FC<SimpleLegendProps> = ({
@@ -15,7 +17,9 @@ const SimpleLegend: React.FC<SimpleLegendProps> = ({
   mean,
   parameter,
   isVisible,
-  colors = []  // ADD THIS with default
+  colors = [],
+  className = "absolute bottom-10 right-20 z-10 w-[380px] max-w-[calc(100vw-1rem)] rounded-xl border border-gray-200 bg-white/95 p-5 shadow-xl backdrop-blur-sm",
+  onClose,
 }) => {
   if (!isVisible) return null;
 
@@ -52,31 +56,38 @@ const SimpleLegend: React.FC<SimpleLegendProps> = ({
   };
 
   return (
-    <div className="absolute bottom-10 right-20 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-10">
-      {/* Header */}
-      <div className="text-sm font-semibold mb-2 text-gray-800 border-b pb-1">
-        {parameter} Values
+    <div className={className}>
+      <div className="mb-3 flex items-center gap-3 border-b border-gray-200 pb-2">
+        <div className="text-base font-semibold text-gray-800">
+          {parameter} Values
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="ml-auto flex h-7 w-7 items-center justify-center rounded-full cursor-pointer text-lg leading-none text-gray-400 transition-colors hover:bg-red-100 hover:text-red-600"
+            aria-label="Close legend"
+          >
+            ×
+          </button>
+        )}
       </div>
-      
-      {/* Color Bar - Dynamic gradient */}
-      <div className="mb-2">
-        <div 
-          className="h-4 w-80 rounded border"
+
+      <div className="mb-3">
+        <div
+          className="h-5 w-full rounded-md border"
           style={{
             background: generateGradient()
           }}
         ></div>
       </div>
-      
-      {/* Labels */}
-      <div className="flex justify-between text-xs text-gray-600 mb-1">
+
+      <div className="mb-2 flex justify-between text-sm text-gray-600">
         <span>Low</span>
         <span>Med</span>
         <span>High</span>
       </div>
-      
-      {/* Values with dynamic colors */}
-      <div className="flex justify-between text-xs font-medium">
+
+      <div className="flex justify-between text-sm font-semibold">
         <span style={{ color: getValueColor('min') }}>{min.toFixed(2)}</span>
         <span style={{ color: getValueColor('mean') }}>{mean.toFixed(2)}</span>
         <span style={{ color: getValueColor('max') }}>{max.toFixed(2)}</span>
