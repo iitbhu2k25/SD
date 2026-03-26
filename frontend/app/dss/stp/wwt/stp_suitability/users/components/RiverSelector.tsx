@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { MultiSelect } from "../../../stp_priority_v2/shared/ui/MultiSelect";
+import { MultiSelect } from "../../../stp_priority/shared/ui/MultiSelect";
 import { useUserMapStore } from "../stores/userMapStore";
 import { useUserRiverStore } from "../stores/userRiverStore";
 import { useUserUiStore } from "../stores/userUiStore";

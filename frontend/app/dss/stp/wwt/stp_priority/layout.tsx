@@ -6,5 +6,9 @@ export const metadata: Metadata = {
 };
 
 export default function StpPriorityV2Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <section className="flex h-screen w-full flex-col overflow-hidden">
+      {children}
+    </section>
+  );
 }
