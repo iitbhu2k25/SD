@@ -6,7 +6,6 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { api } from "@/services/api";
 import { State, District, SubDistrict, ClipRasters } from "@/interface/raster_context";
 
 // Toast utility function - customize based on your toast library
@@ -125,12 +124,18 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get("/location/get_states?all_data=true");
-
-        if (response.status !== 201) {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_FAST_URL}/water/get_states?all_data=true`
+        );
+        if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        const data = (await response.message) as State[];
+
+        const result = await response.json();
+        console.log('API Response:', result); // pehle ye add karo debug ke liye
+       const data = (Array.isArray(result) 
+         ? result 
+         : result?.message ?? result?.data ?? result?.states ?? []) as State[];
         const stateData: State[] = data.map((state: any) => ({
           id: state.id,
           name: state.name,
@@ -157,16 +162,26 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     const fetchDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post("/location/get_districts", {
-          body: {
-            state: selectedState,
-            all_data: true,
-          },
-        });
-        if (response.status !== 201) {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_FAST_URL}/water/get_districts`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              state: selectedState,
+              all_data: true,
+            }),
+          }
+        );
+        if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        const data = (await response.message) as District[];
+        const result = await response.json();
+        const data = (Array.isArray(result) 
+          ? result 
+          : result?.message ?? result?.data ?? []) as District[];
 
         const districtData: District[] = data.map((district: any) => ({
           id: district.id,
@@ -202,17 +217,27 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     const fetchSubDistricts = async () => {
       try {
-        const response = await api.post("/location/get_sub_districts", {
-          body: {
-            districts: selectedDistricts,
-            all_data: true,
-          },
-        });
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_FAST_URL}/water/get_sub_districts`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              districts: selectedDistricts,
+              all_data: true,
+            }),
+          }
+        );
 
-        if (response.status !== 201) {
+        if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-        const data = (await response.message) as SubDistrict[];
+        const result = await response.json();
+        const data = (Array.isArray(result) 
+          ? result 
+          : result?.message ?? result?.data ?? []) as SubDistrict[];
         const subDistrictData = data.map((subDistrict: any) => ({
           id: subDistrict.id,
           name: subDistrict.name,

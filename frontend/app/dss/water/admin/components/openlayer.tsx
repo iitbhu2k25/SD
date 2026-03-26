@@ -31,7 +31,25 @@ interface MappingProps {
   activeYear?: number | null;
   onYearChange?: (year: number) => void;
 }
+const formatLayerTitle = (
+  layerType: string,
+  year: number,
+  timeScale?: string,
+  season?: string
+) => {
+  const typeMap: Record<string, string> = {
+    "Water Budget": "Water_budget",
+    "Surplus": "Surplus",
+    "Deficit": "Deficit",
+    "Index": "Index_class",
+  };
+  const prefix = typeMap[layerType] || layerType.replace(" ", "_");
 
+  if (timeScale === "seasonal" && season) {
+    return `${prefix}_${season}_${year}`;
+  }
+  return `${prefix}_${year}`;
+};
 const Maping: React.FC<MappingProps> = ({
   rasterResponse,
   activeYear,
@@ -189,7 +207,7 @@ const Maping: React.FC<MappingProps> = ({
       } = raster;
 
       const rasterSource = new ImageWMS({
-        url: "/geoserver/api/wms",
+        url: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms`,
         params: {
           SERVICE: "WMS",
           REQUEST: "GetMap",
@@ -240,7 +258,7 @@ const Maping: React.FC<MappingProps> = ({
       // 3. Construct the GetLegendGraphic URL
       // We add LEGEND_OPTIONS to make it look cleaner (forceLabels, font, etc.)
       const legendRequestUrl =
-        `/geoserver/api/wms?` +
+        `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms?` +
         `REQUEST=GetLegendGraphic&` +
         `VERSION=1.0.0&` +
         `FORMAT=image/png&` +
@@ -251,7 +269,12 @@ const Maping: React.FC<MappingProps> = ({
 
       setLegendUrl(legendRequestUrl);
       setShowLegend(true);
-      setActiveLayerTitle(activeRaster.original_name);
+     setActiveLayerTitle(formatLayerTitle(
+  activeRaster.layer_type,
+  activeRaster.year,
+  activeRaster.time_scale,
+  activeRaster.season
+));
 
       // ✅ Set custom legend data if available
       if (legend_data) {
@@ -279,11 +302,16 @@ const Maping: React.FC<MappingProps> = ({
         // Also update legend/title if this is the active layer
         const raster = clippedRasters.find((r) => r.year === activeYear);
         if (raster) {
-          setActiveLayerTitle(raster.original_name);
+          setActiveLayerTitle(formatLayerTitle(
+  raster.layer_type,
+  raster.year,
+  raster.time_scale,
+  raster.season
+));
           const fullLayerName = `${raster.workspace}:${raster.layer_name}`;
           const styleId = raster.style;
           const legendRequestUrl =
-            `/geoserver/api/wms?` +
+            `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wms?` +
             `REQUEST=GetLegendGraphic&` +
             `VERSION=1.0.0&` +
             `FORMAT=image/png&` +
@@ -575,7 +603,7 @@ const Maping: React.FC<MappingProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const primaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
+    const primaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${primaryLayer}&outputFormat=application/json&srsname=EPSG:3857`;
 
     const primaryVectorSource = new VectorSource({
       format: new GeoJSON(),
@@ -637,7 +665,7 @@ const Maping: React.FC<MappingProps> = ({
 
     setIsLoading(true);
 
-    const secondaryWfsUrl = `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
+    const secondaryWfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${secondaryLayer}&outputFormat=application/json&srsname=EPSG:3857&CQL_FILTER=${LayerFilter} IN (${Array.isArray(LayerFilterValue)
       ? LayerFilterValue.map((v) => `'${v}'`).join(",")
       : `'${LayerFilterValue}'`
       })`;
@@ -1323,14 +1351,19 @@ const Maping: React.FC<MappingProps> = ({
             <div className="flex justify-between items-center p-3 bg-gray-50/80 border-b border-gray-100">
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                  Legend
-                </span>
+  Legend
+</span>
                 <span
                   className="text-xs font-bold text-gray-800 leading-tight truncate max-w-[180px]"
                   title={activeLayerTitle}
                 >
-                  {activeLayerTitle || "Layer Info"}
+                  {legendData?.display_name || activeLayerTitle || "Layer Info"}
                 </span>
+                {legendData?.product_type !== "index_class" ? (
+                  <span className="text-[11px] text-red-500 font-semibold mt-0.5">
+  Unit: MLD
+</span>
+                ) : null}
               </div>
               <button
                 onClick={() => setShowLegend(false)}
@@ -1361,10 +1394,9 @@ const Maping: React.FC<MappingProps> = ({
                   {legendData.classes.map((item: any, idx: number) => (
                     <div
                       key={idx}
-                      className="flex items-center"
+                      className="flex items-start"
                       style={{ gap: "4pt" }}
                     >
-                      {/* Color Box with 0.5px border */}
                       <div
                         style={{
                           backgroundColor: item.color,
@@ -1374,10 +1406,16 @@ const Maping: React.FC<MappingProps> = ({
                           minWidth: "20px",
                         }}
                       />
-                      {/* Label with max 3 decimals (already formatted from backend) */}
-                      <span className="text-xs text-gray-700 font-medium">
-                        {item.label}
-                      </span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-xs text-gray-700 font-medium">
+                          {item.swci_range || item.label}
+                        </span>
+                        {item.swci_range && item.label ? (
+                          <span className="text-[11px] text-gray-500">
+                            {item.label}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>

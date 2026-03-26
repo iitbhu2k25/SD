@@ -918,6 +918,8 @@ import { useRiverSystem } from "@/contexts/water/users/DrainContext";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { MultiSelect } from "../../admin/components/Multiselect";
 
+const FAST_M_BASE_URL = process.env.NEXT_PUBLIC_FAST_URL || "/fastapi";
+
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     river: number;
@@ -1038,8 +1040,9 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({ onConfirm }) => {
 
       console.log("📤 API Payload:", payload);
 
-      const response = await fetch("/api/water/process_drain_raster", {
+      const response = await fetch(`${FAST_M_BASE_URL}/water/process_drain_raster`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

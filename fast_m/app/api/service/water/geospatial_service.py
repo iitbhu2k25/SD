@@ -15,8 +15,14 @@ import numpy as np
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+from app.conf.settings import Settings
 
 logger = logging.getLogger(__name__)
+GEOSERVER_URL = Settings().GEOSERVER_URL
+GEOSERVER_USER = Settings().GEOSERVER_USERNAME
+GEOSERVER_PASSWORD = Settings().GEOSERVER_PASSWORD
+WORKSPACE = Settings().GEOSERVER_WORKSPACE
+TEMP_DIR = Settings().TEMP_DIR
 
 
 class GeospatialProcessor:
@@ -25,8 +31,8 @@ class GeospatialProcessor:
     Handles vector/raster clipping, GeoServer interactions, and file management.
     """
 
-    def __init__(self, output_dir: Path, geoserver_config=None):
-        self.output_dir = output_dir
+    def __init__(self, output_dir: Path = None, geoserver_config=None):
+        self.output_dir = output_dir if output_dir is not None else Path(TEMP_DIR)
         self.default_crs = "EPSG:32644"  # UTM Zone 44N for India
 
         # GeoServer configuration
@@ -42,9 +48,6 @@ class GeospatialProcessor:
             self.username = config.username
             self.password = config.password
 
-        # Ensure output directory exists
-        if not self.output_dir.exists():
-            self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def _ensure_crs(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """Ensure GeoDataFrame has correct CRS"""
@@ -201,8 +204,10 @@ class GeospatialProcessor:
             Path to zip file or None if failed
         """
         try:
-            zip_filename = f"{layer_name}.zip"
-            output_zip_path = self.output_dir / zip_filename
+            import os as _os
+            fd, tmp_zip = tempfile.mkstemp(suffix=".zip", prefix=layer_name)
+            _os.close(fd)
+            output_zip_path = Path(tmp_zip)
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_shp = Path(temp_dir) / f"{layer_name}.shp"
@@ -827,6 +832,119 @@ class GeospatialProcessor:
         ],
     }
 
+    SWCI_FIXED_CLASSES = [
+        {
+            "class": 1,
+            "color": "#808080",
+            "min": 0.0,
+            "max": 0.9,
+            "quantity": 0.9,
+            "label": "Extremely Dry",
+            "swci_range": "Z < -2.0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 2,
+            "color": "#8B0000",
+            "min": 0.9,
+            "max": 1.9,
+            "quantity": 1.9,
+            "label": "Severely Dry",
+            "swci_range": "-2.0 <= Z < -1.5",
+            "opacity": 1.0,
+        },
+        {
+            "class": 3,
+            "color": "#FF4500",
+            "min": 1.9,
+            "max": 2.9,
+            "quantity": 2.9,
+            "label": "Highly Dry",
+            "swci_range": "-1.5 <= Z < -1.0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 4,
+            "color": "#FFA500",
+            "min": 2.9,
+            "max": 3.9,
+            "quantity": 3.9,
+            "label": "Moderately Dry",
+            "swci_range": "-1.0 <= Z < -0.5",
+            "opacity": 1.0,
+        },
+        {
+            "class": 5,
+            "color": "#FFFF00",
+            "min": 3.9,
+            "max": 4.9,
+            "quantity": 4.9,
+            "label": "Mild Dry",
+            "swci_range": "-0.5 <= Z < 0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 6,
+            "color": "#ADFF2F",
+            "min": 4.9,
+            "max": 5.9,
+            "quantity": 5.9,
+            "label": "Mild Surplus",
+            "swci_range": "0 <= Z < 0.5",
+            "opacity": 1.0,
+        },
+        {
+            "class": 7,
+            "color": "#00FF00",
+            "min": 5.9,
+            "max": 6.9,
+            "quantity": 6.9,
+            "label": "Moderate Surplus",
+            "swci_range": "0.5 <= Z < 1.0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 8,
+            "color": "#00FFFF",
+            "min": 6.9,
+            "max": 7.9,
+            "quantity": 7.9,
+            "label": "High Surplus",
+            "swci_range": "1.0 <= Z < 1.5",
+            "opacity": 1.0,
+        },
+        {
+            "class": 9,
+            "color": "#DA70D6",
+            "min": 7.9,
+            "max": 8.9,
+            "quantity": 8.9,
+            "label": "Abundant",
+            "swci_range": "1.5 <= Z < 2.0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 10,
+            "color": "#4B0082",
+            "min": 8.9,
+            "max": 200.0,
+            "quantity": 200.0,
+            "label": "Extreme Surplus",
+            "swci_range": "Z >= 2.0",
+            "opacity": 1.0,
+        },
+        {
+            "class": 11,
+            "color": "#000000",
+            "min": 256.0,
+            "max": 256.0,
+            "quantity": 256.0,
+            "label": "NoData",
+            "swci_range": "NoData",
+            "opacity": 0.0,
+        },
+    ]
+
     def generate_dynamic_sld(
         self,
         raster_path: str,
@@ -846,11 +964,13 @@ class GeospatialProcessor:
         Returns:
             Tuple of (SLD XML content, legend_data dict)
         """
-        # Get actual min-max from the clipped raster
         stats = self.analyze_raster_statistics(raster_path)
 
         if "error" in stats:
             raise ValueError(f"Cannot analyze raster: {stats['error']}")
+
+        if product_type == "index_class":
+            return self._generate_fixed_index_sld(layer_name, stats)
 
         min_val = stats["min"]
         max_val = stats["max"]
@@ -947,6 +1067,68 @@ class GeospatialProcessor:
             "region_max": round(max_val, 3),
             "region_mean": round(stats.get("mean", 0), 3),
             "num_classes": num_classes + 1,  # Now 11 classes including NoData
+            "classes": legend_classes,
+        }
+
+        return sld_content, legend_data
+
+    def _generate_fixed_index_sld(
+        self, layer_name: str, stats: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Generate fixed SWCI legend/style for index_class rasters."""
+
+        color_entries = []
+        legend_classes = []
+
+        for item in self.SWCI_FIXED_CLASSES:
+            color_entries.append(
+                f'        <sld:ColorMapEntry color="{item["color"]}" quantity="{item["quantity"]:.1f}" '
+                f'label="{item["label"]}" opacity="{item["opacity"]:.1f}"/>'
+            )
+            legend_classes.append(
+                {
+                    "class": item["class"],
+                    "color": item["color"],
+                    "min": item["min"],
+                    "max": item["max"],
+                    "label": item["label"],
+                    "swci_range": item["swci_range"],
+                }
+            )
+
+        color_map_xml = "\n".join(color_entries)
+
+        sld_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<sld:StyledLayerDescriptor xmlns="http://www.opengis.net/sld" 
+    xmlns:sld="http://www.opengis.net/sld" 
+    xmlns:gml="http://www.opengis.net/gml" 
+    xmlns:ogc="http://www.opengis.net/ogc" 
+    version="1.0.0">
+  <sld:NamedLayer>
+    <sld:Name>{layer_name}</sld:Name>
+    <sld:UserStyle>
+      <sld:Name>{layer_name}_dynamic</sld:Name>
+      <sld:Title>{layer_name} Fixed SWCI Style</sld:Title>
+      <sld:FeatureTypeStyle>
+        <sld:Rule>
+          <sld:RasterSymbolizer>
+            <sld:ColorMap type="intervals">
+{color_map_xml}
+            </sld:ColorMap>
+          </sld:RasterSymbolizer>
+        </sld:Rule>
+      </sld:FeatureTypeStyle>
+    </sld:UserStyle>
+  </sld:NamedLayer>
+</sld:StyledLayerDescriptor>"""
+
+        legend_data = {
+            "layer_name": layer_name,
+            "product_type": "index_class",
+            "region_min": round(stats.get("min", 0), 3),
+            "region_max": round(stats.get("max", 0), 3),
+            "region_mean": round(stats.get("mean", 0), 3),
+            "num_classes": len(legend_classes),
             "classes": legend_classes,
         }
 

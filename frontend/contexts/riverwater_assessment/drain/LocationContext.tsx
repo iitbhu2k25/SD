@@ -18,6 +18,15 @@ export interface Stretch {
   River_Code: number;
 }
 
+interface StretchGeoJsonFeature {
+  properties?: Record<string, unknown>;
+}
+
+interface StretchGeoJsonResponse {
+  type?: string;
+  features?: StretchGeoJsonFeature[];
+}
+
 // GeoJSON types for map data
 export interface GeoJSONFeature {
   id: string;
@@ -169,6 +178,46 @@ interface StretchProviderProps {
 
 const StretchContext = createContext<StretchContextType | undefined>(undefined);
 
+const normalizeStretchRecord = (
+  raw: Record<string, unknown>
+): Stretch | null => {
+  const stretchId = Number(
+    raw.Stretch_ID ?? raw.stretch_code ?? raw.stretch_id ?? raw.id
+  );
+
+  if (!Number.isFinite(stretchId)) {
+    return null;
+  }
+
+  const riverCode = Number(raw.River_Code ?? raw.river_code ?? 0);
+  const stretchName =
+    String(
+      raw.stretch_name ??
+        raw.Stretch_Name ??
+        raw.Stretch_Na ??
+        `Stretch ${stretchId}`
+    ).trim() || `Stretch ${stretchId}`;
+
+  return {
+    stretch_name: stretchName,
+    stretch_code: stretchId,
+    Stretch_ID: stretchId,
+    River_Code: Number.isFinite(riverCode) ? riverCode : 0,
+  };
+};
+
+const dedupeAndSortStretches = (stretchList: Stretch[]): Stretch[] => {
+  const uniqueStretches = new Map<number, Stretch>();
+
+  stretchList.forEach((stretch) => {
+    uniqueStretches.set(stretch.Stretch_ID, stretch);
+  });
+
+  return Array.from(uniqueStretches.values()).sort((a, b) =>
+    a.stretch_name.localeCompare(b.stretch_name)
+  );
+};
+
 export const StretchProvider: React.FC<StretchProviderProps> = ({
   children,
 }) => {
@@ -301,13 +350,40 @@ const [allSeasonsError, setAllSeasonsError] = useState<string | null>(null);
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
-      const data: Stretch[] = await response.json();
-      console.log("✅ Fetched stretches:", data.length, "items");
+      const primaryData = await response.json();
+      const primaryStretches = Array.isArray(primaryData)
+        ? primaryData
+            .map((item) =>
+              normalizeStretchRecord(item as Record<string, unknown>)
+            )
+            .filter((item): item is Stretch => item !== null)
+        : [];
 
-      setStretches(data);
+      let stretchData = dedupeAndSortStretches(primaryStretches);
 
-      if (data.length === 0) {
-        setError("No stretches found.");
+      if (stretchData.length === 0) {
+        const fallbackResponse = await fetch(`/django/all-stretches`);
+
+        if (!fallbackResponse.ok) {
+          throw new Error(
+            `Fallback stretches API error! Status: ${fallbackResponse.status}`
+          );
+        }
+
+        const fallbackData: StretchGeoJsonResponse =
+          await fallbackResponse.json();
+        const fallbackStretches = (fallbackData.features || [])
+          .map((feature) => normalizeStretchRecord(feature.properties || {}))
+          .filter((item): item is Stretch => item !== null);
+
+        stretchData = dedupeAndSortStretches(fallbackStretches);
+      }
+
+      console.log("Fetched stretches:", stretchData.length, "items");
+      setStretches(stretchData);
+
+      if (stretchData.length === 0) {
+        setError("No stretches found from API or shapefile source.");
       }
     } catch (error: any) {
       console.log("❌ Error fetching stretches:", error);

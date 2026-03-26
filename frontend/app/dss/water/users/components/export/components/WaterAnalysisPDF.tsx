@@ -1172,17 +1172,26 @@ interface WaterAnalysisPDFOptions {
   subdistrictCodes?: number[];
   mapImageUrls?:    { url: string; year: number }[];
   legendImageUrls?: { url: string; year: number }[];  // ✅ per-raster legends
+  chartImageUrls?:  { url: string; year: number }[];
   chartImageUrl?: string;
 }
 
 export async function generateWaterAnalysisPDF(
   options: WaterAnalysisPDFOptions
 ): Promise<void> {
-  const { exportData, rasterResponse, mapImageUrls, legendImageUrls, chartImageUrl } = options;
+  const {
+    exportData,
+    rasterResponse,
+    mapImageUrls,
+    legendImageUrls,
+    chartImageUrls,
+    chartImageUrl,
+  } = options;
 
 const { season, productType, timeScale } = exportData;
   const clippedRasters   = rasterResponse?.clipped_rasters ?? [];
   const totalWaterBudget = clippedRasters[0]?.volume_MLD ?? 0;
+  const isIndexProduct   = String(productType ?? "").toLowerCase() === "index";
 
   // ✅ Start/End year — clipped_rasters se derive karo (most reliable source)
   const rasterYears  = clippedRasters.map((r: RasterData) => r.year).filter(Boolean) as number[];
@@ -1549,18 +1558,20 @@ metaLines.forEach(([label, value]) => {
   ensureSpace(30); hRule(); sectionHeading("4. Results");
   addText("Pixel-level water balance components are first computed as depth (mm) and then converted to volume (million liters) using the 0.25 km2 pixel area, allowing aggregation from local to basin scale. For the analysis period, annual totals of precipitation, evapotranspiration, runoff, and net water balance are derived, with indicative averages of about 930 mm of precipitation and 400 mm of evapotranspiration, yielding an ET/P ratio near 0.43 that is consistent with an agriculture-dominated Indo-Gangetic alluvial basin where the remaining water is distributed between runoff, infiltration, and changes in storage.");
 
-  // Water Budget Summary card
-  ensureSpace(45);
-  doc.setFillColor(240, 249, 255); doc.setDrawColor(22, 78, 99); doc.setLineWidth(0.6);
-  doc.roundedRect(M, y, CW, 38, 4, 4, "FD");
-  doc.setFontSize(12); doc.setFont("times", "bold"); doc.setTextColor(22, 78, 99);
-  doc.text("Water Budget Summary", M + 6, y + 10);
-  doc.setFontSize(22); doc.setFont("times", "bold"); doc.setTextColor(0, 0, 0);
-  const budgetStr = totalWaterBudget.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  doc.text(`${budgetStr} MLD`, PW / 2, y + 24, { align: "center" });
-  doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(100, 100, 100);
-  doc.text("Million Liters per Day (MLD)", PW / 2, y + 32, { align: "center" });
-  y += 44;
+  if (!isIndexProduct) {
+    // Water Budget Summary card
+    ensureSpace(45);
+    doc.setFillColor(240, 249, 255); doc.setDrawColor(22, 78, 99); doc.setLineWidth(0.6);
+    doc.roundedRect(M, y, CW, 38, 4, 4, "FD");
+    doc.setFontSize(12); doc.setFont("times", "bold"); doc.setTextColor(22, 78, 99);
+    doc.text("Water Budget Summary", M + 6, y + 10);
+    doc.setFontSize(22); doc.setFont("times", "bold"); doc.setTextColor(0, 0, 0);
+    const budgetStr = totalWaterBudget.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    doc.text(`${budgetStr} MLD`, PW / 2, y + 24, { align: "center" });
+    doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(100, 100, 100);
+    doc.text("Million Liters per Day (MLD)", PW / 2, y + 32, { align: "center" });
+    y += 44;
+  }
 
   ensureSpace(20);
   doc.setFontSize(10); doc.setFont("times", "normal"); doc.setTextColor(0, 0, 0);
@@ -1582,7 +1593,7 @@ metaLines.forEach(([label, value]) => {
     const axL    = 12;
     const axB    = 14;
     const axT    = 10;
-    const legW   = 45;
+    const legW   = 58;
     const legGap = 5;
     const imgW   = CW - axL - legW - legGap;
     const imgH   = imgW * 0.68;
@@ -1590,6 +1601,11 @@ metaLines.forEach(([label, value]) => {
 
     for (let i = 0; i < mapImageUrls.length; i++) {
       const mapItem = mapImageUrls[i];
+      const rasterForYear =
+        clippedRasters.find((r) => r.year === mapItem.year) ??
+        clippedRasters[i] ??
+        null;
+      const customLegendData = rasterForYear?.legend_data ?? null;
 
       // ✅ Find this year's legend specifically
       const thisLegend =
@@ -1644,7 +1660,7 @@ metaLines.forEach(([label, value]) => {
       doc.text("Longitude", imgX + imgW / 2, imgY + imgH + 6, { align: "center" });
 
       // ── Legend (this year's own legend) ───────────────────────────────
-      if (thisLegend) {
+      if (thisLegend || customLegendData?.classes?.length) {
         const legX   = imgX + imgW + legGap;
         const legY   = imgY;
         const legPad = 3;
@@ -1666,16 +1682,60 @@ metaLines.forEach(([label, value]) => {
         doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.2);
         doc.line(legX + 3, legY + titleH, legX + legW - 3, legY + titleH);
 
-        // Legend image
-        try {
-          doc.addImage(
-            thisLegend, "PNG",
-            legX + legPad,
-            legY + titleH + legPad,
-            legW - legPad * 2,
-            imgH - titleH - legPad * 2
-          );
-        } catch (_) {}
+        if (customLegendData?.classes?.length) {
+          const legendItems = customLegendData.classes;
+          const startY = legY + titleH + legPad + 2;
+          const rowH = Math.max(5.8, Math.min(7.2, (imgH - titleH - legPad * 2 - 2) / Math.max(legendItems.length, 1)));
+          const swatchSize = 4.2;
+          const textX = legX + legPad + swatchSize + 2.2;
+
+          legendItems.forEach((item: any, idx: number) => {
+            const rowY = startY + idx * rowH;
+            if (rowY + rowH > legY + imgH - 2) return;
+
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.2);
+            doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize, "FD");
+
+            if (item.color) {
+              const hex = String(item.color).replace("#", "");
+              if (hex.length === 6) {
+                const r = parseInt(hex.slice(0, 2), 16);
+                const g = parseInt(hex.slice(2, 4), 16);
+                const b = parseInt(hex.slice(4, 6), 16);
+                if (![r, g, b].some((v) => Number.isNaN(v))) {
+                  doc.setFillColor(r, g, b);
+                  doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize, "F");
+                  doc.setDrawColor(0, 0, 0);
+                  doc.rect(legX + legPad, rowY + 0.5, swatchSize, swatchSize);
+                }
+              }
+            }
+
+            doc.setTextColor(40, 40, 40);
+            doc.setFont("times", "normal");
+            doc.setFontSize(customLegendData?.product_type === "index_class" ? 7.2 : 7.6);
+            const primaryLabel = item.swci_range || item.label || "";
+            doc.text(String(primaryLabel), textX, rowY + 3.8);
+
+            if (item.swci_range && item.label) {
+              doc.setTextColor(95, 95, 95);
+              doc.setFontSize(6.5);
+              doc.text(String(item.label), textX, rowY + 6.8);
+            }
+          });
+        } else if (thisLegend) {
+          try {
+            doc.addImage(
+              thisLegend, "PNG",
+              legX + legPad,
+              legY + titleH + legPad,
+              legW - legPad * 2,
+              imgH - titleH - legPad * 2
+            );
+          } catch (_) {}
+        }
       }
 
       // ── Figure caption ────────────────────────────────────────────────
@@ -1691,7 +1751,7 @@ metaLines.forEach(([label, value]) => {
   }
 
   // Raster Details
-  if (clippedRasters.length > 0) {
+  if (!isIndexProduct && clippedRasters.length > 0) {
     ensureSpace(20);
     sectionHeading("Processed Raster Layers", 2);
     clippedRasters.forEach((raster, idx) => {
@@ -1713,7 +1773,61 @@ metaLines.forEach(([label, value]) => {
   // ==============================================
   //  CHART
   // ==============================================
-  if (chartImageUrl) {
+  if (isIndexProduct && chartImageUrls && chartImageUrls.length > 0) {
+    newPage();
+    sectionHeading("Year-wise Index Class Distribution", 2);
+    addText("The following donut charts show year-wise class distribution for the selected index product. Each chart summarizes the percentage share of SWCI classes for that year.");
+
+    const sortedChartImages = [...chartImageUrls].sort((a, b) => a.year - b.year);
+    const chartsPerPage = 2;
+    const cardW = CW * 0.7;
+    const imageW = cardW - 14;
+    const imageH = imageW * (800 / 1100);
+    const cardH = imageH + 18;
+    const cardX = M + (CW - cardW) / 2;
+
+    for (let index = 0; index < sortedChartImages.length; index += 1) {
+      if (index > 0 && index % chartsPerPage === 0) {
+        newPage();
+      }
+
+      const rowItems = sortedChartImages.slice(index, index + 1);
+      ensureSpace(cardH + 10);
+
+      rowItems.forEach((item) => {
+        const x = cardX;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(x, y, cardW, cardH, 3, 3, "FD");
+
+        try {
+          doc.addImage(item.url, "PNG", x + 7, y + 6, imageW, imageH);
+        } catch (_) {
+          doc.setFontSize(9);
+          doc.setFont("times", "italic");
+          doc.setTextColor(150, 0, 0);
+          doc.text("[Chart image could not be loaded]", x + cardW / 2, y + cardH / 2, {
+            align: "center",
+          });
+        }
+
+        doc.setFontSize(9);
+        doc.setFont("times", "italic");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Year ${item.year}`, x + cardW / 2, y + cardH - 5, { align: "center" });
+      });
+
+      y += cardH + 10;
+    }
+
+    doc.setFontSize(9);
+    doc.setFont("times", "italic");
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Figure: Year-wise ${productType} class distribution - ${season} ${year}-${endYearFinal}`, PW / 2, y, { align: "center" });
+    y += 10;
+  } else if (chartImageUrl) {
     ensureSpace(100);
     sectionHeading("Year-wise Water Volume Trend", 2);
     addText("The following chart shows the year-wise variation in water volume (MLD) for the selected product and time scale. The dashed line represents the long-term average across the analysis period.");

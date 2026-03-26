@@ -1,5 +1,4 @@
 from app.conf.settings import Settings
-import os
 from pathlib import Path
 class GeoConfig:
     
@@ -10,10 +9,9 @@ class GeoConfig:
         self.password = self.settings.GEOSERVER_PASSWORD
         self.raster_workspace=self.settings.GEOSERVER_WORKSPACE
         self.raster_store="diango_store"
-        self.base_dir = Path(self.settings.BASE_DIR )
+        self.base_dir = Path(self.settings.BASE_DIR)
         self.input_path = self.base_dir
-        self.output_path = self.base_dir / "temp"
-        os.makedirs(self.output_path, exist_ok=True)
+        self.output_path = Path(self.settings.TEMP_DIR)
 
         self.target_crs = "EPSG:32644"
         self.target_resolution = (30, 30)

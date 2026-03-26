@@ -45,7 +45,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-RUN useradd -m appuser && chown -R appuser:appuser /home/app
+RUN useradd -m appuser \
+    && chown -R appuser:appuser /home/app
+
 USER appuser
+
+COPY . .
 
 EXPOSE 7100
