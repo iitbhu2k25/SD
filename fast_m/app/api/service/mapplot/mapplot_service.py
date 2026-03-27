@@ -264,6 +264,16 @@ class MapplotService:
                 gdfs.append(self._to_4326(self.read_spatial_file(f)))
         return gdfs
 
+    def get_layer_fields(self, geojson: Optional[Any] = None, upload_id: Optional[str] = None) -> dict:
+        """Return attribute/field names for a GeoJSON layer."""
+        try:
+            data = self._resolve_geojson(geojson, upload_id)
+            gdf = self._geojson_to_gdf(data)
+            fields = [c for c in gdf.columns if c != "geometry"]
+            return self._ok({"fields": fields})
+        except Exception as e:
+            return self._error(str(e))
+
     def spatial_process(self, form: Any) -> dict:
         operation = (form.get("operation") or "").strip()
         try:

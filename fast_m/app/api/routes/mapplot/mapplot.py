@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.api.schema.mapplot.mapplot_schema import (
     ChunkUploadRequest,
     ExportMapRequest,
+    FieldsRequest,
     GeoJSONToShapefileRequest,
 )
 from app.api.service.mapplot.mapplot_service import MapplotService
@@ -27,6 +28,18 @@ def upload_chunk(payload: ChunkUploadRequest):
         payload.total_chunks,
         payload.data,
     )
+    return JSONResponse(content=out["content"], status_code=out["status_code"])
+
+
+@router.post("/fields")
+def get_fields(payload: FieldsRequest):
+    """Return attribute/field names for a GeoJSON layer.
+
+    Accepts either a full ``geojson`` body or an ``upload_id`` referencing
+    previously chunked data.  Returns ``{"fields": ["col1", "col2", ...]}``
+    so the frontend can populate field-name dropdowns without re-sending data.
+    """
+    out = service.get_layer_fields(geojson=payload.geojson, upload_id=payload.upload_id)
     return JSONResponse(content=out["content"], status_code=out["status_code"])
 
 

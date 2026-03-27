@@ -22,3 +22,8 @@ class GeoJSONToShapefileRequest(BaseModel):
     geojson: Optional[Dict[str, Any]] = None
     upload_id: Optional[str] = None  # alternative to geojson for chunked uploads
     filename: Optional[str] = "export"
+
+
+class FieldsRequest(BaseModel):
+    geojson: Optional[Dict[str, Any]] = None
+    upload_id: Optional[str] = None  # alternative to geojson for chunked uploads

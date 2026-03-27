@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ManagedLayer, NotificationType } from '../types/map.types';
+import { prepareGeoJSONField } from '../services/api.service';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface SpatialAnalysisModalProps {
@@ -16,6 +17,7 @@ interface SpatialAnalysisModalProps {
 interface Parameter {
   name: string; label: string; type: 'number' | 'text' | 'select';
   default?: any; options?: string[]; required?: boolean; placeholder?: string;
+  isFieldParam?: boolean;  // renders as a dropdown populated from the selected layer's attributes
 }
 interface Operation {
   id: string; name: string; description: string; icon: string;
@@ -38,7 +40,7 @@ const OPERATIONS: Operation[] = [
   { id:'buffer',               icon:'fg-buffer',         name:'Buffer',             category:'Geometric', minFiles:1, layerLabels:['Input Layer'],                description:'Grow a zone of given distance around each feature',
     parameters:[{ name:'distance', label:'Distance (meters)', type:'number', default:100, required:true }] },
   { id:'dissolve',             icon:'fg-dilatation',     name:'Dissolve',           category:'Geometric', minFiles:1, layerLabels:['Input Layer'],                description:'Merge adjacent features, optionally by attribute',
-    parameters:[{ name:'dissolve_field', label:'Group Field', type:'text', placeholder:'Leave blank = dissolve all' }] },
+    parameters:[{ name:'dissolve_field', label:'Group Field', type:'text', placeholder:'Leave blank = dissolve all', isFieldParam: true }] },
   { id:'centroid',             icon:'fg-point',          name:'Centroid',           category:'Geometric', minFiles:1, layerLabels:['Input Layer'],                description:'Replace each feature with its centroid point' },
   { id:'bounding_box',         icon:'fg-bbox',           name:'Bounding Box',       category:'Geometric', minFiles:1, layerLabels:['Input Layer'],                description:'Compute the rectangular envelope of each feature' },
   { id:'convex_hull',          icon:'fg-convex-hull',    name:'Convex Hull',        category:'Geometric', minFiles:1, layerLabels:['Input Layer'],                description:'Create the smallest convex polygon enclosing all features' },
@@ -58,7 +60,7 @@ const OPERATIONS: Operation[] = [
   { id:'merge',                icon:'fg-layers',         name:'Merge Layers',       category:'Utility',   minFiles:1, description:'Concatenate multiple layers into a single feature collection' },
   { id:'filter',               icon:'fg-search-feature', name:'Filter',             category:'Utility',   minFiles:1, layerLabels:['Input Layer'],                description:'Keep only features matching an attribute condition',
     parameters:[
-      { name:'field',    label:'Field Name', type:'text',   required:true },
+      { name:'field',    label:'Field Name', type:'text',   required:true, isFieldParam: true },
       { name:'operator', label:'Operator',   type:'select', default:'equals', required:true, options:['equals','greater','less','contains'] },
       { name:'value',    label:'Value',      type:'text',   required:true },
     ] },
@@ -129,7 +131,7 @@ const QUERIES: QueryDef[] = [
   // Aggregate
   { id:'count_within',    icon:'fg-layer-stat',      name:'Count Within',        category:'Aggregate', layerLabels:['Source Polygons','Target Features'],  description:"Count how many target features fall inside each source polygon" },
   { id:'sum_within',      icon:'fg-statistic-map',   name:'Sum Field Within',    category:'Aggregate', layerLabels:['Source Polygons','Target Features'],  description:'Sum a numeric field of target features inside each source polygon',
-    parameters:[{ name:'stat_field', label:'Target Field to Sum', type:'text', required:true, placeholder:'e.g. population' }] },
+    parameters:[{ name:'stat_field', label:'Target Field to Sum', type:'text', required:true, placeholder:'e.g. population', isFieldParam: true }] },
   { id:'intersect_area',  icon:'fg-measure-area',    name:'Intersection Area',   category:'Aggregate', layerLabels:['Source Polygons','Target Polygons'],  description:'Compute intersection area (km²) and % coverage between layers' },
   { id:'largest_overlap', icon:'fg-union',           name:'Largest Overlap',     category:'Aggregate', layerLabels:['Source Polygons','Target Polygons'],  description:'Find which target polygon each source polygon overlaps most with' },
   // Advanced
@@ -282,6 +284,10 @@ export default function SpatialAnalysisModal({
   const [qProcessing, setQProcessing]     = useState(false);
   const [qResult, setQResult]             = useState<{matched:number;source:number;message?:string}|null>(null);
 
+  // ── Field-name dropdowns ──
+  const [opLayerFields, setOpLayerFields] = useState<string[]>([]);
+  const [qLayerFields, setQLayerFields]   = useState<string[]>([]);
+
   // Layout
   const [layout, setLayout] = useState(() => computeLayout());
   const dragging  = useRef(false);
@@ -291,6 +297,26 @@ export default function SpatialAnalysisModal({
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (isOpen) setLayout(computeLayout()); }, [isOpen]);
+
+  // Extract attribute field names from a loaded layer's GeoJSON (client-side, no API call)
+  const extractFields = useCallback((layerId: string): string[] => {
+    const ml = managedLayers.find(l => l.id === layerId);
+    if (!ml?.layer) return [];
+    const geojson = layerToGeoJSON(ml.layer);
+    const props = geojson.features?.[0]?.properties;
+    if (!props) return [];
+    return Object.keys(props);
+  }, [managedLayers]);
+
+  // Refresh op field list whenever selected layers change
+  useEffect(() => {
+    setOpLayerFields(selectedIds.length > 0 ? extractFields(selectedIds[0]) : []);
+  }, [selectedIds, extractFields]);
+
+  // For sum_within the field belongs to the TARGET layer
+  useEffect(() => {
+    setQLayerFields(targetId ? extractFields(targetId) : []);
+  }, [targetId, extractFields]);
 
   // Auto-select operation when opened from OperationsPanel
   useEffect(() => {
@@ -364,10 +390,14 @@ export default function SpatialAnalysisModal({
     try {
       const fd = new FormData();
       fd.append('operation', selectedOp.id);
-      selectedIds.forEach((id, i) => {
-        const ml = managedLayers.find(l => l.id===id);
-        if (ml?.layer) fd.append(`geojson_${i}`, JSON.stringify(layerToGeoJSON(ml.layer)));
-      });
+      // Upload each layer GeoJSON — chunks it automatically if > 1 MB
+      for (let i = 0; i < selectedIds.length; i++) {
+        const ml = managedLayers.find(l => l.id === selectedIds[i]);
+        if (!ml?.layer) continue;
+        const r = await prepareGeoJSONField(layerToGeoJSON(ml.layer));
+        if (r.upload_id) fd.append(`geojson_${i}_upload_id`, r.upload_id);
+        else             fd.append(`geojson_${i}`, r.direct!);
+      }
       Object.entries(opParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
       const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/process`, { method:'POST', body:fd });
       const data = await res.json();
@@ -401,8 +431,11 @@ export default function SpatialAnalysisModal({
       const srcML = managedLayers.find(l => l.id===sourceId);
       const tgtML = managedLayers.find(l => l.id===targetId);
       if (!srcML?.layer || !tgtML?.layer) throw new Error('Could not find selected layers');
-      fd.append('geojson_0', JSON.stringify(layerToGeoJSON(srcML.layer)));
-      fd.append('geojson_1', JSON.stringify(layerToGeoJSON(tgtML.layer)));
+      // Upload each layer GeoJSON — chunks it automatically if > 1 MB
+      const r0 = await prepareGeoJSONField(layerToGeoJSON(srcML.layer));
+      const r1 = await prepareGeoJSONField(layerToGeoJSON(tgtML.layer));
+      if (r0.upload_id) fd.append('geojson_0_upload_id', r0.upload_id); else fd.append('geojson_0', r0.direct!);
+      if (r1.upload_id) fd.append('geojson_1_upload_id', r1.upload_id); else fd.append('geojson_1', r1.direct!);
       Object.entries(qParams).forEach(([k,v]) => { if (v!==undefined&&v!==null&&v!=='') fd.append(k,String(v)); });
       const res  = await fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/mapplot/spatial/query`, { method:'POST', body:fd });
       const data = await res.json();
@@ -698,8 +731,17 @@ export default function SpatialAnalysisModal({
                           <div key={param.name}>
                             <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#374151', marginBottom:5 }}>
                               {param.label}{param.required && <span style={{ color:'#ef4444', marginLeft:3 }}>*</span>}
+                              {param.isFieldParam && opLayerFields.length > 0 && (
+                                <span style={{ marginLeft:6, fontSize:10, color:'#6366f1', background:'#eef2ff', padding:'1px 6px', borderRadius:8, fontWeight:600 }}>from layer</span>
+                              )}
                             </label>
-                            {param.type==='select'
+                            {param.isFieldParam && opLayerFields.length > 0
+                              ? <select value={opParams[param.name]??''} onChange={e=>setOpParams(p=>({...p,[param.name]:e.target.value}))}
+                                  style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #a5b4fc', borderRadius:8, fontSize:13, outline:'none', background:'#faf5ff', cursor:'pointer' }}>
+                                  {!param.required && <option value=''>— (all, no grouping) —</option>}
+                                  {opLayerFields.map(f => <option key={f} value={f}>{f}</option>)}
+                                </select>
+                              : param.type==='select'
                               ? <select value={opParams[param.name]??param.default??''} onChange={e=>setOpParams(p=>({...p,[param.name]:e.target.value}))}
                                   style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #d1d5db', borderRadius:8, fontSize:13, outline:'none', background:'#fff', cursor:'pointer' }}>
                                   {param.options?.map(opt=><option key={opt} value={opt}>{opt.charAt(0).toUpperCase()+opt.slice(1).replace(/_/g,' ')}</option>)}
@@ -935,8 +977,17 @@ export default function SpatialAnalysisModal({
                           <div key={param.name}>
                             <label style={{ display:'block', fontSize:12, fontWeight:700, color:'#374151', marginBottom:5 }}>
                               {param.label}{param.required && <span style={{ color:'#ef4444', marginLeft:3 }}>*</span>}
+                              {param.isFieldParam && qLayerFields.length > 0 && (
+                                <span style={{ marginLeft:6, fontSize:10, color:'#6366f1', background:'#eef2ff', padding:'1px 6px', borderRadius:8, fontWeight:600 }}>from layer</span>
+                              )}
                             </label>
-                            {param.type==='select'
+                            {param.isFieldParam && qLayerFields.length > 0
+                              ? <select value={qParams[param.name]??''} onChange={e=>setQParams(p=>({...p,[param.name]:e.target.value}))}
+                                  style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #a5b4fc', borderRadius:8, fontSize:13, outline:'none', background:'#faf5ff', cursor:'pointer' }}>
+                                  <option value=''>— select a field —</option>
+                                  {qLayerFields.map(f => <option key={f} value={f}>{f}</option>)}
+                                </select>
+                              : param.type==='select'
                               ? <select value={qParams[param.name]??param.default??''} onChange={e=>setQParams(p=>({...p,[param.name]:e.target.value}))}
                                   style={{ width:'100%', padding:'9px 12px', border:'1.5px solid #d1d5db', borderRadius:8, fontSize:13, outline:'none', background:'#fff', cursor:'pointer' }}>
                                   {param.options?.map(opt=><option key={opt} value={opt}>{opt.charAt(0).toUpperCase()+opt.slice(1).replace(/_/g,' ')}</option>)}
