@@ -31,18 +31,18 @@ export default function LocationSelector() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-blue-100 rounded-lg">
-            <MapPin size={16} className="text-blue-600" />
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5">
+          <div className="p-1 bg-blue-100 rounded-lg">
+            <MapPin size={14} className="text-blue-600" />
           </div>
-          <h3 className="font-semibold text-slate-800 text-sm">Administrative Location</h3>
+          <h3 className="font-semibold text-slate-800 text-xs">Administrative Location</h3>
         </div>
         <button
           onClick={resetAdminSelection}
           className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
         >
-          <RotateCcw size={12} />
+          <RotateCcw size={11} />
           Reset
         </button>
       </div>
@@ -73,7 +73,7 @@ export default function LocationSelector() {
       )}
 
       {/* Selectors */}
-      <div className="flex flex-col gap-3 flex-1">
+      <div className="flex flex-col gap-2 flex-1">
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">
             State <span className="text-red-400">*</span>

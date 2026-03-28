@@ -27,7 +27,7 @@ export interface Basic2ReportInput {
 type Row = Array<string | number>;
 
 // ── Layout ────────────────────────────────────────────────────────────────
-const PAGE = { left: 16, right: 16, top: 30, bottom: 22 };
+const PAGE = { left: 16, right: 16, top: 18, bottom: 22 };
 
 // ── Colour palette ────────────────────────────────────────────────────────
 const C_NAVY:   [number, number, number] = [10,  36,  99];   // header / cover band
@@ -160,19 +160,6 @@ function nextPageIfNeeded(doc: jsPDF, y: number, reserve = 28): number {
   return y;
 }
 
-function drawRunningHeader(doc: jsPDF, pageWidth: number) {
-  doc.setFillColor(...C_NAVY);
-  doc.rect(0, 0, pageWidth, 11, 'F');
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(180, 200, 240);
-  doc.text(
-    'Comprehensive Report — Sewage Generation & Water Resource Management | IIT BHU',
-    pageWidth / 2, 7.5,
-    { align: 'center' },
-  );
-}
-
 function drawRunningFooter(doc: jsPDF, pageWidth: number, pageHeight: number, pageNum: number, total: number) {
   const fy = pageHeight - PAGE.bottom + 5;
   doc.setDrawColor(...C_RULE);
@@ -302,8 +289,6 @@ function drawCoverPage(
 
 // ── TOC page ──────────────────────────────────────────────────────────────
 function drawTocPage(doc: jsPDF, entries: TocEntry[], pageWidth: number) {
-  drawRunningHeader(doc, pageWidth);
-
   // TOC title
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
@@ -432,7 +417,7 @@ function paragraph(doc: jsPDF, text: string, y: number): number {
       cellPadding: { top: 0.5, bottom: 0.5, left: 0, right: 0 },
       overflow: 'linebreak',
     },
-    margin: { left: PAGE.left, right: PAGE.right },
+    margin: { left: PAGE.left, right: PAGE.right, top: PAGE.top, bottom: PAGE.bottom },
   });
   return ((doc as any).lastAutoTable?.finalY ?? y) + 5;
 }
@@ -471,6 +456,7 @@ function dataTable(
       cellPadding: pad + 1,
     },
     alternateRowStyles: { fillColor: C_ALTROW },
+    showHead: 'everyPage',
     didParseCell: (hookData) => {
       if (opts?.emphasizeFirstCol && hookData.section === 'body' && hookData.column.index === 0) {
         hookData.cell.styles.fontStyle = 'bold';
@@ -483,7 +469,7 @@ function dataTable(
         }
       }
     },
-    margin: { left: PAGE.left, right: PAGE.right },
+    margin: { left: PAGE.left, right: PAGE.right, top: PAGE.top, bottom: PAGE.bottom },
   });
   return ((doc as any).lastAutoTable?.finalY ?? y) + 8;
 }
@@ -747,14 +733,41 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
   y = dataTable(doc, y,
     ['S.No.', 'Institution', 'Demand Basis'],
     [
-      ['1', 'Hospitals', '340–450 per bed'],
+      ['1', 'Hospitals (>100 beds / ≤100 beds)', '450 / 340 per bed'],
       ['2', 'Hotels', '180 per bed'],
-      ['3', 'Hostels / Nurses homes', '135 per capita'],
+      ['3', 'Hostels / Nurses homes / Boarding schools', '135 per capita'],
       ['4', 'Restaurants', '70 per seat'],
-      ['5', 'Offices / Day schools', '45 per capita'],
-      ['6', 'Cinema / Theatre', '15 per capita'],
+      ['5', 'Airports & major stations', '70 per capita'],
+      ['6', 'Offices / Day schools / Factories', '45 per capita'],
+      ['7', 'Cinema / Concert halls / Theatre', '15 per capita'],
     ],
     C_VIOLET, { compact: true },
+  );
+
+  y = subTitle(doc, 'Table 4 — Domestic Demand Seasonal Multipliers', y, C_TEAL);
+  y = paragraph(doc, 'Seasonal domestic water demand values are calculated using seasonal multipliers that account for variations in water consumption patterns throughout the year.', y);
+  y = dataTable(doc, y,
+    ['Season', 'Multiplier', 'Rationale'],
+    [
+      ['Summer',       '1.10', 'Higher consumption due to heat and irrigation needs'],
+      ['Monsoon',      '0.95', 'Reduced consumption due to cooler temperatures and outdoor rainfall'],
+      ['Post-Monsoon', '1.00', 'Baseline reference season'],
+      ['Winter',       '0.90', 'Lower consumption in cold months; reduced bathing frequency'],
+    ],
+    C_TEAL, { compact: true },
+  );
+
+  y = subTitle(doc, 'Table 5 — Floating Population Seasonal Multipliers', y, [6, 120, 155]);
+  y = paragraph(doc, 'Seasonal floating water demand values are calculated using floating population seasonal multipliers that reflect variations in temporary population due to tourism, migration, and seasonal work patterns.', y);
+  y = dataTable(doc, y,
+    ['Season', 'Multiplier', 'Rationale'],
+    [
+      ['Summer',       '1.15', 'Peak tourism; higher temporary population'],
+      ['Monsoon',      '1.25', 'Religious festivals and pilgrimage seasons in many river-basin areas'],
+      ['Post-Monsoon', '1.10', 'Moderate seasonal activity; harvest-related migration'],
+      ['Winter',       '0.85', 'Lower tourism; reduced seasonal workers'],
+    ],
+    [6, 120, 155], { compact: true },
   );
 
   y = subTitle(doc, '3.3  Water Supply', y, C_VIOLET);
@@ -772,7 +785,11 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
   // ── 5. Population Forecast ─────────────────────────────────────────────────
   y = nextPageIfNeeded(doc, y, 50);
   y = sectionTitle(doc, '5. Population Forecast', y, tocEntries, C_GREEN);
-  y = paragraph(doc, 'Population forecasting is the base layer for this DSS. All downstream modules — especially water demand and sewage generation — scale from projected population values.', y);
+  y = paragraph(doc, 'Population forecasting is the foundational layer for this DSS. All downstream modules — water demand, water supply gap analysis, and sewage generation — are directly scaled from projected population values.', y);
+  y = paragraph(doc, 'Population forecasting in this study has been carried out using multiple methods such as Arithmetic Growth, Geometric Growth, Exponential Models, Demographic, and the Cohort Component Method. Each method accounts for vital statistics like birth, death, emigration, and immigration rates. For example, the Arithmetic Growth method uses historical population data and effective growth rates to estimate future populations, while the Cohort Component Method considers age and sex cohorts for more granular forecasts.', y);
+  y = paragraph(doc, 'To enhance the accuracy and demographic resolution of population forecasting, the official dataset titled "Population Projections for India and States: 2011–2036" published by the National Commission on Population, Ministry of Health & Family Welfare (2019) was utilised. This cohort-based projection dataset, originally available at the state and national levels, was systematically downscaled to the village level using demographic normalisation techniques.', y);
+
+  y = subTitle(doc, '5.1  Selected Forecasting Parameters', y, C_GREEN);
   y = dataTable(doc, y,
     ['Item', 'Value'],
     [
@@ -787,19 +804,20 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
     input.populationReportData?.combinedChartData && Object.keys(input.populationReportData.combinedChartData).length
       ? buildPopulationChart(input.populationReportData.combinedChartData)
       : null;
-  y = addChartFigure(doc, y, 'Figure 2: Population Forecast Comparison Graph', populationChart, C_GREEN);
-  y = paragraph(doc, 'The forecast chart compares available projection methods. Differences between methods indicate uncertainty bounds and help planners choose conservative or progressive design assumptions.', y);
+  y = addChartFigure(doc, y, 'Figure 2: Population Forecast Comparison — All Methods', populationChart, C_GREEN);
 
   if (input.populationReportData?.mergedTableData) {
     const models = Object.keys(input.populationReportData.mergedTableData);
     const years  = Array.from(new Set(models.flatMap((m) => Object.keys(input.populationReportData?.mergedTableData?.[m] ?? {}).map(Number)))).sort((a, b) => a - b);
     y = nextPageIfNeeded(doc, y, 40);
-    y = subTitle(doc, 'Population Forecast by Year & Method', y, C_GREEN);
+    y = subTitle(doc, '5.2  Population Projections by Year & Method', y, C_GREEN);
+    y = paragraph(doc, `The table below shows population projections using ${models.length} forecasting method(s): ${models.join(', ')}. These projections span from ${years[0] ?? '-'} to ${years[years.length - 1] ?? '-'}.`, y);
     y = dataTable(doc, y,
       ['Year', ...models],
       years.map((yr) => [String(yr), ...models.map((m) => Number(input.populationReportData?.mergedTableData?.[m]?.[yr] ?? 0).toLocaleString())]),
       C_GREEN,
     );
+    y = paragraph(doc, `For subsequent analysis and calculations, the ${input.selectedPopMethod ?? 'selected'} method has been adopted as the primary population forecasting approach. This method's projections are used for water demand estimation and sewage generation calculations throughout this report.`, y);
   }
 
   // ── 6. Cohort Table ────────────────────────────────────────────────────────
@@ -827,11 +845,39 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
     const wd = input.waterDemandReportData;
     const ffMethod = wd.selectedFfMethod || Object.keys(wd.results.firefighting ?? {})[0] || '';
     y = nextPageIfNeeded(doc, y, 50);
-    y = sectionTitle(doc, '7. Water Demand Results', y, tocEntries, [5, 130, 165]);
-    y = paragraph(doc, 'Water demand is decomposed into domestic, floating, institutional, and firefighting components. This decomposition clarifies which driver contributes most to total demand growth.', y);
-    y = paragraph(doc, 'Use this table to identify years where total demand accelerates and to align augmentation plans before deficits become critical.', y);
+    y = sectionTitle(doc, '7. Water Demand Analysis', y, tocEntries, [5, 130, 165]);
+    y = paragraph(doc, 'Water demand is estimated based on various contributing factors including domestic, floating, commercial, institutional, and firefighting demands as per CPHEEO guidelines. Water demand is decomposed into its constituent components to clarify which driver contributes most to total demand growth, and to align augmentation plans before deficits become critical.', y);
+
+    y = subTitle(doc, '7.1  Domestic Seasonal Demand', y, [5, 130, 165]);
+    y = paragraph(doc, 'Seasonal domestic water demand values are calculated using seasonal multipliers — Summer: 1.1, Monsoon: 0.95, Post-Monsoon: 1.0, Winter: 0.9. These multipliers account for variations in water consumption patterns throughout the year.', y);
     y = dataTable(doc, y,
-      ['Year', 'Population', 'Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total (MLD)'],
+      ['Season', 'Multiplier', 'Impact on Demand'],
+      [
+        ['Summer',       '1.10', 'Approx. +10% above annual base demand'],
+        ['Monsoon',      '0.95', 'Approx. −5% below annual base demand'],
+        ['Post-Monsoon', '1.00', 'Baseline — equal to annual average'],
+        ['Winter',       '0.90', 'Approx. −10% below annual base demand'],
+      ],
+      [5, 130, 165], { compact: true },
+    );
+
+    y = subTitle(doc, '7.2  Floating Population Seasonal Demand', y, [5, 130, 165]);
+    y = paragraph(doc, 'Seasonal floating water demand values are calculated using floating population seasonal multipliers — Summer: 1.15, Monsoon: 1.25, Post-Monsoon: 1.1, Winter: 0.85. These multipliers reflect variations in temporary population due to tourism, migration, and seasonal work patterns, directly impacting sewage generation volumes.', y);
+    y = dataTable(doc, y,
+      ['Season', 'Multiplier', 'Impact on Demand'],
+      [
+        ['Summer',       '1.15', 'Approx. +15% above base — peak tourism'],
+        ['Monsoon',      '1.25', 'Approx. +25% above base — festivals & pilgrimage'],
+        ['Post-Monsoon', '1.10', 'Approx. +10% above base — harvest migration'],
+        ['Winter',       '0.85', 'Approx. −15% below base — off-peak season'],
+      ],
+      [5, 130, 165], { compact: true },
+    );
+
+    y = subTitle(doc, '7.3  Annual Demand Summary', y, [5, 130, 165]);
+    y = paragraph(doc, 'The table below presents total computed water demand by year, disaggregated by component. Use this to identify years where total demand accelerates and plan supply augmentation accordingly.', y);
+    y = dataTable(doc, y,
+      ['Year', 'Population', 'Domestic (MLD)', 'Floating (MLD)', 'Institutional (MLD)', 'Firefighting (MLD)', 'Total (MLD)'],
       wd.years.map((year) => {
         const pop  = Number(wd.forecast?.[year] ?? 0).toLocaleString();
         const dom  = wd.results.domestic?.base_demand?.[year];
@@ -856,8 +902,13 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
   if (input.waterSupplyReportData) {
     const ws = input.waterSupplyReportData;
     y = nextPageIfNeeded(doc, y, 50);
-    y = sectionTitle(doc, '8. Water Supply Results', y, tocEntries, C_VIOLET);
-    y = paragraph(doc, 'This section summarises entered and computed supply-side sources. Values combine direct inputs and computed equivalents to estimate available total supply.', y);
+    y = sectionTitle(doc, '8. Water Supply Analysis', y, tocEntries, C_VIOLET);
+    y = paragraph(doc, 'Water supply analysis aligns with the demand forecasts and is based on either modelled or user-provided data. The water supply values serve as a crucial input for evaluating adequacy and potential deficits in infrastructure. Where data is available, historical supply records are compared with estimated future demands, allowing planners to assess whether current supply infrastructure meets future needs or if upgrades are warranted.', y);
+    y = paragraph(doc, 'Integration with GIS and demographic modules ensures spatial consistency in water supply planning, strengthening the foundation for sewage and wastewater projections.', y);
+
+    y = subTitle(doc, '8.1  Water Supply Details', y, C_VIOLET);
+    const wsTotalMLD = ws.result?.total_supply ?? input.waterSupplyTotal ?? 0;
+    y = paragraph(doc, `The estimated total water supply is: ${wsTotalMLD.toFixed(2)} MLD`, y);
     y = dataTable(doc, y,
       ['Source / Input', 'Value'],
       [
@@ -876,8 +927,8 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
 
     if (ws.gapRows?.length) {
       y = nextPageIfNeeded(doc, y, 40);
-      y = subTitle(doc, 'Supply vs. Demand Gap Analysis', y, C_VIOLET);
-      y = paragraph(doc, 'Gap analysis compares total supply with annual water demand. Positive gap = surplus; negative gap = deficit requiring supply augmentation or demand management.', y);
+      y = subTitle(doc, '8.2  Supply vs. Demand Gap Analysis', y, C_VIOLET);
+      y = paragraph(doc, 'Gap analysis compares total supply with annual water demand. A positive gap indicates surplus capacity; a negative gap indicates a deficit requiring supply augmentation or demand management measures.', y);
       y = dataTable(doc, y,
         ['Year', 'Supply (MLD)', 'Demand (MLD)', 'Gap (MLD)'],
         ws.gapRows.map((r) => [
@@ -895,34 +946,65 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
   if (input.sewageReportData) {
     const sg = input.sewageReportData;
     y = nextPageIfNeeded(doc, y, 50);
-    y = sectionTitle(doc, '9. Sewage Results', y, tocEntries, C_ORANGE);
-    y = paragraph(doc, 'Sewage outputs integrate water-supply-based and method-based parameters. This section helps translate water-use projections into treatment and conveyance design implications.', y);
+    y = sectionTitle(doc, '9. Sewage Generation Analysis', y, tocEntries, C_ORANGE);
+    y = paragraph(doc, 'Sewage generation estimation is carried out using two approaches: (a) Sector-based estimation and (b) Water supply-based estimation. The sector-based approach estimates wastewater as a fixed percentage of sectoral water demands, such as 80% of domestic water demand as per CPHEEO standards. The water supply-based approach uses the total water supply figure and applies a wastewater generation factor to calculate total sewage output.', y);
+    y = paragraph(doc, 'Peak sewage flow is computed using recognised methods like CPHEEO\'s formula, Harmon\'s, and Babbitt\'s formula, incorporating appropriate peak factors relative to projected population size. These calculations ensure realistic design flows for downstream treatment infrastructure, including STPs and drainage systems (CPHEEO, 2024).', y);
+
+    y = subTitle(doc, '9.1  Analysis Mode & Input Parameters', y, C_ORANGE);
     y = dataTable(doc, y,
       ['Item', 'Value'],
       [
+        ['Analysis Mode',                     sg.domesticMode === 'modeled' ? 'Population-based Modelling' : 'Manual Input'],
         ['Water Supply Input (MLD)',          sg.waterSupplyInput || '-'],
-        ['Water Supply Based Sewage (MLD)',    sg.waterSupplyResult != null ? sg.waterSupplyResult.toFixed(3) : '-'],
-        ['Domestic Mode',                     sg.domesticMode],
+        ['Raw Sewage Coefficient (LPCD)',     sg.rawCoeff != null ? sg.rawCoeff.toFixed(2) : '-'],
         ['Treatment Method',                  sg.treatmentMethod  || '-'],
         ['Treatment Capacity',                sg.treatmentCapacity || '-'],
-        ['Storm Land Use Type',               sg.stormInputs.landUseType || '-'],
-        ['Storm Duration (min)',              sg.stormInputs.duration || '-'],
-        ['Storm Rainfall (mm/hr)',            sg.stormInputs.rainfall || '-'],
-        ['Storm Runoff',                      sg.stormResult?.storm_water_runoff != null ? `${sg.stormResult.storm_water_runoff} ${sg.stormResult.unit ?? 'MLD'}` : '-'],
-        ['Raw Sewage Coefficient (LPCD)',     sg.rawCoeff != null ? sg.rawCoeff.toFixed(2) : '-'],
       ],
-      C_ORANGE, { emphasizeFirstCol: true },
+      C_ORANGE, { emphasizeFirstCol: true, compact: true },
     );
+
+    if (sg.waterSupplyResult != null) {
+      y = subTitle(doc, '9.2  Water Supply Method', y, C_ORANGE);
+      y = paragraph(doc, `Sewage Calculation Method: Water Supply Based. Total Water Supply: ${sg.waterSupplyInput || '-'} MLD. Sewage Generation (80% of supply): ${sg.waterSupplyResult.toFixed(3)} MLD.`, y);
+    }
+
+    // Drain information table — sourced from confirmedLocation if drain mode
+    if (input.confirmedLocation?.mode === 'drain' && input.confirmedLocation.drain?.drains?.length) {
+      const drainList = input.confirmedLocation.drain.drains;
+      y = subTitle(doc, '9.3  Drain Information', y, C_ORANGE);
+      y = paragraph(doc, `Number of Drains Tapped: ${drainList.length}. River: ${input.confirmedLocation.drain.river?.name ?? '-'}. Stretch: ${input.confirmedLocation.drain.stretch?.name ?? '-'}.`, y);
+      y = dataTable(doc, y,
+        ['Drain ID', 'Drain Name'],
+        drainList.map((d) => [String(d.id), String(d.name)]),
+        C_ORANGE, { compact: true },
+      );
+    }
+
+    if (sg.stormResult?.storm_water_runoff != null) {
+      y = subTitle(doc, '9.4  Storm Water Runoff Analysis', y, C_ORANGE);
+      y = paragraph(doc, 'Storm water runoff analysis has been conducted based on shape detection, land use characteristics, and rainfall intensity parameters.', y);
+      y = dataTable(doc, y,
+        ['Parameter', 'Value'],
+        [
+          ['Selected Land Use Type',  sg.stormInputs.landUseType || '-'],
+          ['Duration Time (min)',     sg.stormInputs.duration || '-'],
+          ['Rainfall Intensity (mm/hr)', sg.stormInputs.rainfall || '-'],
+          ['Storm Water Runoff Result',  `${sg.stormResult.storm_water_runoff} ${sg.stormResult.unit ?? 'MLD'}`],
+        ],
+        C_ORANGE, { emphasizeFirstCol: true, compact: true },
+      );
+      y = paragraph(doc, 'This storm water runoff value represents the expected surface water flow during the specified rainfall event and should be considered for drainage infrastructure planning.', y);
+    }
 
     if (sg.peakRows?.length) {
       const show = new Set(sg.peakSelectedMethods);
       const head: Row = ['Year', 'Population', 'Avg Flow (MLD)'];
-      if (show.has('cpheeo'))  head.push('CPHEEO');
-      if (show.has('harmon'))  head.push('Harmon');
-      if (show.has('babbitt')) head.push('Babbitt');
+      if (show.has('cpheeo'))  head.push('CPHEEO (MLD)');
+      if (show.has('harmon'))  head.push('Harmon (MLD)');
+      if (show.has('babbitt')) head.push('Babbitt (MLD)');
       y = nextPageIfNeeded(doc, y, 40);
-      y = subTitle(doc, 'Peak Flow Table (Design Flows)', y, C_ORANGE);
-      y = paragraph(doc, 'Peak-flow estimates by selected method. These values are used to size downstream sewer and treatment infrastructure safely.', y);
+      y = subTitle(doc, '9.5  Peak Flow Calculation Results', y, C_ORANGE);
+      y = paragraph(doc, `Peak Flow Source: ${sg.domesticMode?.toUpperCase() ?? 'MODELLED'}. Selected Methods: ${Array.from(show).join(', ').toUpperCase()}. Peak-flow calculations ensure realistic design flows for downstream sewer and treatment infrastructure.`, y);
       y = dataTable(doc, y,
         head,
         sg.peakRows.map((r: any) => {
@@ -933,6 +1015,18 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
           return out;
         }),
         C_ORANGE,
+      );
+    }
+
+    if (sg.rawCoeff != null) {
+      y = subTitle(doc, '9.6  Raw Sewage Characteristics', y, C_ORANGE);
+      y = dataTable(doc, y,
+        ['Parameter', 'Value'],
+        [
+          ['Base Coefficient', `${sg.rawCoeff.toFixed(2)} LPCD`],
+          ['Water Supply Input (MLD)', sg.waterSupplyInput || '-'],
+        ],
+        C_ORANGE, { emphasizeFirstCol: true, compact: true },
       );
     }
   }
@@ -991,11 +1085,10 @@ export async function downloadBasic2Report(input: Basic2ReportInput) {
     });
   } catch { /* outline not supported in this version */ }
 
-  // ── Apply headers and footers to all pages ─────────────────────────────────
+  // ── Apply footers to all content pages (no top header band) ───────────────
   const totalPages = doc.getNumberOfPages();
   for (let i = 2; i <= totalPages; i++) {
     doc.setPage(i);
-    drawRunningHeader(doc, pageWidth);
     drawRunningFooter(doc, pageWidth, pageHeight, i, totalPages);
   }
 

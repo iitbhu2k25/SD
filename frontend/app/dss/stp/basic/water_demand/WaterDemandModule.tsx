@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useBasicStore } from '../shared/store/basic.store';
 import {
   fetchDomesticWaterDemand,
@@ -9,7 +10,7 @@ import {
   fetchFirefightingWaterDemand,
 } from '../shared/services/waterDemand.service';
 import { fetchWaterDemandThematic, type WDThematicParams } from '../shared/services/population.service';
-import { Home, Users, Building2, Flame, Play, ChevronDown, ChevronUp, AlertCircle, ArrowRight, ArrowLeft, Info } from 'lucide-react';
+import { Home, Users, Building2, Flame, Play, ChevronDown, ChevronUp, AlertCircle, Info } from 'lucide-react';
 import ModuleNav from '../shared/components/ModuleNav';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -22,6 +23,38 @@ function Spinner() {
       <circle style={{ opacity:0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
       <path style={{ opacity:0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
     </svg>
+  );
+}
+
+/* Portal tooltip — never clipped by overflow:hidden parents */
+function Tip({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={() => ref.current && setRect(ref.current.getBoundingClientRect())}
+      onMouseLeave={() => setRect(null)}
+      style={{ display:'inline-flex', flexShrink:0, alignItems:'center', cursor:'help' }}
+    >
+      <Info size={11} color="#94a3b8" />
+      {rect && createPortal(
+        <div style={{
+          position:'fixed', zIndex:99999, pointerEvents:'none',
+          left: rect.left + rect.width / 2,
+          top: rect.top - 8,
+          transform: 'translate(-50%,-100%)',
+          background:'#1e293b', color:'#f1f5f9',
+          borderRadius:8, padding:'8px 12px',
+          fontSize:11, lineHeight:1.55, width:220, whiteSpace:'normal',
+          boxShadow:'0 6px 20px rgba(0,0,0,0.3)', textAlign:'left',
+        }}>
+          {text}
+          <div style={{ position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)', borderWidth:'5px 5px 0', borderStyle:'solid', borderColor:'#1e293b transparent transparent' }} />
+        </div>,
+        document.body,
+      )}
+    </span>
   );
 }
 
@@ -65,6 +98,26 @@ const INST_PAIRS: Array<[string, string, string, string]> = [
 const DEFAULT_INST_FIELDS = Object.fromEntries(INST_PAIRS.flatMap(([a,,b]) => [[a,'0'],[b,'0']]));
 const FF_METHODS = ['Kuchling','Freeman','Buston','American_insurance','Ministry_urban'] as const;
 
+
+const PC_PRESETS = [
+  { value:'70',  label:'70 LPCD',
+    desc:'Towns without sewerage',
+    tip:'Recommended for towns that have piped water supply but no sewerage system (IS:1172 / CPHEEO). Lowest tier.' },
+  { value:'135', label:'135 LPCD',
+    desc:'Cities with sewerage',
+    tip:'Standard for cities with piped water supply where a sewerage system exists or is planned. Most common benchmark for Indian cities per CPHEEO Manual.' },
+  { value:'150', label:'150 LPCD',
+    desc:'Metro & Mega cities',
+    tip:'For Metropolitan and Mega cities with piped supply and existing sewerage. Highest tier per CPHEEO Manual on Water Supply & Treatment.' },
+];
+
+const WD_COMP_TIPS: Record<string,string> = {
+  domestic:      'Water demand for the resident population based on per-capita consumption (LPCD) norms. Forms the base demand.',
+  floating:      'Additional demand for transient/temporary population — visitors, migrant workers, pilgrims — expressed as a % of resident demand.',
+  institutional: 'Demand from hospitals, schools, hotels, offices, factories and other institutions, calculated per-unit or as a total.',
+  firefighting:  'Reserve storage required for fire suppression as per national firefighting formulae (Kuchling, Freeman, Buston, etc.).',
+};
+
 // ── Main WaterDemandModule ────────────────────────────────────────────────
 export default function WaterDemandModule() {
   const {
@@ -76,9 +129,18 @@ export default function WaterDemandModule() {
     setWaterDemandReportData,
     confirmedLocation,
     setThematicMapData,
-    mergeThematicMapMethod,
-    setThematicMapMethod,
   } = useBasicStore();
+
+  // Container width for responsive behaviour
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(600);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(e => setCw(e[0].contentRect.width));
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+  const compact = cw < 420;
 
   // Which methods are checked
   const [checked, setChecked] = useState<Set<WDMethod>>(new Set(['domestic']));
@@ -343,51 +405,56 @@ export default function WaterDemandModule() {
   }
 
   return (
-    <div style={{ padding:20, display:'flex', flexDirection:'column', gap:16 }}>
+    <div ref={containerRef} style={{ padding:compact?12:20, display:'flex', flexDirection:'column', gap:12 }}>
 
       {/* ── Forecast source banner ── */}
       <div style={{
-        display:'flex', alignItems:'center', gap:10,
-        background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:10,
-        padding:'10px 16px', fontSize:13,
+        display:'flex', alignItems:'center', gap:8,
+        background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:9,
+        padding:'8px 14px', fontSize:compact?11:13, flexWrap:'wrap',
       }}>
-        <div style={{ width:8, height:8, borderRadius:'50%', background:'#16a34a', flexShrink:0 }}/>
-        <span style={{ color:'#15803d', fontWeight:600 }}>
-          Using: <strong>{selectedPopMethod}</strong> population forecast —&nbsp;
-          {years.length} years ({years[0]} – {years[years.length-1]})
+        <div style={{ width:7, height:7, borderRadius:'50%', background:'#16a34a', flexShrink:0 }}/>
+        <span style={{ color:'#15803d', fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          Using: <strong>{selectedPopMethod}</strong> — {years.length} yrs ({years[0]}–{years[years.length-1]})
         </span>
       </div>
 
-      {/* ── Method checkboxes — single row ── */}
-      <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 18px', background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom:'1px solid #e2e8f0' }}>
-          <div style={{ width:4, height:24, background:'#0891b2', borderRadius:2 }} />
-          <span style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.02em' }}>
+      {/* ── Demand Components — compact single row ── */}
+      <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:11, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.05)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 14px', background:'linear-gradient(135deg,#f8fafc,#f1f5f9)', borderBottom:'1px solid #e2e8f0' }}>
+          <div style={{ width:3, height:18, background:'#0891b2', borderRadius:2, flexShrink:0 }} />
+          <span style={{ fontSize:compact?10:11, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.04em' }}>
             Demand Components
           </span>
         </div>
-        <div style={{ padding:'16px 20px' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
+        <div style={{ padding:'10px 12px' }}>
+          <div style={{ display:'flex', gap:6 }}>
             {([
-              { key:'domestic' as WDMethod, label:'Domestic', icon:<Home size={16}/>, color:'#2563eb', bg:'#eff6ff', border:'#bfdbfe' },
-              { key:'floating' as WDMethod, label:'Floating', icon:<Users size={16}/>, color:'#0891b2', bg:'#ecfeff', border:'#a5f3fc' },
-              { key:'institutional' as WDMethod, label:'Institutional', icon:<Building2 size={16}/>, color:'#7c3aed', bg:'#f5f3ff', border:'#ddd6fe' },
-              { key:'firefighting' as WDMethod, label:'Firefighting', icon:<Flame size={16}/>, color:'#dc2626', bg:'#fef2f2', border:'#fecaca' },
+              { key:'domestic'     as WDMethod, label:'Domestic',      icon:<Home size={13}/>,     color:'#2563eb', bg:'#eff6ff', border:'#bfdbfe' },
+              { key:'floating'     as WDMethod, label:'Floating',      icon:<Users size={13}/>,    color:'#0891b2', bg:'#ecfeff', border:'#a5f3fc' },
+              { key:'institutional'as WDMethod, label:'Institutional', icon:<Building2 size={13}/>,color:'#7c3aed', bg:'#f5f3ff', border:'#ddd6fe' },
+              { key:'firefighting' as WDMethod, label:'Firefighting',  icon:<Flame size={13}/>,    color:'#dc2626', bg:'#fef2f2', border:'#fecaca' },
             ] as const).map(({ key, label, icon, color, bg, border }) => {
               const active = checked.has(key);
               return (
                 <div key={key} onClick={() => !isRunning && toggleMethod(key)}
                   style={{
-                    display:'flex', flexDirection:'column', alignItems:'center', gap:7,
-                    padding:'12px 8px', borderRadius:10, textAlign:'center', cursor: isRunning ? 'not-allowed' : 'pointer',
+                    flex:1, display:'flex', alignItems:'center', gap:5, minWidth:0,
+                    padding:'7px 8px', borderRadius:8,
                     border:`1.5px solid ${active ? border : '#e2e8f0'}`,
-                    background: active ? bg : '#fafafa', transition:'all 0.15s',
+                    background: active ? bg : '#fafafa',
+                    cursor: isRunning ? 'not-allowed' : 'pointer',
+                    transition:'all 0.15s',
                   }}>
-                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${active ? color : '#cbd5e1'}`, background: active ? color : '#fff', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
-                    {active && <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {/* checkbox */}
+                  <div style={{ width:13, height:13, borderRadius:4, flexShrink:0, border:`2px solid ${active?color:'#cbd5e1'}`, background:active?color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
+                    {active && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
-                  <span style={{ color: active ? color : '#94a3b8' }}>{icon}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color: active ? color : '#64748b' }}>{label}</span>
+                  <span style={{ color:active?color:'#94a3b8', display:'flex', flexShrink:0 }}>{icon}</span>
+                  <span style={{ fontSize:compact?10:11, fontWeight:700, color:active?color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{label}</span>
+                  <span onClick={e=>e.stopPropagation()} style={{ display:'flex', flexShrink:0 }}>
+                    <Tip text={WD_COMP_TIPS[key]} />
+                  </span>
                 </div>
               );
             })}
@@ -398,13 +465,53 @@ export default function WaterDemandModule() {
       {/* ── DOMESTIC params ── */}
       {checked.has('domestic') && (
         <ParamCard title="Domestic Parameters" color="#2563eb" bg="#eff6ff" border="#bfdbfe" icon={<Home size={15}/>} loading={loading.has('domestic')}>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
-            <Field label="Per Capita Consumption (LPCD)" half>
-              <input type="number" value={perCapita} onChange={e => setPerCapita(e.target.value)} style={inputCls} min="0"/>
-            </Field>
+          {/* Per-capita presets */}
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                Per Capita Consumption (LPCD)
+              </span>
+              <Tip text="Litres Per Capita per Day (LPCD) — the benchmark water supply norm per person per day, as per CPHEEO Manual on Water Supply & Treatment. Select a preset or enter a custom value." />
+            </div>
+            {/* Three standard preset cards */}
+            <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+              {PC_PRESETS.map(({ value, label, desc, tip }) => {
+                const sel = perCapita === value;
+                return (
+                  <div key={value} onClick={() => setPerCapita(value)}
+                    style={{
+                      flex:1, display:'flex', flexDirection:'column', gap:3, minWidth:0,
+                      padding:'8px 8px 7px', borderRadius:9, cursor:'pointer',
+                      border:`1.5px solid ${sel?'#2563eb':'#e2e8f0'}`,
+                      background: sel ? '#eff6ff' : '#fafafa',
+                      transition:'all 0.15s',
+                    }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
+                      <span style={{ fontSize:compact?13:15, fontWeight:800, color:sel?'#2563eb':'#374151', lineHeight:1 }}>
+                        {label}
+                      </span>
+                      <span onClick={e=>e.stopPropagation()} style={{ display:'flex', flexShrink:0 }}>
+                        <Tip text={tip} />
+                      </span>
+                    </div>
+                    <span style={{ fontSize:9, color:sel?'#3b82f6':'#94a3b8', fontWeight:600, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {desc}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Custom input */}
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:11, color:'#64748b', fontWeight:600, whiteSpace:'nowrap' }}>Custom:</span>
+              <input type="number" value={perCapita}
+                onChange={e => setPerCapita(e.target.value)}
+                style={{ ...inputCls, maxWidth:120 }} min="0" placeholder="e.g. 100"/>
+              <span style={{ fontSize:11, color:'#94a3b8' }}>LPCD</span>
+            </div>
           </div>
-          <div style={{ marginTop:12 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:6 }}>Seasonal Multipliers</div>
+          <div>
+            <div style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Seasonal Multipliers</div>
             <SeasonTable data={seasonalMult} setter={setSeasonalMult}/>
           </div>
         </ParamCard>
@@ -467,14 +574,17 @@ export default function WaterDemandModule() {
       {/* ── FIREFIGHTING params ── */}
       {checked.has('firefighting') && (
         <ParamCard title="Firefighting Parameters" color="#dc2626" bg="#fef2f2" border="#fecaca" icon={<Flame size={15}/>} loading={loading.has('firefighting')}>
-          <div style={{ fontSize:12, fontWeight:700, color:'#64748b', marginBottom:8 }}>Select Calculation Methods</div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
+            <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Select Calculation Methods</span>
+            <Tip text="Each method is a nationally recognised approach to estimate the water volume required for fire suppression. Select one or more — results appear side-by-side so you can compare and pick the right reserve for your city type. Kuchling and Freeman suit small to medium towns; Buston follows UK standards; American Insurance is used for high-risk commercial zones; Ministry Urban follows India MoUD guidelines." />
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {FF_METHODS.map(m => {
               const active = ffMethods[m];
               return (
-                <label key={m} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderRadius:8, border:`1.5px solid ${active ? '#fca5a5' : '#e2e8f0'}`, background: active ? '#fef2f2' : '#fafafa', cursor:'pointer', fontSize:13, fontWeight:600, color: active ? '#dc2626' : '#64748b' }}>
-                  <input type="checkbox" checked={active} onChange={e => setFfMethods(f => ({...f,[m]:e.target.checked}))} style={{ accentColor:'#dc2626' }}/>
-                  {m.replace(/_/g,' ')}
+                <label key={m} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, border:`1.5px solid ${active?'#fca5a5':'#e2e8f0'}`, background:active?'#fef2f2':'#fafafa', cursor:'pointer', flex:'1 1 auto', minWidth:0 }}>
+                  <input type="checkbox" checked={active} onChange={e => setFfMethods(f => ({...f,[m]:e.target.checked}))} style={{ accentColor:'#dc2626', flexShrink:0 }}/>
+                  <span style={{ fontSize:11, fontWeight:600, color:active?'#dc2626':'#64748b', whiteSpace:'nowrap' }}>{m.replace(/_/g,' ')}</span>
                 </label>
               );
             })}
@@ -508,7 +618,6 @@ export default function WaterDemandModule() {
           checkedMethods={checked}
           selectedFfMethod={selectedFfMethod}
           setSelectedFfMethod={setSelectedFfMethod}
-          errors={errors}
         />
       )}
 
@@ -611,11 +720,10 @@ function SeasonalDemandTable({
 }
 
 // ── Results Table ─────────────────────────────────────────────────────────
-function ResultsTable({ years, forecast, domestic, floating, institutional, firefighting, checkedMethods, selectedFfMethod, setSelectedFfMethod, errors }: {
+function ResultsTable({ years, forecast, domestic, floating, institutional, firefighting, checkedMethods, selectedFfMethod, setSelectedFfMethod }: {
   years: string[]; forecast: Record<string,number>;
   domestic: any; floating: any; institutional: any; firefighting: any;
   checkedMethods: Set<WDMethod>; selectedFfMethod: string; setSelectedFfMethod: (v:string)=>void;
-  errors: any;
 }) {
   const ffKeys = firefighting ? Object.keys(firefighting) : [];
   // Count how many methods actually have results
@@ -648,11 +756,12 @@ function ResultsTable({ years, forecast, domestic, floating, institutional, fire
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
       {/* ── Main summary table ── */}
       <div style={{ background:'#fff', border:'1px solid #e2e8f0', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 18px', background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom:'1px solid #e2e8f0' }}>
-          <div style={{ width:4, height:24, background:'#0891b2', borderRadius:2 }}/>
-          <span style={{ fontSize:14, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.02em' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 16px', background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom:'1px solid #e2e8f0' }}>
+          <div style={{ width:3, height:18, background:'#0891b2', borderRadius:2, flexShrink:0 }}/>
+          <span style={{ fontSize:12, fontWeight:800, color:'#1e293b', textTransform:'uppercase', letterSpacing:'0.04em' }}>
             Water Demand Results
           </span>
+          <Tip text="Summary of projected water demand (in Million Litres per Day) for each forecast year, broken down by component. All values are annual averages — use seasonal tables below for peak/dry-season values." />
         </div>
 
         {/* Firefighting method selector */}
@@ -672,13 +781,13 @@ function ResultsTable({ years, forecast, domestic, floating, institutional, fire
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead style={{ position:'sticky', top:0, zIndex:10 }}>
               <tr style={{ background:'#f8fafc' }}>
-                <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'left', fontWeight:700, color:'#64748b', whiteSpace:'nowrap' }}>Year</th>
-                <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:700, color:'#64748b', whiteSpace:'nowrap' }}>Population</th>
-                {checkedMethods.has('domestic')      && domestic      && <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:700, color:'#2563eb', whiteSpace:'nowrap' }}>Domestic (MLD)</th>}
-                {checkedMethods.has('floating')      && floating      && <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:700, color:'#0891b2', whiteSpace:'nowrap' }}>Floating (MLD)</th>}
-                {checkedMethods.has('institutional') && institutional && <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:700, color:'#7c3aed', whiteSpace:'nowrap' }}>Institutional (MLD)</th>}
-                {checkedMethods.has('firefighting')  && firefighting && activeFf && <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:700, color:'#dc2626', whiteSpace:'nowrap' }}>Firefighting ({activeFf.replace(/_/g,' ')}) (MLD)</th>}
-                {showTotal && <th style={{ border:'1px solid #e2e8f0', padding:'8px 14px', textAlign:'right', fontWeight:800, color:'#0f172a', whiteSpace:'nowrap', background:'#eff6ff' }}>Total (MLD)</th>}
+                <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'left',  fontWeight:700, color:'#64748b', whiteSpace:'nowrap' }}>Year</th>
+                <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:700, color:'#64748b', whiteSpace:'nowrap' }}>Population</th>
+                {checkedMethods.has('domestic')      && domestic      && <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:700, color:'#2563eb', whiteSpace:'nowrap' }}>Domestic (MLD)</th>}
+                {checkedMethods.has('floating')      && floating      && <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:700, color:'#0891b2', whiteSpace:'nowrap' }}>Floating (MLD)</th>}
+                {checkedMethods.has('institutional') && institutional && <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:700, color:'#7c3aed', whiteSpace:'nowrap' }}>Institutional (MLD)</th>}
+                {checkedMethods.has('firefighting')  && firefighting && activeFf && <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:700, color:'#dc2626', whiteSpace:'nowrap' }}>FF · {activeFf.replace(/_/g,' ')} (MLD)</th>}
+                {showTotal && <th style={{ border:'1px solid #e2e8f0', padding:'8px 12px', textAlign:'right', fontWeight:800, color:'#0f172a', whiteSpace:'nowrap', background:'#eff6ff' }}>Total (MLD)</th>}
               </tr>
             </thead>
             <tbody>

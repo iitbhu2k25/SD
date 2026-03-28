@@ -375,74 +375,86 @@ export default function PopulationModule() {
           background:'#fff', border:'1px solid #e2e8f0', borderRadius:12,
           boxShadow:'0 1px 4px rgba(0,0,0,0.06)', overflow:'hidden',
         }}>
+          {/* compact header */}
           <div style={{
-            display:'flex', alignItems:'center', gap:10,
-            padding:'13px 18px',
+            display:'flex', alignItems:'center', gap:8,
+            padding:'10px 14px',
             background:'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
             borderBottom:'1px solid #e2e8f0',
           }}>
-            <div style={{ width:4, height:24, background:'#16a34a', borderRadius:2 }} />
-            <span style={{ fontSize:14, fontWeight:800, color:'#1e293b', letterSpacing:'0.02em', textTransform:'uppercase' }}>
-              Select Method for Water Demand
+            <div style={{ width:3, height:18, background:'#16a34a', borderRadius:2, flexShrink:0 }} />
+            <span style={{ fontSize:11, fontWeight:800, color:'#1e293b', letterSpacing:'0.04em', textTransform:'uppercase' }}>
+              Select Method
             </span>
-            <span style={{ fontSize:12, color:'#64748b', marginLeft:4 }}>
-              — choose which forecast series feeds the next module
-            </span>
+            <span style={{ fontSize:10, color:'#94a3b8' }}>for Water Demand</span>
           </div>
-          <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
 
+          <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+
+            {/* auto-select badge — compact single line */}
             {autoSelectedMethod && (
               <div style={{
-                display:'flex', alignItems:'center', gap:8,
+                display:'flex', alignItems:'center', gap:6,
                 background:'#f0fdf4', border:'1px solid #bbf7d0',
-                borderRadius:8, padding:'8px 14px', fontSize:12, color:'#15803d',
+                borderRadius:7, padding:'6px 10px', fontSize:11, color:'#15803d',
               }}>
-                <CheckCircle2 size={14} color="#16a34a"/>
-                <span>
-                  <strong>{autoSelectedMethod}</strong> auto-selected — minimum average growth rate
+                <CheckCircle2 size={12} color="#16a34a" style={{ flexShrink:0 }}/>
+                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  <strong>{autoSelectedMethod}</strong> auto-selected
                   {growthRates[autoSelectedMethod] != null && (
-                    <span style={{ marginLeft:4, fontWeight:700 }}>
-                      ({growthRates[autoSelectedMethod].toFixed(2)}%)
-                    </span>
+                    <> · <span style={{ fontWeight:700 }}>{growthRates[autoSelectedMethod].toFixed(2)}%</span> avg</>
                   )}
-                  . Click any method below to override.
+                  <span style={{ color:'#86efac', marginLeft:4 }}>· click to override</span>
                 </span>
               </div>
             )}
 
-            <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+            {/* single-row method pills */}
+            <div style={{ display:'flex', gap:6 }}>
               {Object.keys(combinedChartData).map((method) => {
                 const isSelected = selectedMethod === method;
-                const isAuto = method === autoSelectedMethod;
-                const rate = growthRates[method];
+                const isAuto     = method === autoSelectedMethod;
+                const rate       = growthRates[method];
                 return (
                   <button key={method} type="button"
                     onClick={() => { setUserPicked(true); setSelectedMethod(method); }}
                     style={{
-                      display:'flex', flexDirection:'column', alignItems:'flex-start', gap:2,
-                      padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:600,
-                      border: `2px solid ${isSelected ? '#16a34a' : '#e2e8f0'}`,
+                      flex:1, display:'flex', alignItems:'center', gap:5, minWidth:0,
+                      padding:'7px 8px', borderRadius:8,
+                      border: `1.5px solid ${isSelected ? '#16a34a' : '#e2e8f0'}`,
                       background: isSelected ? '#f0fdf4' : '#fafafa',
                       color: isSelected ? '#15803d' : '#64748b',
                       cursor:'pointer', transition:'all 0.15s',
-                      minWidth:120,
                     }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      {isSelected
-                        ? <CheckCircle2 size={14} color="#16a34a"/>
-                        : <div style={{ width:14, height:14, borderRadius:'50%', border:'2px solid #cbd5e1' }}/>}
-                      <span>{method}</span>
-                      {isAuto && !isSelected && (
-                        <span style={{ fontSize:10, background:'#dcfce7', color:'#16a34a', borderRadius:4, padding:'1px 5px', fontWeight:700 }}>
-                          AUTO
+                    {/* radio dot */}
+                    <div style={{
+                      width:13, height:13, borderRadius:'50%', flexShrink:0,
+                      border: `2px solid ${isSelected ? '#16a34a' : '#cbd5e1'}`,
+                      background: isSelected ? '#16a34a' : '#fff',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      transition:'all 0.15s',
+                    }}>
+                      {isSelected && <div style={{ width:5, height:5, borderRadius:'50%', background:'#fff' }} />}
+                    </div>
+
+                    {/* name + rate stacked, overflow safe */}
+                    <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:4, minWidth:0 }}>
+                        <span style={{ fontSize:11, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {method}
                         </span>
+                        {isAuto && (
+                          <span style={{ fontSize:9, background: isSelected ? '#bbf7d0' : '#dcfce7', color:'#16a34a', borderRadius:3, padding:'1px 4px', fontWeight:700, flexShrink:0 }}>
+                            AUTO
+                          </span>
+                        )}
+                      </div>
+                      {rate != null && (
+                        <div style={{ fontSize:10, color: isSelected ? '#16a34a' : '#94a3b8', marginTop:1 }}>
+                          {rate.toFixed(2)}% avg
+                        </div>
                       )}
                     </div>
-                    {rate != null && (
-                      <span style={{ fontSize:11, color: isSelected ? '#16a34a' : '#94a3b8', marginLeft:20 }}>
-                        avg {rate.toFixed(2)}%
-                      </span>
-                    )}
                   </button>
                 );
               })}

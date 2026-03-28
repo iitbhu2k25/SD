@@ -88,7 +88,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
     if (!isStatusMethod && !values.length) return;
 
     const breaks = getQuantileBreaks(values, 5);
-    const WD_WS_METHODS = new Set(['Domestic','Floating','Institutional','Firefighting','Total Water Demand','Water Supply','Water Demand','Water Gap','Status']);
+    const WD_WS_METHODS = new Set(['Domestic','Floating','Institutional','Firefighting','Total Water Demand','Water Supply','Water Demand','Water Gap','Status','Population Based','Water Based','Drain Based']);
     const isWDWS = WD_WS_METHODS.has(method);
 
     thematicLayerRef.current = L.geoJSON(thematicMapData, {
@@ -537,27 +537,32 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
 
         {/* ── Thematic map legend ── */}
         {thematicMapData && thematicMapData.features.length > 0 && (() => {
-          const POP_METHODS = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
+          const POP_METHODS    = ['Arithmetic', 'Geometric', 'Incremental', 'Exponential', 'Demographic', 'Cohort Total'];
           const WD_METHODS_LIST = ['Domestic', 'Floating', 'Institutional', 'Firefighting', 'Total Water Demand'];
           const WS_METHODS_LIST = ['Water Supply', 'Water Demand', 'Water Gap', 'Status'];
+          const SD_METHODS_LIST = ['Population Based', 'Water Based', 'Drain Based'];
 
           const firstProps = thematicMapData.features[0]?.properties ?? {};
           const activeMethod = thematicMapMethod ?? '';
           const isWSCtx = WS_METHODS_LIST.includes(activeMethod);
           const isWDCtx = WD_METHODS_LIST.includes(activeMethod);
+          const isSDCtx = SD_METHODS_LIST.includes(activeMethod);
 
           const loadedWD  = WD_METHODS_LIST.filter(m => firstProps[m] != null);
           const loadedWS  = WS_METHODS_LIST.filter(m => firstProps[m] != null);
+          const loadedSD  = SD_METHODS_LIST.filter(m => firstProps[m] != null);
           const loadedPop = POP_METHODS.filter(m => firstProps[m] != null);
 
           const availableMethods = isWSCtx
-            ? (loadedWS.length  > 0 ? loadedWS  : WS_METHODS_LIST)
+            ? (loadedWS.length > 0 ? loadedWS : WS_METHODS_LIST)
             : isWDCtx
-            ? (loadedWD.length  > 0 ? loadedWD  : WD_METHODS_LIST)
+            ? (loadedWD.length > 0 ? loadedWD : WD_METHODS_LIST)
+            : isSDCtx
+            ? (loadedSD.length > 0 ? loadedSD : SD_METHODS_LIST)
             : (loadedPop.length > 0 ? loadedPop : POP_METHODS);
 
           const isStatus = activeMethod === 'Status';
-          const isWDWS = isWDCtx || isWSCtx;
+          const isWDWS = isWDCtx || isWSCtx || isSDCtx;
           const method = availableMethods.includes(activeMethod) ? activeMethod : (availableMethods[0] ?? 'Arithmetic');
           const activeYear = thematicMapYear
             ?? thematicMapData.available_years?.[thematicMapData.available_years.length - 1];

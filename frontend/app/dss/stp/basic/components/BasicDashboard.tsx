@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useBasicStore, type ActiveModule } from '../shared/store/basic.store';
 import LocationSelector from '../shared/components/LocationSelector';
 import DrainLocationSelector from '../shared/components/DrainLocationSelector';
@@ -28,7 +28,7 @@ const EASE    = '0.3s cubic-bezier(0.4,0,0.2,1)';
 const MODES: { key: LocationMode; label: string; icon: React.ReactNode }[] = [
   { key: 'admin',           label: 'Admin\nMode',  icon: <Layers    size={18} /> },
   { key: 'drain',           label: 'Drain',        icon: <GitBranch size={18} /> },
-  { key: 'india_catchment', label: 'India\nCatch', icon: <Globe     size={18} /> },
+  // { key: 'india_catchment', label: 'India\nCatch', icon: <Globe     size={18} /> },
 ];
 
 const MODULE_TABS: { key: ActiveModule; label: string; icon: React.ReactNode }[] = [
@@ -63,6 +63,11 @@ export default function BasicDashboard() {
 
   const isConfirmed = !!confirmedLocation;
   const [leftOpen,  setLeftOpen]  = useState(true);
+
+  // Auto-hide left panel when location is confirmed
+  useEffect(() => {
+    if (isConfirmed) setLeftOpen(false);
+  }, [isConfirmed]);
   const [rightOpen, setRightOpen] = useState(true);
   const [rightWidth, setRightWidth] = useState(RIGHT_W);
   const [isDragging, setIsDragging] = useState(false);
@@ -377,24 +382,32 @@ export default function BasicDashboard() {
                 </div>
 
                 {/* module tabs */}
-                <div style={{ display:'flex', flexShrink:0, borderBottom:'2px solid #f1f5f9', background:'#fff' }}>
-                  {MODULE_TABS.map(tab => (
-                    <button key={tab.key} type="button" className="mod-tab"
-                      onClick={() => handleTabClick(tab.key)}
-                      style={{
-                        flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3,
-                        padding:'9px 2px 8px', border:'none',
-                        borderBottom: activeModule === tab.key ? '2px solid #2563eb' : '2px solid transparent',
-                        background: activeModule === tab.key ? '#eff6ff' : 'transparent',
-                        color: activeModule === tab.key ? '#2563eb' : '#64748b',
-                        cursor:'pointer', fontSize:9.5, fontWeight:700,
-                        textTransform:'uppercase', letterSpacing:'0.04em',
-                        transition:'all 0.15s', whiteSpace:'nowrap', marginBottom:'-2px',
-                      }}>
-                      {tab.icon}{tab.label}
-                    </button>
-                  ))}
-                </div>
+                {(() => {
+                  const isNarrow = rightWidth < 420;
+                  return (
+                    <div style={{ display:'flex', flexShrink:0, borderBottom:'2px solid #f1f5f9', background:'#fff' }}>
+                      {MODULE_TABS.map(tab => (
+                        <button key={tab.key} type="button" className="mod-tab"
+                          onClick={() => handleTabClick(tab.key)}
+                          title={isNarrow ? tab.label : undefined}
+                          style={{
+                            flex:1, display:'flex', flexDirection:'column', alignItems:'center',
+                            gap: isNarrow ? 0 : 3,
+                            padding: isNarrow ? '10px 4px' : '9px 2px 8px', border:'none',
+                            borderBottom: activeModule === tab.key ? '2px solid #2563eb' : '2px solid transparent',
+                            background: activeModule === tab.key ? '#eff6ff' : 'transparent',
+                            color: activeModule === tab.key ? '#2563eb' : '#64748b',
+                            cursor:'pointer', fontSize:9.5, fontWeight:700,
+                            textTransform:'uppercase', letterSpacing:'0.04em',
+                            transition:'all 0.15s', whiteSpace:'nowrap', marginBottom:'-2px',
+                          }}>
+                          {tab.icon}
+                          {!isNarrow && tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* module content */}
                 <div style={{ flex:1, overflowY:'auto', position:'relative' }}>

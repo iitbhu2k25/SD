@@ -6,21 +6,21 @@ import { GitBranch, ChevronDown, ChevronUp, Check, Users, Layers } from 'lucide-
 
 // ── Tiny shared styles ────────────────────────────────────────────────────────
 const sel: React.CSSProperties = {
-  width: '100%', padding: '9px 12px', borderRadius: 8,
-  border: '1px solid #e2e8f0', fontSize: 13, background: '#fff',
+  width: '100%', padding: '7px 10px', borderRadius: 7,
+  border: '1px solid #e2e8f0', fontSize: 12, background: '#fff',
   color: '#1e293b', outline: 'none', cursor: 'pointer',
 };
 const label: React.CSSProperties = {
-  fontSize: 11, fontWeight: 700, color: '#64748b',
-  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block',
+  fontSize: 10, fontWeight: 700, color: '#64748b',
+  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'block',
 };
 const errBox: React.CSSProperties = {
   fontSize: 11, color: '#dc2626', background: '#fef2f2',
-  border: '1px solid #fecaca', borderRadius: 6, padding: '5px 10px', marginTop: 4,
+  border: '1px solid #fecaca', borderRadius: 6, padding: '4px 8px', marginTop: 4,
 };
 const card: React.CSSProperties = {
   background: '#fff', border: '1px solid #e2e8f0',
-  borderRadius: 12, padding: '14px 16px',
+  borderRadius: 10, padding: '11px 13px',
   boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
 };
 
@@ -111,19 +111,19 @@ function VillageToggleList({
     <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px', background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
+        padding: '8px 12px', background: 'linear-gradient(135deg,#eff6ff,#dbeafe)',
         borderBottom: open ? '1px solid #bfdbfe' : 'none', cursor: 'pointer' }}
         onClick={() => setOpen(o => !o)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Users size={14} color="#2563eb" />
-          <span style={{ fontSize: 12, fontWeight: 800, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Users size={13} color="#2563eb" />
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Catchment Villages
           </span>
-          <span style={{ fontSize: 11, background: '#2563eb', color: '#fff', borderRadius: 20, padding: '1px 8px' }}>
+          <span style={{ fontSize: 10, background: '#2563eb', color: '#fff', borderRadius: 20, padding: '1px 7px' }}>
             {selectedIds.length}/{villages.length}
           </span>
         </div>
-        {open ? <ChevronUp size={14} color="#64748b" /> : <ChevronDown size={14} color="#64748b" />}
+        {open ? <ChevronUp size={13} color="#64748b" /> : <ChevronDown size={13} color="#64748b" />}
       </div>
 
       {open && (
@@ -133,31 +133,31 @@ function VillageToggleList({
           ) : (
             <>
               {/* Stats row */}
-              <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 80, background: '#f0fdf4', borderRadius: 8, padding: '6px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, textTransform: 'uppercase' }}>Selected</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#15803d' }}>{selectedIds.length}</div>
+              <div style={{ display: 'flex', gap: 6, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 72, background: '#f0fdf4', borderRadius: 7, padding: '5px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, color: '#16a34a', fontWeight: 700, textTransform: 'uppercase' }}>Selected</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#15803d' }}>{selectedIds.length}</div>
                 </div>
-                <div style={{ flex: 1, minWidth: 80, background: '#eff6ff', borderRadius: 8, padding: '6px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#2563eb', fontWeight: 700, textTransform: 'uppercase' }}>Population</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8' }}>{totalPop.toLocaleString()}</div>
+                <div style={{ flex: 1, minWidth: 72, background: '#eff6ff', borderRadius: 7, padding: '5px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, color: '#2563eb', fontWeight: 700, textTransform: 'uppercase' }}>Population</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1d4ed8' }}>{totalPop.toLocaleString()}</div>
                 </div>
               </div>
 
               {/* Controls */}
-              <div style={{ display: 'flex', gap: 6, padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: 5, padding: '7px 10px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
                 <button type="button" onClick={onSelectAll}
-                  style={{ fontSize: 11, fontWeight: 600, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
-                  Select All
+                  style={{ fontSize: 10, fontWeight: 600, color: '#16a34a', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                  All
                 </button>
                 <button type="button" onClick={onDeselectAll}
-                  style={{ fontSize: 11, fontWeight: 600, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
-                  Deselect All
+                  style={{ fontSize: 10, fontWeight: 600, color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 5, padding: '3px 8px', cursor: 'pointer' }}>
+                  None
                 </button>
                 <input
                   type="text" placeholder="Search villages…" value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ flex: 1, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e2e8f0', outline: 'none' }}
+                  style={{ flex: 1, minWidth: 80, fontSize: 11, padding: '3px 8px', borderRadius: 5, border: '1px solid #e2e8f0', outline: 'none' }}
                 />
               </div>
 
@@ -177,14 +177,14 @@ function VillageToggleList({
                         {checked && <Check size={10} color="#fff" />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.shapeName}
                         </div>
                         {v.population !== undefined && v.population > 0 && (
-                          <div style={{ fontSize: 11, color: '#94a3b8' }}>Pop: {v.population.toLocaleString()}</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>Pop: {v.population.toLocaleString()}</div>
                         )}
                       </div>
-                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', borderRadius: 4, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 9, color: '#94a3b8', background: '#f1f5f9', borderRadius: 4, padding: '2px 5px', whiteSpace: 'nowrap' }}>
                         D-{v.shapeID}
                       </span>
                     </div>
@@ -218,25 +218,25 @@ export default function DrainLocationSelector() {
   const [stretchOpen, setStretchOpen] = useState(false);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '2px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '2px 0' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <GitBranch size={16} color="#fff" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <GitBranch size={14} color="#fff" />
         </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Drain Location Selector</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>Select river → stretch → drains → villages</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Drain Location Selector</div>
+          <div style={{ fontSize: 10, color: '#94a3b8' }}>River → Stretch → Drains → Villages</div>
         </div>
       </div>
 
       {/* ── Step 1: River ── */}
       <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>1</div>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>Select River</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>1</div>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Select River</span>
         </div>
         <span style={label}>River</span>
         <div style={{ position: 'relative' }}>
@@ -258,9 +258,9 @@ export default function DrainLocationSelector() {
       {/* ── Step 2: Stretch ── */}
       {river && (
         <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>2</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>Select Stretch</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>2</div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Select Stretch</span>
           </div>
           <span style={label}>Stretch ID</span>
           {/* Searchable stretch dropdown */}
@@ -285,7 +285,7 @@ export default function DrainLocationSelector() {
                   {stretches.map(s => (
                     <div key={s.id}
                       onClick={() => { selectStretch(s.id); setStretchOpen(false); setStretchSearch(''); }}
-                      style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer',
+                      style={{ padding: '7px 12px', fontSize: 12, cursor: 'pointer',
                         background: stretch?.id === s.id ? '#eff6ff' : '#fff',
                         color: stretch?.id === s.id ? '#1d4ed8' : '#1e293b',
                         fontWeight: stretch?.id === s.id ? 600 : 400,
@@ -309,10 +309,10 @@ export default function DrainLocationSelector() {
       {/* ── Step 3: Drains ── */}
       {stretch && (
         <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>3</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>Select Drains</span>
-            <span style={{ fontSize: 11, color: '#94a3b8' }}>({drainList.length} available)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>3</div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Select Drains</span>
+            <span style={{ fontSize: 10, color: '#94a3b8' }}>({drainList.length} available)</span>
           </div>
           <DrainMultiSelect
             items={drainList}
@@ -328,9 +328,9 @@ export default function DrainLocationSelector() {
       {/* ── Step 4: Villages ── */}
       {drains.length > 0 && (
         <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff' }}>4</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>Review Villages</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>4</div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Review Villages</span>
           </div>
           <VillageToggleList
             villages={villages}
@@ -345,25 +345,25 @@ export default function DrainLocationSelector() {
       )}
 
       {/* ── Actions ── */}
-      <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
+      <div style={{ display: 'flex', gap: 8, paddingTop: 2 }}>
         <button type="button"
           disabled={!canConfirm}
           onClick={confirmLocation}
           style={{
-            flex: 1, padding: '12px 20px', borderRadius: 10, border: 'none',
-            fontSize: 13, fontWeight: 700, cursor: canConfirm ? 'pointer' : 'not-allowed',
+            flex: 1, padding: '9px 12px', borderRadius: 8, border: 'none',
+            fontSize: 12, fontWeight: 700, cursor: canConfirm ? 'pointer' : 'not-allowed',
             background: canConfirm
               ? 'linear-gradient(135deg,#2563eb,#1d4ed8)'
               : '#e2e8f0',
             color: canConfirm ? '#fff' : '#94a3b8',
             boxShadow: canConfirm ? '0 4px 12px rgba(37,99,235,0.3)' : 'none',
-            transition: 'all 0.15s',
+            transition: 'all 0.15s', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-          {loadingVillages ? 'Loading…' : `Confirm Location (${selectedVillageIds.length} villages)`}
+          {loadingVillages ? 'Loading…' : `Confirm (${selectedVillageIds.length} villages)`}
         </button>
         <button type="button" onClick={resetDrainSelection}
-          style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0',
-            background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          style={{ padding: '9px 12px', borderRadius: 8, border: '1px solid #e2e8f0',
+            background: '#fff', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
           Reset
         </button>
       </div>

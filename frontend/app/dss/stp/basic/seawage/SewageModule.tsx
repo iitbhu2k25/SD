@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useBasicStore } from '../shared/store/basic.store';
 import { API_BASE_URL } from '../shared/utils/constants';
 import { fetchSewageThematic } from '../shared/services/population.service';
 import ModuleNav from '../shared/components/ModuleNav';
 import {
   Droplets, AlertCircle, CheckCircle2,
-  ChevronDown, ChevronUp, RefreshCw, Construction, Waves,
-  Gauge, CloudRain,
+  ChevronDown, ChevronUp, RefreshCw, Waves,
+  Gauge, CloudRain, Info,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -24,14 +25,44 @@ function Spinner() {
   );
 }
 
+// ── Portal Tooltip ──────────────────────────────────────────────────────────
+function Tip({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  return (
+    <span ref={ref}
+      onMouseEnter={() => ref.current && setRect(ref.current.getBoundingClientRect())}
+      onMouseLeave={() => setRect(null)}
+      style={{ display:'inline-flex', flexShrink:0, alignItems:'center', cursor:'help' }}
+    >
+      <Info size={11} color="#94a3b8" />
+      {rect && createPortal(
+        <div style={{
+          position:'fixed', zIndex:99999, pointerEvents:'none',
+          left: rect.left + rect.width / 2, top: rect.top - 8,
+          transform:'translate(-50%,-100%)',
+          background:'#1e293b', color:'#f1f5f9',
+          borderRadius:8, padding:'8px 12px',
+          fontSize:11, lineHeight:1.55, width:220, whiteSpace:'normal',
+          boxShadow:'0 6px 20px rgba(0,0,0,0.3)', textAlign:'left',
+        }}>
+          {text}
+          <div style={{ position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)', borderWidth:'5px 5px 0', borderStyle:'solid', borderColor:'#1e293b transparent transparent' }}/>
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+}
+
 const card: React.CSSProperties = {
   background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12,
   boxShadow: '0 1px 4px rgba(0,0,0,0.06)', overflow: 'hidden',
 };
 
 const inp: React.CSSProperties = {
-  border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px',
-  fontSize: 13, outline: 'none', background: '#fff', boxSizing: 'border-box',
+  border: '1px solid #e2e8f0', borderRadius: 7, padding: '5px 9px',
+  fontSize: 12, outline: 'none', background: '#fff', boxSizing: 'border-box',
 };
 
 function ErrorBox({ msg }: { msg: string }) {
@@ -273,8 +304,20 @@ export default function SewageModule() {
     setSewageReportData,
     setThematicMapData,
     setThematicMapYear,
+    setThematicMapMethod,
   } = useBasicStore();
   const reportHashRef = useRef('');
+
+  /* ── ResizeObserver ── */
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(600);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(e => setCw(e[0].contentRect.width));
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, []);
+  const compact = cw < 420;
 
   // ── Section 1: Water Supply ───────────────────────────────────────────────
   const [wsInput,   setWsInput]   = useState('');
@@ -404,8 +447,32 @@ export default function SewageModule() {
   // CALCULATE: Floating Seasonal
   // ─────────────────────────────────────────────────────────────────────────
   const handleFloatCalc = () => {
+    // Build population source: prefer modeled forecast, fall back to sewage demand
+    // result rows, then fall back to manually-entered population rows.
+    let years: string[];
+    let popByYear: Record<string, number>;
+
     const fc = forecastStrKeys();
-    const years = sortedForecastYears();
+    const forecastYears = sortedForecastYears();
+
+    if (forecastYears.length > 0) {
+      years = forecastYears;
+      popByYear = fc;
+    } else if (sdResult && sdResult.length > 0) {
+      years = sdResult.map(r => r.year);
+      popByYear = {};
+      for (const r of sdResult) popByYear[r.year] = r.population;
+    } else {
+      years = [];
+      popByYear = {};
+      for (const row of sdPopRows) {
+        const yr = row.year.trim();
+        const pv = parseFloat(row.population);
+        if (yr && !isNaN(pv) && pv > 0) { years.push(yr); popByYear[yr] = pv; }
+      }
+      years.sort((a, b) => Number(a) - Number(b));
+    }
+
     if (years.length === 0) return;
 
     const pct  = parseFloat(floatPct) || 0;
@@ -413,7 +480,7 @@ export default function SewageModule() {
 
     const base: Record<string, number> = {};
     for (const yr of years) {
-      const pop = fc[yr] ?? 0;
+      const pop = popByYear[yr] ?? 0;
       base[yr] = (pop * pct / 100) * (lpcd / 1_000_000) * 0.84;
     }
     setFloatSeasonal(makeSeasonal(base, FLT_MULT));
@@ -537,8 +604,14 @@ export default function SewageModule() {
   // CALCULATE: Storm Water — Step 1: Initialize (fetch shape data)
   // ─────────────────────────────────────────────────────────────────────────
   const handleStormInit = async () => {
-    const villages = confirmedLocation?.admin?.villages ?? [];
-    const codes = villages.map((v: any) => v.village_code ?? v.id).filter(Boolean);
+    let codes: string[] = [];
+    if (confirmedLocation?.mode === 'admin') {
+      codes = (confirmedLocation.admin?.villages ?? []).map((v: any) => v.village_code ?? v.id).filter(Boolean);
+    } else if (confirmedLocation?.mode === 'drain') {
+      codes = (confirmedLocation.drain?.villages ?? []).map((v: any) => v.shapeID).filter(Boolean);
+    } else if (confirmedLocation?.mode === 'india_catchment') {
+      codes = (confirmedLocation.indiaCatchment?.villages ?? []).map((v: any) => v.vlcode).filter(Boolean);
+    }
     if (codes.length === 0) { setStormErr('No village codes available. Confirm location first.'); return; }
 
     setStormLoading(true); setStormErr(null); setStormData(null);
@@ -592,6 +665,13 @@ export default function SewageModule() {
     try {
       const ws = waterSupplyTotal ?? 0;
 
+      // Derive a population_2025 fallback from the confirmed location's totalPopulation
+      // so India Catchment and Drain modes work even without running Population module first.
+      const totalPopFallback =
+        confirmedLocation?.mode === 'india_catchment' ? (confirmedLocation.indiaCatchment?.totalPopulation ?? 0) :
+        confirmedLocation?.mode === 'drain' ? (confirmedLocation.drain?.totalPopulation ?? 0) : 0;
+      const pop2025 = population2025 ?? totalPopFallback;
+
       const drainsParsed = sdDrains
         .filter(d => d.drain_no || d.drain_id || d.drain_recharge)
         .map(d => ({
@@ -611,8 +691,8 @@ export default function SewageModule() {
           popData[yr] = pv;
         }
         if (Object.keys(popData).length === 0) throw new Error('Add at least one population year entry.');
-        // derive pop_2025 reference: from store, or from the 2025 row if provided, else first entry
-        const pop2025Ref = population2025 ?? popData['2025'] ?? Object.values(popData)[0];
+        // derive pop_2025 reference: use pop2025 (store + location fallback), then 2025 row, then first entry
+        const pop2025Ref = pop2025 || popData['2025'] || Object.values(popData)[0];
         payload = {
           load_method: 'manual',
           population_data: popData,
@@ -629,7 +709,7 @@ export default function SewageModule() {
           computed_population: fp,
           water_supply: ws,
           drains: drainsParsed,
-          population_2025: population2025 ?? 0,
+          population_2025: pop2025,
           unmetered_supply: parseFloat(ufw) || 15,
         };
       }
@@ -661,26 +741,21 @@ export default function SewageModule() {
           .filter(d => d.drain_no || d.drain_id || d.drain_recharge)
           .reduce((s, d) => s + (parseFloat(d.drain_recharge) || 0), 0);
 
-        fetchSewageThematic(
-          confirmedLocation,
-          {},  // year range not needed — population_data drives the years
-          {
-            water_supply: waterSupplyTotal ?? 0,
-            drain_recharge_sum: drainSum,
-            population_2025: population2025 ?? 0,
-            unmetered_supply: parseFloat(ufw) || 15,
-            population_data: populationData,
-            load_method: sdMode,  // manual=0.84 coeff, modeled=0.80 coeff
-          },
-        ).then((villageData: Record<string, any>) => {
-          if (!villageData || !Object.keys(villageData).length) return;
+        const sewageYears = rows.map(r => Number(r.year)).sort((a, b) => a - b);
+
+        const applySewageThematic = (villageData: Record<string, any>) => {
           const tmd = useBasicStore.getState().thematicMapData;
-          if (!tmd?.features?.length) return;
 
-          const sewageYears = rows.map(r => Number(r.year)).sort((a, b) => a - b);
+          if (!tmd?.features?.length) {
+            // No existing thematic features (drain mode — population module may not have run).
+            // At minimum switch the legend context so it shows sewage methods.
+            setThematicMapMethod('Population Based');
+            return;
+          }
 
-          // Deep-merge: merge year values within each sewage method key instead of
-          // replacing the entire method object.
+          // Merge village-level sewage data into existing features.
+          // If villageData is empty the merge is a no-op but we still call
+          // setThematicMapData so the method + years update and the legend switches.
           const mergedFeatures = tmd.features.map((f: any) => {
             const code = String(f.properties?.village_code ?? '');
             const sd = villageData[code] ?? {};
@@ -691,11 +766,29 @@ export default function SewageModule() {
             return { ...f, properties: props };
           });
 
-          // Use ONLY the current calculation years in available_years so the legend
-          // year dropdown shows exactly what the user entered (manual or modeled).
           setThematicMapData({ ...tmd, features: mergedFeatures, available_years: sewageYears }, 'Population Based');
           setThematicMapYear(sewageYears[sewageYears.length - 1]);
-        }).catch(() => {});
+        };
+
+        fetchSewageThematic(
+          confirmedLocation,
+          {},  // year range not needed — population_data drives the years
+          {
+            water_supply: waterSupplyTotal ?? 0,
+            drain_recharge_sum: drainSum,
+            population_2025: pop2025,
+            unmetered_supply: parseFloat(ufw) || 15,
+            population_data: populationData,
+            load_method: sdMode,
+          },
+        ).then((villageData: Record<string, any>) => {
+          applySewageThematic(villageData ?? {});
+        }).catch((e) => {
+          console.warn('[SewageModule] Sewage thematic API failed — switching map context without per-village data:', e);
+          // Even if the per-village API call fails, switch the map to sewage context
+          // so the legend shows sewage methods instead of staying on population.
+          applySewageThematic({});
+        });
       }
     } catch (e: any) { setSdErr(e.message); setSdDomSeasonal(null); setSdDomYears([]); }
     finally { setSdLoad(false); }
@@ -771,25 +864,26 @@ export default function SewageModule() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, overflowY: 'auto', maxHeight: '100%', boxSizing: 'border-box' }}>
+    <div ref={containerRef} style={{ padding: compact ? '10px 10px' : '14px 12px', display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0, overflowY: 'auto', maxHeight: '100%', boxSizing: 'border-box' }}>
 
       {/* ══════════════════════════════════════════════════════════════════
           SECTION 1 — WATER SUPPLY BASED SEWAGE
       ══════════════════════════════════════════════════════════════════ */}
       <div style={card}>
-        <div style={{ padding: '13px 18px', background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', borderBottom: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 4, height: 24, background: '#0369a1', borderRadius: 2 }} />
-          <Droplets size={15} color="#0369a1" />
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#0c4a6e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <div style={{ padding: '11px 16px', background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', borderBottom: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 4, height: 20, background: '#0369a1', borderRadius: 2 }} />
+          <Droplets size={14} color="#0369a1" />
+          <span style={{ fontSize: 12, fontWeight: 800, color: '#0c4a6e', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Water Supply Based Sewage
           </span>
+          <Tip text="Estimates sewage generation as 84% of the total daily water supply. A standard factor used when direct sewage metering is unavailable." />
         </div>
-        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>
-                Total Water Supply (MLD)
-                <span style={{ fontWeight: 400, color: '#cbd5e1', marginLeft: 6, textTransform: 'none', letterSpacing: 0 }}>Sewage = Supply × 0.84</span>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, display:'flex', alignItems:'center', gap:4 }}>
+                <span>Total Water Supply (MLD)</span>
+                <Tip text="Total daily water supply for the project area in Million Litres per Day. Sewage generation is calculated as Supply × 0.84 (80–85% rule per CPHEEO guidelines)." />
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
@@ -805,14 +899,34 @@ export default function SewageModule() {
             <CalcButton onClick={handleWsCalc} loading={wsLoad} label="Calculate" />
           </div>
           {wsErr && <ErrorBox msg={wsErr} />}
+          {!wsResult && !wsLoad && (
+            <div style={{ border:'1px dashed #bae6fd', borderRadius:9, padding:'14px 14px', background:'#f0f9ff', display:'flex', flexDirection:'column', gap:6, alignItems:'center', textAlign:'center' }}>
+              <Droplets size={24} color="#bae6fd" />
+              <div style={{ fontSize:12, fontWeight:700, color:'#94a3b8' }}>Sewage Demand Result</div>
+              <div style={{ fontSize:11, color:'#94a3b8', maxWidth:300, lineHeight:1.6 }}>
+                Enter the total water supply and click <strong>Calculate</strong>. The result shows estimated daily sewage generation (MLD) based on the 0.84 factor.
+              </div>
+            </div>
+          )}
           {wsResult !== null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', border: '1px solid #86efac', borderRadius: 10 }}>
-              <CheckCircle2 size={20} color="#16a34a" />
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Sewage Demand</div>
-                <div style={{ fontSize: 32, fontWeight: 900, color: '#15803d', lineHeight: 1.1 }}>
-                  {wsResult.toFixed(3)} <span style={{ fontSize: 14, fontWeight: 400, color: '#64748b' }}>MLD</span>
-                </div>
+            <div style={{ background:'linear-gradient(135deg,#f0fdf4,#dcfce7)', border:'1px solid #86efac', borderRadius:10, padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <CheckCircle2 size={15} color="#16a34a" />
+                <span style={{ fontSize:10, fontWeight:800, color:'#15803d', textTransform:'uppercase', letterSpacing:'0.06em' }}>Sewage Demand Result</span>
+              </div>
+              <div style={{ fontSize:10, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.08em' }}>Estimated Daily Sewage Generation</div>
+              <div style={{ fontSize:compact?28:36, fontWeight:900, color:'#15803d', lineHeight:1 }}>
+                {wsResult.toFixed(3)} <span style={{ fontSize:13, fontWeight:400, color:'#64748b' }}>MLD</span>
+              </div>
+              <div style={{ background:'#fff', border:'1px solid #bbf7d0', borderRadius:8, padding:'10px 12px', fontSize:11, color:'#166534', lineHeight:1.75 }}>
+                <div style={{ fontSize:10, fontWeight:800, color:'#15803d', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Conclusion</div>
+                Based on a total water supply of{' '}
+                <span style={{ fontSize:14, fontWeight:900, color:'#0369a1' }}>{parseFloat(wsInput).toFixed(2)} MLD</span>,
+                the estimated sewage generation is{' '}
+                <span style={{ fontSize:14, fontWeight:900, color:'#15803d' }}>{wsResult.toFixed(3)} MLD</span>{' '}
+                per day (using the standard CPHEEO factor of{' '}
+                <span style={{ fontWeight:700 }}>0.84</span>).
+                This accounts for approximately <span style={{ fontWeight:700 }}>84%</span> of the supplied water returning as sewage through the drainage system.
               </div>
             </div>
           )}
@@ -823,12 +937,13 @@ export default function SewageModule() {
           SECTION 0 — COMBINED SEWAGE DEMAND (Population / Water / Drain)
       ══════════════════════════════════════════════════════════════════ */}
       <div style={card}>
-        <div style={{ padding: '13px 18px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 4, height: 24, background: '#16a34a', borderRadius: 2 }} />
-          <Droplets size={15} color="#16a34a" />
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Sewage Demand — Combined (Population / Water / Drain Based)
+        <div style={{ padding: '11px 14px', background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 4, height: 20, background: '#16a34a', borderRadius: 2 }} />
+          <Droplets size={14} color="#16a34a" />
+          <span style={{ fontSize: compact?11:12, fontWeight: 800, color: '#14532d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Sewage Demand — Combined
           </span>
+          <Tip text="Calculates sewage demand using three parallel methods — Population Based (per-capita rate × population), Water Based (water supply × 0.84), and Drain Based (drain recharge scaled by population ratio). All three appear in the result table for comparison." />
         </div>
 
         <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -850,7 +965,9 @@ export default function SewageModule() {
 
             {/* UFW inline */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>UFW</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', display:'flex', alignItems:'center', gap:4 }}>
+                UFW <Tip text="Unaccounted For Water — percentage of water supply lost to leakages, illegal connections, or metering errors. Default is 15%. Used to adjust the water-based sewage demand calculation." />
+              </span>
               <input style={{ ...inp, width: 64 }} type="number" min="0" max="100" step="0.1" placeholder="15"
                 value={ufw} onChange={e => { setUfw(e.target.value); setSdResult(null); }} />
               <span style={{ fontSize: 11, color: '#94a3b8' }}>%</span>
@@ -1010,9 +1127,10 @@ export default function SewageModule() {
         <div onClick={() => setOpenFloat(o => !o)}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', borderBottom: openFloat ? '1px solid #fed7aa' : 'none', cursor: 'pointer', userSelect: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 4, height: 22, background: '#ea580c', borderRadius: 2 }} />
-            <Waves size={15} color="#ea580c" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#7c2d12', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Floating Seasonal Sewage Generation</span>
+            <div style={{ width: 4, height: 20, background: '#ea580c', borderRadius: 2 }} />
+            <Waves size={14} color="#ea580c" />
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#7c2d12', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Floating Seasonal Sewage</span>
+            <span onClick={e => e.stopPropagation()}><Tip text="Estimates sewage from floating (tourist/visitor) population — a percentage of the total population that varies by season. Each season applies a multiplier: Summer ×1.15, Monsoon ×1.25, Post-Monsoon ×1.10, Winter ×0.85." /></span>
           </div>
           <span style={{ color: '#94a3b8' }}>{openFloat ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
         </div>
@@ -1021,12 +1139,16 @@ export default function SewageModule() {
           <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div style={{ width: 110 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Floating Pop %</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, display:'flex', alignItems:'center', gap:3 }}>
+                  Floating Pop % <Tip text="Percentage of total population that is floating (visitors, tourists, pilgrims). Typically 10–20% for urban areas." />
+                </div>
                 <input style={{ ...inp, width: '100%' }} type="number" min="0" max="100" step="0.1" placeholder="15" value={floatPct}
                   onChange={e => { setFloatPct(e.target.value); setFloatSeasonal(null); }} />
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3 }}>Sanitation Facility</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, display:'flex', alignItems:'center', gap:3 }}>
+                  Sanitation Facility <Tip text="Type of sanitation provided to floating population. Provided = 45 LPCD, Not Provided = 25 LPCD, Only Public = 15 LPCD. Determines water consumption and sewage generation rate." />
+                </div>
                 <select value={facilityType} onChange={e => { setFacilityType(e.target.value); setFloatSeasonal(null); }}
                   style={{ ...inp, width: '100%' }}>
                   <option value="provided">Provided (45 LPCD)</option>
@@ -1035,10 +1157,14 @@ export default function SewageModule() {
                 </select>
               </div>
               <CalcButton onClick={handleFloatCalc} loading={false} label="Calculate Floating Seasonal"
-                disabled={sortedForecastYears().length === 0} />
+                disabled={
+                  sortedForecastYears().length === 0 &&
+                  !(sdResult && sdResult.length > 0) &&
+                  !sdPopRows.some(r => r.year.trim() && parseFloat(r.population) > 0)
+                } />
             </div>
-            {sortedForecastYears().length === 0 && (
-              <div style={{ fontSize: 12, color: '#ea580c' }}>⚠ Complete Population module first to get forecast data.</div>
+            {sortedForecastYears().length === 0 && !(sdResult && sdResult.length > 0) && !sdPopRows.some(r => r.year.trim() && parseFloat(r.population) > 0) && (
+              <div style={{ fontSize: 12, color: '#ea580c' }}>⚠ Enter population data (manual rows or run Population module) to enable this calculation.</div>
             )}
             {floatSeasonal && floatYears.length > 0 && (
               <SeasonalTable
@@ -1059,8 +1185,9 @@ export default function SewageModule() {
           <div onClick={() => setOpenPeak(o => !o)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'linear-gradient(135deg,#fdf4ff,#fae8ff)', borderBottom: openPeak ? '1px solid #e9d5ff' : 'none', cursor: 'pointer', userSelect: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 4, height: 22, background: '#9333ea', borderRadius: 2 }} />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Peak Sewage Flow</span>
+              <div style={{ width: 4, height: 20, background: '#9333ea', borderRadius: 2 }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Peak Sewage Flow</span>
+              <span onClick={e => e.stopPropagation()}><Tip text="Calculates the peak instantaneous sewage flow using empirical methods. CPHEEO: factor 2.0–3.0×. Harmon's: 1 + 14/(4+√P). Babbitt's: 5/P^0.2. P = population in thousands." /></span>
             </div>
             <span style={{ color: '#94a3b8' }}>{openPeak ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
           </div>
@@ -1149,9 +1276,10 @@ export default function SewageModule() {
           <div onClick={() => setOpenTreat(o => !o)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'linear-gradient(135deg,#f5f0ff,#ede9fe)', borderBottom: openTreat ? '1px solid #c4b5fd' : 'none', cursor: 'pointer', userSelect: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 4, height: 22, background: '#7c3aed', borderRadius: 2 }} />
-              <Gauge size={15} color="#7c3aed" />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sewage Treatment Capacity Analysis</span>
+              <div style={{ width: 4, height: 20, background: '#7c3aed', borderRadius: 2 }} />
+              <Gauge size={14} color="#7c3aed" />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Treatment Capacity Analysis</span>
+              <span onClick={e => e.stopPropagation()}><Tip text="Compares existing STP (sewage treatment plant) capacity against projected peak sewage generation for each year. A negative gap means the STP is undersized and needs upgrading." /></span>
             </div>
             <span style={{ color: '#94a3b8' }}>{openTreat ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
           </div>
@@ -1164,16 +1292,18 @@ export default function SewageModule() {
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display:'flex', alignItems:'center', gap:4 }}>
                     Treatment Capacity <span style={{ fontWeight: 400, color: '#cbd5e1', textTransform: 'none' }}>(MLD)</span>
+                    <Tip text="Design capacity of the existing Sewage Treatment Plant (STP) in Million Litres per Day. This is compared against peak sewage flow for each forecast year." />
                   </div>
                   <input style={{ ...inp, width: 160 }} type="number" min="0" step="0.01" placeholder="e.g. 15.0" value={treatCapacity}
                     onChange={e => { setTreatCapacity(e.target.value); setTreatRows(null); setTreatErr(null); }} />
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display:'flex', alignItems:'center', gap:4 }}>
                     Peak Flow Method
+                    <Tip text="Method used to compute peak sewage flow: CPHEEO multiplies average flow by 2–3×, Harmon's uses population-based formula, Babbitt's uses empirical factor. Choose based on available data and local standards." />
                   </div>
                   <select value={treatMethod} onChange={e => { setTreatMethod(e.target.value as any); setTreatRows(null); setTreatErr(null); }}
                     style={{ ...inp, width: 190 }}>
@@ -1243,9 +1373,10 @@ export default function SewageModule() {
         <div onClick={() => setOpenStorm(o => !o)}
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)', borderBottom: openStorm ? '1px solid #99f6e4' : 'none', cursor: 'pointer', userSelect: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 4, height: 22, background: '#0d9488', borderRadius: 2 }} />
-            <CloudRain size={15} color="#0d9488" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#134e4a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Storm Water Runoff Analysis</span>
+            <div style={{ width: 4, height: 20, background: '#0d9488', borderRadius: 2 }} />
+            <CloudRain size={14} color="#0d9488" />
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#134e4a', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Storm Water Runoff Analysis</span>
+            <span onClick={e => e.stopPropagation()}><Tip text="Estimates surface runoff volume using the Rational Method — Q = C × I × A, where C is the runoff coefficient (land use dependent), I is rainfall intensity (mm/hr), and A is the catchment area (ha). Initialize fetches shape and area data for the selected villages." /></span>
           </div>
           <span style={{ color: '#94a3b8' }}>{openStorm ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
         </div>
@@ -1316,20 +1447,24 @@ export default function SewageModule() {
                 {stormCalcErr && <ErrorBox msg={stormCalcErr} />}
 
                 {stormResult && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '18px 22px', background: 'linear-gradient(135deg,#f0fdfa,#ccfbf1)', border: '1px solid #99f6e4', borderRadius: 12 }}>
-                    <CheckCircle2 size={24} color="#0d9488" />
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Storm Water Runoff</div>
-                      <div style={{ fontSize: 36, fontWeight: 900, color: '#0d9488', lineHeight: 1.1 }}>
-                        {stormResult.storm_water_runoff ?? '—'}
-                        <span style={{ fontSize: 15, fontWeight: 400, color: '#64748b', marginLeft: 8 }}>{stormResult.unit ?? 'MLD'}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                        Shape: <strong>{stormData.overall_shape_type}</strong> ·
-                        Land use: <strong>{landUseType.replace(/^(rectangle_|sector_)/, '').replace(/_/g, ' ')}</strong> ·
-                        Duration: <strong>{duration} min</strong> ·
-                        Intensity: <strong>{rainfall} mm/hr</strong>
-                      </div>
+                  <div style={{ background:'linear-gradient(135deg,#f0fdfa,#ccfbf1)', border:'1px solid #99f6e4', borderRadius:10, padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <CheckCircle2 size={15} color="#0d9488" />
+                      <span style={{ fontSize:10, fontWeight:800, color:'#0d9488', textTransform:'uppercase', letterSpacing:'0.06em' }}>Storm Water Runoff Result</span>
+                    </div>
+                    <div style={{ fontSize:10, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.08em' }}>Estimated Runoff Volume</div>
+                    <div style={{ fontSize:compact?28:36, fontWeight:900, color:'#0d9488', lineHeight:1 }}>
+                      {stormResult.storm_water_runoff ?? '—'}
+                      <span style={{ fontSize:13, fontWeight:400, color:'#64748b', marginLeft:6 }}>{stormResult.unit ?? 'MLD'}</span>
+                    </div>
+                    <div style={{ background:'#fff', border:'1px solid #99f6e4', borderRadius:8, padding:'10px 12px', fontSize:11, color:'#134e4a', lineHeight:1.75 }}>
+                      <div style={{ fontSize:10, fontWeight:800, color:'#0d9488', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Conclusion</div>
+                      Based on a <span style={{ fontSize:13, fontWeight:900, color:'#0d9488' }}>{landUseType.replace(/^(rectangle_|sector_)/, '').replace(/_/g, ' ')}</span> land-use
+                      catchment of <span style={{ fontSize:13, fontWeight:900, color:'#0d9488' }}>{Number(stormData.total_area_hectares).toLocaleString()} ha</span> ({stormData.overall_shape_type} shape),
+                      with a rainfall intensity of <span style={{ fontSize:13, fontWeight:900, color:'#0d9488' }}>{rainfall} mm/hr</span> over <span style={{ fontSize:13, fontWeight:900, color:'#0d9488' }}>{duration} min</span>,
+                      the estimated storm water runoff is{' '}
+                      <span style={{ fontSize:14, fontWeight:900, color:'#0d9488' }}>{stormResult.storm_water_runoff} {stormResult.unit ?? 'MLD'}</span>.
+                      This volume should be accounted for in the storm drainage and combined sewer design to prevent flooding.
                     </div>
                   </div>
                 )}
@@ -1347,8 +1482,9 @@ export default function SewageModule() {
           <div onClick={() => setOpenRaw(o => !o)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', borderBottom: openRaw ? '1px solid #fed7aa' : 'none', cursor: 'pointer', userSelect: 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 4, height: 22, background: '#ea580c', borderRadius: 2 }} />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Raw Sewage Characteristics</span>
+              <div style={{ width: 4, height: 20, background: '#ea580c', borderRadius: 2 }} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Raw Sewage Characteristics</span>
+              <span onClick={e => e.stopPropagation()}><Tip text="Characterises the strength of raw sewage using 2011 census population. Shows per-capita load (g/person/day), raw sewage concentration (mg/L), and design value for each pollutant — used for STP sizing and effluent standards." /></span>
             </div>
             <span style={{ color: '#94a3b8' }}>{openRaw ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
           </div>
