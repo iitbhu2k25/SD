@@ -5,7 +5,6 @@
 // fullscreen, base map change, and selection.
 import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
-import { fromLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -39,10 +38,8 @@ import {
   createHoverSelectInteraction,
   toggleBrowserFullscreen,
 } from "@/components/map_core/interactions";
-import BaseMaps from "../../shared/ui/BaseMaps";
 import MapHeaderControls from "../../shared/ui/MapHeaderControls";
 import MapRasterSelector from "../../shared/ui/MapRasterSelector";
-import CloseIcon from "../../shared/ui/icons/CloseIcon";
 import { useAdminLocationStore } from "../stores/adminLocationStore";
 import { useAdminMapStore } from "../stores/adminMapStore";
 
@@ -394,20 +391,6 @@ export default function AdminOpenLayersMap() {
     setActivePanel(activePanel === panelName ? null : panelName);
   };
 
-  const goToHomeView = () => {
-    const map = mapInstanceRef.current;
-    if (!map) {
-      return;
-    }
-
-    const view = map.getView();
-    view.animate({
-      center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
-      zoom: INITIAL_ZOOM,
-      duration: 300,
-    });
-  };
-
   const changeBaseMap = (baseMapKey: string) => {
     if (!mapInstanceRef.current) {
       return;
@@ -424,220 +407,103 @@ export default function AdminOpenLayersMap() {
   };
 
   const renderLayerPanel = () => (
-    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
-      <div className="rounded-xl border border-white/50 bg-white/10 p-3 shadow-2xl backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">Map Layers</h3>
-          <button
-            onClick={() => setActivePanel(null)}
-            className="text-white bg-slate-300 hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200"
-          >
-            <CloseIcon className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="absolute right-4 top-20 z-30 w-72 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">Map Layers</h3>
+        <button onClick={() => setActivePanel(null)} className="text-slate-500 hover:text-slate-900">
+          x
+        </button>
+      </div>
 
-        <div className="space-y-2">
-          <div
-            className={`rounded-xl border p-3 ${
-              showPrimaryLayer
-                ? "border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100"
-                : "border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center">
-                <div
-                  className={`mr-3 h-3 w-3 rounded-full ${
-                    showPrimaryLayer ? "bg-blue-500" : "bg-gray-400"
-                  }`}
-                />
-                <div>
-                  <div
-                    className={`text-sm font-semibold ${
-                      showPrimaryLayer ? "text-blue-800" : "text-gray-600"
-                    }`}
-                  >
-                    India Layer
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {featureCounts.primary} features
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPrimaryLayer(!showPrimaryLayer)}
-                className={`relative h-5 w-10 rounded-full transition-all duration-300 ${
-                  showPrimaryLayer ? "bg-blue-500" : "bg-gray-300"
-                }`}
-                title={showPrimaryLayer ? "Hide India layer" : "Show India layer"}
-              >
-                <span
-                  className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-                    showPrimaryLayer ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div
-            className={`rounded-xl border p-3 ${
-              showSecondaryLayer
-                ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
-                : "border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center">
-                <div
-                  className={`mr-3 h-3 w-3 rounded-full ${
-                    showSecondaryLayer ? "bg-green-500" : "bg-gray-400"
-                  }`}
-                />
-                <div>
-                  <div
-                    className={`text-sm font-semibold ${
-                      showSecondaryLayer ? "text-green-800" : "text-gray-600"
-                    }`}
-                  >
-                    Selection Layer
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {featureCounts.secondary} features
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowSecondaryLayer(!showSecondaryLayer)}
-                className={`relative h-5 w-10 rounded-full transition-all duration-300 ${
-                  showSecondaryLayer ? "bg-green-500" : "bg-gray-300"
-                }`}
-                title={
-                  showSecondaryLayer
-                    ? "Hide selection layer"
-                    : "Show selection layer"
-                }
-              >
-                <span
-                  className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-                    showSecondaryLayer ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div
-            className={`rounded-xl border p-3 ${
-              showTitles
-                ? "border-purple-200 bg-gradient-to-r from-purple-50 to-fuchsia-50"
-                : "border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center">
-                <div
-                  className={`mr-3 h-3 w-3 rounded-full ${
-                    showTitles ? "bg-purple-500" : "bg-gray-400"
-                  }`}
-                />
-                <div>
-                  <div
-                    className={`text-sm font-semibold ${
-                      showTitles ? "text-purple-800" : "text-gray-600"
-                    }`}
-                  >
-                    Display Titles
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {showTitles ? "Labels enabled" : "Labels hidden"}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowTitles((prev) => !prev)}
-                className={`relative h-5 w-10 rounded-full transition-all duration-300 ${
-                  showTitles ? "bg-purple-500" : "bg-gray-300"
-                }`}
-                title={showTitles ? "Hide labels" : "Show labels"}
-              >
-                <span
-                  className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
-                    showTitles ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-white/50 bg-white/30 p-3 text-xs text-gray-700">
-            <div>Primary features: {featureCounts.primary}</div>
-            <div>Selection features: {featureCounts.secondary}</div>
-          </div>
+      <div className="space-y-3 text-sm text-slate-700">
+        <label className="flex items-center justify-between gap-3">
+          <span>India Layer</span>
+          <input
+            type="checkbox"
+            checked={showPrimaryLayer}
+            onChange={() => setShowPrimaryLayer(!showPrimaryLayer)}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>Selection Layer</span>
+          <input
+            type="checkbox"
+            checked={showSecondaryLayer}
+            onChange={() => setShowSecondaryLayer(!showSecondaryLayer)}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>Show Labels</span>
+          <input
+            type="checkbox"
+            checked={showTitles}
+            onChange={() => setShowTitles((prev) => !prev)}
+          />
+        </label>
+        <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+          <div>Primary features: {featureCounts.primary}</div>
+          <div>Selection features: {featureCounts.secondary}</div>
         </div>
       </div>
     </div>
   );
 
   const renderBaseMapPanel = () => (
-    <BaseMaps
-      baseMaps={baseMaps}
-      selectedBaseMap={selectedBaseMap}
-      onChangeBaseMap={changeBaseMap}
-      onClose={() => setActivePanel(null)}
-    />
+    <div className="absolute right-4 top-20 z-30 w-72 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">Base Maps</h3>
+        <button onClick={() => setActivePanel(null)} className="text-slate-500 hover:text-slate-900">
+          x
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {Object.entries(baseMaps).map(([key, baseMap]) => (
+          <button
+            key={key}
+            onClick={() => changeBaseMap(key)}
+            className={`rounded-lg border p-3 text-sm ${
+              selectedBaseMap === key
+                ? "border-blue-400 bg-blue-50 text-blue-700"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {baseMap.name}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 
   const renderToolsPanel = () => (
-    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
-      <div className="rounded-xl border border-white/50 bg-white/10 p-3 shadow-2xl backdrop-blur-md">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-800">Map Tools</h3>
-          <button
-            onClick={() => setActivePanel(null)}
-            className="text-white bg-slate-300 hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200"
-          >
-            <CloseIcon className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="absolute right-4 top-20 z-30 w-72 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-900">Map Tools</h3>
+        <button onClick={() => setActivePanel(null)} className="text-slate-500 hover:text-slate-900">
+          x
+        </button>
+      </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white/70 px-3 py-2.5 text-sm text-gray-700">
-            <div>
-              <div className="font-medium text-gray-800">Home View</div>
-              <div className="text-xs text-gray-500">Reset zoom and center</div>
-            </div>
-            <button
-              onClick={goToHomeView}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-100"
-            >
-              Reset
-            </button>
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white/70 px-3 py-3 text-sm text-gray-700">
-            <div className="mb-2 flex items-start justify-between gap-3">
-              <div>
-                <div className="font-medium text-gray-800">Raster Opacity</div>
-                <div className="text-xs text-gray-500">
-                  {selectedradioLayer ? selectedradioLayer : "Select a raster layer to adjust"}
-                </div>
-              </div>
-              <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-                {layerOpacity}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={layerOpacity}
-              onChange={(event) => setLayerOpacity(parseInt(event.target.value, 10))}
-              className="w-full"
-              aria-label="Adjust raster opacity"
-              disabled={!selectedradioLayer}
-            />
-          </div>
+      <div className="space-y-3 text-sm text-slate-700">
+        <label className="flex items-center justify-between gap-3">
+          <span>Show Labels</span>
+          <input
+            type="checkbox"
+            checked={showTitles}
+            onChange={() => setShowTitles((prev) => !prev)}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>Show Legend</span>
+          <input
+            type="checkbox"
+            checked={showLegend && !!legendUrl && !!rasterLayerInfo}
+            disabled={!legendUrl || !rasterLayerInfo}
+            onChange={() => setShowLegend(!showLegend)}
+          />
+        </label>
+        <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600">
+          <div>Primary features: {featureCounts.primary}</div>
+          <div>Selection features: {featureCounts.secondary}</div>
         </div>
       </div>
     </div>
@@ -660,8 +526,10 @@ export default function AdminOpenLayersMap() {
         isOpen={isLayerPanelOpen}
         layers={displayRaster}
         selectedLayer={selectedradioLayer}
+        layerOpacity={layerOpacity}
         onToggle={() => setIsLayerPanelOpen((prev) => !prev)}
         onSelectLayer={handleLayerSelection}
+        onOpacityChange={setLayerOpacity}
       />
 
       {activePanel === "layers" && renderLayerPanel()}
@@ -669,24 +537,24 @@ export default function AdminOpenLayersMap() {
       {activePanel === "tools" && renderToolsPanel()}
 
       {showLegend && legendUrl && rasterLayerInfo && (
-        <div className="absolute bottom-24 right-2 z-30 max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur sm:bottom-10 sm:p-3">
+        <div className="absolute bottom-4 left-4 z-30 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
           <div className="mb-2 flex items-center justify-between gap-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
               Legend
             </div>
             <button
               onClick={() => setShowLegend(false)}
-              className="text-white bg-slate-300  hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200"
+              className="text-xs font-medium text-slate-500 hover:text-slate-900"
               title="Close legend"
             >
-              <CloseIcon className="h-4 w-4" />
+              x
             </button>
           </div>
-          <img src={legendUrl} alt="Legend" className="max-h-[40vh] max-w-[180px] sm:max-w-[220px]" />
+          <img src={legendUrl} alt="Legend" className="max-w-[220px]" />
         </div>
       )}
 
-      <div className="absolute bottom-4 left-2 right-2 z-30 rounded-lg border border-slate-600 bg-slate-800/90 px-3 py-2 shadow-lg backdrop-blur-md sm:bottom-10 sm:right-auto sm:px-4">
+      <div className="absolute bottom-4 right-4 z-30 rounded-lg border border-slate-600 bg-slate-800/90 px-4 py-2 shadow-lg backdrop-blur-md">
         <div className="flex items-center gap-2">
           <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path

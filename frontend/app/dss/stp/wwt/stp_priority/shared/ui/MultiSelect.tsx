@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import CloseIcon from "./icons/CloseIcon";
 
 interface SelectableItem {
   id: number | string;
@@ -112,27 +111,25 @@ export function MultiSelect<T extends SelectableItem>({
 
   const dropdownClasses =
     dropdownPosition === "top"
-      ? "absolute bottom-full z-50 mb-1 w-full max-h-[60vh] overflow-y-auto rounded-xl border border-stone-200 bg-[#fdfcfa] shadow-xl sm:max-h-60"
-      : "absolute top-full z-50 mt-1 w-full max-h-[60vh] overflow-y-auto rounded-xl border border-stone-200 bg-[#fdfcfa] shadow-xl sm:max-h-60";
+      ? "absolute z-50 w-full bottom-full mb-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+      : "absolute z-50 w-full top-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="mb-1.5 block text-xs font-semibold text-gray-700 sm:mb-2 sm:text-sm">
+      <label className="block text-sm font-semibold text-gray-700 mb-2">
         {label}:
       </label>
       <div
         ref={triggerRef}
-        className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-xs transition duration-200 sm:px-3 sm:py-2.5 sm:text-sm ${disabled ? "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400" : isOpen ? "border-blue-500 bg-white/90 ring-2 ring-blue-500/20 shadow-sm" : "border-stone-300 bg-[#fdfcfa] hover:border-stone-400"
-          }`}
+        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
+          disabled ? "bg-gray-100 cursor-not-allowed" : "bg-white"
+        }`}
         onClick={toggleDropdown}
       >
-        <span
-          className={`min-w-0 flex-1 truncate ${selectedItems.length === 0 ? "text-gray-400" : ""
-            }`}
-        >
+        <span className={selectedItems.length === 0 ? "text-gray-400" : ""}>
           {getDisplayText()}
         </span>
-        <svg className="ml-2 h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -144,7 +141,7 @@ export function MultiSelect<T extends SelectableItem>({
 
       {isOpen && !disabled && (
         <div className={dropdownClasses}>
-          <div className="sticky top-0 border-b border-stone-200 bg-[#fdfcfa] p-2 sm:p-3">
+          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
             <div className="relative">
               <input
                 ref={searchInputRef}
@@ -152,18 +149,20 @@ export function MultiSelect<T extends SelectableItem>({
                 placeholder={`Search ${label}s...`}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full rounded-lg border border-stone-200 p-2 pr-8 text-xs focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 sm:text-sm"
+                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 onClick={(event) => event.stopPropagation()}
               />
               {searchQuery && (
                 <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 transition hover:text-gray-700"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   onClick={(event) => {
                     event.stopPropagation();
                     setSearchQuery("");
                   }}
                 >
-                  <CloseIcon className="h-4 w-4" />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               )}
             </div>
@@ -171,26 +170,27 @@ export function MultiSelect<T extends SelectableItem>({
 
           {items.length > 0 && (
             <div
-              className={`cursor-pointer border-b border-stone-100 p-2.5 font-medium transition-colors hover:bg-stone-50 ${allSelected ? "bg-blue-50/80 text-blue-700" : "text-slate-700"
-                }`}
+              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
+                allSelected ? "bg-blue-50" : ""
+              }`}
               onClick={handleSelectAll}
             >
               <input
                 type="checkbox"
                 checked={allSelected}
                 onChange={handleSelectAll}
-                className="mr-2 rounded accent-blue-600"
+                className="mr-2"
               />
               All {label}s
             </div>
           )}
 
           {items.length === 0 && (
-            <div className="p-3 text-center text-xs text-gray-500 sm:text-sm">No {label}s available</div>
+            <div className="p-3 text-center text-gray-500">No {label}s available</div>
           )}
 
           {filteredItems.length === 0 && searchQuery && (
-            <div className="p-3 text-center text-xs text-gray-500 sm:text-sm">
+            <div className="p-3 text-center text-gray-500">
               No {label}s found matching "{searchQuery}"
             </div>
           )}
@@ -198,17 +198,18 @@ export function MultiSelect<T extends SelectableItem>({
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`cursor-pointer rounded-lg p-2.5 transition-all duration-150 ${selectedItems.includes(Number(item.id)) ? "border-l-2 border-l-blue-500 bg-blue-50/70 text-blue-800" : "hover:bg-stone-50 text-slate-700"
-                }`}
+              className={`p-2 hover:bg-blue-100 cursor-pointer ${
+                selectedItems.includes(Number(item.id)) ? "bg-blue-50" : ""
+              }`}
               onClick={() => handleItemSelect(Number(item.id))}
             >
               <input
                 type="checkbox"
                 checked={selectedItems.includes(Number(item.id))}
                 onChange={() => handleItemSelect(Number(item.id))}
-                className="mr-2 rounded accent-blue-600"
+                className="mr-2"
               />
-              <span className="break-words text-xs sm:text-sm">{displayPattern(item)}</span>
+              <span className="text-sm">{displayPattern(item)}</span>
             </div>
           ))}
         </div>

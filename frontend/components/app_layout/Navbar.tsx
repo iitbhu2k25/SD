@@ -30,13 +30,13 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "STP", href: "#" },
     { label: "Basic Module", href: "/dss/basic" }
   ],
-  "/dss/stp/wwt/stp_priority": [
+  "/dss/stp/wwt/stp_priority_v2": [
     { label: "STP", href: "#" },
-    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority" }
+    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority_v2" }
   ],
-  "/dss/stp/wwt/stp_suitability": [
+  "/dss/stp/wwt/stp_suitability_v2": [
     { label: "STP", href: "#" },
-    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" }
+    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability_v2" }
   ],
 
   // GWM Routes
@@ -446,7 +446,7 @@ const Navbar = (): JSX.Element => {
                   </li>
                   <li>
                     <Link
-                      href="/dss/stp/wwt/stp_priority"
+                      href="/dss/stp/wwt/stp_priority_v2"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm
                         hover:bg-orange-50 hover:text-orange-600
                         rounded-lg transition-all duration-200"
@@ -456,7 +456,7 @@ const Navbar = (): JSX.Element => {
                   </li>
                   <li>
                     <Link
-                      href="/dss/stp/wwt/stp_suitability"
+                      href="/dss/stp/wwt/stp_suitability_v2"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm
                         hover:bg-orange-50 hover:text-orange-600
                         rounded-lg transition-all duration-200"

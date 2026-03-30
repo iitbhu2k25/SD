@@ -5,7 +5,7 @@ import WholeLoading from "@/components/app_layout/newLoading";
 import { useAdminLocationStore } from "../stores/adminLocationStore";
 import { useAdminMapStore } from "../stores/adminMapStore";
 import { useAdminUiStore } from "../stores/adminUiStore";
-import { MultiSelect } from "../../../stp_priority/shared/ui/MultiSelect";
+import { MultiSelect } from "../../../stp_priority_v2/shared/ui/MultiSelect";
 
 export default function LocationSelector() {
   const {

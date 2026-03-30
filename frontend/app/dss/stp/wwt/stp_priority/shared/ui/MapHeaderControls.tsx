@@ -28,8 +28,8 @@ export default function MapHeaderControls({
   const panels = showTools ? ["layers", "basemap", "tools"] : ["layers", "basemap"];
 
   return (
-    <div className="absolute left-1/2 top-3 z-10 flex w-[calc(100%-1rem)] max-w-max -translate-x-1/2 items-center justify-between gap-2 rounded-2xl bg-white/20 px-2 py-1.5 shadow-xl backdrop-blur-md sm:w-auto sm:gap-4 sm:px-3">
-      <span className="hidden items-center font-bold text-gray-800 sm:flex">
+    <div className="absolute top-3 left-1/2 z-40 flex -translate-x-1/2 items-center space-x-4 rounded-2xl bg-white/95 px-6 py-3 shadow-xl backdrop-blur-md">
+      <span className="flex items-center font-bold text-gray-800">
         <svg className="mr-2 h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
             strokeLinecap="round"
@@ -41,12 +41,12 @@ export default function MapHeaderControls({
         GIS Viewer
       </span>
 
-      <div className="flex flex-1 justify-center space-x-1 sm:flex-none sm:space-x-2">
+      <div className="flex space-x-1 sm:space-x-2">
         {panels.map((panel) => (
           <button
             key={panel}
             onClick={() => onTogglePanel(panel)}
-            className={`relative group rounded-full p-2 transition-all duration-200 hover:scale-110 sm:p-2.5 cursor-pointer ${
+            className={`relative group rounded-full p-2.5 transition-all duration-200 hover:scale-110 ${
               activePanel === panel
                 ? "bg-blue-100 text-blue-600 shadow-inner"
                 : "text-gray-700 hover:bg-gray-100"
@@ -61,7 +61,7 @@ export default function MapHeaderControls({
               />
             </svg>
 
-            <span className="pointer-events-none absolute -top-9 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 sm:block lg:left-auto lg:right-full lg:top-1/2 lg:-translate-y-1/2 lg:translate-x-0 lg:-translate-x-4 lg:mr-2">
+            <span className="absolute -bottom-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               {panel.charAt(0).toUpperCase() + panel.slice(1)}
             </span>
           </button>
@@ -69,7 +69,7 @@ export default function MapHeaderControls({
 
         <button
           onClick={onToggleFullScreen}
-          className="rounded-full p-2 text-gray-700 transition-all duration-200 hover:scale-110 hover:bg-gray-100 sm:p-2.5"
+          className="rounded-full p-2.5 text-gray-700 transition-all duration-200 hover:scale-110 hover:bg-gray-100"
           title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

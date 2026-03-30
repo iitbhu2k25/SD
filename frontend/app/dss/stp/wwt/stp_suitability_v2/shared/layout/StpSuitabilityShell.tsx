@@ -15,9 +15,9 @@ import UserDataInit from "../../users/components/UserDataInit";
 import UserLeftPanel from "../../users/components/UserLeftPanel";
 import UserRightPanel from "../../users/components/UserRightPanel";
 import { useUserViewModel } from "../../users/hooks/useUserViewModel";
-import ModuleInfoModal from "../../../stp_priority/shared/ui/ModuleInfoModal";
-import RightPanelToggle from "../../../stp_priority/shared/ui/RightPanelToggle";
-import PageLayout from "../../../stp_priority/shared/layout/PageLayout";
+import ModuleInfoModal from "../../../stp_priority_v2/shared/ui/ModuleInfoModal";
+import RightPanelToggle from "../../../stp_priority_v2/shared/ui/RightPanelToggle";
+import PageLayout from "../../../stp_priority_v2/shared/layout/PageLayout";
 
 const AdminMapView = dynamic(() => import("../../admin/components/AdminOpenLayersMap"), {
   ssr: false,
