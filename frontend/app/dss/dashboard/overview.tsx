@@ -1,9 +1,11 @@
 // frontend/app/dss/varuna/dashboard/overview.tsx
 
-import React, { useMemo, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Droplets, Activity, Factory, MapPin } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { Droplets, Activity, Factory, MapPin, X, Info } from 'lucide-react';
 import MapStory from './mapstory';
+import { DashboardInfoContent, DashboardInfoKey, getDashboardInfo, InfoPopup } from './info';
+import TrendAnalysis from './trend_analysis';
 
 // --- INTERFACES & TYPES (Should be defined/exported from page.tsx or common file) ---
 
@@ -58,7 +60,6 @@ interface OverviewProps {
   setActiveTab: (tabId: string) => void; 
   setSelectedFilter: (filter: string | null) => void; 
 }
-
 
 // --- HELPER FUNCTIONS (Moved from page.tsx) ---
 
@@ -157,10 +158,252 @@ const Overview: React.FC<OverviewProps> = ({
   setSelectedFilter,
 }) => {
   const [selectedParameter, setSelectedParameter] = useState('DO');
+  const [selectedInfo, setSelectedInfo] = useState<DashboardInfoContent | null>(null);
+  const [selectedInfoAnchor, setSelectedInfoAnchor] = useState<HTMLElement | null>(null);
+  const [selectedPotentialSource, setSelectedPotentialSource] = useState<{
+    id: string;
+    title: string;
+    image: string;
+    limit: string;
+    observed: string;
+    location: string;
+    description: string;
+    parameterFocus: string[];
+    detailedInfo: string;
+    bgColor: string;
+  } | null>(null);
   
   // Re-calculate the indices used in the Critical Status block
   const worstSites = useMemo(() => getWorstSites(drainData), [drainData]);
   const sitesData = useMemo(() => getProcessedData(drainData), [drainData]);
+  const potentialSourceData = useMemo(() => {
+    const formatLoc = (d: DrainRecord) => (d.stream ? `${d.location} (${d.stream})` : d.location);
+
+    const bodSorted = [...drainData]
+      .filter(site => site.bod_mg_l !== null && site.bod_mg_l !== undefined)
+      .sort((a, b) => b.bod_mg_l - a.bod_mg_l);
+    const worstBOD = bodSorted.length > 0
+      ? { location: formatLoc(bodSorted[0]), value: bodSorted[0].bod_mg_l.toFixed(2) }
+      : { location: '—', value: '—' };
+
+    const faecalSites = drainData.filter(d => {
+      const val = d.faecal_col;
+      if (!val || val === 'N/A') return false;
+      const parsed = extractFaecalValue(val);
+      return !isNaN(parsed) && parsed > 0;
+    });
+    const worstFaecal = faecalSites.sort(
+      (a, b) => extractFaecalValue(b.faecal_col) - extractFaecalValue(a.faecal_col)
+    )[0];
+    const worstFaecalColiform = worstFaecal
+      ? { location: formatLoc(worstFaecal), value: extractFaecalValue(worstFaecal.faecal_col).toFixed(0) }
+      : { location: '—', value: '—' };
+
+    const chemicalRiskCandidates = drainData.filter(d => d.cod !== null && d.tss_mg_l !== null);
+    const highestChemicalSite = chemicalRiskCandidates.sort(
+      (a, b) => (b.cod + b.tss_mg_l) - (a.cod + a.tss_mg_l)
+    )[0];
+    const worstChemicalRisk = highestChemicalSite
+      ? { location: formatLoc(highestChemicalSite), cod: highestChemicalSite.cod.toFixed(2), tss: highestChemicalSite.tss_mg_l.toFixed(2) }
+      : { location: '—', cod: '—', tss: '—' };
+
+    const highTurbiditySite = drainData
+      .filter(d => typeof d.turbidity === 'number')
+      .sort((a, b) => b.turbidity - a.turbidity)[0];
+    const worstTurbidity = highTurbiditySite
+      ? { location: formatLoc(highTurbiditySite), value: highTurbiditySite.turbidity.toFixed(2) }
+      : { location: '—', value: '—' };
+
+    const salinityCandidates = drainData.filter(d => d.tds_ppm > 0 || d.ec_us_cm > 0);
+    const highestSalinitySite = salinityCandidates.sort(
+      (a, b) => (b.tds_ppm + b.ec_us_cm) - (a.tds_ppm + a.ec_us_cm)
+    )[0];
+    const worstSalinity = highestSalinitySite
+      ? { location: formatLoc(highestSalinitySite), tds: highestSalinitySite.tds_ppm.toFixed(0), ec: highestSalinitySite.ec_us_cm.toFixed(0) }
+      : { location: '—', tds: '—', ec: '—' };
+
+    const nitrateSorted = [...drainData]
+      .filter(site => site.nitrate !== null && site.nitrate !== undefined)
+      .sort((a, b) => b.nitrate - a.nitrate);
+    const worstNitrate = nitrateSorted.length > 0
+      ? { location: formatLoc(nitrateSorted[0]), value: nitrateSorted[0].nitrate.toFixed(2) }
+      : { location: '—', value: '—' };
+
+    const algaeRiskCandidates = drainData.filter(d => d.nitrate !== null && d.bod_mg_l !== null);
+    const highestAlgaeSite = algaeRiskCandidates.sort(
+      (a, b) => (b.nitrate + b.bod_mg_l) - (a.nitrate + a.bod_mg_l)
+    )[0];
+    const worstAlgaeRisk = highestAlgaeSite
+      ? { location: formatLoc(highestAlgaeSite), nitrate: highestAlgaeSite.nitrate.toFixed(2), bod: highestAlgaeSite.bod_mg_l.toFixed(2) }
+      : { location: '—', nitrate: '—', bod: '—' };
+
+    const industrialCandidates = drainData.filter(d => d.cod && d.tds_ppm);
+    const highestIndustrial = industrialCandidates.sort(
+      (a, b) => (b.cod + b.tds_ppm) - (a.cod + a.tds_ppm)
+    )[0];
+    const worstIndustrial = highestIndustrial
+      ? { location: formatLoc(highestIndustrial), cod: highestIndustrial.cod.toFixed(1), tds: highestIndustrial.tds_ppm.toFixed(0) }
+      : { location: '—', cod: '—', tds: '—' };
+
+    const detergentRiskCandidates = drainData.filter(d => d.bod_mg_l !== null && d.cod !== null);
+    const worstDetergentSite = detergentRiskCandidates.sort(
+      (a, b) => (b.bod_mg_l + b.cod) - (a.bod_mg_l + a.cod)
+    )[0];
+    const worstDetergentRisk = worstDetergentSite
+      ? { location: formatLoc(worstDetergentSite), bod: worstDetergentSite.bod_mg_l.toFixed(1), cod: worstDetergentSite.cod.toFixed(1) }
+      : { location: '—', bod: '—', cod: '—' };
+
+    const landDumpingCandidates = drainData.filter(
+      d => d.tss_mg_l > 0 || d.turbidity > 0 || d.ts_mg_l > 0
+    );
+    const worstDumpingSite = landDumpingCandidates.sort(
+      (a, b) => (b.tss_mg_l + b.turbidity + b.ts_mg_l) - (a.tss_mg_l + a.turbidity + a.ts_mg_l)
+    )[0];
+    const worstLandDumping = worstDumpingSite
+      ? { location: formatLoc(worstDumpingSite), tss: worstDumpingSite.tss_mg_l.toFixed(0), turbidity: worstDumpingSite.turbidity.toFixed(0), ts: worstDumpingSite.ts_mg_l.toFixed(0) }
+      : { location: '—', tss: '—', turbidity: '—', ts: '—' };
+
+    return {
+      worstBOD,
+      worstFaecalColiform,
+      worstChemicalRisk,
+      worstTurbidity,
+      worstSalinity,
+      worstNitrate,
+      worstAlgaeRisk,
+      worstIndustrial,
+      worstDetergentRisk,
+      worstLandDumping,
+    };
+  }, [drainData]);
+
+  const potentialPollutionCards = [
+    {
+      id: 'organic-pollution',
+      title: 'Organic Pollution',
+      image: 'https://dialogue.earth/content/uploads/2015/12/India-Ganga-pollution-scaled.jpg',
+      limit: 'BOD ≤ 3.00 mg/L',
+      observed: `BOD: ${potentialSourceData.worstBOD.value} mg/L`,
+      location: potentialSourceData.worstBOD.location,
+      description: 'High organic load from untreated sewage. Promotes microbial growth, reduces dissolved oxygen.',
+      parameterFocus: ['Primary Parameter: BOD', 'Supporting Context: DO decline and organic waste inflow'],
+      detailedInfo: 'Organic pollution is caused by entry of biodegradable materials such as untreated sewage, food waste, animal excreta, plant residues, and related decomposable matter into river water. Microorganisms consume dissolved oxygen while decomposing this material, causing BOD to rise and oxygen availability for fish and aquatic organisms to decline. In stressed river stretches this may result in foul odor, blackish water, sludge deposition, and ecological deterioration, indicating strong domestic wastewater pressure.',
+      bgColor: 'from-green-100 to-white',
+    },
+    {
+      id: 'pathogen-risk',
+      title: 'Pathogen Risk',
+      image: 'https://t4.ftcdn.net/jpg/08/42/76/07/360_F_842760775_8ccQDE8g6eKeuVy2jHffnZxU13MZrpEG.jpg',
+      limit: 'Faecal Coliform ≤ 500 MPN',
+      observed: `Faecal Coliform: ${potentialSourceData.worstFaecalColiform.value} MPN`,
+      location: potentialSourceData.worstFaecalColiform.location,
+      description: 'High faecal contamination from untreated sewage poses serious health hazards.',
+      parameterFocus: ['Primary Parameter: Faecal Coliform', 'Supporting Context: sanitation leakage, wastewater intrusion'],
+      detailedInfo: 'Pathogen risk reflects contamination by disease-causing microorganisms including bacteria, viruses, protozoa, and parasites. Typical pathways include untreated sewage discharge, open defecation, faecal waste runoff, and poorly managed sanitation systems. High pathogen levels indicate serious public-health concern for bathing, washing, ritual use, and downstream abstraction. Elevated faecal coliform values are a strong signal of sewage and faecal contamination influence.',
+      bgColor: 'from-red-100 to-white',
+    },
+    {
+      id: 'chemical-pollution',
+      title: 'Chemical Pollution',
+      image: 'https://static.vecteezy.com/system/resources/thumbnails/057/512/892/small_2x/close-up-of-a-barrel-with-green-leaking-toxic-waste-standing-in-nature-photo.jpg',
+      limit: 'COD ≤ 30 | TSS ≤ 100',
+      observed: `COD: ${potentialSourceData.worstChemicalRisk.cod} | TSS: ${potentialSourceData.worstChemicalRisk.tss}`,
+      location: potentialSourceData.worstChemicalRisk.location,
+      description: 'Chemical residues, fertilizers, oils alter water chemistry and harm aquatic life.',
+      parameterFocus: ['Primary Parameter: COD', 'Supporting Parameters: TSS and toxic compound loading'],
+      detailedInfo: 'Chemical pollution indicates harmful or undesirable chemicals in river water from industrial effluents, urban runoff, domestic wastewater, and commercial discharge. Pollutants may include acids, alkalis, solvents, detergents, pesticides, heavy metals, and nutrients. These alter water chemistry, increase COD, stress aquatic metabolism, and reduce suitability for domestic or agricultural use. In urban stretches, persistent chemical loading may remain in water, sediments, and food chains for long periods.',
+      bgColor: 'from-yellow-100 to-white',
+    },
+    {
+      id: 'turbidity',
+      title: 'Turbidity',
+      image: 'https://ecoreportcard.org/site/assets/files/2218/chesterville_branch_turbidity.700x0.jpg',
+      limit: 'Safe Limit: ≤ 25 NTU',
+      observed: `Turbidity: ${potentialSourceData.worstTurbidity.value} NTU`,
+      location: potentialSourceData.worstTurbidity.location,
+      description: 'Suspended solids reduce light penetration and disrupt photosynthesis.',
+      parameterFocus: ['Primary Parameter: Turbidity (NTU)', 'Supporting Context: suspended solids and runoff pulses'],
+      detailedInfo: 'Turbidity reflects cloudiness and loss of clarity due to suspended particles such as silt, clay, organic matter, sewage solids, and algae. High turbidity often increases during runoff events, bank erosion, drain discharge, and unmanaged waste inflow. Excess solids reduce light penetration, limit photosynthesis, interfere with fish respiration, and disturb habitat quality. Persistently high turbidity in polluted reaches also indicates poor control of solid or liquid waste entry.',
+      bgColor: 'from-gray-100 to-white',
+    },
+    {
+      id: 'salinity',
+      title: 'Salinity',
+      image: 'https://www.waterquality.gov.au/sites/default/files/images/salt.jpg',
+      limit: 'TDS ≤ 1000 | EC ≤ 2250',
+      observed: `TDS: ${potentialSourceData.worstSalinity.tds} | EC: ${potentialSourceData.worstSalinity.ec}`,
+      location: potentialSourceData.worstSalinity.location,
+      description: 'Excess salts from sewage affect water quality and aquatic ecosystems.',
+      parameterFocus: ['Primary Parameters: TDS and EC', 'Supporting Context: dilution loss and wastewater accumulation'],
+      detailedInfo: 'Salinity indicates concentration of dissolved salts, commonly represented through TDS and electrical conductivity (EC). Salinity may increase due to sewage discharge, industrial effluents, agricultural return flows, detergent-rich wastewater, and low-flow dilution conditions. When salt levels exceed acceptable limits, river water becomes less suitable for irrigation, domestic use, and ecological functioning. In freshwater systems, sustained salinity rise is an indicator of accumulated dissolved pollution load.',
+      bgColor: 'from-blue-100 to-white',
+    },
+    {
+      id: 'nitrates',
+      title: 'Nitrates',
+      image: 'https://nexteel.in/wp-content/uploads/2025/04/Nitrate-Pollution-in-water-1024x576.jpg',
+      limit: 'Safe Limit: ≤ 2.00 mg/L',
+      observed: `Nitrate: ${potentialSourceData.worstNitrate.value} mg/L`,
+      location: potentialSourceData.worstNitrate.location,
+      description: 'Nutrient overload from agriculture promotes algal blooms.',
+      parameterFocus: ['Primary Parameter: Nitrate (NO3-N)', 'Supporting Context: nutrient enrichment and eutrophication'],
+      detailedInfo: 'Nitrates are highly soluble nitrogen compounds entering rivers via fertilizer runoff, sewage leakage, decomposing organic matter, and wastewater discharge. While nitrate is a plant nutrient, excessive concentration indicates nutrient enrichment and declining water quality. High nitrate levels stimulate algae and aquatic weed growth, disrupt nutrient balance, and accelerate eutrophication. In human-use stretches, excess nitrate also raises downstream water-supply and groundwater-related concerns.',
+      bgColor: 'from-lime-100 to-white',
+    },
+    {
+      id: 'algae-growth',
+      title: 'Algae Growth',
+      image: 'https://assets.telegraphindia.com/telegraph/5jamriver2.jpg',
+      limit: 'Nitrate ≤ 2 | BOD ≤ 3',
+      observed: `Nitrate: ${potentialSourceData.worstAlgaeRisk.nitrate} | BOD: ${potentialSourceData.worstAlgaeRisk.bod}`,
+      location: potentialSourceData.worstAlgaeRisk.location,
+      description: 'Excess nutrients cause oxygen depletion and aquatic death.',
+      parameterFocus: ['Primary Parameters: Nitrate and BOD', 'Supporting Context: nutrient-rich stagnant stretches'],
+      detailedInfo: 'Algae growth is a visible response to nutrient stress, especially where nitrates/phosphates, warm temperature, sunlight, and slow-moving water combine. Although some algae is natural, abnormal or dense growth indicates ecological imbalance and often signals sewage discharge, agricultural runoff, or stagnant polluted conditions. Dense blooms reduce aesthetics, may block light transfer, and can lower dissolved oxygen when algae die and decompose, further degrading river health.',
+      bgColor: 'from-emerald-100 to-white',
+    },
+    {
+      id: 'industrial-contaminants',
+      title: 'Industrial Contaminants',
+      image: 'https://images.assettype.com/english-sentinelassam/import/wp-content/uploads/2019/01/industrial-wastewater.jpg',
+      limit: 'COD ≤ 250 | TDS ≤ 2100',
+      observed: `COD: ${potentialSourceData.worstIndustrial.cod} | TDS: ${potentialSourceData.worstIndustrial.tds}`,
+      location: potentialSourceData.worstIndustrial.location,
+      description: 'Toxic discharge bioaccumulates in fish, poses long-term health risks.',
+      parameterFocus: ['Primary Parameters: COD, TDS, and toxic indicators', 'Supporting Context: manufacturing/service discharge'],
+      detailedInfo: 'Industrial contaminants include pollutants released from manufacturing, processing, workshop, and service activities into rivers directly or via connected drains. They may include oils, greases, solvents, metals, dyes, salts, and high-strength wastewater. Compared with typical domestic pollution, these contaminants are often more toxic and persistent, affecting aquatic ecosystems even at lower concentrations. Their presence may indicate inadequate effluent treatment and weak pollution control in the catchment.',
+      bgColor: 'from-indigo-100 to-white',
+    },
+    {
+      id: 'detergents',
+      title: 'Detergents',
+      image: 'https://asset.library.wisc.edu/1711.dl/ER5CSR223WOWA8F/M/h1380-2ce93.jpg',
+      limit: 'BOD ≤ 3 | COD ≤ 250',
+      observed: `BOD: ${potentialSourceData.worstDetergentRisk.bod} | COD: ${potentialSourceData.worstDetergentRisk.cod}`,
+      location: potentialSourceData.worstDetergentRisk.location,
+      description: 'Greywater with detergents promotes algal growth and eutrophication.',
+      parameterFocus: ['Primary Parameters: COD, BOD, surfactant-related stress', 'Supporting Context: phosphate-bearing greywater'],
+      detailedInfo: 'Detergent pollution mainly enters rivers through household greywater, laundry discharge, washing activity near drains, and urban wastewater. Detergents contain surfactants, builders, phosphates, and additives that can disturb natural water properties and oxygen exchange between air and water. Phosphate-bearing detergents also contribute to nutrient enrichment and algae growth. Repeated detergent loading can create chronic chemical stress and reduce river self-cleansing capacity.',
+      bgColor: 'from-purple-100 to-white',
+    },
+    {
+      id: 'land-dumping',
+      title: 'Land Dumping',
+      image: 'https://dialogue.earth/content/uploads/2021/12/2CMW2JH-1-scaled.jpg',
+      limit: 'TSS ≤ 100 | Turb ≤ 25 | TS ≤ 2000',
+      observed: `TSS: ${potentialSourceData.worstLandDumping.tss} | Turb: ${potentialSourceData.worstLandDumping.turbidity} | TS: ${potentialSourceData.worstLandDumping.ts}`,
+      location: potentialSourceData.worstLandDumping.location,
+      description: 'Runoff and solid waste degrade river clarity and water quality.',
+      parameterFocus: ['Primary Parameters: TSS, Turbidity, TS', 'Supporting Context: leachate, debris, and floodplain dumping'],
+      detailedInfo: 'Land dumping refers to disposal of municipal solid waste, construction debris, plastics, and other discarded materials on riverbanks, floodplains, or low-lying connected zones. During rainfall and flooding, dumped material releases fine particles, leachate, and decomposing matter into river systems. This drives multiple pollution pathways including organic loading, turbidity increase, nutrient release, plastic contamination, and chemical leakage. It also degrades corridor quality and creates long-term contamination hotspots.',
+      bgColor: 'from-rose-100 to-white',
+    },
+  ];
+
+  const openInfo = (key: DashboardInfoKey, event?: React.MouseEvent<HTMLElement>) => {
+    setSelectedInfoAnchor(event ? event.currentTarget : null);
+    setSelectedInfo(getDashboardInfo(key));
+  };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -168,16 +411,25 @@ const Overview: React.FC<OverviewProps> = ({
       {/* Story Map Section */}
       <div className="col-span-full">
         <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/20 animate-fadeIn bg-white">
-          <MapStory showNotification={showNotification} />
+          <MapStory showNotification={showNotification} onInfoClick={(event) => openInfo('story-map', event)} />
         </div>
       </div>
 
       {/* Key Metrics Row */}
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 col-span-full border border-white/20">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-            Key Performance Indicators
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              Key Performance Indicators
+            </h2>
+            <button
+              onClick={(event) => openInfo('kpi-overview', event)}
+              className="w-7 h-7 rounded-full bg-white border border-gray-200 text-blue-700 hover:bg-blue-50 flex items-center justify-center"
+              aria-label="KPI info"
+            >
+              <Info size={14} />
+            </button>
+          </div>
           <div className="text-xs text-gray-600 leading-relaxed">
               Click on Cards to see in map
             </div>
@@ -191,7 +443,7 @@ const Overview: React.FC<OverviewProps> = ({
               setActiveTab('water-quality');
               setSelectedFilter('acidic');
             }}
-            className="group p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+            className="relative group p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
           >
             <div className="text-3xl font-bold text-red-600 mb-2"><AnimatedCounter value={acidicCount} /></div>
             <div className="text-sm font-semibold text-red-800 mb-1">Acidic pH Sites</div>
@@ -209,7 +461,7 @@ const Overview: React.FC<OverviewProps> = ({
               setActiveTab('water-quality');
               setSelectedFilter('lowDO');
             }}
-            className="group p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+            className="relative group p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border border-blue-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
           >
             <div className="text-3xl font-bold text-blue-600 mb-2"><AnimatedCounter value={lowDOCount} /></div>
             <div className="text-sm font-semibold text-orange-800 mb-1">Low DO Sites</div>
@@ -227,7 +479,7 @@ const Overview: React.FC<OverviewProps> = ({
               setActiveTab('water-quality');
               setSelectedFilter('highBOD');
             }}
-            className="group p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+            className="relative group p-6 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl border border-emerald-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
           >
             <div className="text-3xl font-bold text-emerald-600 mb-2"><AnimatedCounter value={highBODCount} /></div>
             <div className="text-sm font-semibold text-rose-800 mb-1">High BOD Sites</div>
@@ -245,7 +497,7 @@ const Overview: React.FC<OverviewProps> = ({
               setActiveTab('water-quality');
               setSelectedFilter('highCOD');
             }}
-            className="group p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+            className="relative group p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
           >
             <div className="text-3xl font-bold text-purple-600 mb-2"><AnimatedCounter value={highCODCount} /></div>
             <div className="text-sm font-semibold text-purple-800 mb-1">High COD Sites</div>
@@ -260,7 +512,7 @@ const Overview: React.FC<OverviewProps> = ({
           {/* 5. Sewage Infrastructure Section (Navigation added) */}
           <div 
             onClick={() => setActiveTab('sewage-infrastructure')}
-            className="group col-span-1 lg:col-span-2 p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 hover:shadow-xl transition-all duration-300 transform hover:scale-102 flex flex-col justify-center cursor-pointer"
+            className="relative group col-span-1 lg:col-span-2 p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-200 hover:shadow-xl transition-all duration-300 transform hover:scale-102 flex flex-col justify-center cursor-pointer"
           >
             <div className="flex items-center justify-center gap-2 mb-3">
               <h3 className="text-lg font-bold text-orange-800">Sewage Infrastructure</h3>
@@ -298,14 +550,23 @@ const Overview: React.FC<OverviewProps> = ({
 
       {/* Critical Status - Calculated Indices (Left Side) */}
       <div className="col-span-1 bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20 h-full">
-        <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-          Critical Status - Calculated Indices
-        </h3>
+        <div className="flex items-center gap-2 mb-6">
+          <h3 className="text-xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+            Critical Status - Calculated Indices
+          </h3>
+          <button
+            onClick={(event) => openInfo('critical-indices', event)}
+            className="w-7 h-7 rounded-full bg-white border border-gray-200 text-red-700 hover:bg-red-50 flex items-center justify-center"
+            aria-label="Critical status info"
+          >
+            <Info size={14} />
+          </button>
+        </div>
         <div className="space-y-4">
           {worstSites ? (
             <>
               {/* Pollution Load Index */}
-              <div className="flex flex-col p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-lg transition-all duration-300">
+              <div className="relative flex flex-col p-4 bg-gradient-to-r from-red-50 to-pink-50 rounded-xl border border-red-200 hover:shadow-lg transition-all duration-300">
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-semibold text-gray-800 text-sm block">{worstSites.pollution.location}</span>
                   <span className={`text-white px-2 py-1 rounded-full text-xs font-bold ${
@@ -319,7 +580,7 @@ const Overview: React.FC<OverviewProps> = ({
                 </span>
               </div>
               {/* Eutrophication Risk */}
-              <div className="flex flex-col p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 hover:shadow-lg transition-all duration-300">
+              <div className="relative flex flex-col p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 hover:shadow-lg transition-all duration-300">
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-semibold text-gray-800 text-sm block">{worstSites.eutrophication.location}</span>
                   <span className={`text-white px-2 py-1 rounded-full text-xs font-bold ${
@@ -333,7 +594,7 @@ const Overview: React.FC<OverviewProps> = ({
                 </span>
               </div>
               {/* Bacterial Contamination Level */}
-              <div className="flex flex-col p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-lg transition-all duration-300">
+              <div className="relative flex flex-col p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl border border-purple-200 hover:shadow-lg transition-all duration-300">
                 <div className="flex justify-between items-start mb-2">
                   <span className="font-semibold text-gray-800 text-sm block">{worstSites.bacterial.location}</span>
                   <span className={`text-white px-2 py-1 rounded-full text-xs font-bold ${
@@ -382,9 +643,18 @@ const Overview: React.FC<OverviewProps> = ({
       {/* Water Quality Analysis (Right Side - Expanded) */}
       <div className="col-span-1 lg:col-span-2 bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20 h-full">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-            Water Quality Analysis
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              Water Quality Analysis
+            </h2>
+            <button
+              onClick={(event) => openInfo('water-quality-analysis', event)}
+              className="w-7 h-7 rounded-full bg-white border border-gray-200 text-blue-700 hover:bg-blue-50 flex items-center justify-center"
+              aria-label="Water quality analysis info"
+            >
+              <Info size={14} />
+            </button>
+          </div>
           <div className="flex gap-4 w-full sm:w-auto">
             <select
               value={selectedParameter}
@@ -451,8 +721,140 @@ const Overview: React.FC<OverviewProps> = ({
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Trend Analysis (Moved from sidebar menu into Overview) */}
+      <div className="col-span-full">
+        <TrendAnalysis />
+      </div>
+
+      {/* Potential Pollution Sources (Moved from Pollution Sources section) */}
+      <div className="col-span-full bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 pb-12 border border-white/20">
+        <div className="flex items-center gap-2 mb-6">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            Potential Pollution Sources
+          </h2>
+          <button
+            onClick={(event) => openInfo('potential-pollution-sources', event)}
+            className="w-7 h-7 rounded-full bg-white border border-gray-200 text-emerald-700 hover:bg-emerald-50 flex items-center justify-center"
+            aria-label="Potential pollution sources info"
+          >
+            <Info size={14} />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {potentialPollutionCards.map((item, index) => (
+            <div
+              key={index}
+              className={`relative w-full h-[500px] flex flex-col justify-between rounded-2xl px-5 py-5 bg-gradient-to-br ${item.bgColor} shadow-md border border-gray-200 transform hover:scale-105 hover:shadow-2xl transition-transform duration-300 ease-in-out cursor-pointer`}
+              onClick={() => setSelectedPotentialSource(item)}
+            >
+              <div className="-mx-5 -mt-5 mb-4">
+                <img src={item.image} alt={item.title} className="w-full h-[240px] object-cover rounded-t-2xl" />
+              </div>
+              <div className="flex flex-col justify-between h-full">
+                <div>
+                  <h4 className="text-lg font-bold text-gray-800 mb-3">{item.title}</h4>
+                  <div className="space-y-3">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Safe Limits</span>
+                      <span className="text-xs font-medium text-gray-800 break-words leading-tight">{item.limit}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Highest Observed</span>
+                      <span className="text-xs font-bold text-red-600 break-words leading-tight">{item.observed}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Observed At</span>
+                      <span className="text-xs font-medium text-gray-700 bg-white/60 p-1.5 rounded border border-gray-200 break-words leading-tight">
+                        {item.location || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-600 mt-4 pt-4 border-t border-gray-200/50 italic">
+                  {item.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      
+
+      {selectedPotentialSource && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setSelectedPotentialSource(null)}
+        >
+          <div
+            className={`w-full max-w-3xl max-h-[88vh] overflow-y-auto bg-gradient-to-br ${selectedPotentialSource.bgColor} rounded-2xl shadow-2xl border border-white/50`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative">
+              <img
+                src={selectedPotentialSource.image}
+                alt={selectedPotentialSource.title}
+                className="w-full h-64 object-cover"
+              />
+              <button
+                className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full shadow"
+                onClick={() => setSelectedPotentialSource(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <h3 className="text-2xl font-bold text-gray-800">{selectedPotentialSource.title}</h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-white/80 rounded-lg border border-gray-200 p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 font-bold">Safe Limits</div>
+                  <div className="text-sm font-semibold text-gray-800 mt-1">{selectedPotentialSource.limit}</div>
+                </div>
+                <div className="bg-white/80 rounded-lg border border-gray-200 p-3">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 font-bold">Highest Observed</div>
+                  <div className="text-sm font-bold text-red-600 mt-1">{selectedPotentialSource.observed}</div>
+                </div>
+              </div>
+
+              <div className="bg-white/80 rounded-lg border border-gray-200 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500 font-bold">Observed At</div>
+                <div className="text-sm font-semibold text-gray-800 mt-1">{selectedPotentialSource.location || 'N/A'}</div>
+              </div>
+
+              <div className="bg-white/85 rounded-lg border border-gray-200 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-2">Parameter Details</div>
+                <ul className="space-y-1">
+                  {selectedPotentialSource.parameterFocus.map((line, idx) => (
+                    <li key={idx} className="text-sm text-gray-700 leading-relaxed">• {line}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-white/85 rounded-lg border border-gray-200 p-3">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500 font-bold mb-2">Detailed Interpretation</div>
+                <p className="text-sm text-gray-700 leading-relaxed">{selectedPotentialSource.detailedInfo}</p>
+              </div>
+
+              <p className="text-sm text-gray-700 leading-relaxed">{selectedPotentialSource.description}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <InfoPopup
+        content={selectedInfo}
+        anchor={selectedInfoAnchor}
+        onClose={() => {
+          setSelectedInfo(null);
+          setSelectedInfoAnchor(null);
+        }}
+      />
     </div>
   );
 };
 
 export default Overview;
+

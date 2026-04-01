@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   BarChart, Bar, LineChart, Line, RadarChart, Radar, PolarGrid, 
   PolarAngleAxis, PolarRadiusAxis, XAxis, YAxis, CartesianGrid, 
@@ -9,8 +9,9 @@ import {
 import { 
   Droplets, Wind, Activity, MapPin, Calendar, Search, Filter, 
   AlertTriangle, CheckCircle, Thermometer, Zap, Bug, FlaskConical,
-  ArrowDown, ArrowUp
+  ArrowDown, ArrowUp, Info
 } from 'lucide-react';
+import { DashboardInfoContent, getDashboardInfo, InfoPopup } from './info';
 
 // ============================================
 // INTERFACES
@@ -36,7 +37,7 @@ interface DrainRecord {
   total_col: string | null;
   lat: number | null;
   lon: number | null;
-  sampling_time: string;
+  sampling_time?: string;
 }
 
 interface ParameterResult {
@@ -56,7 +57,7 @@ interface LocationWQI {
   coordinates: { lat: number | null; lon: number | null };
   parameters: { [key: string]: ParameterResult };
   readingsCount: number;
-  latestDate: string;
+  latestDate?: string;
   monthlyTrend: { month: string; wqi: number }[];
 }
 
@@ -132,45 +133,20 @@ const WQI_CATEGORIES = [
 // MAIN COMPONENT
 // ============================================
 
-export default function WQIDashboard({ 
-  showNotification 
-}: { 
-  showNotification: (message: string, type: 'success' | 'error' | 'info') => void 
+export default function WQIDashboard({
+  drainData,
+  selectedYear,
+}: {
+  drainData: DrainRecord[];
+  selectedYear: number;
 }) {
-  const [loading, setLoading] = useState(true);
   const [locationWQI, setLocationWQI] = useState<LocationWQI[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<LocationWQI | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'wqi_asc' | 'wqi_desc' | 'name'>('wqi_desc'); // Default to worst first
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main`);
-      if (!response.ok) throw new Error('Failed to fetch data');
-      
-      const data: DrainRecord[] = await response.json();
-      const wqiResults = calculateWQIForAllLocations(data);
-      setLocationWQI(wqiResults);
-      
-      if (wqiResults.length > 0) {
-        // Auto select the worst location
-        setSelectedLocation(wqiResults.sort((a, b) => b.wqi_score - a.wqi_score)[0]);
-      }
-      
-      showNotification('WQI (Weighted Arithmetic) calculated successfully', 'success');
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      showNotification('Error loading water quality data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedInfo, setSelectedInfo] = useState<DashboardInfoContent | null>(null);
+  const [selectedInfoAnchor, setSelectedInfoAnchor] = useState<HTMLElement | null>(null);
 
   // ============================================
   // HELPER: PARSE COLIFORM
@@ -247,7 +223,10 @@ export default function WQIDashboard({
 
     return Object.entries(groups).map(([key, records]) => {
       // Sort by date desc
-      records.sort((a, b) => new Date(b.sampling_time).getTime() - new Date(a.sampling_time).getTime());
+      records.sort(
+        (a, b) =>
+          new Date(b.sampling_time ?? 0).getTime() - new Date(a.sampling_time ?? 0).getTime()
+      );
       const latest = records[0];
       const [locName, streamName] = key.split('|');
 
@@ -293,7 +272,7 @@ export default function WQIDashboard({
 
       // Calculate trend (simplified)
       const trend = records.slice(0, 6).map(r => ({
-        month: new Date(r.sampling_time).toLocaleDateString('default', {month:'short'}),
+        month: new Date(r.sampling_time ?? 0).toLocaleDateString('default', {month:'short'}),
         wqi: finalWQI // In a real app, recalculate WQI for each record. For now using current.
       })).reverse();
 
@@ -311,6 +290,33 @@ export default function WQIDashboard({
       };
     });
   };
+
+  const wqiResults = useMemo(() => calculateWQIForAllLocations(drainData), [drainData]);
+
+  useEffect(() => {
+    setLocationWQI(wqiResults);
+  }, [wqiResults]);
+
+  useEffect(() => {
+    if (wqiResults.length === 0) {
+      setSelectedLocation(null);
+      return;
+    }
+
+    setSelectedLocation((current) => {
+      if (current) {
+        const matchingLocation = wqiResults.find(
+          (location) =>
+            location.location === current.location && location.stream === current.stream
+        );
+        if (matchingLocation) {
+          return matchingLocation;
+        }
+      }
+
+      return [...wqiResults].sort((a, b) => b.wqi_score - a.wqi_score)[0];
+    });
+  }, [wqiResults]);
 
   // ============================================
   // RENDER
@@ -334,7 +340,13 @@ export default function WQIDashboard({
   
   const overallCat = WQI_CATEGORIES.find(c => overallAverage >= c.min && overallAverage <= c.max);
 
-  if (loading) return <div className="p-12 text-center">Loading WQI Analysis...</div>;
+  if (drainData.length === 0) {
+    return (
+      <div className="p-12 text-center bg-white rounded-2xl border border-gray-200">
+        No water quality records available for {selectedYear}.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -346,13 +358,26 @@ export default function WQIDashboard({
         </div>
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
           <div>
-            <h1 className="text-4xl font-bold flex items-center gap-3 mb-2">
-              Water Quality Index
-            </h1>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-4xl font-bold flex items-center gap-3">
+                Water Quality Index
+              </h1>
+              <button
+                onClick={(event) => {
+                  setSelectedInfoAnchor(event.currentTarget);
+                  setSelectedInfo(getDashboardInfo('water-quality-index'));
+                }}
+                aria-label="Water quality index info"
+                className="w-7 h-7 rounded-full border border-blue-300 bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
+              >
+                <Info size={15} />
+              </button>
+            </div>
             <p className="text-slate-300 text-lg max-w-2xl">
               Comprehensive analysis using the <strong>10-Parameter Weighted Arithmetic Method</strong>. 
               Lower scores indicate better water quality.
             </p>
+            <p className="text-slate-400 text-sm mt-3">Year filter: {selectedYear}</p>
           </div>
 
           <div className="bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/20 text-center min-w-[200px]">
@@ -545,6 +570,15 @@ export default function WQIDashboard({
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
       `}</style>
+
+      <InfoPopup
+        content={selectedInfo}
+        anchor={selectedInfoAnchor}
+        onClose={() => {
+          setSelectedInfo(null);
+          setSelectedInfoAnchor(null);
+        }}
+      />
     </div>
   );
 }

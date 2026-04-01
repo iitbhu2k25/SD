@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
-import { X, AlertTriangle, TrendingDown, Droplet, Activity, Factory, Beaker, Wind } from 'lucide-react';
+import { X, Bell, AlertTriangle, TrendingDown, Droplet, Activity, Factory, Beaker, Wind, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
 // --- COMPONENT IMPORTS ---
@@ -13,6 +13,7 @@ import PollutionSources from './pollution_sources';
 import VarunaGallery from './gallery';
 import SystemDynamics from './SystemDynamics';
 import Overview from './overview';
+import { DashboardInfoContent, DashboardInfoKey, getDashboardInfo, InfoPopup } from './info';
 
 // ==========================================
 // INTERFACES
@@ -68,6 +69,14 @@ interface DynamicIntervention {
   type: 'Aeration' | 'STP' | 'Dredging' | 'Chemical';
 }
 
+const DEFAULT_WATER_QUALITY_YEAR = 2025;
+
+const getSamplingYear = (samplingTime?: string): number | null => {
+  if (!samplingTime) return null;
+  const date = new Date(samplingTime);
+  return Number.isNaN(date.getTime()) ? null : date.getFullYear();
+};
+
 // ==========================================
 // STATIC DATA
 // ==========================================
@@ -94,7 +103,7 @@ const industrialData = [
 
 const statisticsDetailData = {
   riverLength: {
-    title: '🌊 River Length Details',
+    title: 'ðŸŒŠ River Length Details',
     subtitle: 'Comprehensive river network analysis',
     data: [
       { segment: 'Main River Channel', length: '105 km', condition: 'Moderate', tributaries: 3 },
@@ -109,7 +118,7 @@ const statisticsDetailData = {
     }
   },
   districts: {
-    title: '📍 District Coverage Details',
+    title: 'ðŸ“ District Coverage Details',
     subtitle: 'Administrative and jurisdictional information',
     data: [
       { district: 'Prayagraj', population: '6.1 million', riverLength: '25 km', stations: 1, industries: 15, status: 'Moderate Impact', keyIssues: 'Urban runoff, religious activities' },
@@ -123,7 +132,7 @@ const statisticsDetailData = {
     }
   },
   monitoringStations: {
-    title: '🔬 Monitoring Stations Network',
+    title: 'ðŸ”¬ Monitoring Stations Network',
     subtitle: 'Real-time water quality monitoring infrastructure',
     data: [
       { id: 'VS-01', name: 'Mahadev Mandir', district: 'Prayagraj', status: 'Active', parameters: 8, condition: 'Moderate' },
@@ -146,18 +155,18 @@ const statisticsDetailData = {
     }
   },
   basinArea: {
-    title: '🏞️ Basin Area Analysis',
+    title: 'ðŸžï¸ Basin Area Analysis',
     subtitle: 'Comprehensive watershed characteristics',
     data: [
-      { category: 'Urban Area', area: '425 km²', percentage: '13.5%', impact: 'High pollution load', population: '8.2 million' },
-      { category: 'Agricultural Land', area: '1,890 km²', percentage: '60.2%', impact: 'Fertilizer runoff', population: '2.8 million' },
-      { category: 'Industrial Zones', area: '185 km²', percentage: '5.9%', impact: 'Toxic discharge', population: '0.3 million' },
-      { category: 'Forest Cover', area: '315 km²', percentage: '10.0%', impact: 'Natural filtration', population: '0.1 million' },
-      { category: 'Water Bodies', area: '95 km²', percentage: '3.0%', impact: 'Flood regulation', population: '-' },
-      { category: 'Barren/Others', area: '231 km²', percentage: '7.4%', impact: 'Erosion source', population: '0.6 million' }
+      { category: 'Urban Area', area: '425 kmÂ²', percentage: '13.5%', impact: 'High pollution load', population: '8.2 million' },
+      { category: 'Agricultural Land', area: '1,890 kmÂ²', percentage: '60.2%', impact: 'Fertilizer runoff', population: '2.8 million' },
+      { category: 'Industrial Zones', area: '185 kmÂ²', percentage: '5.9%', impact: 'Toxic discharge', population: '0.3 million' },
+      { category: 'Forest Cover', area: '315 kmÂ²', percentage: '10.0%', impact: 'Natural filtration', population: '0.1 million' },
+      { category: 'Water Bodies', area: '95 kmÂ²', percentage: '3.0%', impact: 'Flood regulation', population: '-' },
+      { category: 'Barren/Others', area: '231 kmÂ²', percentage: '7.4%', impact: 'Erosion source', population: '0.6 million' }
     ],
     summary: {
-      totalArea: '3,141 km² watershed',
+      totalArea: '3,141 kmÂ² watershed',
       rainfallPattern: '850-1200mm annual',
       landUseChange: '2.5% urban expansion annually'
     }
@@ -289,7 +298,7 @@ const AnimatedCounter = ({ value, duration = 2000 }: { value: number; duration?:
 // Helper function
 const extractFaecalValue = (val: string | null): number => {
   if (!val || val === 'N/A') return 0;
-  const parts = val.replace(/,/g, '').split(/–|-/).map(Number);
+  const parts = val.replace(/,/g, '').split(/â€“|-/).map(Number);
   return parts.length === 2 ? (parts[0] + parts[1]) / 2 : Number(parts[0]);
 };
 
@@ -300,16 +309,16 @@ const extractFaecalValue = (val: string | null): number => {
 export default function VarunaRiverDashboard() {
   // State from original
   const [codChartIndex, setCodChartIndex] = useState(0);
-  const [worstNitrate, setWorstNitrate] = useState({ location: '—', value: '—' });
-  const [worstBOD, setWorstBOD] = useState({ location: '—', value: '—' });
-  const [worstFaecalColiform, setWorstFaecalColiform] = useState({ location: '—', value: '—' });
-  const [worstAlgaeRisk, setWorstAlgaeRisk] = useState({ location: '—', nitrate: '—', bod: '—' });
-  const [worstChemicalRisk, setWorstChemicalRisk] = useState({ location: '—', cod: '—', tss: '—' });
-  const [worstTurbidity, setWorstTurbidity] = useState({ location: '—', value: '—' });
-  const [worstSalinity, setWorstSalinity] = useState({ location: '—', tds: '—', ec: '—' });
-  const [worstIndustrial, setWorstIndustrial] = useState({ location: '—', cod: '—', tds: '—' });
-  const [worstLandDumping, setWorstLandDumping] = useState({ location: '—', tss: '—', turbidity: '—', ts: '—' });
-  const [worstDetergentRisk, setWorstDetergentRisk] = useState({ location: '—', bod: '—', cod: '—' });
+  const [worstNitrate, setWorstNitrate] = useState({ location: 'â€”', value: 'â€”' });
+  const [worstBOD, setWorstBOD] = useState({ location: 'â€”', value: 'â€”' });
+  const [worstFaecalColiform, setWorstFaecalColiform] = useState({ location: 'â€”', value: 'â€”' });
+  const [worstAlgaeRisk, setWorstAlgaeRisk] = useState({ location: 'â€”', nitrate: 'â€”', bod: 'â€”' });
+  const [worstChemicalRisk, setWorstChemicalRisk] = useState({ location: 'â€”', cod: 'â€”', tss: 'â€”' });
+  const [worstTurbidity, setWorstTurbidity] = useState({ location: 'â€”', value: 'â€”' });
+  const [worstSalinity, setWorstSalinity] = useState({ location: 'â€”', tds: 'â€”', ec: 'â€”' });
+  const [worstIndustrial, setWorstIndustrial] = useState({ location: 'â€”', cod: 'â€”', tds: 'â€”' });
+  const [worstLandDumping, setWorstLandDumping] = useState({ location: 'â€”', tss: 'â€”', turbidity: 'â€”', ts: 'â€”' });
+  const [worstDetergentRisk, setWorstDetergentRisk] = useState({ location: 'â€”', bod: 'â€”', cod: 'â€”' });
   
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedParameter, setSelectedParameter] = useState('BOD');
@@ -325,11 +334,14 @@ export default function VarunaRiverDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const [drainData, setDrainData] = useState<DrainRecord[]>([]);
+  const [selectedYear, setSelectedYear] = useState<number>(DEFAULT_WATER_QUALITY_YEAR);
   const [sortKey, setSortKey] = useState<keyof DrainRecord | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [interventionBudget, setInterventionBudget] = useState<number>(25);
   const [generatedInterventions, setGeneratedInterventions] = useState<DynamicIntervention[]>([]);
   const [sewageStats, setSewageStats] = useState<{ [key: string]: { feature_count: number } } | null>(null);
+  const [selectedInfo, setSelectedInfo] = useState<DashboardInfoContent | null>(null);
+  const [selectedInfoAnchor, setSelectedInfoAnchor] = useState<HTMLElement | null>(null);
 
   const alertRef = useRef<HTMLDivElement>(null);
   const statRef = useRef<HTMLDivElement>(null);
@@ -345,14 +357,19 @@ export default function VarunaRiverDashboard() {
     setShowStatDetails(true);
   };
 
+  const openInfo = (key: DashboardInfoKey, event?: React.MouseEvent<HTMLElement>) => {
+    setSelectedInfoAnchor(event ? event.currentTarget : null);
+    setSelectedInfo(getDashboardInfo(key));
+  };
+
   const navItems = [
     { id: 'overview', label: 'Dashboard Overview' },
     { id: 'water-quality', label: 'Water Quality' },
     { id: 'pollution-sources', label: 'Pollution Sources' },
     { id: 'sewage-infrastructure', label: 'Sewage Infrastructure' },
-    { id: 'interventions', label: 'Interventions' },
-    { id: 'system-dynamics', label: 'System Dynamics' },
-    { id: 'gallery', label: 'Varuna Gallery' },
+    // { id: 'interventions', label: 'Interventions' },
+    // { id: 'system-dynamics', label: 'System Dynamics' },
+    // { id: 'gallery', label: 'Varuna Gallery' },
   ];
 
   // Fetch Sewage Statistics
@@ -540,7 +557,7 @@ export default function VarunaRiverDashboard() {
 
   // Fetch drain data
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main/`)
+    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main`)
       .then(async res => {
         if (!res.ok) throw new Error(await res.text());
         return res.json();
@@ -650,6 +667,27 @@ export default function VarunaRiverDashboard() {
       .catch(error => console.log('Error fetching drain data:', error));
   }, []);
 
+  const availableYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        drainData
+          .map((record) => getSamplingYear(record.sampling_time))
+          .filter((year): year is number => year !== null)
+      )
+    ).sort((a, b) => b - a);
+  }, [drainData]);
+
+  useEffect(() => {
+    if (availableYears.length === 0 || availableYears.includes(selectedYear)) return;
+
+    if (availableYears.includes(DEFAULT_WATER_QUALITY_YEAR)) {
+      setSelectedYear(DEFAULT_WATER_QUALITY_YEAR);
+      return;
+    }
+
+    setSelectedYear(availableYears[0]);
+  }, [availableYears, selectedYear]);
+
   // Scroll to map when water-quality tab is active
   useEffect(() => {
     if (activeTab === 'water-quality' && mapRef.current) {
@@ -703,16 +741,22 @@ export default function VarunaRiverDashboard() {
     };
   }, [drainData]);
 
+  const yearFilteredDrainData = useMemo(() => {
+    return drainData.filter(
+      (record) => getSamplingYear(record.sampling_time) === selectedYear
+    );
+  }, [drainData, selectedYear]);
+
   const filteredDrainData = useMemo(() => {
     switch (selectedFilter) {
-      case 'acidic': return drainData.filter(d => d.ph < 6.0);
-      case 'lowDO': return drainData.filter(d => d.do_mg_l < 2);
-      case 'highBOD': return drainData.filter(d => d.bod_mg_l > 30);
-      case 'highCOD': return drainData.filter(d => d.cod > 100);
-      case 'coliform': return drainData.filter(d => (d.faecal_col && d.faecal_col !== 'N/A') || (d.total_col && d.total_col !== 'N/A'));
-      default: return drainData;
+      case 'acidic': return yearFilteredDrainData.filter(d => d.ph < 6.0);
+      case 'lowDO': return yearFilteredDrainData.filter(d => d.do_mg_l < 2);
+      case 'highBOD': return yearFilteredDrainData.filter(d => d.bod_mg_l > 30);
+      case 'highCOD': return yearFilteredDrainData.filter(d => d.cod > 100);
+      case 'coliform': return yearFilteredDrainData.filter(d => (d.faecal_col && d.faecal_col !== 'N/A') || (d.total_col && d.total_col !== 'N/A'));
+      default: return yearFilteredDrainData;
     }
-  }, [drainData, selectedFilter]);
+  }, [yearFilteredDrainData, selectedFilter]);
 
   const sortedAndFilteredData = useMemo(() => {
     if (!sortKey) {
@@ -747,7 +791,7 @@ export default function VarunaRiverDashboard() {
     });
   }, [filteredDrainData, sortKey, sortOrder]);
 
-  const processedData = drainData.map((entry, index) => ({
+  const processedData = yearFilteredDrainData.map((entry, index) => ({
     label: entry.location || `Point-${index + 1}`,
     pH: entry.ph,
     DO: entry.do_mg_l,
@@ -853,17 +897,8 @@ export default function VarunaRiverDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex">
+    <div className="relative min-h-screen items-start bg-slate-100 font-sans text-slate-800 flex">
       <style jsx global>{`
-        @keyframes slide {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-        
-        .animate-slide {
-          animation: slide 20s linear infinite;
-        }
-
         /* Star Border Animation */
         .star-border {
           position: absolute;
@@ -935,112 +970,113 @@ export default function VarunaRiverDashboard() {
 
       {/* --- SIDEBAR --- */}
       <aside
-        className={`bg-white border-r border-slate-200 fixed inset-y-0 left-0 z-30 w-64 transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:relative md:translate-x-0 flex flex-col`}
+        className={`relative z-10 flex min-h-screen flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out ${
+          sidebarOpen
+            ? 'w-64 translate-x-0 border-r border-slate-200 opacity-100'
+            : 'w-0 -translate-x-4 border-r-0 opacity-0 pointer-events-none'
+        }`}
       >
         {/* Brand */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-200 bg-slate-50">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-700 rounded-md flex items-center justify-center text-white font-bold">
-              V
-            </div>
+            
             <h1 className="text-lg font-bold text-slate-800">
-              Varuna<span className="text-blue-600">DSS</span>
+              Varuna<span className="text-blue-600"> Dashboard</span>
             </h1>
           </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+            title="Close menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Links */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
+        <div className="overflow-y-auto p-4">
+          <p className="mb-2 px-4 text-xs font-bold uppercase tracking-wider text-slate-400">Main Menu</p>
           {navItems.map(item => (
             <SidebarLink key={item.id} {...item} activeTab={activeTab} setActiveTab={setActiveTab} />
           ))}
+          <div className="relative mt-4 border-t border-slate-200 bg-slate-50 px-4 pt-4" ref={alertRef}>
+            <button
+              onClick={() => setShowAlertDetails(!showAlertDetails)}
+              className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
+                alertsCount > 0
+                  ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <span>Notifications</span>
+              <span className="relative inline-flex">
+                <Bell className="h-5 w-5" />
+                {alertsCount > 0 && (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500"></span>
+                )}
+              </span>
+            </button>
+
+            {showAlertDetails && (
+              <div className="mt-2 rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-3 text-sm font-bold text-slate-700">
+                  <span>Notifications</span>
+                  <button
+                    onClick={() => setShowAlertDetails(false)}
+                    className="text-slate-500 hover:text-slate-700"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {alertDetails.length > 0 ? (
+                    alertDetails.map((alert, index) => (
+                      <div key={index} className={`p-3 border-b border-slate-100 hover:bg-slate-50 ${getSeverityColor(alert.severity)}`}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs font-bold">{alert.type}</span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                              alert.severity === 'Critical'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-orange-500 text-white'
+                            }`}
+                          >
+                            {alert.severity}
+                          </span>
+                        </div>
+                        <p className="text-xs mb-1">{alert.message}</p>
+                        {alert.location && <p className="text-xs text-slate-600">at {alert.location}</p>}
+                        {alert.value && alert.threshold && (
+                          <div className="text-xs bg-slate-100 rounded p-1 mt-1">
+                            <span className="font-semibold">Current: {alert.value}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-slate-500">No new alerts</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
       {/* --- MAIN CONTENT --- */}
       <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
-        {/* TOP BAR */}
-        <header className="h-20 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 border-b border-slate-200 flex items-center justify-center px-4 md:px-8 z-20 relative">
-          
-          {/* Hamburger Button (Absolute Left) */}
-          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="md:hidden text-slate-500 absolute left-4">
-            ☰
+
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute left-4 top-4 z-40 rounded-lg border border-slate-200 bg-white p-3 text-slate-600 shadow-md transition-colors hover:bg-slate-50 hover:text-slate-900"
+            title="Open menu"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
+              <path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z" />
+            </svg>
           </button>
-          
-          {/* Centered Title */}
-          <div className="overflow-hidden max-w-7xl text-center">
-            <h1 className="text-2xl md:text-5xl font-black tracking-tight whitespace-nowrap">
-              <span className="inline-block bg-gradient-to-r from-blue-700  to-blue-900 bg-clip-text text-transparent animate-slide">
-                Varuna River Management Dashboard
-              </span>
-            </h1>
-          </div>
-
-          {/* CHANGED: Bell Icon Container moved to Absolute Right */}
-          <div className="absolute right-6 md:right-8 flex items-center gap-4">
-            {/* Alert Bell */}
-            <div className="relative" ref={alertRef}>
-              <button
-                onClick={() => setShowAlertDetails(!showAlertDetails)}
-                className={`relative p-2 rounded-full hover:bg-slate-100 transition-colors ${
-                  alertsCount > 0 ? 'text-red-500' : 'text-slate-500'
-                }`}
-              >
-                <span className="text-xl">🔔</span>
-                {alertsCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
-                )}
-              </button>
-
-              {/* Popup Logic (Unchanged) */}
-              {showAlertDetails && (
-                <div className="absolute top-12 right-0 w-80 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
-                  <div className="p-3 border-b border-slate-100 font-bold text-sm text-slate-700 bg-slate-50 flex justify-between items-center">
-                    <span>Notifications</span>
-                    <button
-                      onClick={() => setShowAlertDetails(false)}
-                      className="text-slate-500 hover:text-slate-700"
-                    >
-                      <span className="text-lg">✕</span>
-                    </button>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {alertDetails.length > 0 ? (
-                      alertDetails.map((alert, index) => (
-                        <div key={index} className={`p-3 border-b border-slate-100 hover:bg-slate-50 ${getSeverityColor(alert.severity)}`}>
-                          <div className="flex justify-between mb-1">
-                            <span className="text-xs font-bold">{alert.type}</span>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                                alert.severity === 'Critical'
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-orange-500 text-white'
-                              }`}
-                            >
-                              {alert.severity}
-                            </span>
-                          </div>
-                          <p className="text-xs mb-1">{alert.message}</p>
-                          {alert.location && <p className="text-xs text-slate-600">📍 {alert.location}</p>}
-                          {alert.value && alert.threshold && (
-                            <div className="text-xs bg-slate-100 rounded p-1 mt-1">
-                              <span className="font-semibold">Current: {alert.value}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-sm text-slate-500">No new alerts</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
+        )}
 
         {/* SCROLLABLE VIEWPORT */}
         <main className="flex-1 overflow-auto p-4 md:p-8">
@@ -1050,7 +1086,7 @@ export default function VarunaRiverDashboard() {
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <InfoCard
                     label="Total  River Length"
                     value="224.4 km"
@@ -1071,10 +1107,10 @@ export default function VarunaRiverDashboard() {
                   />
                   <InfoCard
                     label="Basin Area"
-                    value="3664.6 km² "
+                    value="3664.6 kmÂ² "
                     color="orange"
                   />
-                </div>
+                </div> */}
 
                 {/* Embed Overview Component */}
                 <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
@@ -1105,21 +1141,21 @@ export default function VarunaRiverDashboard() {
                 {/* Varuna River Network Map */}
                 <div ref={mapRef} className="w-full animate-fadeIn" id="map-container">
                   <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                    <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white p-4 flex justify-between items-center varuna-map-controls">
-                      <div>
-                        <h2 className="text-xl font-bold">🗺️ Varuna River Network Map</h2>
-                      </div>
-                    </div>
-                    <div className="h-[600px] relative overflow-hidden">
+                   
+                    <div className="h-[720px] relative overflow-hidden">
                       <VarunaMap
                         sidebarCollapsed={sidebarCollapsed}
                         showNotification={showNotification}
                         selectedFilter={selectedFilter}
+                        drainStations={yearFilteredDrainData}
+                        selectedYear={selectedYear}
+                        availableYears={availableYears}
+                        onYearChange={setSelectedYear}
                       />
                     </div>
                     <div className="p-3 bg-gray-50 border-t text-center">
                       <p className="text-xs text-gray-600">
-                        🗺️ Use controls to explore rivers and water quality data
+                        ðŸ—ºï¸ Use controls to explore rivers and water quality data
                       </p>
                     </div>
                   </div>
@@ -1127,15 +1163,27 @@ export default function VarunaRiverDashboard() {
 
                 {/* Water Quality Analysis Dashboard */}
                 <div className="space-y-8">
-                  <WQIDashboard showNotification={showNotification} />
+                  <WQIDashboard
+                    drainData={yearFilteredDrainData}
+                    selectedYear={selectedYear}
+                  />
                 </div>
 
                 {/* Drain Water Quality Stations */}
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
                   <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-                    <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      🌊 RIVER WATER QUALITY OBSERVATIONS
-                    </h3>
+                    <div className="flex items-center gap-2">
+  <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+    RIVER WATER QUALITY OBSERVATIONS
+  </h3>
+  <button
+    onClick={(event) => openInfo('river-water-quality-observations', event)}
+    aria-label="River water quality observations info"
+    className="w-6 h-6 rounded-full border border-purple-300 bg-purple-50 text-purple-600 flex items-center justify-center hover:bg-purple-100 transition-colors mb-6"
+  >
+    <Info size={14} />
+  </button>
+</div>
                     {/* Dropdown Filter */}
                     <div className="text-sm">
                       <select
@@ -1146,11 +1194,11 @@ export default function VarunaRiverDashboard() {
                         className="appearance-none border border-blue-300 rounded-md px-3 py-2 bg-white hover:shadow-md hover:border-blue-400 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-8 transition-all duration-200"
                       >
                         <option value="">All Sites</option>
-                        <option value="acidic">🔴 Acidic pH Sites</option>
-                        <option value="lowDO">🟠 Low DO Sites</option>
-                        <option value="highBOD">🔴 High BOD Sites</option>
-                        <option value="highCOD">🟣 High COD Sites</option>
-                        <option value="coliform">🔴 Coliform Positive</option>
+                        <option value="acidic">ðŸ”´ Acidic pH Sites</option>
+                        <option value="lowDO">ðŸŸ  Low DO Sites</option>
+                        <option value="highBOD">ðŸ”´ High BOD Sites</option>
+                        <option value="highCOD">ðŸŸ£ High COD Sites</option>
+                        <option value="coliform">ðŸ”´ Coliform Positive</option>
                       </select>
                     </div>
                   </div>
@@ -1159,7 +1207,7 @@ export default function VarunaRiverDashboard() {
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-16">
                     <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                       <div className="text-2xl font-bold text-red-600">
-                        {drainData.filter(d => d.ph < 6.0).length}
+                        {yearFilteredDrainData.filter(d => d.ph < 6.0).length}
                       </div>
                       <div className="text-sm font-semibold text-red-800">Acidic pH Sites</div>
                       <div className="text-xs text-red-600">pH &lt; 6.0</div>
@@ -1167,7 +1215,7 @@ export default function VarunaRiverDashboard() {
                     
                     <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                       <div className="text-2xl font-bold text-orange-600">
-                        {drainData.filter(d => d.do_mg_l < 2).length}
+                        {yearFilteredDrainData.filter(d => d.do_mg_l < 2).length}
                       </div>
                       <div className="text-sm font-semibold text-orange-800">Low DO Sites</div>
                       <div className="text-xs text-orange-600">DO &lt; 2 mg/L</div>
@@ -1175,7 +1223,7 @@ export default function VarunaRiverDashboard() {
                     
                     <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                       <div className="text-2xl font-bold text-red-600">
-                        {drainData.filter(d => d.bod_mg_l > 30).length}
+                        {yearFilteredDrainData.filter(d => d.bod_mg_l > 30).length}
                       </div>
                       <div className="text-sm font-semibold text-red-800">High BOD Sites</div>
                       <div className="text-xs text-red-600">BOD &gt; 30 mg/L</div>
@@ -1183,7 +1231,7 @@ export default function VarunaRiverDashboard() {
                     
                     <div className="bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                       <div className="text-2xl font-bold text-purple-600">
-                        {drainData.filter(d => d.cod > 100).length}
+                        {yearFilteredDrainData.filter(d => d.cod > 100).length}
                       </div>
                       <div className="text-sm font-semibold text-purple-800">High COD Sites</div>
                       <div className="text-xs text-purple-600">COD &gt; 100 mg/L</div>
@@ -1191,7 +1239,7 @@ export default function VarunaRiverDashboard() {
                     
                     <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hover:shadow-lg transition-all duration-300">
                       <div className="text-2xl font-bold text-red-600">
-                        {drainData.filter(d => d.faecal_col && d.faecal_col !== 'N/A' && d.faecal_col.trim() !== '').length}
+                        {yearFilteredDrainData.filter(d => d.faecal_col && d.faecal_col !== 'N/A' && d.faecal_col.trim() !== '').length}
                       </div>
                       <div className="text-sm font-semibold text-red-800">Coliform Positive</div>
                       <div className="text-xs text-red-600">Bacterial Contamination</div>
@@ -1208,7 +1256,7 @@ export default function VarunaRiverDashboard() {
                             { label: 'Stream', key: 'stream' },
                             { label: 'pH', key: 'ph' },
                             { label: 'Temp', key: 'temp' },
-                            { label: 'EC (μS/cm)', key: 'ec_us_cm' },
+                            { label: 'EC (Î¼S/cm)', key: 'ec_us_cm' },
                             { label: 'TDS (ppm)', key: 'tds_ppm' },
                             { label: 'DO (mg/L)', key: 'do_mg_l' },
                             { label: 'Turbidity', key: 'turbidity' },
@@ -1229,7 +1277,7 @@ export default function VarunaRiverDashboard() {
                             >
                               {col.label}
                               {sortKey === col.key && (
-                                <span className="ml-1">{sortOrder === 'asc' ? '🔼' : '🔽'}</span>
+                                <span className="ml-1">{sortOrder === 'asc' ? 'ðŸ”¼' : 'ðŸ”½'}</span>
                               )}
                             </th>
                           ))}
@@ -1379,7 +1427,7 @@ export default function VarunaRiverDashboard() {
                     <div className="bg-white/10 p-6 rounded-xl backdrop-blur-sm border border-white/10 w-full md:w-96">
                       <div className="flex justify-between mb-4">
                         <span className="font-bold text-blue-300">Available Budget</span>
-                        <span className="font-mono text-2xl font-bold">₹{interventionBudget} Cr</span>
+                        <span className="font-mono text-2xl font-bold">â‚¹{interventionBudget} Cr</span>
                       </div>
                       <input
                         type="range"
@@ -1391,8 +1439,8 @@ export default function VarunaRiverDashboard() {
                         className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all"
                       />
                       <div className="flex justify-between text-xs text-slate-400 mt-2">
-                        <span>₹1 Cr</span>
-                        <span>₹200 Cr</span>
+                        <span>â‚¹1 Cr</span>
+                        <span>â‚¹200 Cr</span>
                       </div>
                     </div>
                   </div>
@@ -1403,7 +1451,7 @@ export default function VarunaRiverDashboard() {
                   <div className="lg:col-span-2 space-y-6 h-full flex flex-col">
                     <div className="flex justify-between items-center">
                       <h3 className="text-xl font-bold text-gray-800">
-                        ✅ Recommended Actions ({groupedInterventions.length}/{totalUniqueLocations})
+                        âœ… Recommended Actions ({groupedInterventions.length}/{totalUniqueLocations})
                       </h3>
                       <span className="text-sm text-gray-500">
                         Sorted by Urgency & Impact
@@ -1434,7 +1482,7 @@ export default function VarunaRiverDashboard() {
                                       group.maxPriority === 'High' ? 'bg-orange-100 text-orange-800' :
                                       'bg-blue-100 text-blue-800'
                                     }`}>
-                                      {group.maxPriority === 'Critical' && <span className="mr-1 animate-pulse">●</span>}
+                                      {group.maxPriority === 'Critical' && <span className="mr-1 animate-pulse">â—</span>}
                                       {group.maxPriority}
                                     </span>
                                     {group.count > 1 && (
@@ -1451,7 +1499,7 @@ export default function VarunaRiverDashboard() {
                                   <div className="mt-1 space-y-1">
                                     {group.problems.map((prob, i) => (
                                       <div key={i} className="text-xs text-red-600 flex items-start gap-1">
-                                        <span>•</span> {prob}
+                                        <span>â€¢</span> {prob}
                                       </div>
                                     ))}
                                   </div>
@@ -1462,7 +1510,7 @@ export default function VarunaRiverDashboard() {
                                   <div className="space-y-1">
                                     {group.actions.map((act, i) => (
                                       <div key={i} className="text-sm text-gray-700 font-medium flex items-start gap-1">
-                                        <span className="text-blue-500">✓</span> {act}
+                                        <span className="text-blue-500">âœ“</span> {act}
                                       </div>
                                     ))}
                                   </div>
@@ -1470,7 +1518,7 @@ export default function VarunaRiverDashboard() {
 
                                 {/* Cost Column */}
                                 <td className="p-4 text-right font-mono font-bold text-gray-700 align-top">
-                                  ₹{group.totalCost.toFixed(2)}
+                                  â‚¹{group.totalCost.toFixed(2)}
                                 </td>
 
                                 {/* Impact Column */}
@@ -1505,7 +1553,7 @@ export default function VarunaRiverDashboard() {
                       <div className="p-4 bg-gray-100 rounded-lg border border-gray-300 border-dashed text-center text-gray-500 text-sm">
                         {generatedInterventions.length - affordableInterventions.length} more critical interventions pending. Increase budget by 
                         <span className="font-bold text-gray-700 ml-1">
-                          ₹{(generatedInterventions.reduce((sum, i) => sum + i.cost, 0) - parseFloat(totalCost)).toFixed(2)} Cr
+                          â‚¹{(generatedInterventions.reduce((sum, i) => sum + i.cost, 0) - parseFloat(totalCost)).toFixed(2)} Cr
                         </span> to execute all.
                       </div>
                     )}
@@ -1519,7 +1567,7 @@ export default function VarunaRiverDashboard() {
                         <div className="space-y-6">
                           <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">
                             <div className="text-sm text-green-800 font-medium mb-1">Total Investment</div>
-                            <div className="text-4xl font-bold text-green-600">₹{totalCost} <span className="text-lg text-green-700/70">Cr</span></div>
+                            <div className="text-4xl font-bold text-green-600">â‚¹{totalCost} <span className="text-lg text-green-700/70">Cr</span></div>
                           </div>
 
                           <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
@@ -1637,6 +1685,17 @@ export default function VarunaRiverDashboard() {
           </div>
         </div>
       )}
+
+      <InfoPopup
+        content={selectedInfo}
+        anchor={selectedInfoAnchor}
+        onClose={() => {
+          setSelectedInfo(null);
+          setSelectedInfoAnchor(null);
+        }}
+      />
     </div>
   );
 }
+
+

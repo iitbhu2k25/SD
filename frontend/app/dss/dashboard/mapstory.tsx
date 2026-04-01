@@ -16,7 +16,7 @@ import { Feature } from 'ol';
 import type { FeatureLike } from 'ol/Feature'; 
 import { fromLonLat } from 'ol/proj';
 import { defaults as defaultControls, ScaleLine } from 'ol/control';
-import { ChevronRight, Play, Square, ChevronLeft, MapPin } from 'lucide-react'; 
+import { ChevronRight, Play, Square, ChevronLeft, MapPin, Info } from 'lucide-react'; 
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 
@@ -32,6 +32,7 @@ interface RiverInfo {
 
 interface MapStoryProps {
   showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'info') => void;
+  onInfoClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 interface LayerState {
@@ -127,14 +128,14 @@ const createStationStyleFunction = (selectedStation: StationData | null) => {
 /* --------------------------------------------------------------
    MAIN COMPONENT
    -------------------------------------------------------------- */
-const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
+const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfoClick }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
 
   const [loadingRivers, setLoadingRivers] = useState(true);
   const [loadingStations, setLoadingStations] = useState(true);
-  const [currentBasemap, setCurrentBasemap] = useState<'osm' | 'satellite'>('satellite');
+  const [currentBasemap, setCurrentBasemap] = useState<'osm' | 'satellite'>('osm');
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [selectedDescription, setSelectedDescription] = useState<string>('');
   const [selectedStation, setSelectedStation] = useState<StationData | null>(null);
@@ -151,7 +152,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
 
   /* ---------- API BASE ---------- */
-  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_BASE}`;
+  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
 
   /* ==============================================================
      1. INITIALISE MAP
@@ -159,13 +160,13 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const osmLayer = new TileLayer({ source: new OSM(), visible: false });
+    const osmLayer = new TileLayer({ source: new OSM(), visible: true });
     const satelliteLayer = new TileLayer({
       source: new XYZ({
         url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         maxZoom: 19,
       }),
-      visible: true,
+      visible: false,
     });
 
     baseMapsRef.current = { osm: osmLayer, satellite: satelliteLayer };
@@ -210,7 +211,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
         setLoadingStations(true);
         setError(null);
 
-        const url = `${API_BASE}drain-water-quality/story-map/stations/`;
+        const url = `${API_BASE}/drain-water-quality/story-map/stations`;
         const response = await fetch(url, { headers: { Accept: 'application/json' } });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -313,7 +314,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
     let rivers: RiverInfo[] = [];
 
     try {
-      const scanResp = await fetch(`${API_BASE}rivers/scan/`);
+      const scanResp = await fetch(`${API_BASE}/rivers/scan`);
       if (!scanResp.ok) throw new Error('Scan failed');
       const scanData = await scanResp.json();
       if (scanData.status !== 'success') throw new Error('Invalid scan');
@@ -336,7 +337,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
 
     for (const river of rivers) {
       try {
-        const geoResp = await fetch(`${API_BASE}drain-water-quality/rivers/geojson/${river.id}`);
+        const geoResp = await fetch(`${API_BASE}/drain-water-quality/rivers/geojson/${river.id}`);
         if (!geoResp.ok) continue;
         const geojson = await geoResp.json();
 
@@ -574,11 +575,22 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
      RENDER
      ============================================================== */
   return (
-    <div className="relative w-full bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+    <div className="relative w-full bg-gradient-to-br from-slate-100 to-slate-100 rounded-2xl overflow-hidden shadow-2xl">
       {/* HEADER */}
       <div className="bg-gradient-to-r from-blue-400 to-blue-400 text-white p-6 shadow-lg flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Story Map</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-bold">Story Map</h1>
+            {onInfoClick && (
+              <button
+                onClick={(event) => onInfoClick(event)}
+                className="w-7 h-7 rounded-full bg-white/90 text-blue-700 hover:bg-white flex items-center justify-center"
+                aria-label="Story map info"
+              >
+                <Info className="w-4 h-4" />
+              </button>
+            )}
+          </div>
           <p className="text-white/80">Explore the water quality narrative through an interactive geographic story</p>
         </div>
         
@@ -602,7 +614,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
             ) : (
               <>
                 <Play className="w-4 h-4" />
-                View as Story
+                Play
               </>
             )}
           </button>
@@ -629,7 +641,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
           )}
 
           {/* IMAGE DISPLAY */}
-          <div className="flex-3/4 bg-slate-800/50 rounded-lg backdrop-blur-sm border border-slate-700 overflow-hidden shadow-xl relative group">
+          <div className="flex-3/4 bg-slate-50 rounded-lg border border-slate-200 overflow-hidden shadow-xl relative group">
             {selectedImage ? (
               <>
                 {/* STRICTLY IMPROVE IMAGE QUALITY */}
@@ -658,7 +670,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
                   <ChevronRight className="w-6 h-6" />
                 </button>
 
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-white/90 text-slate-800 px-4 py-2 rounded-lg border border-slate-200">
                   <p className="text-sm font-semibold">{selectedStation?.location}</p>
                 </div>
               </>
@@ -677,14 +689,14 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
           {/* ===================================================================================== */}
           {/* MODIFIED SECTION: Split Description (75%) and Monitoring Stations (25%) side-by-side */}
           {/* ===================================================================================== */}
-          <div className="flex-1/4 bg-slate-800/50 rounded-lg backdrop-blur-sm border border-slate-700 p-4 flex flex-row gap-4 overflow-hidden">
+          <div className="flex-1/4 bg-slate-50 rounded-lg border border-slate-200 p-4 flex flex-row gap-4 overflow-hidden">
             
             {/* --- LEFT: DESCRIPTION (75%) --- */}
-            <div className="w-3/4 flex flex-col border-r border-slate-700 pr-4">
-              <h3 className="font-bold text-white mb-2 text-lg sticky top-0 bg-transparent z-10">Description</h3>
+            <div className="w-3/4 flex flex-col border-r border-slate-200 pr-4">
+              <h3 className="font-bold text-slate-800 mb-2 text-lg sticky top-0 bg-transparent z-10">Description</h3>
               <div className="overflow-y-auto pr-2 custom-scrollbar">
                 {selectedDescription ? (
-                  <p className="text-slate-300 leading-relaxed text-sm whitespace-pre-wrap">
+                  <p className="text-slate-700 leading-relaxed text-sm whitespace-pre-wrap">
                     {selectedDescription}
                   </p>
                 ) : (
@@ -695,7 +707,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
 
             {/* --- RIGHT: MONITORING STATIONS LIST (25%) --- */}
             <div className="w-1/4 flex flex-col">
-              <h4 className="font-semibold text-white mb-2 text-xs uppercase tracking-wider text-center bg-slate-700/50 py-1 rounded">
+              <h4 className="font-semibold text-slate-700 mb-2 text-xs uppercase tracking-wider text-center bg-slate-100 border border-slate-200 py-1 rounded">
                 Stations ({stations.length})
               </h4>
               
@@ -709,8 +721,8 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
                         p-2 rounded cursor-pointer transition-all text-xs border-l-4 
                         flex items-center justify-between
                         ${selectedStation?.id === st.id
-                          ? 'bg-slate-700/80 text-white border-pink-500 shadow-sm'
-                          : 'bg-slate-700/30 text-slate-400 border-transparent hover:bg-slate-700/50 hover:text-slate-200'
+                          ? 'bg-blue-50 text-slate-800 border-pink-500 shadow-sm'
+                          : 'bg-white text-slate-600 border-transparent hover:bg-slate-100 hover:text-slate-800'
                         }
                       `}
                     >
@@ -733,8 +745,8 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {} }) => {
         {/* RIGHT PANEL – MAP */}
         <div className="w-1/2 p-4">
           <div className="flex flex-col h-full"> 
-            <div className="flex-1 rounded-lg overflow-hidden border border-slate-700 shadow-xl bg-slate-700 relative">
-              <div ref={mapRef} className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-800" />
+            <div className="flex-1 rounded-lg overflow-hidden border border-slate-200 shadow-xl bg-slate-200 relative">
+              <div ref={mapRef} className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-200" />
               <div className="absolute top-2.5 right-2.5 z-10 flex gap-1 bg-slate-800/80 p-1 rounded-lg backdrop-blur-sm border border-slate-700">
                 <button
                   onClick={() => changeBasemap('osm')}

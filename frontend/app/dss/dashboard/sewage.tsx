@@ -199,7 +199,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
 
     const loadRivers = async () => {
         try {
-            const scanResp = await fetch(`${API_BASE}rivers/scan/`);
+            const scanResp = await fetch(`${API_BASE}/rivers/scan`);
             if (!scanResp.ok) return;
             const scanData = await scanResp.json();
             const riverList = Object.values(scanData.rivers) as any[];

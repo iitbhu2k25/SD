@@ -128,3 +128,47 @@ class StoryMapStation(models.Model):
             'remarks': self.remarks,
             'other': self.other,
         }
+
+
+class DashboardDepth(models.Model):
+    district = models.CharField(max_length=100)
+    year = models.PositiveSmallIntegerField()
+    season = models.CharField(max_length=30)
+    depth_m = models.DecimalField(max_digits=5, decimal_places=2)
+    description = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'dashboard_depth'
+        unique_together = ('district', 'year', 'season')
+
+
+class DashboardRainfall(models.Model):
+    district = models.CharField(max_length=100, db_index=True)
+    year = models.PositiveSmallIntegerField(db_index=True)
+    annual_rainfall = models.DecimalField(max_digits=15, decimal_places=10)
+    observation = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'dashboard_rainfall'
+        unique_together = ('district', 'year')
+
+
+class DashboardDistribution(models.Model):
+    year = models.CharField(max_length=20, db_index=True)
+    category = models.CharField(max_length=100, db_index=True)
+    percentage = models.DecimalField(max_digits=6, decimal_places=2)
+    observation = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'dashboard_distribution'
+        unique_together = ('year', 'category')
+
+
+class DashboardIndustrialPollution(models.Model):
+    district = models.CharField(max_length=100, db_index=True)
+    category = models.CharField(max_length=100, db_index=True)
+    pollution_index = models.CharField(max_length=50, null=True, blank=True)
+    observation = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'dashboard_industrial_pollution'

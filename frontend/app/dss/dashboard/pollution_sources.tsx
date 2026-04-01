@@ -5,6 +5,19 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Cell
 } from 'recharts';
+import { Eye, Info } from 'lucide-react';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import OSM from 'ol/source/OSM';
+import { Feature } from 'ol';
+import { Point } from 'ol/geom';
+import { Style, Fill, Stroke, Circle as CircleStyle, Text } from 'ol/style';
+import { fromLonLat } from 'ol/proj';
+import GeoJSON from 'ol/format/GeoJSON';
+import { DashboardInfoContent, getDashboardInfo, InfoPopup } from './info';
 
 interface DrainRecord {
   id: number;
@@ -57,8 +70,98 @@ const extractFaecalValue = (val: string | null): number => {
   return parts.length === 2 ? (parts[0] + parts[1]) / 2 : Number(parts[0]);
 };
 
+const BOD_PRIORITY_CLASSES = [
+  { priority: 1, label: 'Severe', color: '#8b0000' },
+  { priority: 2, label: 'Poor', color: '#ef4444' },
+  { priority: 3, label: 'Moderate', color: '#f59e0b' },
+  { priority: 4, label: 'Good', color: '#3b82f6' },
+  { priority: 5, label: 'Excellent', color: '#10b981' },
+];
+
+const getBodPriorityMeta = (value: number) => {
+  if (value > 30) return BOD_PRIORITY_CLASSES[0];
+  if (value >= 20) return BOD_PRIORITY_CLASSES[1];
+  if (value >= 10) return BOD_PRIORITY_CLASSES[2];
+  if (value >= 6) return BOD_PRIORITY_CLASSES[3];
+  return BOD_PRIORITY_CLASSES[4];
+};
+
+const getStationPointStyle = (color: string, value: number, isSelected: boolean) => {
+  if (isSelected) {
+    return [
+      // Strong outer glow
+      new Style({
+        image: new CircleStyle({
+          radius: 26,
+          fill: new Fill({ color: 'rgba(236, 72, 153, 0.30)' }),
+        }),
+        zIndex: 1750,
+      }),
+      // Middle ring for clearer focus
+      new Style({
+        image: new CircleStyle({
+          radius: 18,
+          fill: new Fill({ color: 'rgba(244, 114, 182, 0.22)' }),
+          stroke: new Stroke({ color: 'rgba(190, 24, 93, 0.9)', width: 2 }),
+        }),
+        zIndex: 1800,
+      }),
+      new Style({
+        image: new CircleStyle({
+          radius: 11,
+          fill: new Fill({ color }),
+          stroke: new Stroke({ color: '#ffffff', width: 3 }),
+        }),
+        text: new Text({
+          text: value.toFixed(2),
+          font: 'bold 13px sans-serif',
+          fill: new Fill({ color: '#111827' }),
+          backgroundFill: new Fill({ color: 'rgba(255, 255, 240, 0.98)' }),
+          stroke: new Stroke({ color: '#ffffff', width: 4 }),
+          padding: [4, 4, 4, 4],
+          offsetY: -24,
+        }),
+        zIndex: 2100,
+      }),
+    ];
+  }
+
+  return new Style({
+    image: new CircleStyle({
+      radius: 7,
+      fill: new Fill({ color }),
+      stroke: new Stroke({ color: '#ffffff', width: 2 }),
+    }),
+    text: new Text({
+      text: value.toFixed(2),
+      font: 'bold 11px sans-serif',
+      fill: new Fill({ color: '#111827' }),
+      backgroundFill: new Fill({ color: 'rgba(255,255,255,0.85)' }),
+      stroke: new Stroke({ color: '#ffffff', width: 3 }),
+      padding: [2, 2, 2, 2],
+      offsetY: -16,
+    }),
+    zIndex: 1000,
+  });
+};
+
 const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
-  const [codChartIndex, setCodChartIndex] = useState(0);
+  const [bodPage, setBodPage] = useState(0);
+  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [bodPriorityFilter, setBodPriorityFilter] = useState<'all' | 1 | 2 | 3 | 4 | 5>('all');
+  const [selectedInfo, setSelectedInfo] = useState<DashboardInfoContent | null>(null);
+  const [selectedInfoAnchor, setSelectedInfoAnchor] = useState<HTMLElement | null>(null);
+  const pageSize = 10;
+  const bodMapRef = React.useRef<HTMLDivElement | null>(null);
+  const bodMapInstanceRef = React.useRef<Map | null>(null);
+  const bodPointLayerRef = React.useRef<VectorLayer<VectorSource> | null>(null);
+  const bodRiverLayersRef = React.useRef<Array<VectorLayer<VectorSource>>>([]);
+  const [isBodMapReady, setIsBodMapReady] = useState(false);
+
+  const openInfo = (event: React.MouseEvent<HTMLElement>) => {
+    setSelectedInfoAnchor(event.currentTarget);
+    setSelectedInfo(getDashboardInfo('high-bod-sites'));
+  };
 
   // ============================================================
   // 1. BOD PRIORITY CLASSIFICATION LOGIC
@@ -208,6 +311,236 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
     }));
   }, [bodPriorityAnalysis]);
 
+  const filteredBodData = useMemo(() => {
+    if (bodPriorityFilter === 'all') return drainData;
+    return drainData.filter((d) => getBodPriorityMeta(d.bod_mg_l).priority === bodPriorityFilter);
+  }, [drainData, bodPriorityFilter]);
+
+  const sortedBodData = useMemo(
+    () => [...filteredBodData].sort((a, b) => b.bod_mg_l - a.bod_mg_l),
+    [filteredBodData]
+  );
+
+  const totalBodPages = Math.max(1, Math.ceil(sortedBodData.length / pageSize));
+  const currentBodPage = Math.min(bodPage, totalBodPages - 1);
+  const pageStart = currentBodPage * pageSize;
+  const paginatedBodData = sortedBodData.slice(pageStart, pageStart + pageSize);
+  const showingStart = sortedBodData.length === 0 ? 0 : pageStart + 1;
+  const showingEnd = sortedBodData.length === 0 ? 0 : Math.min(pageStart + pageSize, sortedBodData.length);
+
+  React.useEffect(() => {
+    if (bodPage > totalBodPages - 1) {
+      setBodPage(Math.max(0, totalBodPages - 1));
+    }
+  }, [bodPage, totalBodPages]);
+
+  React.useEffect(() => {
+    if (!bodMapRef.current || bodMapInstanceRef.current) return;
+
+    const baseLayer = new TileLayer({
+      source: new OSM(),
+      zIndex: 0,
+    });
+
+    const pointLayer = new VectorLayer({
+      source: new VectorSource(),
+      zIndex: 10,
+    });
+
+    const map = new Map({
+      target: bodMapRef.current,
+      layers: [baseLayer, pointLayer],
+      view: new View({
+        // Initial fallback view; final view is set after basin/river layers load
+        center: fromLonLat([82.78, 25.38]),
+        zoom: 9.4,
+      }),
+    });
+
+    bodPointLayerRef.current = pointLayer;
+    bodMapInstanceRef.current = map;
+    setIsBodMapReady(true);
+
+    return () => {
+      map.setTarget(undefined);
+      bodMapInstanceRef.current = null;
+      bodPointLayerRef.current = null;
+      bodRiverLayersRef.current = [];
+      setIsBodMapReady(false);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isBodMapReady || !bodMapInstanceRef.current) return;
+
+    let isCancelled = false;
+
+    const getRiverColor = (riverId: string): string => {
+      const id = riverId.toLowerCase();
+      if (id.includes('varuna')) return '#0066CC';
+      if (id.includes('basuhi')) return '#9c00aa';
+      if (id.includes('morwa')) return '#FF6600';
+      if (id.includes('basin')) return '#8B4513';
+      return '#0ea5e9';
+    };
+
+    const loadRiverLayers = async () => {
+      try {
+        const scanResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/scan`);
+        const scanData = await scanResponse.json();
+        if (scanData.status !== 'success' || !scanData.rivers || isCancelled) return;
+
+        const rivers = Object.values(scanData.rivers) as Array<{ id: string }>;
+        const geoJson = new GeoJSON();
+
+        for (const river of rivers) {
+          const riverResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/geojson/${river.id}`);
+          if (!riverResponse.ok || isCancelled) continue;
+          const riverGeojson = await riverResponse.json();
+
+          const features = geoJson.readFeatures(riverGeojson, {
+            featureProjection: 'EPSG:3857',
+          });
+
+          const color = getRiverColor(river.id);
+          const isBasin = river.id.toLowerCase().includes('basin');
+
+          const layer = new VectorLayer({
+            source: new VectorSource({ features }),
+            style: new Style({
+              stroke: new Stroke({
+                color,
+                width: isBasin ? 2 : 3,
+                lineDash: isBasin ? [6, 4] : undefined,
+              }),
+              fill: isBasin ? new Fill({ color: `${color}18` }) : undefined,
+            }),
+            zIndex: isBasin ? 3 : 4,
+          });
+
+          bodMapInstanceRef.current?.addLayer(layer);
+          bodRiverLayersRef.current.push(layer);
+        }
+
+        // After loading basin/rivers, fit map to their combined extent for a stable initial view
+        const extents = bodRiverLayersRef.current
+          .map((layer) => layer.getSource()?.getExtent())
+          .filter((e): e is [number, number, number, number] => !!e);
+
+        if (extents.length > 0 && bodMapInstanceRef.current) {
+          const combined = [...extents[0]] as [number, number, number, number];
+          for (let i = 1; i < extents.length; i++) {
+            const e = extents[i];
+            combined[0] = Math.min(combined[0], e[0]);
+            combined[1] = Math.min(combined[1], e[1]);
+            combined[2] = Math.max(combined[2], e[2]);
+            combined[3] = Math.max(combined[3], e[3]);
+          }
+
+          if (combined.every((v) => Number.isFinite(v))) {
+            bodMapInstanceRef.current.getView().fit(combined, {
+              padding: [36, 40, 36, 40],
+              maxZoom: 10.2,
+              duration: 250,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading river layers for BOD map:', error);
+      }
+    };
+
+    loadRiverLayers();
+
+    return () => {
+      isCancelled = true;
+      if (!bodMapInstanceRef.current) return;
+      bodRiverLayersRef.current.forEach((layer) => {
+        bodMapInstanceRef.current?.removeLayer(layer);
+      });
+      bodRiverLayersRef.current = [];
+    };
+  }, [isBodMapReady]);
+
+  React.useEffect(() => {
+    if (!bodPointLayerRef.current || !bodMapInstanceRef.current) return;
+
+    const source = bodPointLayerRef.current.getSource();
+    if (!source) return;
+    source.clear();
+
+    const features = filteredBodData
+      .filter((d) => d.lat !== null && d.lon !== null)
+      .map((d) => {
+        const meta = getBodPriorityMeta(d.bod_mg_l);
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([d.lon as number, d.lat as number])),
+          stationId: d.id,
+          location: d.location,
+          bod: d.bod_mg_l,
+          priority: meta.priority,
+        });
+
+        feature.setStyle(getStationPointStyle(meta.color, d.bod_mg_l, false));
+
+        return feature;
+      });
+
+    source.addFeatures(features);
+
+    // Keep a stable basin-level view; avoid aggressive auto-zoom on section load.
+  }, [filteredBodData]);
+
+  React.useEffect(() => {
+    if (selectedStationId === null) return;
+    const existsInFilter = filteredBodData.some((d) => d.id === selectedStationId);
+    if (!existsInFilter) {
+      setSelectedStationId(null);
+    }
+  }, [filteredBodData, selectedStationId]);
+
+  React.useEffect(() => {
+    if (!bodPointLayerRef.current || !bodMapInstanceRef.current) return;
+    const source = bodPointLayerRef.current.getSource();
+    if (!source) return;
+
+    source.getFeatures().forEach((feature) => {
+      const bod = Number(feature.get('bod') || 0);
+      const priority = Number(feature.get('priority') || 5);
+      const color = BOD_PRIORITY_CLASSES.find((c) => c.priority === priority)?.color || '#6b7280';
+      const featureStationId = Number(feature.get('stationId'));
+      const isSelected = selectedStationId !== null && featureStationId === selectedStationId;
+      feature.setStyle(getStationPointStyle(color, bod, isSelected));
+    });
+
+    if (selectedStationId !== null) {
+      const target = source
+        .getFeatures()
+        .find((f) => Number(f.get('stationId')) === selectedStationId);
+      if (target) {
+        const geometry = target.getGeometry() as Point | null;
+        if (geometry) {
+          bodMapInstanceRef.current.getView().animate({
+            center: geometry.getCoordinates(),
+            zoom: 13,
+            duration: 450,
+          });
+        }
+      }
+    }
+  }, [selectedStationId]);
+
+  React.useEffect(() => {
+    if (!bodMapInstanceRef.current) return;
+    const timer = setTimeout(() => bodMapInstanceRef.current?.updateSize(), 120);
+    const onResize = () => bodMapInstanceRef.current?.updateSize();
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [paginatedBodData.length]);
+
   const {
     worstNitrate,
     worstBOD,
@@ -341,124 +674,135 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
 
       {/* SECTION 2: BOD INDICATORS (Chart) */}
       <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 border border-white/20">
-        <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          BOD Indicators
+        <h2 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
+          <span>BOD Indicators</span>
+          <button
+            type="button"
+            onClick={openInfo}
+            aria-label="BOD indicators info"
+            className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-purple-300 text-purple-600 bg-white/90 hover:bg-purple-50 transition-colors"
+          >
+            <Info size={13} />
+          </button>
         </h2>
 
-        <div className="mb-6">
-          <h3 className="font-semibold text-gray-800 mb-4">Comparative Analysis of Top Polluted Sites</h3>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch min-h-[760px]">
+          <div className="xl:col-span-5 space-y-4 h-full flex flex-col">
+            <h3 className="font-semibold text-gray-800">Comparative Analysis of Top Polluted Sites</h3>
 
-          {/* Slider Control */}
-          <div className="mb-4 flex items-center gap-4">
-            <input
-              type="range"
-              min="0"
-              max={Math.max(0, drainData.length - 8)}
-              value={codChartIndex || 0}
-              onChange={(e) => setCodChartIndex(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-            />
-            <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
-              Showing {(codChartIndex || 0) + 1}-{Math.min((codChartIndex || 0) + 8, drainData.length)}
-            </span>
+            <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-3">
+              <button
+                onClick={() => setBodPage((p) => Math.max(0, p - 1))}
+                disabled={currentBodPage === 0}
+                className="px-3 py-1.5 rounded bg-purple-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span className="text-base font-semibold text-gray-700 mt-1">
+                Showing {showingStart}-{showingEnd} of {sortedBodData.length}
+              </span>
+              <button
+                onClick={() => setBodPage((p) => Math.min(totalBodPages - 1, p + 1))}
+                disabled={currentBodPage >= totalBodPages - 1}
+                className="px-3 py-1.5 rounded bg-purple-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-gray-200 flex-1">
+              <table className="w-full text-sm border-separate border-spacing-y-1">
+                <thead className="bg-gray-100 text-gray-700">
+                  <tr>
+                    <th className="pl-2 pr-2 py-3 text-left">#</th>
+                    <th className="px-2 py-3 text-left">Location</th>
+                    <th className="px-2 py-3 text-left">Stream</th>
+                    <th className="px-2 py-3 text-right">BOD (mg/L)</th>
+                    <th className="px-2 py-3 text-center align-middle">
+                      <div className="block">
+                        <span className="block leading-none">Priority</span>
+                        <select
+                          value={bodPriorityFilter}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setBodPriorityFilter(value === 'all' ? 'all' : (Number(value) as 1 | 2 | 3 | 4 | 5));
+                            setBodPage(0);
+                          }}
+                          className="mt-1 block mx-auto w-20 h-5 text-[10px] border border-gray-300 rounded px-1 bg-white leading-none"
+                        >
+                          <option value="all">All</option>
+                          <option value="1">Priority 1</option>
+                          <option value="2">Priority 2</option>
+                          <option value="3">Priority 3</option>
+                          <option value="4">Priority 4</option>
+                          <option value="5">Priority 5</option>
+                        </select>
+                      </div>
+                    </th>
+                    <th className="px-2 py-3 text-left">Quality</th>
+                    <th className="px-2 py-3 text-center">View</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedBodData.map((drain, idx) => {
+                    const meta = getBodPriorityMeta(drain.bod_mg_l);
+                    return (
+                      <tr key={`${drain.id}-${idx}`} className="bg-white hover:bg-gray-50">
+                        <td className="pl-2 pr-2 py-3 font-semibold">{pageStart + idx + 1}</td>
+                        <td className="px-2 py-3">{drain.location}</td>
+                        <td className="px-2 py-3 text-gray-600">{drain.stream || 'N/A'}</td>
+                        <td className="px-2 py-3 text-right font-semibold">{drain.bod_mg_l.toFixed(2)}</td>
+                        <td className="px-2 py-3 text-center font-bold" style={{ color: meta.color }}>
+                          {meta.priority}
+                        </td>
+                        <td className="px-2 py-3">
+                          <span className="px-2 py-1 rounded text-white text-xs font-semibold inline-block" style={{ backgroundColor: meta.color }}>
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStationId(drain.id)}
+                            className={`inline-flex items-center justify-center p-1.5 rounded border transition-colors ${
+                              selectedStationId === drain.id
+                                ? 'bg-pink-100 text-pink-700 border-pink-300'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-pink-50 hover:border-pink-200'
+                            }`}
+                            title="View on map"
+                            aria-label="View on map"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
           </div>
 
-          <ResponsiveContainer width="100%" height={450}>
-            <BarChart
-              data={drainData
-                .sort((a, b) => b.bod_mg_l - a.bod_mg_l)
-                .slice(codChartIndex || 0, (codChartIndex || 0) + 8)
-                .map((drain) => ({
-                  location: drain.location,
-                  bod: drain.bod_mg_l,
-                  cod: drain.cod,
-                  turbidity: drain.turbidity,
-                  stream: drain.stream
-                }))}
-              margin={{ top: 20, right: 30, left: 60, bottom: 120 }}
-            >
-              <defs>
-                <linearGradient id="bodGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0.3} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="location"
-                angle={-45}
-                textAnchor="end"
-                height={110}
-                interval={0}
-                tick={{ fontSize: 10, fill: '#4B5563' }}
-                label={{ value: 'Monitoring Location', position: 'insideBottom', dy: 95, fill: '#4B5563' }}
-              />
-              <YAxis
-                domain={[0, 'dataMax + 5']}
-                label={{ value: 'BOD (mg/L)', angle: -90, position: 'insideLeft', dx: -10, fill: '#4B5563' }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  border: 'none',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)'
-                }}
-                // formatter={(value: number) => [`${value.toFixed(1)} mg/L`, 'BOD']}
-                labelFormatter={(label) => `Location: ${label}`}
-              />
-              <Bar dataKey="bod" fill="url(#bodGradient)" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* BOD Pollution Cards */}
-        <h3 className="font-semibold text-gray-800 mb-4">Organic Pollution : BOD {'>'} 10</h3>
-
-        <div className="overflow-x-auto pb-4 -mx-8 px-8">
-          <div className="flex gap-4 min-w-min">
-            {drainData
-              .filter(d => d.bod_mg_l > 10)
-              .sort((a, b) => b.bod_mg_l - a.bod_mg_l)
-              .slice(codChartIndex || 0, (codChartIndex || 0) + 8)
-              .map((drain, idx) => (
-                <div
-                  key={idx}
-                  className="flex-shrink-0 w-80 p-4 rounded-lg border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-violet-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-800 text-sm truncate">{drain.location}</p>
-                      <p className="text-xs text-gray-600 truncate">{drain.stream || 'N/A'}</p>
+          <div className="xl:col-span-7 h-full">
+            <div className="h-full rounded-xl border border-gray-200 overflow-hidden bg-white flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-cyan-50 to-blue-50">
+                <h3 className="font-semibold text-gray-800">BOD Priority Map</h3>
+                <p className="text-xs text-gray-600 mt-1">All monitoring points colored by BOD priority classes</p>
+              </div>
+              <div ref={bodMapRef} className="flex-1 w-full min-h-[0]" />
+              <div className="p-3 border-t border-gray-200">
+                <p className="text-[11px] font-semibold text-gray-700 mb-2">BOD Priority Legend</p>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {BOD_PRIORITY_CLASSES.map((item) => (
+                    <div key={item.priority} className="flex items-center gap-2 px-2 py-1 rounded border border-gray-200 bg-gray-50 whitespace-nowrap">
+                      <span className="h-3 w-8 rounded-sm border border-white" style={{ backgroundColor: item.color }} />
+                      <span className="text-[11px] text-gray-700 font-medium">{item.label}</span>
                     </div>
-                    <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-bold ml-2 flex-shrink-0">
-                      #{(codChartIndex || 0) + idx + 1}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between p-2 bg-white rounded">
-                      <span className="text-gray-700">BOD:</span>
-                      <span className="font-bold text-red-600">{drain.bod_mg_l.toFixed(1)} mg/L</span>
-                    </div>
-                    <div className="flex justify-between p-2 bg-white rounded">
-                      <span className="text-gray-700">COD:</span>
-                      <span className="font-bold text-orange-600">{drain.cod.toFixed(1)} mg/L</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-gradient-to-r from-red-500 to-purple-600 h-3 rounded-full transition-all duration-1000"
-                      style={{ width: `${Math.min((drain.bod_mg_l / 50) * 100, 100)}%` }}
-                    ></div>
-                  </div>
-
-                  <p className="text-xs text-gray-600 mt-2">
-                    {Math.min((drain.bod_mg_l / 30) * 100, 100).toFixed(0)}% of critical threshold (30 mg/L)
-                  </p>
+                  ))}
                 </div>
-              ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -502,20 +846,17 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
             </>
           )}
         </div>
-
         {/* PRIORITY CLASSIFICATION TABLE */}
-        <div className="space-y-6">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+        <div className="space-y-5">
+          <h3 className="text-3xl font-bold text-gray-800 text-left">
             5-Tier BOD Priority Classification System
           </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Priority Cards */}
-            <div className="space-y-3 h-full">
-              {bodPriorityAnalysis.map((analysis, idx) => (
+          <div className="space-y-3">
+            {bodPriorityAnalysis.map((analysis, idx) => (
+              <div key={idx} className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
                 <div
-                  key={idx}
-                  className="p-4 rounded-lg border-l-4 transition-all hover:shadow-lg"
+                  className="p-5 rounded-lg border-l-4 transition-all hover:shadow-lg"
                   style={{
                     borderLeftColor: analysis.color,
                     backgroundColor: `${analysis.color}08`
@@ -523,58 +864,47 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-bold text-lg" style={{ color: analysis.color }}>
+                      <h4 className="font-bold text-2xl leading-tight" style={{ color: analysis.color }}>
                         Priority {analysis.priority}
                       </h4>
-                      <p className="text-sm font-semibold text-gray-700">{analysis.description}</p>
+                      <p className="text-base font-semibold text-gray-700 mt-1">{analysis.description}</p>
                     </div>
-                    <span className="text-2xl font-bold" style={{ color: analysis.color }}>
+                    <span className="text-4xl font-bold leading-none" style={{ color: analysis.color }}>
                       {analysis.range}
                     </span>
                   </div>
                   <div className="bg-white/60 rounded px-3 py-2 mb-2">
-                    <div className="text-xs text-gray-600">
+                    <div className="text-sm text-gray-700">
                       <strong>Locations Identified:</strong> {analysis.count} site{analysis.count !== 1 ? 's' : ''}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-700 font-medium">{analysis.action}</div>
+                  <div className="text-base text-gray-700 font-medium">{analysis.action}</div>
                 </div>
-              ))}
-            </div>
 
-            {/* Criteria Breakdown */}
-            <div className="space-y-3 h-full">
-              <div className="p-4 rounded-lg border-2 border-gray-300 bg-gray-50 h-full overflow-y-auto">
-                <h4 className="font-bold text-gray-800 mb-3">Classification Criteria</h4>
-                <div className="space-y-4 text-sm">
-                  {bodPriorityAnalysis.map((analysis, idx) => (
-                    <div key={idx} className="pb-3 border-b border-gray-200 last:border-0">
-                      <p className="font-semibold mb-1" style={{ color: analysis.color }}>
-                        Priority {analysis.priority}: {analysis.range} mg/L
-                      </p>
-                      <ul className="space-y-1 text-xs text-gray-700">
-                        {analysis.criteria.map((criterion, cidx) => (
-                          <li key={cidx} className="flex gap-2">
-                            <span className="text-gray-400">◆</span>
-                            <span>{criterion}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                <div className="p-5 rounded-lg border border-gray-300 bg-gray-50">
+                  <h4 className="font-bold text-xl text-left mb-2" style={{ color: analysis.color }}>
+                    Priority {analysis.priority} Criteria
+                  </h4>
+                  <ul className="space-y-1.5 text-sm text-gray-700">
+                    {analysis.criteria.map((criterion, cidx) => (
+                      <li key={cidx} className="flex gap-2 items-start">
+                        <span className="text-gray-400">*</span>
+                        <span>{criterion}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
-
         {/* OUTCOME - STRETCHES DISTRIBUTION */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-300 p-6">
           <h3 className="text-2xl font-bold text-blue-900 mb-4 flex items-center gap-2">
             OUTCOME: Priority-Wise observation points Distribution
           </h3>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
@@ -603,7 +933,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                         {bodPriorityAnalysis.find(a => a.priority === item.priority)?.range}
                       </td>
                       <td className="border border-gray-300 px-4 py-3 text-center">
-                        <span className="text-2xl font-bold" style={{ color: item.color }}>
+                        <span className="text-4xl font-bold leading-none" style={{ color: item.color }}>
                           {item.stretches}
                         </span>
                       </td>
@@ -652,7 +982,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
 
         {/* PRIORITY-WISE DETAILED LOCATIONS */}
         <div className="space-y-4">
-          <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <h3 className="text-3xl font-bold text-gray-800 text-left">
             <span>📍</span>
             Identified observation points by Priority
           </h3>
@@ -767,7 +1097,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
           Critical Pollution Hotspots
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
           {/* High COD Locations */}
           <div className="border-l-4 border-red-500 bg-gradient-to-br from-red-50 to-pink-50 p-6 rounded-lg">
             <h3 className="font-bold text-red-800 mb-4 flex items-center gap-2">
@@ -781,7 +1111,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                   <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-800 text-sm">{idx + 1}. {drain.location}</p>
-                      <p className="text-xs text-gray-600">{drain.stream || 'N/A'}</p>
+                      <p className="text-sm text-gray-700">{drain.stream || 'N/A'}</p>
                     </div>
                     <span className="text-lg font-bold text-red-600 ml-2 flex-shrink-0">
                       {drain.cod.toFixed(1)} mg/L
@@ -801,7 +1131,7 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
                   <div key={idx} className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-300">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-800 text-sm">{idx + 1}. {drain.location}</p>
-                      <p className="text-xs text-gray-600">{drain.stream || 'N/A'}</p>
+                      <p className="text-sm text-gray-700">{drain.stream || 'N/A'}</p>
                     </div>
                     <span className="text-lg font-bold text-purple-600 ml-2 flex-shrink-0">{drain.ph.toFixed(2)} pH</span>
                   </div>
@@ -876,173 +1206,25 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
           </div>
         </div>
       </div>
-
-      {/* SECTION 4: POTENTIAL POLLUTION SOURCES - UPDATED RENDER LOGIC */}
-      <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-8 pb-12 border border-white/20">
-        <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-           Potential Pollution Sources
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {[
-            {
-              title: "Organic Pollution",
-              image: "https://dialogue.earth/content/uploads/2015/12/India-Ganga-pollution-scaled.jpg",
-              icon: "🧫",
-              limit: "BOD ≤ 3.00 mg/L",
-              observed: `BOD: ${worstBOD.value} mg/L`,
-              location: worstBOD.location,
-              description: "High organic load from untreated sewage. Promotes microbial growth, reduces dissolved oxygen.",
-              bgColor: "from-green-100 to-white",
-            },
-            {
-              title: "Pathogen Risk",
-              icon: "🦠",
-              image: "https://t4.ftcdn.net/jpg/08/42/76/07/360_F_842760775_8ccQDE8g6eKeuVy2jHffnZxU13MZrpEG.jpg",
-              limit: "Faecal Coliform ≤ 500 MPN",
-              observed: `Faecal Coliform: ${worstFaecalColiform.value} MPN`,
-              location: worstFaecalColiform.location,
-              description: "High faecal contamination from untreated sewage poses serious health hazards.",
-              bgColor: "from-red-100 to-white",
-            },
-            {
-              title: "Chemical Pollution",
-              icon: "⚗️",
-              image: "https://static.vecteezy.com/system/resources/thumbnails/057/512/892/small_2x/close-up-of-a-barrel-with-green-leaking-toxic-waste-standing-in-nature-photo.jpg",
-              limit: "COD ≤ 30 | TSS ≤ 100",
-              observed: `COD: ${worstChemicalRisk.cod} | TSS: ${worstChemicalRisk.tss}`,
-              location: worstChemicalRisk.location,
-              description: "Chemical residues, fertilizers, oils alter water chemistry and harm aquatic life.",
-              bgColor: "from-yellow-100 to-white",
-            },
-            {
-              title: "Turbidity",
-              icon: "🌫️",
-              image: "https://ecoreportcard.org/site/assets/files/2218/chesterville_branch_turbidity.700x0.jpg",
-              limit: "Safe Limit: ≤ 25 NTU",
-              observed: `Turbidity: ${worstTurbidity.value} NTU`,
-              location: worstTurbidity.location,
-              description: "Suspended solids reduce light penetration and disrupt photosynthesis.",
-              bgColor: "from-gray-100 to-white",
-            },
-            {
-              title: "Salinity",
-              icon: "🧂",
-              image: "https://www.waterquality.gov.au/sites/default/files/images/salt.jpg",
-              limit: "TDS ≤ 1000 | EC ≤ 2250",
-              observed: `TDS: ${worstSalinity.tds} | EC: ${worstSalinity.ec}`,
-              location: worstSalinity.location,
-              description: "Excess salts from sewage affect water quality and aquatic ecosystems.",
-              bgColor: "from-blue-100 to-white",
-            },
-            {
-              title: "Nitrates",
-              icon: "🌾",
-              image: "https://nexteel.in/wp-content/uploads/2025/04/Nitrate-Pollution-in-water-1024x576.jpg",
-              limit: "Safe Limit: ≤ 2.00 mg/L",
-              observed: `Nitrate: ${worstNitrate.value} mg/L`,
-              location: worstNitrate.location,
-              description: "Nutrient overload from agriculture promotes algal blooms.",
-              bgColor: "from-lime-100 to-white",
-            },
-            {
-              title: "Algae Growth",
-              icon: "🌿",
-              image: "https://assets.telegraphindia.com/telegraph/5jamriver2.jpg",
-              limit: "Nitrate ≤ 2 | BOD ≤ 3",
-              observed: `Nitrate: ${worstAlgaeRisk.nitrate} | BOD: ${worstAlgaeRisk.bod}`,
-              location: worstAlgaeRisk.location,
-              description: "Excess nutrients cause oxygen depletion and aquatic death.",
-              bgColor: "from-emerald-100 to-white",
-            },
-            {
-              title: "Industrial Contaminants",
-              icon: "🏭",
-              image: "https://images.assettype.com/english-sentinelassam/import/wp-content/uploads/2019/01/industrial-wastewater.jpg",
-              limit: "COD ≤ 250 | TDS ≤ 2100",
-              observed: `COD: ${worstIndustrial.cod} | TDS: ${worstIndustrial.tds}`,
-              location: worstIndustrial.location,
-              description: "Toxic discharge bioaccumulates in fish, poses long-term health risks.",
-              bgColor: "from-indigo-100 to-white",
-            },
-            {
-              title: "Detergents",
-              icon: "🧼",
-              image: "https://asset.library.wisc.edu/1711.dl/ER5CSR223WOWA8F/M/h1380-2ce93.jpg",
-              limit: "BOD ≤ 3 | COD ≤ 250",
-              observed: `BOD: ${worstDetergentRisk.bod} | COD: ${worstDetergentRisk.cod}`,
-              location: worstDetergentRisk.location,
-              description: "Greywater with detergents promotes algal growth and eutrophication.",
-              bgColor: "from-purple-100 to-white",
-            },
-            {
-              title: "Land Dumping",
-              icon: "🗑️",
-              image: "https://dialogue.earth/content/uploads/2021/12/2CMW2JH-1-scaled.jpg",
-              limit: "TSS ≤ 100 | Turb ≤ 25 | TS ≤ 2000",
-              observed: `TSS: ${worstLandDumping.tss} | Turb: ${worstLandDumping.turbidity} | TS: ${worstLandDumping.ts}`,
-              location: worstLandDumping.location,
-              description: "Runoff and solid waste degrade river clarity and water quality.",
-              bgColor: "from-rose-100 to-white",
-            },
-          ].map((item, index) => (
-            <div
-              key={index}
-              className={`w-full h-[500px] flex flex-col justify-between rounded-2xl px-5 py-5 bg-gradient-to-br ${item.bgColor} shadow-md border border-gray-200 transform hover:scale-105 hover:shadow-2xl transition-transform duration-300 ease-in-out`}
-            >
-              {/* Top Half - Image */}
-              {item.image && (
-                <div className="-mx-5 -mt-5 mb-4">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-[240px] object-cover rounded-t-2xl"
-                  />
-                </div>
-              )}
-              
-              <div className="flex flex-col justify-between h-full">
-                <div>
-                  <h4 className="text-lg font-bold text-gray-800 mb-3">{item.title}</h4>
-                  
-                  {/* Split Data Lines */}
-                  <div className="space-y-3">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Safe Limits</span>
-                      <span className="text-xs font-medium text-gray-800 break-words leading-tight">{item.limit}</span>
-                    </div>
-                    
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Highest Observed</span>
-                      <span className="text-xs font-bold text-red-600 break-words leading-tight">{item.observed}</span>
-                    </div>
-
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Observed At</span>
-                      <span className="text-xs font-medium text-gray-700 bg-white/60 p-1.5 rounded border border-gray-200 break-words leading-tight">
-                        📍 {item.location || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="text-[10px] text-gray-600 mt-4 pt-4 border-t border-gray-200/50 italic">
-                  {item.description}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      
       <style jsx global>{`
         .custom-scrollbar-thin::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.4); border-radius: 10px; }
         .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.6); }
       `}</style>
+      <InfoPopup
+        content={selectedInfo}
+        anchor={selectedInfoAnchor}
+        onClose={() => {
+          setSelectedInfo(null);
+          setSelectedInfoAnchor(null);
+        }}
+      />
     </div>
   );
 };
 
 export default PollutionSources;
+
+
+

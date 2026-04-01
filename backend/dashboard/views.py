@@ -3,7 +3,14 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from .models import DrainWaterQuality, StoryMapStation
+from .models import (
+    DrainWaterQuality,
+    StoryMapStation,
+    DashboardDepth,
+    DashboardRainfall,
+    DashboardDistribution,
+    DashboardIndustrialPollution,
+)
 from django.conf import settings
 import os
 import json
@@ -26,6 +33,58 @@ def get_drain_water_quality(request):
         return JsonResponse(list(data), safe=False)
     except Exception as e:
         logger.error(f"Error: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_dashboard_depth(request):
+    """Get dashboard groundwater depth records"""
+    try:
+        data = DashboardDepth.objects.all().order_by('year', 'district', 'season').values(
+            'id', 'district', 'year', 'season', 'depth_m', 'description'
+        )
+        return JsonResponse(list(data), safe=False)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard depth: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_dashboard_rainfall(request):
+    """Get dashboard annual rainfall records"""
+    try:
+        data = DashboardRainfall.objects.all().order_by('year', 'district').values(
+            'id', 'district', 'year', 'annual_rainfall', 'observation'
+        )
+        return JsonResponse(list(data), safe=False)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard rainfall: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_dashboard_distribution(request):
+    """Get dashboard distribution records"""
+    try:
+        data = DashboardDistribution.objects.all().order_by('year', 'category').values(
+            'id', 'year', 'category', 'percentage', 'observation'
+        )
+        return JsonResponse(list(data), safe=False)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard distribution: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def get_dashboard_industrial_pollution(request):
+    """Get dashboard industrial pollution records"""
+    try:
+        data = DashboardIndustrialPollution.objects.all().order_by('district', 'category', 'id').values(
+            'id', 'district', 'category', 'pollution_index', 'observation'
+        )
+        return JsonResponse(list(data), safe=False)
+    except Exception as e:
+        logger.error(f"Error fetching dashboard industrial pollution: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
