@@ -1,18 +1,18 @@
-from app.database.models import RasterMetadata,RasterStorage,CeleryTask
+from app.database.models import RasterMetadata,UserStorage,CeleryTask,VectorMetadata
 from app.database.crud.base import CrudBase
 from sqlalchemy.orm import Session
-from app.api.schema.raster_operation import rasteroperSchema,rasterMetaSchame
+from app.api.schema.raster_operation import useroperSchema,rasterMetaSchame,vectorMetaSchema
 
 
-class rasterstorecrud(CrudBase):
-    def __init__(self,db:Session,Model=RasterStorage):
+class userstorecrud(CrudBase):
+    def __init__(self,db:Session,Model=UserStorage):
         super().__init__(db,Model)
         self.obj=None
 
     def get_details(self,file_id:str):
         return self.db.query(self.Model).filter(self.Model.file_id==file_id).first()
 
-    def create_details(self,payload:rasteroperSchema):
+    def create_details(self,payload:useroperSchema):
         return self.create(payload.model_dump())
 
 class rasterMetacrud(CrudBase):
@@ -24,6 +24,18 @@ class rasterMetacrud(CrudBase):
         return self.db.query(self.Model).filter(self.Model.file_id==file_id).first()
     
     def create_details(self,payload:rasterMetaSchame):
+        return self.create(payload.model_dump())
+    
+
+class vectorMetacrud(CrudBase):
+    def __init__(self,db:Session,Model=VectorMetadata):
+        super().__init__(db,Model)
+        self.obj=None
+
+    def get_details(self,file_id:str):
+        return self.db.query(self.Model).filter(self.Model.file_id==file_id).first()
+    
+    def create_details(self,payload:vectorMetaSchema):
         return self.create(payload.model_dump())
     
 class rasterOperCrud(CrudBase):

@@ -5,8 +5,10 @@ import UploadRaster from "./components/Upload";
 import UploadVector, { VectorLayer } from "./components/UploadVector";
 import VectorOperationsPanel from "./components/VectorOperationsPanel";
 import RasterDetails from "./components/RasterDetails";
+import VectorDetails from "./components/VectorDetails";
 import { OperationsPanel } from "./components/operations";
 import { SLDEditor } from "./components/SLDEditor";
+import { DownloadOverlay } from "./components/operations/Taskpanel";
 import {
   RasterProvider,
   useRaster,
@@ -16,6 +18,7 @@ import {
 import "@/styles/terraops-theme.css";
 import { api } from "@/services/api";
 import { toast } from "react-toastify";
+import { downloadRaster } from "@/utils/rasterUtils";
 
 type RightTab = "details" | "symbology";
 
@@ -45,9 +48,12 @@ const AnalyticsInner: React.FC = () => {
 
   const [uploadMode, setUploadMode] = useState<"raster" | "vector">("raster");
   const [vectorLayer, setVectorLayer] = useState<VectorLayer | null>(null);
+  const [showVectorUpload, setShowVectorUpload] = useState(true);
 
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [rightTab, setRightTab] = useState<RightTab>("details");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   useEffect(() => {
     if (layer) {
@@ -60,8 +66,21 @@ const AnalyticsInner: React.FC = () => {
   }, [layer]);
 
   const handleUploadNew = () => {
+    toast.info("layer remove")
     removeLayer();
     mapViewRef.current?.removeRasterLayer();
+  };
+
+  const handleStackDownload = async (fileId: string, fileName: string) => {
+    try {
+      setIsDownloading(true);
+      setDownloadProgress(0);
+      await downloadRaster(fileId, fileName || `${fileId}raster.tif`, setDownloadProgress);
+    } catch {
+      toast.error("Download failed");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleModeSwitch = (mode: "raster" | "vector") => {
@@ -121,6 +140,8 @@ const AnalyticsInner: React.FC = () => {
   ];
 
   return (
+    <>
+    {isDownloading && <DownloadOverlay progress={downloadProgress} />}
     <div
       className="terraops relative w-full h-180 flex flex-col md:flex-row overflow-hidden"
       style={{
@@ -269,7 +290,14 @@ const AnalyticsInner: React.FC = () => {
                   return (
                     <button
                       key={r.file_id}
-                      onClick={() => selectLayer(r)}
+                      onClick={() => {
+                        if (isActive) {
+                          removeLayer();
+                          mapViewRef.current?.removeRasterLayer();
+                        } else {
+                          selectLayer(r);
+                        }
+                      }}
                       className="w-full flex items-center gap-2 px-2.5 py-2 text-left transition-all duration-150"
                       style={{
                         borderRadius: "var(--radius-md)",
@@ -302,6 +330,20 @@ const AnalyticsInner: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
                       )}
+                      <span
+                        role="button"
+                        title="Download"
+                        onClick={(e) => { e.stopPropagation(); handleStackDownload(r.file_id, r.file_name); }}
+                        className="flex-shrink-0 p-1 rounded transition-colors"
+                        style={{ color: "var(--text-muted)" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </span>
                     </button>
                   );
                 })}
@@ -386,6 +428,16 @@ const AnalyticsInner: React.FC = () => {
                   Active
                 </span>
               )}
+              {uploadMode === "vector" && (
+                <button
+                  onClick={() => setShowVectorUpload((v) => !v)}
+                  className="p-1 rounded-md transition-colors"
+                  style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", marginLeft: vectorLayer ? undefined : "auto" }}
+                  title={showVectorUpload ? "Collapse" : "Expand"}
+                >
+                 
+                </button>
+              )}
             </div>
 
             {uploadMode === "raster" ? (
@@ -469,7 +521,34 @@ const AnalyticsInner: React.FC = () => {
                 </div>
               )
             ) : (
-              <UploadVector onUploaded={setVectorLayer} />
+              <div className="space-y-2">
+                {showVectorUpload && (
+                  <UploadVector
+                    onUploaded={(l) => { setVectorLayer(l); setRightPanelOpen(true); setRightTab("details"); }}
+                    onRemoved={() => { setVectorLayer(null); setShowVectorUpload(true); setRightPanelOpen(false); }}
+                    onToggleVisible={(vis) => mapViewRef.current?.setVectorLayerVisible(vis)}
+                  />
+                )}
+                {vectorLayer && (
+                  <button
+                    onClick={() => { setRightPanelOpen(true); setRightTab("details"); }}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-medium transition-all"
+                    style={{
+                      borderRadius: "var(--radius-sm)",
+                      border: `1px solid ${rightPanelOpen && rightTab === "details" ? "var(--cyan)" : "var(--border-subtle)"}`,
+                      background: rightPanelOpen && rightTab === "details" ? "var(--cyan-bg)" : "var(--surface-card)",
+                      color: rightPanelOpen && rightTab === "details" ? "var(--cyan)" : "var(--text-muted)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Details
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -478,7 +557,7 @@ const AnalyticsInner: React.FC = () => {
             {uploadMode === "raster" ? (
               <OperationsPanel />
             ) : (
-              <VectorOperationsPanel layer={vectorLayer} />
+              <VectorOperationsPanel layer={vectorLayer} mapViewRef={mapViewRef} />
             )}
           </div>
         </div>
@@ -552,7 +631,7 @@ const AnalyticsInner: React.FC = () => {
       {/* ═══════════════════════════════════════════════════════════════════
            RIGHT SIDEBAR — Tabbed: Details / Symbology
          ═══════════════════════════════════════════════════════════════════ */}
-      {rightPanelOpen && layer && (
+      {rightPanelOpen && (layer || (uploadMode === "vector" && vectorLayer)) && (
         <aside
           className="hidden md:flex flex-col terra-slide-right"
           style={{
@@ -570,7 +649,7 @@ const AnalyticsInner: React.FC = () => {
           >
             <div className="px-4 pt-3 pb-0 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {tabs.map((tab) => {
+                {tabs.filter((tab) => !(uploadMode === "vector" && !layer && tab.key === "symbology")).map((tab) => {
                   const isActive = rightTab === tab.key;
                   return (
                     <button
@@ -640,7 +719,7 @@ const AnalyticsInner: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0">
             {rightTab === "details" && (
               <div className="terra-fade-in">
-                <RasterDetails />
+                {uploadMode === "vector" && !layer ? <VectorDetails /> : <RasterDetails />}
               </div>
             )}
             {rightTab === "symbology" && (
@@ -655,6 +734,7 @@ const AnalyticsInner: React.FC = () => {
         </aside>
       )}
     </div>
+    </>
   );
 };
 

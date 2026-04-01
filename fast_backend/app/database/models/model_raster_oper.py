@@ -8,8 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy.dialects.postgresql import JSON
 
 
-class RasterStorage(Base):
-    __tablename__ = "raster_storage"
+class UserStorage(Base):
+    __tablename__ = "user_storage"
 
     file_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     file_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -18,30 +18,36 @@ class RasterStorage(Base):
 
     # Self reference
     parent_id: Mapped[int | None] = mapped_column(
-        ForeignKey("raster_storage.id"),
+        ForeignKey("user_storage.id"),
         nullable=True
     )
 
-    raster_type: Mapped[str] = mapped_column(String, nullable=False)  # original/derived
+    storage_type: Mapped[str] = mapped_column(String, nullable=False)  # original/derived
 
     # Relationships
-    parent: Mapped["RasterStorage"] = relationship(
-        "RasterStorage",
-        remote_side=lambda: [RasterStorage.id],
+    parent: Mapped["UserStorage"] = relationship(
+        "UserStorage",
+        remote_side=lambda: [UserStorage.id],
         backref="children"
     )
 
-    metadata_record: Mapped["RasterMetadata"] = relationship(
+    raster_metadata_record: Mapped["RasterMetadata"] = relationship(
         "RasterMetadata",
         back_populates="storage",
         uselist=False
+    )
+    vector_metadata_record:Mapped["VectorMetadata"]= relationship(
+        "VectorMetadata",
+        back_populates="storage",
+        uselist=False
+
     )
     
 class RasterMetadata(Base):
     __tablename__ = "raster_metadata"
 
     file_id: Mapped[str] = mapped_column(
-        ForeignKey("raster_storage.file_id"),
+        ForeignKey("user_storage.file_id"),
         unique=True,
         nullable=False
     )
@@ -69,9 +75,28 @@ class RasterMetadata(Base):
     bands: Mapped[list | None] = mapped_column(JSON)
     tags: Mapped[dict | None] = mapped_column(JSON)
 
-    storage: Mapped["RasterStorage"] = relationship(
-        "RasterStorage",
-        back_populates="metadata_record"
+    storage: Mapped["UserStorage"] = relationship(
+        "UserStorage",
+        back_populates="raster_metadata_record"
+    )
+
+class VectorMetadata(Base):
+    __tablename__ = "vector_metadata"
+
+    file_id:Mapped[str]=mapped_column(
+        ForeignKey("user_storage.file_id"),
+        unique=True,
+        nullable=False)
+    driver: Mapped[str] = mapped_column(String, nullable=False)
+    feature_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    geometry_type: Mapped[str] = mapped_column(String, nullable=False)
+    crs: Mapped[str] = mapped_column(String, nullable=False)         # WKT / PROJ string
+    crs_unit: Mapped[str] = mapped_column(String, nullable=False)
+    file_size: Mapped[dict | None] = mapped_column(JSON)
+    attribute_schema: Mapped[list | None] = mapped_column(JSON)
+    storage: Mapped["UserStorage"] = relationship(
+        "UserStorage",
+        back_populates="vector_metadata_record"
     )
 
 class CeleryTask(Base):

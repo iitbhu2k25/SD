@@ -28,4 +28,4 @@ from app.database.models.model_gwz import(
 )
 from app.database.models.auth_model import User,Report,UserDetails
 from app.database.models.model_rainwater import Rainwater_raster
-from app.database.models.model_raster_oper import RasterMetadata,CeleryTask,RasterStorage
+from app.database.models.model_raster_oper import RasterMetadata,CeleryTask,UserStorage,VectorMetadata

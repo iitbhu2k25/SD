@@ -12,6 +12,7 @@ from celery.result import AsyncResult
 from app.database.config.dependency import db_dependency
 from app.utils.exception import validate
 from app.api.schema.raster_operation import (
+    Interpolation,
     RasterInfoResponse,
     RasterReproject,
     RasterReclassify,
@@ -25,23 +26,24 @@ from app.api.schema.raster_operation import (
     Chunkcomplete,
     CellResize,
     RasterOperOutput,
-    RasterUploadResponse)
+    RasterUploadResponse,
+    VectorInfoResponse)
 from app.api.service.raster_work.raster_operation import RasterOperation
 from app.dependency.token_dependency import validate_user
 router=APIRouter()
 
 from app.conf.redis.redis_manager import redis_manager
 
-@router.post("/post_raster",status_code=status.HTTP_201_CREATED)
+@router.post("/post_data",status_code=status.HTTP_201_CREATED)
 @validate
-async def post_raster(db:db_dependency,file: UploadFile = File(...)):
+async def post_data(db:db_dependency,file: UploadFile = File(...)):
     """ return the raster temp id"""
     return await RasterOperation().save_upload(db,file)
 
 
-@router.post("/upload_raster_chunk",status_code=status.HTTP_201_CREATED)
+@router.post("/upload_data_chunk",status_code=status.HTTP_201_CREATED)
 @validate
-async def post_raster(file: UploadFile = File(...),
+async def upload_data_chunk(file: UploadFile = File(...),
     upload_id: str = Header(...),
     chunk_index: int = Header(...),
 ):
@@ -49,41 +51,41 @@ async def post_raster(file: UploadFile = File(...),
 
 
 @router.post("/upload/complete",status_code=status.HTTP_201_CREATED)
-async def complete_upload(db:db_dependency,payload:Chunkcomplete,):
+async def complete_upload(db:db_dependency,payload:Chunkcomplete,user: Annotated[bool, Depends(validate_user)]):
     """   Merge all chunks into final file.  """
     return await RasterOperation().merge_chunks(db,payload.upload_id,payload.filename,payload.total_chunks)
 
 
 @router.post("/sldupdate",status_code=status.HTTP_201_CREATED)
-async def sldupdate(payload:SLDUpdate,):
+async def sldupdate(payload:SLDUpdate,user: Annotated[bool, Depends(validate_user)]):
     """ Merge all chunks into final file. """
-    print(payload.layername)
+
     return await RasterOperation().updatesld(payload)
 
 
 @router.get("/raster/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=RasterInfoResponse)
 @validate
-async def get_raster(db:db_dependency,file_id: str):
+async def get_raster(db:db_dependency,file_id: str,user: Annotated[bool, Depends(validate_user)]):
     """ return the raster details"""
     return await RasterOperation().get_info(db,file_id)
 
+@router.get("/vector/{file_id}/details",status_code=status.HTTP_201_CREATED,response_model=VectorInfoResponse)
+@validate
+async def get_raster(db:db_dependency,file_id: str,user: Annotated[bool, Depends(validate_user)]):
+    """ return the vector details"""
+    return await RasterOperation().vector_get_info(db,file_id)
 
 @router.get("/raster/{task_id}/output",status_code=status.HTTP_201_CREATED,response_model=RasterOperOutput)
 @validate
-async def get_raster(db:db_dependency,task_id: str,):
+async def get_raster(db:db_dependency,task_id: str,user: Annotated[bool, Depends(validate_user)]):
     """ return the output layer details"""
     return await RasterOperation().get_result(db,task_id)
 
 
-@router.get("/get_avaliable_epsg",status_code=status.HTTP_201_CREATED)
-@validate
-async def raster_reproject(db:db_dependency):
-    return await RasterOperation().available_epsg()
-
 
 @router.post("/reprojection",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_reproject(db:db_dependency,payload:RasterReproject,):
+async def raster_reproject(db:db_dependency,payload:RasterReproject,user: Annotated[bool, Depends(validate_user)]):
     """ return the reprojected raster """
     return  await RasterOperation().reprojection(db,payload)
     
@@ -91,7 +93,7 @@ async def raster_reproject(db:db_dependency,payload:RasterReproject,):
 
 @router.post("/slope",status_code=status.HTTP_201_CREATED)
 @validate
-async def slope(db:db_dependency,payload:SlopeParams,):
+async def slope(db:db_dependency,payload:SlopeParams,user: Annotated[bool, Depends(validate_user)]):
     """return the slope raster"""
     return  await RasterOperation().slope(db,payload)
     
@@ -99,7 +101,7 @@ async def slope(db:db_dependency,payload:SlopeParams,):
 
 @router.post("/tpi",status_code=status.HTTP_201_CREATED)
 @validate
-async def tpi(db:db_dependency,payload:TpiParams,):
+async def tpi(db:db_dependency,payload:TpiParams,user: Annotated[bool, Depends(validate_user)]):
     """return the tpi raster"""
     return  await RasterOperation().tpi(db,payload)
     
@@ -107,21 +109,21 @@ async def tpi(db:db_dependency,payload:TpiParams,):
 
 @router.post("/twi",status_code=status.HTTP_201_CREATED)
 @validate
-async def twi(db:db_dependency,payload:TwiParams,):
+async def twi(db:db_dependency,payload:TwiParams,user: Annotated[bool, Depends(validate_user)]):
     """ return the twi raster"""
     return  await RasterOperation().twi(db,payload)
     
 
 @router.post("/flow_direction",status_code=status.HTTP_201_CREATED)
 @validate
-async def flow_direction(db:db_dependency,payload:FlowDirectionParams,):
+async def flow_direction(db:db_dependency,payload:FlowDirectionParams,user: Annotated[bool, Depends(validate_user)]):
     """return the flow direction raster"""
     return  await RasterOperation().flow_direction(db,payload)
     
 
 @router.post("/flow_accumulation",status_code=status.HTTP_201_CREATED)
 @validate
-async def flow_acumulation(db:db_dependency,payload:FlowAccumulationParams,):
+async def flow_acumulation(db:db_dependency,payload:FlowAccumulationParams,user: Annotated[bool, Depends(validate_user)]):
     """return the flow accumulation raster"""
     return  await RasterOperation().flow_accumulation(db,payload)
     
@@ -129,34 +131,34 @@ async def flow_acumulation(db:db_dependency,payload:FlowAccumulationParams,):
 
 @router.post("/reclassify",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_reclassify(db:db_dependency,payload:RasterReclassify):
+async def raster_reclassify(db:db_dependency,payload:RasterReclassify,user: Annotated[bool, Depends(validate_user)]):
     """ return the  reclassified raster """
     return await RasterOperation().reclassify(db,payload)
 
 
 @router.post("/ecludian",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_ecludian(db:db_dependency,payload:Edliudian):
+async def raster_ecludian(db:db_dependency,payload:Edliudian,user: Annotated[bool, Depends(validate_user)]):
     """return the edliudian raster"""
     return await RasterOperation().edludian(db,payload)
 
-# @router.post("/interpolations",status_code=status.HTTP_201_CREATED)
-# @validate
-# async def raster_ecludian(db:db_dependency,payload:Edliudian):
-#     """return the edliudian raster"""
-#     return RasterOperation().edludian(db,payload)
+@router.post("/interpolation",status_code=status.HTTP_201_CREATED)
+@validate
+async def raster_inerpolation(db:db_dependency,payload:Interpolation,user: Annotated[bool, Depends(validate_user)]):
+    """return the interpolation raster"""
+    return await RasterOperation().interpolation(db,payload)
 
 
 @router.post("/raster_resolution",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_resolution(db:db_dependency,payload:CellResize,):
+async def raster_resolution(db:db_dependency,payload:CellResize,user: Annotated[bool, Depends(validate_user)]):
     """ return the raster resolution dry run"""
     return await  RasterOperation().test_resolution(db,payload)
 
 
 @router.post("/raster_resolution_execute",status_code=status.HTTP_201_CREATED)
 @validate
-async def raster_resolution(db:db_dependency,payload:CellResize,):
+async def raster_resolution(db:db_dependency,payload:CellResize,user: Annotated[bool, Depends(validate_user)]):
     """ return the raster resolution """
     return await  RasterOperation().execute_resolution(db,payload)
     
@@ -164,7 +166,7 @@ async def raster_resolution(db:db_dependency,payload:CellResize,):
 
 @router.get("/raster/download/{fileId}",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate
-async def get_report(db:db_dependency,fileId:str,):
+async def get_report(db:db_dependency,fileId:str,user: Annotated[bool, Depends(validate_user)]):
     return await RasterOperation().raster_download(db,fileId)
 
 

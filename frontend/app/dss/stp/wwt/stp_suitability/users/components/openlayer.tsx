@@ -432,15 +432,15 @@ const Maping: React.FC = () => {
     });
 
     const handleFeaturesLoaded = (event: any) => {
-      const numFeatures = event.features ? event.features.length : 0;
+      const numFeatures = event.features ? event.features.length : vectorSource.getFeatures().length;
       setFeatureCounts(prev => ({ ...prev, [layerType]: numFeatures }));
-      if (layerType === 'primary') {
+      if (layerType === 'primary' || layerType === 'result') {
         const extent = vectorSource.getExtent();
-        console.log("zooming")
-        if (extent && extent.some((val) => isFinite(val))) {
+        if (extent && extent.every((val) => isFinite(val))) {
           mapInstanceRef.current?.getView().fit(extent, {
             padding: [50, 50, 50, 50],
             duration: 1000,
+            maxZoom: layerType === 'result' ? 16 : undefined,
           });
         }
       }

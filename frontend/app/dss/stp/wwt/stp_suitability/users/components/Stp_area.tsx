@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
 import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
 import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
 import { toast } from "react-toastify";
+import { useSTPStore } from "@/store/useSTPStore";
 
 type FormValues = {
   stpAreaId: number;
@@ -16,6 +17,7 @@ export const TreatmentForm: React.FC = () => {
   const { StpArea, OptSetStpArea } = useCategory();
   const { displayRaster } = useRiverSystem();
   const { setResultLayer, setIsMapLoading } = useMap();
+  const setParams = useSTPStore(s => s.setParams);
 
   const {
     handleSubmit,
@@ -25,6 +27,13 @@ export const TreatmentForm: React.FC = () => {
     defaultValues: { stpAreaId: 1, customLand: 0, mldCapacity: 20 },
   });
   const mldCapacity = useWatch({ control, name: "mldCapacity" });
+
+  // Keep STP Technology DSS store in sync with whatever MLD capacity is set here
+  useEffect(() => {
+    if (mldCapacity > 0) {
+      setParams({ Q: mldCapacity });
+    }
+  }, [mldCapacity, setParams]);
 
   const onSubmit = async (data: FormValues) => {
     const chosen = StpArea.find((opt) => opt.id == data.stpAreaId);

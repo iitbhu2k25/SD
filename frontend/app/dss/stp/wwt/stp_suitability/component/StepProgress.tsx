@@ -4,15 +4,17 @@ import { useSTPStore } from '@/store/useSTPStore'
 import type { Screen } from '@/interface/stp_suitability/stp'
 
 const STEPS: { id: Screen; label: string }[] = [
-  { id: 'wizard',  label: 'System Classification' },
-  { id: 'inputs',  label: 'Project Parameters' },
-  { id: 'results', label: 'Technology Ranking' },
+  { id: 'wizard',     label: 'Treatment Classification' },
+  { id: 'inputs',     label: 'Project Parameters' },
+  { id: 'perf_table', label: 'Performance Scores' },
+  { id: 'results',    label: 'Technology Ranking' },
 ]
 
 const PROGRESS: Record<Screen, number> = {
-  wizard:  33,
-  inputs:  66,
-  results: 100,
+  wizard:     25,
+  inputs:     50,
+  perf_table: 75,
+  results:    100,
 }
 
 export function StepProgress() {

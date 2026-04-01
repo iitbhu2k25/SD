@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
+import axios, { AxiosProgressEvent, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { performLogout } from "@/utils/logout";
 import { toast } from "react-toastify";
@@ -14,19 +14,19 @@ interface RequestOptions {
   body?: any;
   authToken?: string;
   responseType?: "json" | "blob" | "text";
+  onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void;
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL;
 
 function extractMessage(data: any): string {
+  
   if (!data) return "Something went wrong";
   if (typeof data === "string") return data;
-
-  if (Array.isArray(data?.detail)) {
+  
+  if ((data?.detail)) {
     return data.detail
-      .map((err: any) => err?.msg ?? "Validation error")
-      .join(", ");
   }
   if (typeof data?.detail === "string") return data.detail;
 
@@ -43,7 +43,6 @@ export class ApiError extends Error {
   }
 }
 
-// Axios instance
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
@@ -54,7 +53,7 @@ async function callBackend(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<AxiosResponse> {
-  const { headers = {}, params, body, authToken, responseType } = options;
+  const { headers = {}, params, body, authToken, responseType,onDownloadProgress } = options;
 
   const token = authToken ?? useAuthStore.getState().accessToken;
   const isFormData = body instanceof FormData;
@@ -69,6 +68,7 @@ async function callBackend(
     params,
     withCredentials: true,
     responseType: axiosResponseType,
+    onDownloadProgress,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),

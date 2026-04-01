@@ -4,6 +4,7 @@ import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
 import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
 import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
+import { useSTPStore } from "@/store/useSTPStore";
 import { toast } from "react-toastify";
 import { MapPin, Layers, Sliders, ChevronDown, Loader2, CheckCircle2 } from "lucide-react";
 
@@ -17,6 +18,8 @@ export const TreatmentForm: React.FC = () => {
   const { StpArea, OptSetStpArea } = useCategory();
   const { displayRaster } = useLocation();
   const { setResultLayer, setIsMapLoading } = useMap();
+  const Q = useSTPStore(s => s.Q);
+  const setParams = useSTPStore(s => s.setParams);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -25,7 +28,7 @@ export const TreatmentForm: React.FC = () => {
     control,
     formState: { errors },
   } = useForm<FormValues>({
-    defaultValues: { stpAreaId: 1, customLand: 0, mldCapacity: 20 },
+    defaultValues: { stpAreaId: 1, customLand: 0, mldCapacity: Q },
   });
 
   const mldCapacity = useWatch({ control, name: "mldCapacity" });
@@ -111,6 +114,10 @@ export const TreatmentForm: React.FC = () => {
                   <input
                     type="number"
                     {...field}
+                    onChange={e => {
+                      field.onChange(e);
+                      setParams({ Q: parseFloat(e.target.value) || Q });
+                    }}
                     className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 pr-14 text-sm text-gray-900 shadow-sm outline-none transition focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">

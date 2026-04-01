@@ -7,7 +7,6 @@ import {
   TaskState,
 } from "@/interface/raster_operations";
 import { toast } from "react-toastify";
-import { method } from "lodash";
 
 
 export const INITIAL_TASK_STATE: TaskState = {
@@ -92,7 +91,17 @@ function buildPayload(
         dtype_override: "float32",
       };
     case "interpolation":
-      return { ...base, method: params.method, cell_size: params.cell_size };
+      return {
+        file_id: fileId,
+        z_field: params.z_field,
+        algorithm: params.algorithm,
+        ...(params.xmin != null && {
+          xmin: params.xmin,
+          xmax: params.xmax,
+          ymin: params.ymin,
+          ymax: params.ymax,
+        }),
+      };
     case "reclassification":
       return {
         ...base,
@@ -101,7 +110,15 @@ function buildPayload(
         classes: params.num_classes,
       };
     case "euclidean_distance":
-      return { ...base, distance_units: "GEO" };
+      return {
+        file_id: fileId,
+        ...(params.xmin != null && {
+          xmin: params.xmin,
+          xmax: params.xmax,
+          ymin: params.ymin,
+          ymax: params.ymax,
+        }),
+      };
     default:
       return { ...base, ...params };
   }

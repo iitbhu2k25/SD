@@ -14,6 +14,7 @@ interface ModernSwitchProps {
 
 import PriorityAdmin from "./admin/page";
 import SuitabilityDrain from "./users/page";
+import { useSTPStore } from "@/store/useSTPStore";
 
 const ModernSwitch: React.FC<ModernSwitchProps> = ({
   leftLabel,
@@ -97,8 +98,10 @@ const ModernSwitch: React.FC<ModernSwitchProps> = ({
 const PriorityPage: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>("admin");
   const [showInfo, setShowInfo] = useState<boolean>(false);
+  const resetSTPStore = useSTPStore(s => s.resetAll);
 
   const handleViewChange = (newView: ViewType): void => {
+    resetSTPStore();
     setActiveView(newView);
   };
 

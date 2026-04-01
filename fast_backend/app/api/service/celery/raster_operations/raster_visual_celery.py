@@ -771,7 +771,6 @@ class LogoDrawer:
     ) -> None:
         """Draw a single logo."""
         if not logo_path.exists():
-            print(f"Warning: Logo not found at {logo_path}")
             return
 
         try:
@@ -1085,7 +1084,7 @@ def raster_visual(self,payload:RasterVisual):
         temp_folder = Settings().TEMP_DIR+"/"+uuid.uuid4().hex
         Path(temp_folder).mkdir(parents=True, exist_ok=True)
         output_pdf = Path(temp_folder,Unique_name.unique_name_with_ext("raster","pdf"))
-        resp=Geoserver().raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
+        resp=Geoserver().celery_raster_download(Settings().TEMP_DIR,payload.rasterName,"raster_visualization")
         generator = GISMapGenerator(resp["raster_path"], 
                                     resp["sld_path"], 
                                     str(output_pdf),

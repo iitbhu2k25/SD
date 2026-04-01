@@ -261,8 +261,8 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
   useEffect(() => {
     if (band0) {
-      setMinValue(band0.min);
-      setMaxValue(band0.max);
+      if (band0.min !== null) setMinValue(band0.min);
+      if (band0.max !== null) setMaxValue(band0.max);
     }
   }, [band0?.min, band0?.max]);
 
@@ -483,9 +483,9 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
           }}
         >
           {[
-            { label: "Min", value: band0?.min.toFixed(4) ?? "—" },
-            { label: "Mean", value: band0?.mean.toFixed(4) ?? "—" },
-            { label: "Max", value: band0?.max.toFixed(4) ?? "—" },
+            { label: "Min", value: band0?.min != null ? band0.min.toFixed(4) : "—" },
+            { label: "Mean", value: band0?.mean != null ? band0.mean.toFixed(4) : "—" },
+            { label: "Max", value: band0?.max != null ? band0.max.toFixed(4) : "—" },
           ].map(({ label, value }) => (
             <div key={label} className="text-center">
               <p

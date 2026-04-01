@@ -181,8 +181,10 @@ const BAND_COLORS = [
 
 function BandCard({ band, index }: { band: BandInfo; index: number }) {
   const c = BAND_COLORS[index % BAND_COLORS.length];
-  const range = band.max - band.min || 1;
-  const meanPct = Math.min(Math.max(((band.mean - band.min) / range) * 100, 1), 99);
+  const hasStats = band.min !== null && band.max !== null && band.mean !== null;
+  const range = hasStats ? (band.max! - band.min! || 1) : 1;
+  const meanPct = hasStats ? Math.min(Math.max(((band.mean! - band.min!) / range) * 100, 1), 99) : 50;
+  const fmtStat = (v: number | null, dec: number) => v !== null ? v.toFixed(dec) : "N/A";
 
   return (
     <div
@@ -227,7 +229,7 @@ function BandCard({ band, index }: { band: BandInfo; index: number }) {
 
       <div className="grid grid-cols-3 gap-1">
         {(
-          [["Min", band.min], ["Max", band.max], ["Std", band.std]] as [string, number][]
+          [["Min", band.min], ["Max", band.max], ["Std", band.std]] as [string, number | null][]
         ).map(([l, v]) => (
           <div
             key={l}
@@ -238,7 +240,7 @@ function BandCard({ band, index }: { band: BandInfo; index: number }) {
               {l}
             </p>
             <p className="text-[11px] font-bold mt-0.5" style={{ color: c.statVal, fontFamily: "var(--font-mono)" }}>
-              {v.toFixed(4)}
+              {fmtStat(v, 4)}
             </p>
           </div>
         ))}
@@ -247,20 +249,22 @@ function BandCard({ band, index }: { band: BandInfo; index: number }) {
       <div>
         <div className="flex justify-between text-[9px] mb-1">
           <span style={{ color: c.mean }}>Mean</span>
-          <span style={{ color: c.mean, fontFamily: "var(--font-mono)" }}>{band.mean.toFixed(4)}</span>
+          <span style={{ color: c.mean, fontFamily: "var(--font-mono)" }}>{fmtStat(band.mean, 4)}</span>
         </div>
         <div className="relative h-[5px] rounded-full overflow-hidden" style={{ background: c.barTrack }}>
-          <div
-            className="absolute top-0 h-full w-[3px] rounded-full transition-all duration-500"
-            style={{ left: `${meanPct}%`, background: c.bar }}
-          />
+          {hasStats && (
+            <div
+              className="absolute top-0 h-full w-[3px] rounded-full transition-all duration-500"
+              style={{ left: `${meanPct}%`, background: c.bar }}
+            />
+          )}
         </div>
         <div className="flex justify-between mt-0.5">
           <span className="text-[8px]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
-            {band.min.toFixed(2)}
+            {fmtStat(band.min, 2)}
           </span>
           <span className="text-[8px]" style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
-            {band.max.toFixed(2)}
+            {fmtStat(band.max, 2)}
           </span>
         </div>
       </div>
@@ -393,7 +397,7 @@ const RasterDetails: React.FC = () => {
     { t: `${d.band_count} band${d.band_count > 1 ? "s" : ""}`, style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
     ...(d.is_tiled ? [{ t: "tiled", style: { color: "#085041", background: "#E1F5EE", borderColor: "#5DCAA5" } }] : []),
     ...(d.is_cog_like ? [{ t: "COG",  style: { color: "#085041", background: "#E1F5EE", borderColor: "#5DCAA5" } }] : []),
-    { t: d.raster_type,   style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
+    { t: d.storage_type,   style: { color: "var(--text-tertiary)", background: "var(--surface-sunken)", borderColor: "var(--border-subtle)" } },
   ];
 
   return (

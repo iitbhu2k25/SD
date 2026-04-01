@@ -18,6 +18,7 @@ TpiNeighbourhood = Literal["circle", "rectangle"]
 FlowAlgorithm = Literal["d8", "dinf", "mfd"]
 OutputType = Literal["cells", "catchment area", "specific contributing area"]
 cell_resize_algorithms = Literal["near","bilinear","cubic","cubicspline","lanczos","average","mode"]
+interpolation_algorithms = Literal["nearest","invdist","invdistnn","linear","average"]
 
 class RasterReproject(BaseModel):
     file_id: str
@@ -86,7 +87,7 @@ class ReclassRule(BaseModel):
 
 class RasterReclassify(BaseModel):
     file_id:      str
-    raster_type:  RasterType
+    storage_type:  RasterType
     classes: int
     method:    str
     src_nodata: Optional[str] = None
@@ -94,9 +95,22 @@ class RasterReclassify(BaseModel):
    
     
 class Edliudian(BaseModel):
+    xmin: float =None
+    xmax: float=None
+    ymin: float=None
+    ymax: float=None
     file_id: str
     
-    
+class Interpolation(BaseModel):
+    xmin: float =None
+    xmax: float=None
+    ymin: float=None
+    ymax: float=None
+    file_id: str
+    z_field: str
+    algorithm: interpolation_algorithms
+
+
 
 
 class FlowDirectionParams(BaseModel):
@@ -105,11 +119,7 @@ class FlowDirectionParams(BaseModel):
     fill_depressions: bool        = True
     src_nodata: str
 
-    # @model_validator(mode="after")
-    # def validate_params(self):
-    #     if self.max_slope is not None and self.algorithm == "d8":
-    #         raise ValueError("max_slope is only valid for 'dinf' or 'mfd' algorithms")
-    #     return self
+  
     
 
 FLOW_ACC_NODATA = -1.0
@@ -211,17 +221,18 @@ class BandStatistics(BaseModel):
     std: Optional[float] = None
 
 
-# raster data info schema 
+
 class RasterdataResponse(BaseModel):
     file_name: str
     file_id: str
     layer_name: str
-    raster_type: str #uploaded or operated
+    storage_type: str #uploaded or operated
     modified_at: datetime
     id: int
     parent_id: int|None
 
 
+    
 class RasterMetadataResponse(BaseModel):
     file_size: FileSize
     driver: str
@@ -250,6 +261,8 @@ class RasterInfoResponse(BaseModel):
     raster_info:RasterdataResponse 
     raster_meta:RasterMetadataResponse 
     
+
+
 class RasterOperOutput(BaseModel):
     file_id: str
     task_name: str
@@ -268,13 +281,13 @@ class Chunkcomplete(BaseModel):
     total_chunks: int
     filename: str
 
-class rasteroperSchema(BaseModel):
+class useroperSchema(BaseModel):
     file_id:str
     file_name:str
     file_path:str
     layer_name: str
     parent_id: int | None
-    raster_type: str  # uploaded or operated
+    storage_type: str 
 
 class rasterMetaSchame(BaseModel):
     file_id:str
@@ -298,3 +311,20 @@ class rasterMetaSchame(BaseModel):
     resolution: dict
     bands: list
     tags: dict
+
+class vectorMetaSchema(BaseModel):
+    file_id:str
+    driver:str
+    feature_count:int
+    geometry_type:str
+    crs:str
+    crs_unit:str
+    file_size:dict
+    attribute_schema:list
+
+class VectordataResponse(vectorMetaSchema):
+    file_size: FileSize
+    
+class VectorInfoResponse(BaseModel):
+    vector_info:RasterdataResponse 
+    vector_meta:VectordataResponse

@@ -1,4 +1,29 @@
 import { RasterMetadata } from '@/interface/openlayer';
+import { api } from '@/services/api';
+
+export async function downloadRaster(
+  fileId: string,
+  fileName: string,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  const res = await api.get<Blob>(`/tools/raster/download/${fileId}`, {
+    responseType: "blob",
+    onDownloadProgress: (progressEvent) => {
+      if (onProgress && progressEvent.total) {
+        onProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+      }
+    },
+  });
+  if (!res.message) return;
+  const url = window.URL.createObjectURL(res.message);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 // Sample raster data for demo purposes
 export const sampleRasters: RasterMetadata[] = [

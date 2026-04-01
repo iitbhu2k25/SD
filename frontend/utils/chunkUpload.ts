@@ -1,3 +1,5 @@
+import axios from "axios";
+import { api, ApiError } from "@/services/api";
 import { uploadClient } from "./uploadClient";
 
 const CHUNK_SIZE = 1 * 1024 * 1024; // 5MB
@@ -5,6 +7,7 @@ const CHUNK_SIZE = 1 * 1024 * 1024; // 5MB
 export async function uploadFileInChunks(
   file: File,
   onProgress?: (percent: number) => void,
+  onError?: (message: string) => void,
 ) {
   const uploadId = crypto.randomUUID();
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
@@ -17,7 +20,7 @@ export async function uploadFileInChunks(
     const formData = new FormData();
     formData.append("file", chunk);
 
-    await uploadClient.post("/tools/upload_raster_chunk", formData, {
+    await uploadClient.post("/tools/upload_data_chunk", formData, {
       headers: {
         "Upload-Id": uploadId,
         "Chunk-Index": i,
@@ -38,11 +41,21 @@ export async function uploadFileInChunks(
   }
 
   // Merge chunks
-  const resp=await uploadClient.post("/tools/upload/complete", {
-    upload_id: uploadId,
-    total_chunks: totalChunks,
-    filename: file.name,
-  });
-
-  return resp;
+  try {
+    const resp = await api.post("/tools/upload/complete", {
+      body: {
+         upload_id: uploadId,
+      total_chunks: totalChunks,
+      filename: file.name,
+      }
+    });
+    return resp;
+  } catch (err: any) {
+    let message = "Upload failed";
+    if (err instanceof ApiError) {
+      message = err.message;
+    }
+    onError?.(message);
+    throw err;
+  }
 }

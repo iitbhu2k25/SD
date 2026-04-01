@@ -10,17 +10,22 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import ImageLayer from "ol/layer/Image";
+import OLVectorLayer from "ol/layer/Vector";
 import VectorTileLayer from "ol/layer/VectorTile";
 import VectorTileSource from "ol/source/VectorTile";
+import OLVectorSource from "ol/source/Vector";
 import ImageWMS from "ol/source/ImageWMS";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import MVT from "ol/format/MVT";
-import { fromLonLat } from "ol/proj";
+import Feature from "ol/Feature";
+import { fromExtent as polygonFromExtent } from "ol/geom/Polygon";
+import DragBox from "ol/interaction/DragBox";
+import { always } from "ol/events/condition";
+import { fromLonLat, toLonLat } from "ol/proj";
 import {
   defaults as defaultControls,
   ScaleLine,
-  MousePosition,
 } from "ol/control";
 import { Style, Fill, Stroke } from "ol/style";
 import { transformExtent } from "ol/proj";
@@ -37,11 +42,16 @@ const FIXED_VECTOR_LAYER = "STP_State";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export type ExtentResult = { xmin: number; xmax: number; ymin: number; ymax: number };
+
 export interface MapViewHandle {
   loadRasterLayer: (layerName: string, fileName: string) => void;
   removeRasterLayer: () => void;
   changeBaseMap: (baseMapKey: string) => void;
   applySLD: (sldXml: string | null) => void;
+  enableExtentDraw: (cb: (extent: ExtentResult) => void) => void;
+  disableExtentDraw: () => void;
+  setVectorLayerVisible: (visible: boolean) => void;
 }
 
 interface MapViewProps {
@@ -69,13 +79,6 @@ const NativeLegend: React.FC<{
 }> = ({ entries, interpolation, onClose }) => {
   const isContinuous = interpolation === "linear";
 
-  // Gradient stops string for the colour bar (used in both modes)
-  const gradientStops = entries
-    .map((e, i) => {
-      const pct = entries.length <= 1 ? 50 : (i / (entries.length - 1)) * 100;
-      return `${e.color} ${pct.toFixed(1)}%`;
-    })
-    .join(", ");
 
   const header = (
     <div className="flex items-center px-3 py-2 border-b border-slate-100 bg-slate-50">
@@ -100,53 +103,51 @@ const NativeLegend: React.FC<{
 
   // ── Continuous ramp ──────────────────────────────────────────────────────
   if (isContinuous) {
-    const TICK_COUNT  = entries.length;                  // one tick per class
-    const ROW_HEIGHT  = 20;                              // px per tick
-    const RAMP_HEIGHT = Math.max(TICK_COUNT * ROW_HEIGHT, 60);
+    // Build N-1 range bands from N breakpoint entries
+    const ranges = entries.slice(0, -1).map((e, i) => ({
+      fromLabel: e.label,
+      toLabel: entries[i + 1].label,
+      fromColor: e.color,
+      toColor: entries[i + 1].color,
+    }));
+
+    const ROW_HEIGHT = 22;
+    const RAMP_HEIGHT = Math.max(ranges.length * ROW_HEIGHT, 60);
 
     return (
       <div
         className="bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
-        style={{ minWidth: 150, maxWidth: 220 }}
+        style={{ minWidth: 160, maxWidth: 240 }}
       >
         {header}
         <div className="px-3 pb-3 pt-2 flex gap-2 items-stretch">
-          {/* Gradient bar — full height, smooth ramp */}
-          <div className="flex-shrink-0" style={{ width: 16, height: RAMP_HEIGHT }}>
-            <div
-              className="rounded-full border border-slate-200 h-full"
-              style={{
-                background:
-                  entries.length > 1
-                    ? `linear-gradient(to bottom, ${gradientStops})`
-                    : entries[0].color,
-              }}
-            />
+          {/* Segmented gradient bar — one segment per range */}
+          <div
+            className="flex-shrink-0 rounded-sm border border-slate-200 overflow-hidden flex flex-col"
+            style={{ width: 16, height: RAMP_HEIGHT }}
+          >
+            {ranges.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  background: `linear-gradient(to bottom, ${r.fromColor}, ${r.toColor})`,
+                }}
+              />
+            ))}
           </div>
 
-          {/* One label per class, evenly spaced */}
-          <div className="relative flex-1" style={{ height: RAMP_HEIGHT, minWidth: 0 }}>
-            {entries.map((entry, i) => {
-              const pct =
-                TICK_COUNT === 1 ? 50 : (i / (TICK_COUNT - 1)) * 100;
-              return (
-                <span
-                  key={i}
-                  className="absolute text-[11px] font-mono text-slate-600 leading-none"
-                  style={{
-                    top: `${pct}%`,
-                    transform: "translateY(-50%)",
-                    left: 0,
-                    right: 0,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {entry.label}
-                </span>
-              );
-            })}
+          {/* One range label per band, vertically centered */}
+          <div className="flex flex-col justify-between flex-1 min-w-0" style={{ height: RAMP_HEIGHT }}>
+            {ranges.map((r, i) => (
+              <span
+                key={i}
+                className="text-[11px] font-mono text-slate-600 leading-none truncate"
+                title={`${r.fromLabel} – ${r.toLabel}`}
+              >
+                {r.fromLabel} – {r.toLabel}
+              </span>
+            ))}
           </div>
         </div>
       </div>
@@ -328,8 +329,12 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
     const vectorLayerRef = useRef<VectorTileLayer | null>(null);
     const uploadedVectorLayerRef = useRef<ImageLayer<ImageWMS> | null>(null);
     const baseLayerRef = useRef<TileLayer<OSM | XYZ> | null>(null);
+    const dragBoxRef = useRef<DragBox | null>(null);
+    const extentLayerRef = useRef<OLVectorLayer<OLVectorSource> | null>(null);
+    const extentSourceRef = useRef<OLVectorSource | null>(null);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mouseCoords, setMouseCoords] = useState<string>("");
     const [activePanel, setActivePanel] = useState<string | null>(null);
 
     const {
@@ -338,22 +343,11 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
       setLegendEntries,
       legendInterpolation,
       vectorLayer,
+      fetchLegendEntries,
     } = useRaster();
 
-    useEffect(() => {
-      if (legendUrl) setActivePanel("layers");
-    }, [legendUrl]);
 
-    const handleRemoveLayer = () => {
-      if (mapInstanceRef.current && rasterLayerRef.current) {
-        mapInstanceRef.current.removeLayer(rasterLayerRef.current);
-        rasterLayerRef.current = null;
-        onLegendUrlChange(null);
-        setLegendEntries([]);
-      }
-      removeLayer();
-      setActivePanel(null);
-    };
+    
 
     useEffect(() => {
       const fn = () => setIsFullscreen(!!document.fullscreenElement);
@@ -366,13 +360,10 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
       if (!mapRef.current) return;
 
       const initialBaseLayer = new TileLayer({
-        source: baseMaps.satellite.source(),
+        source: baseMaps.osm.source(),
         zIndex: 0,
       });
       baseLayerRef.current = initialBaseLayer;
-
-      const coordTarget =
-        document.getElementById("mouse-position-mapview") || undefined;
 
       const controls = defaultControls({
         zoom: false,
@@ -380,13 +371,6 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
         attributionOptions: { collapsible: false },
       }).extend([
         new ScaleLine({ units: "metric", bar: true, steps: 4, minWidth: 140 }),
-        new MousePosition({
-          coordinateFormat: (c) =>
-            c ? `${c[1].toFixed(6)}°N  ${c[0].toFixed(6)}°E` : "",
-          projection: "EPSG:4326",
-          target: coordTarget,
-          className: "custom-mouse-position",
-        }),
       ]);
 
       const map = new Map({
@@ -403,6 +387,11 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
         }),
       });
       mapInstanceRef.current = map;
+
+      map.on('pointermove', (evt) => {
+        const lonLat = toLonLat(evt.coordinate);
+        setMouseCoords(`${lonLat[1].toFixed(6)}°N, ${lonLat[0].toFixed(6)}°E`);
+      });
 
       const mvtUrl = `${GEOSERVER_MVT_URL}/${Vector_workspace}:${FIXED_VECTOR_LAYER}@EPSG%3A900913@pbf/{z}/{x}/{-y}.pbf`;
       const vectorTileLayer = new VectorTileLayer({
@@ -548,6 +537,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
 
           // Fetch rich JSON legend entries — drives NativeLegend
           setLegendEntries([]);
+          fetchLegendEntries();
 
           map.addLayer(rasterLayer);
           rasterLayerRef.current = rasterLayer;
@@ -621,8 +611,81 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
           }),
         );
 
-       
-        
+      },
+
+      setVectorLayerVisible(visible: boolean) {
+        if (uploadedVectorLayerRef.current) {
+          uploadedVectorLayerRef.current.setVisible(visible);
+        }
+      },
+
+      enableExtentDraw(cb: (extent: ExtentResult) => void) {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        // Remove any stale drag box
+        if (dragBoxRef.current) {
+          map.removeInteraction(dragBoxRef.current);
+          dragBoxRef.current = null;
+        }
+
+        // Create a vector layer to display the drawn rectangle
+        if (!extentLayerRef.current) {
+          const source = new OLVectorSource();
+          extentSourceRef.current = source;
+          const layer = new OLVectorLayer({
+            source,
+            style: new Style({
+              stroke: new Stroke({ color: "#ff6600", width: 2, lineDash: [6, 3] }),
+              fill: new Fill({ color: "rgba(255, 102, 0, 0.08)" }),
+            }),
+            zIndex: 20,
+          });
+          extentLayerRef.current = layer;
+          map.addLayer(layer);
+        } else {
+          extentSourceRef.current?.clear();
+        }
+
+        const dragBox = new DragBox({ condition: always });
+        dragBoxRef.current = dragBox;
+
+        dragBox.on("boxend", () => {
+          const ext3857 = dragBox.getGeometry().getExtent();
+          const ext4326 = transformExtent(ext3857, "EPSG:3857", "EPSG:4326");
+          const [xmin, ymin, xmax, ymax] = ext4326;
+
+          extentSourceRef.current?.clear();
+          extentSourceRef.current?.addFeature(new Feature(polygonFromExtent(ext3857)));
+
+          map.removeInteraction(dragBox);
+          dragBoxRef.current = null;
+          const el = map.getTargetElement() as HTMLElement;
+          if (el) el.style.cursor = "";
+
+          cb({ xmin, xmax, ymin, ymax });
+        });
+
+        map.addInteraction(dragBox);
+        const el = map.getTargetElement() as HTMLElement;
+        if (el) el.style.cursor = "crosshair";
+      },
+
+      disableExtentDraw() {
+        const map = mapInstanceRef.current;
+        if (!map) return;
+
+        if (dragBoxRef.current) {
+          map.removeInteraction(dragBoxRef.current);
+          dragBoxRef.current = null;
+        }
+        if (extentLayerRef.current) {
+          map.removeLayer(extentLayerRef.current);
+          extentLayerRef.current = null;
+          extentSourceRef.current = null;
+        }
+        const el = map.getTargetElement() as HTMLElement;
+        if (el) el.style.cursor = "";
       },
     }));
 
@@ -660,7 +723,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
     return (
       <div
         ref={mapContainerRef}
-        className="w-full h-full p-1.5 relative"
+        className="w-full h-full relative"
         style={{ background: "var(--surface-base)" }}
       >
         {/* MAP ELEMENT */}
@@ -798,7 +861,6 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
             title="Layer Controls"
             onClose={() => setActivePanel(null)}
           >
-            {legendUrl ? (
               <>
                
                 <div className="space-y-2 mb-3">
@@ -846,36 +908,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
                   />
                 </div>
               </>
-            ) : (
-              <div className="text-center py-6">
-                <svg
-                  className="w-10 h-10 mx-auto mb-2"
-                  style={{ color: "var(--text-muted)" }}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                  />
-                </svg>
-                <p
-                  className="text-sm"
-                  style={{ color: "var(--text-tertiary)" }}
-                >
-                  No raster layer loaded
-                </p>
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Upload from the sidebar
-                </p>
-              </div>
-            )}
+            
           </FloatingPanel>
         )}
 
@@ -990,33 +1023,11 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(
         </div>
 
         {/* ═══ COORDINATES ════════════════════════════════════════════ */}
-        <div
-          className="absolute bottom-3 right-3 z-20 px-3 py-1.5 flex items-center space-x-2"
-          style={{
-            background: "rgba(255,255,255,0.85)",
-            backdropFilter: "blur(6px)",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--border-subtle)",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-          }}
-        >
-          <svg
-            className="w-3 h-3 flex-shrink-0"
-            style={{ color: "var(--accent)" }}
-            viewBox="0 0 24 24"
-            fill="currentColor"
-          >
-            <circle cx="12" cy="12" r="4" />
-          </svg>
-          <div
-            id="mouse-position-mapview"
-            className="text-sm min-w-[180px]"
-            style={{
-              color: "var(--text-secondary)",
-              fontFamily: "var(--font-mono)",
-            }}
-          />
-        </div>
+        {mouseCoords && (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-700 shadow-lg whitespace-nowrap">
+            <span className="text-xs font-mono text-slate-200">{mouseCoords}</span>
+          </div>
+        )}
 
         {/* ═══ NATIVE HTML LEGEND ════════════════════════════════════ */}
         {legendUrl && showLegend && (

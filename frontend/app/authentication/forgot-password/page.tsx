@@ -1,5 +1,5 @@
 'use client';
-import ForgotPassword from '@/components/authentication/ForgotPassword';
+import ForgotPassword from '@/app/authentication/components/ForgotPassword';
 
 export default function ForgotPasswordPage() {
   const handleSwitchToLogin = () => {

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Menu, X, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
-import { useLogout } from "@/components/authentication/logout";
+import { useLogout } from "@/app/authentication/components/logout";
 import { startCase } from "lodash";
-import AuthDialog from "@/components/authentication/AuthDialog";
+import AuthDialog from "@/app/authentication/components/AuthDialog";
 
 
 type BreadcrumbItem = {
@@ -34,9 +34,9 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "STP", href: "#" },
     { label: "STP Priority", href: "/dss/stp/wwt/stp_priority_v2" }
   ],
-  "/dss/stp/wwt/stp_suitability_v2": [
+  "/dss/stp/wwt/stp_suitability": [
     { label: "STP", href: "#" },
-    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability_v2" }
+    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" }
   ],
 
   // GWM Routes
@@ -96,10 +96,10 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "Tools", href: "#" },
     { label: "Raster", href: "/dss/Tools/raster_visual" }
   ],
-  "/dss/Tools/model_water": [
-    { label: "Tools", href: "#" },
-    { label: "Water", href: "/dss/Tools/model_water" }
-  ],
+  // "/dss/Tools/model_water": [
+  //   { label: "Tools", href: "#" },
+  //   { label: "Water", href: "/dss/Tools/model_water" }
+  // ],
   "/dss/seawage_infrastructure": [
     { label: "Tools", href: "#" },
     { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }
@@ -456,7 +456,7 @@ const Navbar = (): JSX.Element => {
                   </li>
                   <li>
                     <Link
-                      href="/dss/stp/wwt/stp_suitability_v2"
+                      href="/dss/stp/wwt/stp_suitability"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm
                         hover:bg-orange-50 hover:text-orange-600
                         rounded-lg transition-all duration-200"
@@ -1281,14 +1281,14 @@ const Navbar = (): JSX.Element => {
                       Watershed
                     </Link>
                   </li>
-                  <li>
+                  {/* <li>
                     <Link
                       href="/dss/Tools/model_water"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                       onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Water", href: "/dss/Tools/model_water" }])}>
                       Water
                     </Link>
-                  </li>
+                  </li> */}
                   <li>
                     <Link
                       href="/dss/Tools/seawage_infrastructure"

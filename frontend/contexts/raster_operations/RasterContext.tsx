@@ -21,8 +21,11 @@ import {
   ColorStop,
   SLDConfig,
   normaliseRasterDetails,
+  VectorDetails,
+  VectorDetailsApiResponse,
+  normaliseVectorDetails,
 } from "@/interface/raster_operations";
-import { api } from "@/services/api";
+import { api, ApiError } from "@/services/api";
 import { LegendEntry } from "@/interface/raster_operations";
 
 // ── Import TaskState types from the hook file ─────────────────────────────────
@@ -98,6 +101,8 @@ interface CtxValue {
   vectorLayer: VectorLayer | null;
   vectorUploading: boolean;
   vectorUploadProgress: number;
+  vectorDetails: VectorDetails | null;
+  vectorDetailsLoading: boolean;
   handleVectorUpload: (file: File) => Promise<VectorLayer | null>;
   removeVectorLayer: () => void;
 
@@ -121,7 +126,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const [details, setDetails] = useState<RasterDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [operations, setOperations] = useState<Operation[]>([]);
-  const [activeBaseMap, setActiveBaseMap] = useState<BaseMapKey>("satellite");
+  const [activeBaseMap, setActiveBaseMap] = useState<BaseMapKey>("osm");
   const [wmsOpacity, setWmsOpacity] = useState(75);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState(true);
@@ -132,12 +137,14 @@ export function RasterProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [rasterFileName, setRasterFileName] = useState<string | null>(null);
   const [sldConfig, setSldConfig] = useState<SLDConfig | null>(null);
-  const [legendInterpolation, setLegendInterpolation] = useState<"linear" | "discrete">("linear");
+  const [legendInterpolation, setLegendInterpolation] = useState<"linear" | "discrete">("discrete");
   const [legendEntries, setLegendEntries] = useState<LegendEntry[]>([]);
   const [rasterStack, setRasterStack] = useState<RasterLayer[]>([]);
   const [vectorLayer, setVectorLayer] = useState<VectorLayer | null>(null);
   const [vectorUploading, setVectorUploading] = useState(false);
   const [vectorUploadProgress, setVectorUploadProgress] = useState(0);
+  const [vectorDetails, setVectorDetails] = useState<VectorDetails | null>(null);
+  const [vectorDetailsLoading, setVectorDetailsLoading] = useState(false);
 
   const addToStack = useCallback((newLayer: RasterLayer) => {
     setRasterStack((prev) =>
@@ -189,6 +196,9 @@ export function RasterProvider({ children }: { children: ReactNode }) {
                 opacity: parseFloat(e.opacity ?? "1"),
               });
             }
+            // "ramp" → continuous gradient, anything else → discrete blocks
+            const cmType: string = raster.colormap.type ?? "ramp";
+            setLegendInterpolation(cmType === "ramp" ? "linear" : "discrete");
             setLegendEntries(entries);
             return entries;
           }
@@ -233,15 +243,15 @@ export function RasterProvider({ children }: { children: ReactNode }) {
       const resp = await api.get<RasterDetailsApiResponse>(
         `/tools/raster/${fileId}/details`,
       );
-      if (resp.status > 201) {
-        toast.error("Failed to load metadata");
-        return;
-      }
       setDetails(
         normaliseRasterDetails(resp.message as RasterDetailsApiResponse),
       );
-    } catch {
-      toast.error("Failed to load metadata");
+    } catch(error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      }else {
+        toast.error("Failed to fetch raster details");
+      }
     } finally {
       setDetailsLoading(false);
     }
@@ -265,14 +275,7 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         const res = await uploadFileInChunks(file, (progress: number) => {
           setUploadProgress(progress);
         });
-
-        if (res.status > 201) {
-          toast.error("Failed to upload file");
-          setUploading(false);
-          return;
-        }
-
-        const newLayer: RasterLayer = res.data;
+        const newLayer: RasterLayer = res!.message as RasterLayer;
         setLayer(newLayer);
         addToStack(newLayer);
         setUploading(false);
@@ -281,7 +284,10 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         setRasterFileName(file.name);
         loadDetails(newLayer.file_id);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Upload failed";
+        let msg = err instanceof Error ? err.message : "Upload failed";
+        if (err instanceof ApiError) {
+          msg = err.message;
+        }
         setUploading(false);
         setError(msg);
         toast.error(msg);
@@ -289,6 +295,26 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     },
     [loadDetails],
   );
+
+  const loadVectorDetails = useCallback(async (fileId: string) => {
+    setVectorDetailsLoading(true);
+    try {
+      const resp = await api.get<VectorDetailsApiResponse>(
+        `/tools/vector/${fileId}/details`,
+      );
+      setVectorDetails(
+        normaliseVectorDetails(resp.message as VectorDetailsApiResponse),
+      );
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to fetch vector details");
+      }
+    } finally {
+      setVectorDetailsLoading(false);
+    }
+  }, []);
 
   const handleVectorUpload = useCallback(async (file: File): Promise<VectorLayer | null> => {
     setVectorUploading(true);
@@ -298,28 +324,28 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         setVectorUploadProgress(progress);
       });
 
-      if (res.status > 201) {
-        toast.error("Failed to upload vector file");
-        return null;
-      }
-
-      const newLayer: VectorLayer = res.data;
+      const newLayer: VectorLayer = res!.message as VectorLayer;
       setVectorLayer(newLayer);
       setVectorUploadProgress(100);
       toast.success(`"${file.name}" uploaded`);
+      loadVectorDetails(newLayer.file_id);
       return newLayer;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
+      let msg = err instanceof Error ? err.message : "Upload failed";
+      if (err instanceof ApiError) {
+        msg = err.message;
+      }
       toast.error(msg);
       return null;
     } finally {
       setVectorUploading(false);
     }
-  }, []);
+  }, [loadVectorDetails]);
 
   const removeVectorLayer = useCallback(() => {
     setVectorLayer(null);
     setVectorUploadProgress(0);
+    setVectorDetails(null);
   }, []);
 
   // ── Layer actions ─────────────────────────────────────────────────────────
@@ -331,7 +357,6 @@ export function RasterProvider({ children }: { children: ReactNode }) {
     setShowLegend(false);
     setLegendEntries([]);
     setTaskState(INITIAL_TASK_STATE);
-    toast.info("Layer removed");
   }, []);
 
   return (
@@ -373,6 +398,8 @@ export function RasterProvider({ children }: { children: ReactNode }) {
         vectorLayer,
         vectorUploading,
         vectorUploadProgress,
+        vectorDetails,
+        vectorDetailsLoading,
         handleVectorUpload,
         removeVectorLayer,
         setOpacity: setWmsOpacity,

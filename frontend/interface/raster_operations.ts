@@ -30,10 +30,10 @@ export interface BandInfo {
   band_number: number;
   dtype: string;
   color_interpretation: string;
-  min: number;
-  max: number;
-  mean: number;
-  std: number;
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  std: number | null;
 }
 
 // ─── Raw API response shape ───────────────────────────────────────────────────
@@ -42,7 +42,7 @@ export interface RasterInfoRaw {
   file_name: string;
   file_id: string;
   layer_name: string;
-  raster_type: string;
+  storage_type: string;
   modified_at: string;        // ISO datetime string
   id: number;
   parent_id: number | null;
@@ -95,7 +95,7 @@ export interface RasterDetails {
   file_name: string;
   file_id: string;
   layer_name: string;
-  raster_type: string;
+  storage_type: string;
   modified_at: string;
   id: number;
   parent_id: number | null;
@@ -143,7 +143,7 @@ export function normaliseRasterDetails(
     file_name: info.file_name,
     file_id: info.file_id,
     layer_name: info.layer_name,
-    raster_type: info.raster_type,
+    storage_type: info.storage_type,
     modified_at: info.modified_at,
     id: info.id,
     parent_id: info.parent_id,
@@ -168,6 +168,80 @@ export function normaliseRasterDetails(
     is_cog_like: meta.is_cog_like,
     bands: meta.bands,
     tags: meta.tags,
+  };
+}
+
+// ─── Vector Details ───────────────────────────────────────────────────────────
+
+export interface AttributeField {
+  name: string;
+  type: string;
+}
+
+export interface VectorInfoRaw {
+  file_name: string;
+  file_id: string;
+  layer_name: string;
+  storage_type: string;
+  modified_at: string;
+  id: number;
+  parent_id: number | null;
+}
+
+export interface VectorMetaRaw {
+  file_id: string;
+  driver: string;
+  feature_count: number;
+  geometry_type: string;
+  crs: string;
+  crs_unit: string;
+  file_size: { value: number; unit: string };
+  attribute_schema: AttributeField[];
+}
+
+export interface VectorDetailsApiResponse {
+  vector_info: VectorInfoRaw;
+  vector_meta: VectorMetaRaw;
+}
+
+export interface VectorDetails {
+  // from vector_info
+  file_name: string;
+  file_id: string;
+  layer_name: string;
+  storage_type: string;
+  modified_at: string;
+  id: number;
+  parent_id: number | null;
+  // from vector_meta
+  driver: string;
+  feature_count: number;
+  geometry_type: string;
+  crs: string;
+  crs_unit: string;
+  file_size: { value: number; unit: string };
+  attribute_schema: AttributeField[];
+}
+
+export function normaliseVectorDetails(
+  raw: VectorDetailsApiResponse
+): VectorDetails {
+  const { vector_info: info, vector_meta: meta } = raw;
+  return {
+    file_name: info.file_name,
+    file_id: info.file_id,
+    layer_name: info.layer_name,
+    storage_type: info.storage_type,
+    modified_at: info.modified_at,
+    id: info.id,
+    parent_id: info.parent_id,
+    driver: meta.driver,
+    feature_count: meta.feature_count,
+    geometry_type: meta.geometry_type,
+    crs: meta.crs,
+    crs_unit: meta.crs_unit,
+    file_size: meta.file_size,
+    attribute_schema: meta.attribute_schema,
   };
 }
 

@@ -14,19 +14,14 @@ export async function validateToken(): Promise<{
 }> {
   try {
     const response = await api.get("/authentication/authentic");
-
-    if (response.status === 201) {
-      const user = {
-        fullname:
-          (response.message as { fullname: string; email: string }).fullname ||
-          "",
-        email:
-          (response.message as { fullname: string; email: string }).email || "",
-      };
-      return { isValid: true, user };
-    } else {
-      return { isValid: false, user: null };
-    }
+    const user = {
+      fullname:
+        (response.message as { fullname: string; email: string }).fullname ||
+        "",
+      email:
+        (response.message as { fullname: string; email: string }).email || "",
+    };
+    return { isValid: true, user };
   } catch (error) {
     console.log("Token validation error:", error);
     return { isValid: false, user: null };

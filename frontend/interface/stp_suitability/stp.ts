@@ -97,7 +97,7 @@ export interface RouteResult {
 
 // ─── App State ────────────────────────────────────────────────────────────────
 
-export type Screen = 'wizard' | 'inputs' | 'results'
+export type Screen = 'wizard' | 'inputs' | 'perf_table' | 'results'
 
 export interface ProjectParams {
   Q: number   // MLD

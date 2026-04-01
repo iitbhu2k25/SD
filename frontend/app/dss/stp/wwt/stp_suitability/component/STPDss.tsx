@@ -4,6 +4,7 @@ import { useSTPStore } from '@/store/useSTPStore'
 import { StepProgress } from './StepProgress'
 import { WizardScreen }  from './WizardScreen'
 import { InputsScreen }  from './InputsScreen'
+import { PerfTableScreen } from './PerfTableScreen'
 import { ResultsScreen } from './ResultsScreen'
 
 interface STPDssProps {
@@ -36,9 +37,10 @@ export function STPDss({ embedded = false }: STPDssProps) {
 
       <StepProgress />
 
-      {screen === 'wizard'  && <WizardScreen />}
-      {screen === 'inputs'  && <InputsScreen />}
-      {screen === 'results' && <ResultsScreen />}
+      {screen === 'wizard'     && <WizardScreen />}
+      {screen === 'inputs'     && <InputsScreen />}
+      {screen === 'perf_table' && <PerfTableScreen />}
+      {screen === 'results'    && <ResultsScreen />}
     </>
   )
 

@@ -14,7 +14,7 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import transform_bounds
 from pyproj import CRS as ProjCRS
-from app.api.schema.raster_operation import RasterReclassify,ReclassRule, rasterMetaSchame, rasteroperSchema
+from app.api.schema.raster_operation import RasterReclassify,ReclassRule, rasterMetaSchame, useroperSchema
 from whitebox.whitebox_tools import WhiteboxTools
 import math
 import os
@@ -22,12 +22,20 @@ from app.conf.celery import app
 from app.conf.settings import Settings
 from app.conf.redis.redis_conf import sync_redis_client
 from app.database.config.dependency import celery_session
-from app.database.crud.raster_operations import rasterMetacrud, rasterOperCrud, rasterstorecrud
+from app.database.crud.raster_operations import rasterMetacrud, rasterOperCrud, userstorecrud
 from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.utils.name import Unique_name
 import jenkspy
 
 import numpy as np
+ALGORITHMS = {
+    "nearest": "nearest:radius1=0:radius2=0:angle=0.0:nodata=0.0",
+    "invdist": "invdist:power=2.0:smoothing=0.0:radius1=0:radius2=0:angle=0.0:max_points=0:min_points=0:nodata=0.0",
+    "invdistnn": "invdistnn:power=2.0:smoothing=0.0:radius=999999999:max_points=12:min_points=0:nodata=0.0", 
+    "average": "average:radius1=0:radius2=0:angle=0.0:min_points=0:nodata=0.0",
+    "linear": "linear:radius=-1:nodata=0.0",
+}
+
 
 
 wbt = WhiteboxTools()
@@ -222,15 +230,15 @@ class RasterMetaData:
         }
     
     def celery_output(self,db:Session,file_id: str,file_name: str = None, layer_name: str = None, file_path: str = None,compute_stats: bool = True):
-        rasteroperSchemaObj=rasteroperSchema(
+        useroperSchemaObj=useroperSchema(
             file_id=file_id,
             layer_name=layer_name,
             file_path=str(file_path),
             file_name=file_name,
             parent_id=None,
-            raster_type="operated"
+            storage_type="operated"
         )
-        rasterstorecrud(db).create_details(rasteroperSchemaObj)
+        userstorecrud(db).create_details(useroperSchemaObj)
         with rasterio.open(file_path) as src:
             rasterMetaSchameObj=rasterMetaSchame(
                 **self._basic_info(src, file_path),
@@ -269,65 +277,29 @@ def celery_task_update(task_id: str, status: str, progress: int=0,layer_name:str
     sync_redis_client.publish(channel, payload)
 
 
-def _detect_raster_type(input_path: str, sample_size: int = 500000) -> str:
-    input_path = Path(input_path)
-    result = subprocess.run(
-        ["gdalinfo", "-json", str(input_path)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-    metadata = json.loads(result.stdout)
-    band = metadata["bands"][0]
-
-    representation = band.get("metadata", {}).get("", {}).get("RepresentationType")
-    dtype = band.get("type")
-    if representation:
-        if "THEMATIC" in representation.upper():
-            return "classified"
-        if "ATHEMATIC" in representation.upper():
-            return "continuous"
-
-    if dtype in ("Float32", "Float64"):
-        return "continuous"
-
-    
-    with rasterio.open(input_path) as src:
-        band1 = src.read(1, masked=True)
-
-   
-        values = band1.compressed()
-
-        if len(values) > sample_size:
-            values = np.random.choice(values, sample_size, replace=False)
-
-        unique_count = len(np.unique(values))
-
-
-    if unique_count < 50:
-        return "classified"
-
-    return "continuous"
-
-
 
 def _run_cmd(cmd):
     """Run shell command safely"""
+    if isinstance(cmd, list):
+        cmd = " ".join(cmd)
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f"Command failed:\n{cmd}\n{result.stderr}")
     return result.stdout
 
 def _get_utm_epsg(lon, lat):
-    """Compute UTM EPSG code"""
+    """Compute UTM EPSG code with input normalization"""
+    lon = ((lon + 180) % 360) - 180
+    lat = max(-90, min(90, lat))
+
     zone = int((lon + 180) / 6) + 1
-    if lat >= 0:
-        return 32600 + zone
-    else:
-        return 32700 + zone
+    zone = max(1, min(60, zone))  
+
+    epsg = (32600 + zone) if lat >= 0 else (32700 + zone)
+    return epsg
     
 def _get_centroid(shp_path):
+    
     """Extract centroid (lon, lat) from ogrinfo"""
     cmd = f'ogrinfo -ro -so -al "{shp_path}"'
     output = _run_cmd(cmd)
@@ -342,12 +314,39 @@ def _get_centroid(shp_path):
 
     return lon, lat
 
+def _resolve_centroid(shp_path, xmin=None, ymin=None, xmax=None, ymax=None):
+    """
+    If all extent values are provided, compute centroid from them.
+    Otherwise, fall back to extracting centroid from the shapefile.
+    """
+    if all(v is not None for v in [xmin, ymin, xmax, ymax]):
+        lon = (xmin + xmax) / 2
+        lat = (ymin + ymax) / 2
+        return lon, lat
+    return _get_centroid(shp_path)
+
+def _reproject_extent(xmin, ymin, xmax, ymax, src_epsg=4326, dst_epsg=None):
+    """Reproject extent corners from src_epsg to dst_epsg using gdaltransform"""
+    def transform_point(x, y):
+        cmd = f'echo "{x} {y}" | gdaltransform -s_srs EPSG:{src_epsg} -t_srs EPSG:{dst_epsg}'
+        result = _run_cmd(cmd)
+        parts = result.strip().split()
+        return float(parts[0]), float(parts[1])
+
+    x1, y1 = transform_point(xmin, ymin)
+    x2, y2 = transform_point(xmax, ymax)
+
+    return min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)
+
 @app.task(bind=True,name='celery_ecluidian_tools',queue='heavy_task')
 def celery_euclidean_distance(
     self,
     input_path: str,
     output_path: str,
-    timeout: int = 3600,
+    xmin: float = None,
+    ymin: float = None,
+    xmax: float = None,
+    ymax: float = None,
 ):
     celery_task_update(
         task_id=self.request.id,
@@ -366,7 +365,8 @@ def celery_euclidean_distance(
                         break
                 if shp_path:
                     break
-            lon, lat = _get_centroid(shp_path)
+            lon, lat = _resolve_centroid(shp_path, xmin=xmin, ymin=ymin, xmax=xmax, ymax=ymax)
+
             epsg = _get_utm_epsg(lon, lat)
             celery_task_update(
                 task_id=self.request.id,
@@ -375,6 +375,17 @@ def celery_euclidean_distance(
             )
             PROJECTED_SHP = os.path.join(tmp_dir, "projected.shp")
             RASTER_POINTS = os.path.join(tmp_dir, "points.tif")
+            PROXIMITY_UTM = os.path.join(tmp_dir, "proximity_utm.tif")
+
+            extent_flag = ""
+            if all(v is not None for v in [xmin, ymin, xmax, ymax]):
+    
+                te_xmin, te_ymin, te_xmax, te_ymax = _reproject_extent(
+                    xmin, ymin, xmax, ymax,
+                    src_epsg=4326,
+                    dst_epsg=epsg        
+                )
+                extent_flag = f'-te {te_xmin} {te_ymin} {te_xmax} {te_ymax}'
             _run_cmd(f'ogr2ogr -t_srs EPSG:{epsg} "{PROJECTED_SHP}" "{shp_path}"')
             layer_name = os.path.splitext(os.path.basename(PROJECTED_SHP))[0]
             _run_cmd(
@@ -383,6 +394,7 @@ def celery_euclidean_distance(
                 f'-tr 30 30 '
                 f'-ot Byte '
                 f'-of GTiff '
+                f'{extent_flag} '    
                 f'-l {layer_name} '
                 f'"{PROJECTED_SHP}" "{RASTER_POINTS}"'
             )
@@ -394,12 +406,21 @@ def celery_euclidean_distance(
             )
             _run_cmd(
                 f'gdal_proximity.py '
-                f'"{RASTER_POINTS}" "{output_path}" '
+                f'"{RASTER_POINTS}" "{PROXIMITY_UTM}" '
                 f'-values 1 '
                 f'-distunits GEO '
                 f'-ot Float32 '
                 f'-nodata -9999 '
                 f'--config GDAL_CACHEMAX 512'
+            )
+            _run_cmd(
+                f'gdalwarp '
+                f'-t_srs EPSG:4326 '
+                f'-r bilinear '
+                f'-of GTiff '
+                f'-dstnodata -9999 '
+                f'-overwrite '
+                f'"{PROXIMITY_UTM}" "{output_path}"'
             )
             unique_store_name =Unique_name.unique_name("raster_store")
             _,layer_name=asyncio.run(Geoserver().upload_raster(raster_workspace,store_name=unique_store_name,raster_path=output_path))
@@ -420,6 +441,110 @@ def celery_euclidean_distance(
     except subprocess.TimeoutExpired:
         logger.error("GDAL proximity timed out")
         raise RuntimeError("Euclidean distance computation timed out")
+
+
+ 
+def _get_extent(shp_file: str) -> tuple[float, float, float, float]:
+    result = subprocess.run(
+        ["ogrinfo", "-ro", "-so", "-al", shp_file],  # added -ro and -al
+        capture_output=True, text=True, check=True
+    )
+    match = re.search(
+        r"Extent:\s*\(\s*([\d\.\-]+),\s*([\d\.\-]+)\s*\)"
+        r"\s*-\s*\(\s*([\d\.\-]+),\s*([\d\.\-]+)\s*\)",
+        result.stdout
+    )
+    if not match:
+        raise ValueError(
+            f"Could not extract extent from ogrinfo output.\n{result.stdout}"
+        )
+    xmin, ymin, xmax, ymax = map(float, match.groups())
+    return xmin, ymin, xmax, ymax
+
+@app.task(bind=True,name='celery_interpolation_tools',queue='heavy_task')
+def celery_interpolation(
+        self,
+        input_path: str,
+        output_path: str,
+        z_field: str,
+        algorithm: str,
+        xmin: float = None,
+        ymin: float = None,
+        xmax: float = None,
+        ymax: float = None):
+    celery_task_update(
+        task_id=self.request.id,
+        status="started",
+    )
+    try:
+        with tempfile.TemporaryDirectory(prefix="interpolation_") as tmp_dir:
+            with zipfile.ZipFile(input_path, 'r') as z:
+                z.extractall(tmp_dir)
+            shp_path = None
+            for root, dirs, files in os.walk(tmp_dir):
+                for file in files:
+                    if file.lower().endswith(".shp"):
+                        shp_path = os.path.join(root, file)
+                        break
+                if shp_path:
+                    break
+
+            algo_str = ALGORITHMS[algorithm]
+            lon, lat = _resolve_centroid(shp_path, xmin, ymin, xmax, ymax)
+            epsg = _get_utm_epsg(lon, lat)
+            PROJECTED_SHP = os.path.join(tmp_dir, "projected.shp")
+            _run_cmd(f'ogr2ogr -t_srs EPSG:{epsg} "{PROJECTED_SHP}" "{shp_path}"')
+
+     
+            if all(v is not None for v in [xmin, ymin, xmax, ymax]):
+                te_xmin, te_ymin, te_xmax, te_ymax = _reproject_extent(
+                    xmin, ymin, xmax, ymax, src_epsg=4326, dst_epsg=epsg
+                )
+            else:
+                te_xmin, te_ymin, te_xmax, te_ymax = _get_extent(PROJECTED_SHP)
+
+            celery_task_update(
+                task_id=self.request.id,
+                status="running",
+                progress=40,
+            )
+
+            cmd = [
+                "gdal_grid",
+                "-zfield", z_field,
+                "-a", algo_str,
+                "-txe", str(te_xmin), str(te_xmax),
+                "-tye", str(te_ymin), str(te_ymax),
+                "-tr", "30", "30",
+                "-a_srs", f"EPSG:{epsg}",   # fix 2: UTM epsg not 4326
+                "-of", "GTiff",
+                "-ot", "Float32",
+                "--config", "GDAL_NUM_THREADS", "ALL_CPUS",
+                PROJECTED_SHP,              # fix 3: projected shapefile
+                output_path,
+            ]
+            _run_cmd(" ".join(cmd))
+
+            unique_store_name = Unique_name.unique_name("raster_store")
+            _, layer_name = asyncio.run(Geoserver().upload_raster(raster_workspace, store_name=unique_store_name, raster_path=output_path))
+            file_name = output_path.split("/")[-1].split(".")[0]
+            update_raster_info(file_id=self.request.id, file_name=file_name, layer_name=layer_name, file_path=output_path)
+            celery_task_update(
+                task_id=self.request.id,
+                status="completed",
+                progress=100,
+                layer_name=layer_name,
+                result_path=output_path
+            )
+    except subprocess.CalledProcessError as e:
+        logger.error("GDAL interpolation failed")
+        logger.error(e.stderr)
+        raise RuntimeError(f"GDAL error: {e.stderr}")
+
+    except subprocess.TimeoutExpired:
+        logger.error("GDAL interpolation timed out")
+        raise RuntimeError("Interpolation computation timed out")
+
 
 
 def _update_stats(nodata_out:float,output_path: str):

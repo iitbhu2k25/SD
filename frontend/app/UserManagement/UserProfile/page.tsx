@@ -4,7 +4,7 @@ import { Edit3, Save, X, Camera, Mail, User, Trash2, Phone, Building2, CheckCirc
 import { api } from '@/services/api';
 import { UserEditable, UserProfile } from '@/interface/user';
 import { toast } from 'react-toastify';
-import { useLogout } from '@/components/authentication/logout';
+import { useLogout } from '@/app/authentication/components/logout';
 import { useAuthStore } from '@/store/authStore';
 import Image from 'next/image';
 interface InputFieldProps {
