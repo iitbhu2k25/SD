@@ -17,7 +17,6 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import StatusBar from '../shared/components/StatusBar';
-import Basic2ReportDownload from './Basic2ReportDownload';
 
 /* ─── constants ──────────────────────────────────────────────────── */
 const STRIP_W = 52;
@@ -267,7 +266,6 @@ export default function BasicDashboard() {
                           style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'8px 10px', borderRadius:8, fontSize:12, fontWeight:600, border:'1px solid #e2e8f0', background:'#fff', color:'#475569', cursor:'pointer' }}>
                           <RotateCcw size={12}/> Change Location
                         </button>
-                        <Basic2ReportDownload />
                       </div>
                     </div>
                   )}

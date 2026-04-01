@@ -6,6 +6,7 @@ import { useBasicStore } from '../shared/store/basic.store';
 import { API_BASE_URL } from '../shared/utils/constants';
 import { fetchSewageThematic } from '../shared/services/population.service';
 import ModuleNav from '../shared/components/ModuleNav';
+import Basic2ReportDownload from '../components/Basic2ReportDownload';
 import {
   Droplets, AlertCircle, CheckCircle2,
   ChevronDown, ChevronUp, RefreshCw, Waves,
@@ -82,7 +83,7 @@ function CalcButton({ onClick, loading, label, disabled }: {
     <button type="button" onClick={onClick} disabled={off}
       style={{
         alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8,
-        padding: '10px 22px', borderRadius: 10, border: 'none',
+        padding: '7px 22px', borderRadius: 10, border: 'none',
         background: off ? '#e2e8f0' : 'linear-gradient(135deg,#2563eb,#1d4ed8)',
         color: off ? '#94a3b8' : '#fff', fontSize: 13, fontWeight: 700,
         cursor: off ? 'not-allowed' : 'pointer',
@@ -384,7 +385,7 @@ export default function SewageModule() {
   type DrainRow = { drain_no: string; drain_id: string; drain_recharge: string };
   type PopRow   = { year: string; population: string };
   type SdResultRow = { year: string; population: number; population_based: number; water_based: number; drain_based: number };
-  const [sdMode,        setSdMode]        = useState<'manual' | 'modeled'>('manual');
+  const [sdMode,        setSdMode]        = useState<'manual' | 'modeled'>('modeled');
   const [sdPopRows,     setSdPopRows]     = useState<PopRow[]>([{ year: '2025', population: '' }]);
   const [sdDrains,      setSdDrains]      = useState<DrainRow[]>([{ drain_no: '', drain_id: '', drain_recharge: '' }]);
   const [sdResult,      setSdResult]      = useState<SdResultRow[] | null>(null);
@@ -948,24 +949,24 @@ export default function SewageModule() {
 
         <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* ── Row 1: Mode toggle + info tooltip + UFW ─────────────── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Method</span>
+          {/* ── Row 1: Mode toggle · info · forecast hint · UFW ────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>Method</span>
             <ToggleSwitch value={sdMode} onChange={(v) => { setSdMode(v); setSdResult(null); setSdDomSeasonal(null); setSdDomYears([]); setSdErr(null); }} />
-
-            {/* ℹ info tooltip — fixed position to escape any overflow:hidden parent */}
             <SdInfoTooltip />
 
             {sdMode === 'modeled' && (
-              <span style={{ fontSize: 11, color: '#16a34a', background: '#dcfce7', borderRadius: 5, padding: '3px 9px', border: '1px solid #86efac', fontWeight: 600 }}>
+              <span style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                 {Object.keys(fc).length} forecast years
                 {population2025 ? ` · 2025 ref: ${population2025.toLocaleString()}` : ''}
               </span>
             )}
 
-            {/* UFW inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', display:'flex', alignItems:'center', gap:4 }}>
+            <div style={{ flex: 1 }} />
+
+            {/* UFW */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 4 }}>
                 UFW <Tip text="Unaccounted For Water — percentage of water supply lost to leakages, illegal connections, or metering errors. Default is 15%. Used to adjust the water-based sewage demand calculation." />
               </span>
               <input style={{ ...inp, width: 64 }} type="number" min="0" max="100" step="0.1" placeholder="15"
@@ -1548,6 +1549,27 @@ export default function SewageModule() {
       )}
 
      
+
+      {/* ── Report Download ─────────────────────────────────────────────── */}
+      <div style={{
+        margin: '8px 16px 4px',
+        padding: '14px 16px',
+        background: 'linear-gradient(135deg,#f0fdf4,#dcfce7)',
+        border: '1px solid #bbf7d0',
+        borderRadius: 12,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+      }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>Generate Report</div>
+          <div style={{ fontSize: 11, color: '#4ade80', marginTop: 2 }}>
+            Download PDF or open interactive report in browser
+          </div>
+        </div>
+        <Basic2ReportDownload />
+      </div>
 
       <ModuleNav
         back={{ label: 'Water Supply', onClick: () => setActiveModule('water_supply') }}
