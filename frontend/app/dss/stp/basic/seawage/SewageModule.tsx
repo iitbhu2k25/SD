@@ -83,7 +83,7 @@ function CalcButton({ onClick, loading, label, disabled }: {
     <button type="button" onClick={onClick} disabled={off}
       style={{
         alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 8,
-        padding: '7px 22px', borderRadius: 10, border: 'none',
+        padding: '7px 17px', borderRadius: 10, border: 'none',
         background: off ? '#e2e8f0' : 'linear-gradient(135deg,#2563eb,#1d4ed8)',
         color: off ? '#94a3b8' : '#fff', fontSize: 13, fontWeight: 700,
         cursor: off ? 'not-allowed' : 'pointer',
@@ -206,15 +206,15 @@ function ToggleSwitch({ value, onChange }: {
   onChange: (v: 'manual' | 'modeled') => void;
 }) {
   return (
-    <div style={{ display: 'inline-flex', borderRadius: 8, border: '1px solid #e2e8f0', overflow: 'hidden', fontSize: 13 }}>
+    <div style={{ display: 'inline-flex', borderRadius: 6, border: '1px solid #e2e8f0', overflow: 'hidden', flexShrink: 0 }}>
       {(['manual', 'modeled'] as const).map((opt) => (
         <button key={opt} type="button" onClick={() => onChange(opt)}
           style={{
-            padding: '7px 20px', border: 'none', cursor: 'pointer', fontWeight: 700,
-            background: value === opt ? '#2563eb' : '#fff',
+            padding: '3px 10px', border: 'none', cursor: 'pointer',
+            fontSize: 11, fontWeight: 700,
+            background: value === opt ? '#2563eb' : '#f8fafc',
             color: value === opt ? '#fff' : '#64748b',
             borderRight: opt === 'manual' ? '1px solid #e2e8f0' : 'none',
-            transition: 'all 0.15s',
           }}>
           {opt === 'manual' ? 'Manual' : 'Modeled'}
         </button>
@@ -882,12 +882,12 @@ export default function SewageModule() {
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, display:'flex', alignItems:'center', gap:4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#3f4042', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 3, display:'flex', alignItems:'center', gap:4 }}>
                 <span>Total Water Supply (MLD)</span>
                 <Tip text="Total daily water supply for the project area in Million Litres per Day. Sewage generation is calculated as Supply × 0.84 (80–85% rule per CPHEEO guidelines)." />
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <input style={{ ...inp, flex: 1, minWidth: 0 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
+                <input style={{ ...inp, flex: 1, minWidth: 0, maxWidth: 160 }} type="number" min="0" step="0.001" placeholder="e.g. 12.5" value={wsInput}
                   onChange={e => { setWsInput(e.target.value); setWsResult(null); setWsErr(null); }} />
                 {/* {waterSupplyTotal !== null && (
                   <button type="button" onClick={() => setWsInput(waterSupplyTotal.toFixed(3))}

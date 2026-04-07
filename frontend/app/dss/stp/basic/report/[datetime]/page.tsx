@@ -491,7 +491,7 @@ export default function BrowserReportPage() {
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
         /* Hide sticky nav and interactive map controls during print */
-        nav, .map-controls-bar { display: none !important; }
+        nav, .report-sidebar, .map-controls-bar { display: none !important; }
 
         /* Header: static so it flows in the page */
         header { position: static !important; break-after: avoid; }
@@ -598,70 +598,72 @@ export default function BrowserReportPage() {
 
 
       {/* ── Main Content ────────────────────────────────────────────────────── */}
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px 80px' }}>
-      {/* ── Simple Sticky Nav ─────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', maxWidth: 1280, margin: '0 auto', padding: '0 16px' }}>
+
+      {/* ── Vertical Left Sidebar Nav ─────────────────────────────── */}
       <nav
+        className="report-sidebar"
         style={{
-          background: '#ffffff',
-          borderBottom: '1px solid #e5e7eb',
+          width: 200,
+          flexShrink: 0,
           position: 'sticky',
-          top: 0,
+          top: 16,
+          height: 'calc(100vh - 32px)',
+          overflowY: 'auto',
+          background: '#ffffff',
           borderRadius: 12,
           zIndex: 1000,
-          marginBottom: 40,
-          padding: '10px 0',
-          boxShadow: '0 8px 24px rgba(8,14,32,0.06)',
-          backdropFilter: 'blur(8px)',
+          marginTop: 32,
+          marginRight: 24,
+          padding: '16px 0',
+          boxShadow: '0 4px 20px rgba(8,14,32,0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
         }}
       >
-        <div
-          style={{
-            maxWidth: 900,
-            margin: '0 auto',
-            padding: '0 20px',
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 16,
-            flexWrap: 'wrap',
-          }}
-        >
-          {NAV_ITEMS.map((item) => (
-            <a
-              key={item.id}
-              href={`#section-${item.id}`}
-              style={{
-                padding: '10px 12px',
-                fontSize: 12,
-                fontWeight: activeSection === item.id ? 700 : 500,
-                color: activeSection === item.id ? item.color : '#374151',
-                textDecoration: 'none',
-                borderBottom: `2px solid ${activeSection === item.id ? item.color : 'transparent'}`,
-                borderRadius: 999,
-                background: activeSection === item.id ? `${item.color}12` : 'transparent',
-                transition: 'all 0.2s ease',
-              }}
-              aria-current={activeSection === item.id ? 'page' : undefined}
-              onClick={(e) => handleNavClick(e, item.id)}
-              onMouseEnter={(e) => {
-                if (activeSection !== item.id) {
-                  e.currentTarget.style.borderBottom = `2px solid ${item.color}`;
-                  e.currentTarget.style.color = item.color;
-                  e.currentTarget.style.background = `${item.color}0f`;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeSection !== item.id) {
-                  e.currentTarget.style.borderBottom = '2px solid transparent';
-                  e.currentTarget.style.color = '#374151';
-                  e.currentTarget.style.background = 'transparent';
-                }
-              }}
-            >
-              {item.label}
-            </a>
-          ))}
+        <div style={{ padding: '0 12px 10px', fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', borderBottom: '1px solid #f0f0f0', marginBottom: 6 }}>
+          Contents
         </div>
+        {NAV_ITEMS.map((item) => (
+          <a
+            key={item.id}
+            href={`#section-${item.id}`}
+            style={{
+              padding: '8px 14px',
+              fontSize: 12,
+              fontWeight: activeSection === item.id ? 700 : 500,
+              color: activeSection === item.id ? item.color : '#374151',
+              textDecoration: 'none',
+              borderLeft: `3px solid ${activeSection === item.id ? item.color : 'transparent'}`,
+              background: activeSection === item.id ? `${item.color}12` : 'transparent',
+              transition: 'all 0.15s ease',
+              display: 'block',
+              lineHeight: 1.4,
+            }}
+            aria-current={activeSection === item.id ? 'page' : undefined}
+            onClick={(e) => handleNavClick(e, item.id)}
+            onMouseEnter={(e) => {
+              if (activeSection !== item.id) {
+                e.currentTarget.style.borderLeft = `3px solid ${item.color}`;
+                e.currentTarget.style.color = item.color;
+                e.currentTarget.style.background = `${item.color}0f`;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeSection !== item.id) {
+                e.currentTarget.style.borderLeft = '3px solid transparent';
+                e.currentTarget.style.color = '#374151';
+                e.currentTarget.style.background = 'transparent';
+              }
+            }}
+          >
+            {item.label}
+          </a>
+        ))}
       </nav>
+
+      <main style={{ flex: 1, minWidth: 0, padding: '32px 0 80px' }}>
         {/* ── 1. Executive Summary ─────────────────────────────────────────── */}
         <div
           style={{
@@ -1415,6 +1417,7 @@ export default function BrowserReportPage() {
           checks for design-stage planning.
         </Para>
       </main>
+      </div>{/* end flex sidebar+content wrapper */}
 
       {/* ── Footer ─────────────────────────────────────────── */}
 <footer

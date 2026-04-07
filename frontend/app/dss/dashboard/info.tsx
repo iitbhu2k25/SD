@@ -21,6 +21,7 @@ export type DashboardInfoKey =
   | 'trend-annual-rainfall'
   | 'trend-distribution-analysis'
   | 'trend-industrial-pollution'
+  | 'trend-varanasi-water-level'
   | 'water-quality-index'
   | 'river-water-quality-observations';
 
@@ -166,6 +167,13 @@ const INFO_CONTENT: Record<DashboardInfoKey, DashboardInfoContent> = {
       'Shows district-wise count of industrial records grouped by pollution-index band.',
       'Legend bands are Pollution Index: 0-25 (Blue), 25-55 (Green), 55-80 (Orange), 80-100 (Red).',
       'X-axis shows districts and Y-axis shows count of records in each band.',
+    ],
+  },
+  'trend-varanasi-water-level': {
+    title: 'Varanasi Point — Ganga River Water Level',
+    points: [
+      'Station Code: 047-MGD3VNS — located on the Ganga River at Varanasi, Uttar Pradesh.',
+      'Historical trend chart shows all available readings; hover over the chart to inspect values by date.',
     ],
   },
   'water-quality-index': {

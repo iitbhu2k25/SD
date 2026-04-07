@@ -133,16 +133,54 @@ function VillageToggleList({
           ) : (
             <>
               {/* Stats row */}
-              <div style={{ display: 'flex', gap: 6, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 72, background: '#f0fdf4', borderRadius: 7, padding: '5px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: '#16a34a', fontWeight: 700, textTransform: 'uppercase' }}>Selected</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#15803d' }}>{selectedIds.length}</div>
-                </div>
-                <div style={{ flex: 1, minWidth: 72, background: '#eff6ff', borderRadius: 7, padding: '5px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: '#2563eb', fontWeight: 700, textTransform: 'uppercase' }}>Population</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1d4ed8' }}>{totalPop.toLocaleString()}</div>
-                </div>
-              </div>
+              <div
+  style={{
+    display: 'flex',
+    gap: 6,
+    padding: '8px 12px',
+    borderBottom: '1px solid #f1f5f9',
+    flexWrap: 'wrap',
+  }}
+>
+  <div
+    className="relative group"
+    style={{
+      flex: 1,
+      minWidth: 72,
+      background: '#eff6ff',
+      borderRadius: 7,
+      padding: '5px 8px',
+      textAlign: 'center',
+      cursor: 'pointer',
+    }}
+  >
+    <div
+      style={{
+        fontSize: 9,
+        color: '#2563eb',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+      }}
+    >
+      Population
+    </div>
+
+    <div
+      style={{
+        fontSize: 15,
+        fontWeight: 900,
+        color: '#1d4ed8',
+      }}
+    >
+      {totalPop.toLocaleString()}
+    </div>
+
+    {/* Tooltip */}
+    <div className="absolute hidden group-hover:block bg-black text-white text-xs rounded px-2 py-1 -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+      Total population of selected area
+    </div>
+  </div>
+</div>
 
               {/* Controls */}
               <div style={{ display: 'flex', gap: 5, padding: '7px 10px', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
@@ -184,9 +222,7 @@ function VillageToggleList({
                           <div style={{ fontSize: 10, color: '#94a3b8' }}>Pop: {v.population.toLocaleString()}</div>
                         )}
                       </div>
-                      <span style={{ fontSize: 9, color: '#94a3b8', background: '#f1f5f9', borderRadius: 4, padding: '2px 5px', whiteSpace: 'nowrap' }}>
-                        D-{v.shapeID}
-                      </span>
+                    
                     </div>
                   );
                 })}
@@ -330,7 +366,7 @@ export default function DrainLocationSelector() {
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>4</div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Review Villages</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b' }}>Villages</span>
           </div>
           <VillageToggleList
             villages={villages}

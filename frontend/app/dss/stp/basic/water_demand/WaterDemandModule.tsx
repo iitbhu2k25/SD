@@ -429,29 +429,24 @@ export default function WaterDemandModule() {
         </div>
         <div style={{ padding:'10px 12px' }}>
           <div style={{ display:'flex', gap:6 }}>
-            {([
-              { key:'domestic'     as WDMethod, label:'Domestic',      icon:<Home size={13}/>,     color:'#2563eb', bg:'#eff6ff', border:'#bfdbfe' },
-              { key:'floating'     as WDMethod, label:'Floating',      icon:<Users size={13}/>,    color:'#0891b2', bg:'#ecfeff', border:'#a5f3fc' },
-              { key:'institutional'as WDMethod, label:'Institutional', icon:<Building2 size={13}/>,color:'#7c3aed', bg:'#f5f3ff', border:'#ddd6fe' },
-              { key:'firefighting' as WDMethod, label:'Firefighting',  icon:<Flame size={13}/>,    color:'#dc2626', bg:'#fef2f2', border:'#fecaca' },
-            ] as const).map(({ key, label, icon, color, bg, border }) => {
+            {(['domestic','floating','institutional','firefighting'] as WDMethod[]).map((key) => {
+              const label = key.charAt(0).toUpperCase() + key.slice(1);
               const active = checked.has(key);
               return (
                 <div key={key} onClick={() => !isRunning && toggleMethod(key)}
                   style={{
                     flex:1, display:'flex', alignItems:'center', gap:5, minWidth:0,
                     padding:'7px 8px', borderRadius:8,
-                    border:`1.5px solid ${active ? border : '#e2e8f0'}`,
-                    background: active ? bg : '#fafafa',
+                    border:`1.5px solid ${active ? '#94a3b8' : '#e2e8f0'}`,
+                    background: active ? '#f1f5f9' : '#fafafa',
                     cursor: isRunning ? 'not-allowed' : 'pointer',
                     transition:'all 0.15s',
                   }}>
                   {/* checkbox */}
-                  <div style={{ width:13, height:13, borderRadius:4, flexShrink:0, border:`2px solid ${active?color:'#cbd5e1'}`, background:active?color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
+                  <div style={{ width:13, height:13, borderRadius:4, flexShrink:0, border:`2px solid ${active?'#475569':'#cbd5e1'}`, background:active?'#475569':'#fff', display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.15s' }}>
                     {active && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
-                  <span style={{ color:active?color:'#94a3b8', display:'flex', flexShrink:0 }}>{icon}</span>
-                  <span style={{ fontSize:compact?10:11, fontWeight:700, color:active?color:'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{label}</span>
+                  <span style={{ fontSize:compact?10:11, fontWeight:700, color:active?'#1e293b':'#64748b', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{label}</span>
                   <span onClick={e=>e.stopPropagation()} style={{ display:'flex', flexShrink:0 }}>
                     <Tip text={WD_COMP_TIPS[key]} />
                   </span>
@@ -464,7 +459,7 @@ export default function WaterDemandModule() {
 
       {/* ── DOMESTIC params ── */}
       {checked.has('domestic') && (
-        <ParamCard title="Domestic Parameters" color="#2563eb" bg="#eff6ff" border="#bfdbfe" icon={<Home size={15}/>} loading={loading.has('domestic')}>
+        <ParamCard title="Domestic Parameters" color="#2563eb" bg="#eff6ff" border="#bfdbfe"  loading={loading.has('domestic')}>
           {/* Per-capita presets */}
           <div style={{ marginBottom:12 }}>
             <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
@@ -573,7 +568,7 @@ export default function WaterDemandModule() {
 
       {/* ── FIREFIGHTING params ── */}
       {checked.has('firefighting') && (
-        <ParamCard title="Firefighting Parameters" color="#dc2626" bg="#fef2f2" border="#fecaca" icon={<Flame size={15}/>} loading={loading.has('firefighting')}>
+        <ParamCard title="Firefighting Parameters" color="#475569" bg="#f1f5f9" border="#cbd5e1" icon={<Flame size={15}/>} loading={loading.has('firefighting')}>
           <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
             <span style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Select Calculation Methods</span>
             <Tip text="Each method is a nationally recognised approach to estimate the water volume required for fire suppression. Select one or more — results appear side-by-side so you can compare and pick the right reserve for your city type. Kuchling and Freeman suit small to medium towns; Buston follows UK standards; American Insurance is used for high-risk commercial zones; Ministry Urban follows India MoUD guidelines." />
@@ -582,9 +577,9 @@ export default function WaterDemandModule() {
             {FF_METHODS.map(m => {
               const active = ffMethods[m];
               return (
-                <label key={m} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, border:`1.5px solid ${active?'#fca5a5':'#e2e8f0'}`, background:active?'#fef2f2':'#fafafa', cursor:'pointer', flex:'1 1 auto', minWidth:0 }}>
-                  <input type="checkbox" checked={active} onChange={e => setFfMethods(f => ({...f,[m]:e.target.checked}))} style={{ accentColor:'#dc2626', flexShrink:0 }}/>
-                  <span style={{ fontSize:11, fontWeight:600, color:active?'#dc2626':'#64748b', whiteSpace:'nowrap' }}>{m.replace(/_/g,' ')}</span>
+                <label key={m} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, border:`1.5px solid ${active?'#94a3b8':'#e2e8f0'}`, background:active?'#f1f5f9':'#fafafa', cursor:'pointer', flex:'1 1 auto', minWidth:0 }}>
+                  <input type="checkbox" checked={active} onChange={e => setFfMethods(f => ({...f,[m]:e.target.checked}))} style={{ accentColor:'#475569', flexShrink:0 }}/>
+                  <span style={{ fontSize:11, fontWeight:600, color:active?'#1e293b':'#64748b', whiteSpace:'nowrap' }}>{m.replace(/_/g,' ')}</span>
                 </label>
               );
             })}
@@ -642,9 +637,9 @@ export default function WaterDemandModule() {
 }
 
 // ── ParamCard ─────────────────────────────────────────────────────────────
-function ParamCard({ title, color, bg, border, icon, loading, children }: {
+function ParamCard({ title, color, bg, border,  loading, children }: {
   title: string; color: string; bg: string; border: string;
-  icon: React.ReactNode; loading: boolean; children: React.ReactNode;
+  icon?: React.ReactNode; loading: boolean; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -652,7 +647,7 @@ function ParamCard({ title, color, bg, border, icon, loading, children }: {
       <div onClick={() => setOpen(v => !v)}
         style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 18px', background:bg, borderBottom: open ? `1px solid ${border}` : 'none', cursor:'pointer', userSelect:'none' }}>
         <div style={{ width:4, height:24, background:color, borderRadius:2 }}/>
-        <span style={{ color, flexShrink:0 }}>{icon}</span>
+        <span style={{ color, flexShrink:0 }}></span>
         <span style={{ fontSize:13, fontWeight:800, color:'#1e293b', flex:1 }}>{title}</span>
         {loading && <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color, fontWeight:600 }}><Spinner/> Running…</span>}
         {open ? <ChevronUp size={14} color="#94a3b8"/> : <ChevronDown size={14} color="#94a3b8"/>}

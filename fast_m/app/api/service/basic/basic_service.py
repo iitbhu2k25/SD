@@ -5,6 +5,7 @@ import json
 import math
 import os
 import uuid
+from numbers import Real
 from typing import Any
 
 import requests
@@ -1227,7 +1228,18 @@ class BasicService:
         gdf = gpd.read_file(shp_full_path).to_crs("EPSG:4326")
         if filter_column and values:
             gdf = gdf[gdf[filter_column].isin(values)]
-        return json.loads(gdf.to_json())
+        return self._json_safe(json.loads(gdf.to_json()))
+
+    def _json_safe(self, value: Any):
+        if isinstance(value, dict):
+            return {key: self._json_safe(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._json_safe(item) for item in value]
+        if isinstance(value, Real) and not isinstance(value, bool):
+            if math.isnan(float(value)) or math.isinf(float(value)):
+                return None
+            return value
+        return value
 
     def basin(self):
         media_root = self._media_root()
@@ -1297,10 +1309,12 @@ class BasicService:
         joined = joined.drop_duplicates(subset=["shapeID"])
 
         return {
-            "intersected_villages": joined[["shapeID", "shapeName", "SUB_DISTRI", "SUBDIS_COD", "DISTRICT", "Drain_No"]].to_dict(orient="records"),
+            "intersected_villages": self._json_safe(
+                joined[["shapeID", "shapeName", "SUB_DISTRI", "SUBDIS_COD", "DISTRICT", "Drain_No"]].to_dict(orient="records")
+            ),
             "count": int(len(joined)),
-            "village_geojson": json.loads(joined.to_json()) if not joined.empty else {"type": "FeatureCollection", "features": []},
-            "catchment_geojson": json.loads(filtered_catchment.to_json()),
+            "village_geojson": self._json_safe(json.loads(joined.to_json())) if not joined.empty else {"type": "FeatureCollection", "features": []},
+            "catchment_geojson": self._json_safe(json.loads(filtered_catchment.to_json())),
         }
 
     def village_population(self, shape_ids: list[int | str]):

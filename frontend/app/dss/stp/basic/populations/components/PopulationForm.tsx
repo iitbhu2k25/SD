@@ -149,10 +149,10 @@ export default function PopulationForm({ onRun, onBeforeRun, loadingMethod }: Po
     width: '100%', boxSizing: 'border-box',
     border: `1px solid ${dimmed ? '#f1f5f9' : '#e2e8f0'}`,
     borderRadius: 8, padding: '6px 10px', fontSize: 12,
-    outline: 'none', background: dimmed ? '#f8fafc' : '#fff',
+    outline: 'none', background: dimmed ? '#ffffff' : '#fff',
     color: dimmed ? '#cbd5e1' : '#1e293b',
     cursor: dimmed ? 'not-allowed' : 'text',
-    opacity: dimmed ? 0.5 : 1,
+    opacity: dimmed ? 2 : 2,
     transition: 'all 0.2s',
     pointerEvents: dimmed ? 'none' : 'auto',
   });
@@ -258,7 +258,7 @@ export default function PopulationForm({ onRun, onBeforeRun, loadingMethod }: Po
         </div>
 
         {/* Active mode hint */}
-        <div style={{ fontSize: 10, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 10, color: '#1d59ad', display: 'flex', alignItems: 'center', gap: 4 }}>
           <span style={{
             display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
             background: usingSingle ? '#0d9488' : '#2563eb',

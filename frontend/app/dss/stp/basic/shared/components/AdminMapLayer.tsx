@@ -1353,7 +1353,7 @@ export default function Map({
         }}
       >
         {/* Legend moved inside map as overlay */}
-        <div className={`absolute ${isFullscreen ? 'top-4 left-16' : 'top-2 left-12'} z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300`}>
+        <div className={`absolute ${isFullscreen ? 'top-4 left-16' : 'top-3 right-22'} z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300`}>
           <div className="flex flex-wrap gap-2 text-xs">
             <div className="flex items-center space-x-1">
               <span className="w-3 h-2 inline-block" style={{ backgroundColor: 'rgb(0, 0, 255)' }}></span>
@@ -1513,7 +1513,7 @@ export default function Map({
               <span
                 title="Click on a village polygon on the map to see detailed population data"
                 style={{ fontSize: 12, color: '#94a3b8', cursor: 'help', lineHeight: 1, userSelect: 'none' }}
-              >ⓘ</span>
+              ></span>
               <button type="button" onClick={() => setThematicLayerVisible((v) => !v)}
                 style={{
                   fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 5,

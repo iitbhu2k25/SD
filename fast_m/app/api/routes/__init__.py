@@ -25,3 +25,9 @@ app_router.include_router(
     tags=["Rainwater"]
 )
 
+app_router.include_router(
+    import_module("app.api.routes.rsq.rsq").router,
+    prefix='/rsq',
+    tags=["RSQ"]
+)
+

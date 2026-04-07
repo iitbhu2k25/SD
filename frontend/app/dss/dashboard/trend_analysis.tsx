@@ -8,8 +8,11 @@ import {
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Sector,
   Tooltip,
@@ -383,6 +386,114 @@ const SlidingLineChart: React.FC<SlidingChartProps> = ({
 };
 
 /* ═══════════════════════════════════════════════════════════
+   VARANASI WATER LEVEL GAUGE
+═══════════════════════════════════════════════════════════ */
+const WL_TICKS = [0, 5, 10, 50, 100, 250, 500, 750, 1000];
+
+function wlToPct(value: number): number {
+  if (value <= WL_TICKS[0]) return 0;
+  if (value >= WL_TICKS[WL_TICKS.length - 1]) return 1;
+  for (let i = 0; i < WL_TICKS.length - 1; i++) {
+    if (value <= WL_TICKS[i + 1]) {
+      return (i + (value - WL_TICKS[i]) / (WL_TICKS[i + 1] - WL_TICKS[i])) / (WL_TICKS.length - 1);
+    }
+  }
+  return 1;
+}
+
+const WaterLevelGauge: React.FC<{ value: number | null; dateTime?: string }> = ({ value, dateTime }) => {
+  const CX = 150, CY = 158, R = 105;
+  const START = 135, SPAN = 270;
+
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const px  = (d: number, radius: number) => CX + radius * Math.cos(rad(d));
+  const py  = (d: number, radius: number) => CY + radius * Math.sin(rad(d));
+  const buildArc = (spanDeg: number) => {
+    if (spanDeg < 0.1) return `M ${px(START, R)} ${py(START, R)}`;
+    const to = START + spanDeg;
+    return `M ${px(START, R)} ${py(START, R)} A ${R} ${R} 0 ${spanDeg > 180 ? 1 : 0} 1 ${px(to, R)} ${py(to, R)}`;
+  };
+
+  /* refs for direct DOM animation — no setState → no React re-render per frame */
+  const arcRef    = useRef<SVGPathElement>(null);
+  const needleRef = useRef<SVGLineElement>(null);
+  const numRef    = useRef<HTMLDivElement>(null);
+  const rafRef    = useRef<number>(0);
+
+  useEffect(() => {
+    if (value == null) return;
+    const target   = value;
+    const DURATION = 1800;
+    let start: number | null = null;
+
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const t    = Math.min((ts - start) / DURATION, 1);
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      const cur  = ease * target;
+      const pct  = wlToPct(cur);
+      const nDeg = START + pct * SPAN;
+
+      arcRef.current?.setAttribute('d', buildArc(pct * SPAN));
+      needleRef.current?.setAttribute('x2', String(px(nDeg, R - 16).toFixed(3)));
+      needleRef.current?.setAttribute('y2', String(py(nDeg, R - 16).toFixed(3)));
+      if (numRef.current) numRef.current.textContent = cur.toFixed(2);
+
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#0d1b2a', borderRadius: 20, padding: '20px 28px' }}>
+      <svg width="300" height="210" viewBox="0 0 300 210" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="wlGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00e5ff" /><stop offset="100%" stopColor="#0284c7" />
+          </linearGradient>
+          <filter id="wlGlow">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        {/* background track */}
+        <path d={buildArc(SPAN)} fill="none" stroke="#162d45" strokeWidth="18" strokeLinecap="round" />
+
+        {/* animated value arc — starts empty, filled by useEffect */}
+        <path ref={arcRef} d={`M ${px(START, R)} ${py(START, R)}`} fill="none" stroke="url(#wlGrad)" strokeWidth="18" strokeLinecap="round" filter="url(#wlGlow)" />
+
+        {/* ticks & labels — static */}
+        {WL_TICKS.map((tick, i) => {
+          const deg = START + (i / (WL_TICKS.length - 1)) * SPAN;
+          return (
+            <g key={tick}>
+              <line x1={px(deg, R + 10)} y1={py(deg, R + 10)} x2={px(deg, R + 20)} y2={py(deg, R + 20)} stroke="#3a5570" strokeWidth={i % 2 === 0 ? 2 : 1} />
+              <text x={px(deg, R + 32)} y={py(deg, R + 32)} textAnchor="middle" dominantBaseline="central" fill="#6a8aaa" fontSize="9" fontFamily="system-ui,sans-serif">{tick}</text>
+            </g>
+          );
+        })}
+
+        {/* animated needle — starts at zero position */}
+        <line ref={needleRef} x1={CX} y1={CY} x2={px(START, R - 16)} y2={py(START, R - 16)} stroke="#dde6f0" strokeWidth="2.5" strokeLinecap="round" />
+        <circle cx={CX} cy={CY} r="6" fill="#162d45" stroke="#dde6f0" strokeWidth="2" />
+      </svg>
+
+      {/* animated number — starts at 0.00 */}
+      <div ref={numRef} style={{ color: '#e2e8f0', fontSize: 32, fontWeight: 700, marginTop: -16, letterSpacing: 1, fontFamily: 'system-ui,sans-serif' }}>
+        0.00
+      </div>
+      <div style={{ color: '#94b8d0', fontSize: 11, marginTop: 3, fontFamily: 'system-ui,sans-serif' }}>Present Water Level (m)</div>
+      {dateTime && <div style={{ color: '#5a7a96', fontSize: 10, marginTop: 2, fontFamily: 'system-ui,sans-serif' }}>{dateTime}</div>}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
 const TrendAnalysis: React.FC = () => {
@@ -400,6 +511,13 @@ const TrendAnalysis: React.FC = () => {
   const [industrialRecords,   setIndustrialRecords]   = useState<DashboardIndustrialRecord[]>([]);
   const [loadingIndustrial,   setLoadingIndustrial]   = useState(true);
   const [industrialError,     setIndustrialError]     = useState<string | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [wlRecords,   setWlRecords]   = useState<any[]>([]);
+  const [loadingWL,   setLoadingWL]   = useState(true);
+  const [wlError,     setWlError]     = useState<string | null>(null);
+
+
   const [selectedInfo,        setSelectedInfo]        = useState<DashboardInfoContent | null>(null);
   const [selectedInfoAnchor,  setSelectedInfoAnchor]  = useState<HTMLElement | null>(null);
 
@@ -460,6 +578,30 @@ const TrendAnalysis: React.FC = () => {
       setLoadingIndustrial(false);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const b = process.env.NEXT_PUBLIC_FAST_URL || '/fastapi';
+        const today = new Date().toISOString().split('T')[0];
+        const r = await fetch(`${b}/extract/level`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stationCode: "'006-MGD3VNS'", startDate: '2016-01-01', endDate: today }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d?.data && Array.isArray(d.data) ? d.data : []);
+        setWlRecords(arr);
+        setWlError(null);
+      } catch {
+        setWlError('Unable to load water level data.');
+      } finally {
+        setLoadingWL(false);
+      }
+    })();
+  }, []);
+
 
   /* ── depth data (doubled for circular wrap) ── */
   const normSeason = (v: string) => String(v || '').toLowerCase().replace(/_/g, '-').replace(/\s+/g, '-').trim();
@@ -641,6 +783,61 @@ const TrendAnalysis: React.FC = () => {
 
     return { chartData };
   }, [industrialRecords]);
+
+  /* ── Varanasi water level: latest reading ── */
+  const latestWLRecord = useMemo(() => {
+    if (!wlRecords.length) return null;
+    const sorted = [...wlRecords].sort((a, b) => {
+      const ta = a.actualTime ? new Date(a.actualTime).getTime() : 0;
+      const tb = b.actualTime ? new Date(b.actualTime).getTime() : 0;
+      return tb - ta;
+    });
+    return sorted[0] ?? null;
+  }, [wlRecords]);
+
+  const latestWLValue  = latestWLRecord ? (typeof latestWLRecord.value === 'number' ? latestWLRecord.value : null) : null;
+  const latestWLTime   = latestWLRecord?.actualTime ? String(latestWLRecord.actualTime) : undefined;
+
+  const wlChartData = useMemo(() => {
+    if (!wlRecords.length) return [];
+    const sorted = [...wlRecords]
+      .filter(r => r.actualTime && typeof r.value === 'number')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .sort((a: any, b: any) => new Date(a.actualTime).getTime() - new Date(b.actualTime).getTime());
+    // Downsample to max 400 points for rendering performance
+    const MAX = 400;
+    const step = Math.max(1, Math.floor(sorted.length / MAX));
+    const points = sorted
+      .filter((_: unknown, i: number) => i % step === 0)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => ({
+        date:        String(r.actualTime).slice(0, 10),
+        value:       Number(r.value) as number | null,
+        dangerLevel: r.dangerLevel != null ? Number(r.dangerLevel) : null,
+        mwl:         r.mwl        != null ? Number(r.mwl)         : null,
+      }));
+    // Append today as a null-value point so the x-axis extends to today
+    // and the gap (no data) is shown as blank area in the line chart
+    const today = new Date().toISOString().slice(0, 10);
+    if (points.length && points[points.length - 1].date < today) {
+      points.push({ date: today, value: null, dangerLevel: points[0].dangerLevel, mwl: points[0].mwl });
+    }
+    return points;
+  }, [wlRecords]);
+
+  const wlStats = useMemo(() => {
+    const vals = wlRecords
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((r: any) => typeof r.value === 'number')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((r: any) => Number(r.value));
+    if (!vals.length) return null;
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const avg = vals.reduce((s: number, v: number) => s + v, 0) / vals.length;
+    return { min, max, avg, count: vals.length };
+  }, [wlRecords]);
+
 
   /* ── pie auto-rotate slowly (3 s per category) ── */
   useEffect(() => {
@@ -960,6 +1157,89 @@ const TrendAnalysis: React.FC = () => {
                 ))}
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══ Varanasi Point Water Level ══ */}
+      <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
+        <div className="flex items-center gap-2 mb-6">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-700 to-blue-700 bg-clip-text text-transparent">
+            Varanasi Point Water Level
+          </h2>
+          <button
+            onClick={(event) => openInfo('trend-varanasi-water-level', event)}
+            aria-label="Varanasi water level info"
+            className="w-6 h-6 rounded-full border border-cyan-300 bg-cyan-50 text-cyan-600 flex items-center justify-center hover:bg-cyan-100 transition-colors"
+          >
+            <Info size={14} />
+          </button>
+         
+        </div>
+
+        {loadingWL ? (
+          <div className="h-48 flex items-center justify-center text-slate-500">Loading water level data…</div>
+        ) : wlError ? (
+          <div className="h-48 flex items-center justify-center text-red-600 font-medium text-center px-4">{wlError}</div>
+        ) : (
+          <div className="flex flex-col lg:flex-row items-start gap-6">
+
+            {/* ── Gauge ── */}
+            <div className="flex-shrink-0">
+              <WaterLevelGauge value={latestWLValue} dateTime={latestWLTime} />
+            </div>
+
+            {/* ── Recharts historical chart ── */}
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-slate-600 mb-2">
+                Historical Water Level — 2016 to Present
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  ({wlRecords.length.toLocaleString()} readings)
+                </span>
+              </div>
+              {wlChartData.length > 0 && (
+                <div className="h-[320px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={wlChartData} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e8edf4" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                        tickFormatter={(v: string) => v.slice(0, 7)}
+                        interval="preserveStartEnd"
+                        minTickGap={60}
+                      />
+                      <YAxis
+                        domain={[55, 75]}
+                        ticks={[55, 60, 65, 70, 75]}
+                        tick={{ fill: '#64748b', fontSize: 11 }}
+                        tickFormatter={(v: number) => String(v)}
+                        label={{ value: 'Level (m)', angle: -90, position: 'insideLeft', fill: '#0891b2', fontSize: 11, dx: 10 }}
+                        width={56}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: 10, border: '1px solid #bae6fd', fontSize: 12 }}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: any) => [`${Number(v).toFixed(2)} m`, 'Water Level']}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        labelFormatter={(l: any) => `Date: ${l}`}
+                      />
+                      {wlChartData[0]?.dangerLevel != null && (
+                        <ReferenceLine y={wlChartData[0].dangerLevel} stroke="#dc2626" strokeDasharray="6 3"
+                          label={{ value: `Danger ${wlChartData[0].dangerLevel.toFixed(1)} m`, fill: '#dc2626', fontSize: 10, position: 'insideTopRight' }} />
+                      )}
+                      {wlChartData[0]?.mwl != null && (
+                        <ReferenceLine y={wlChartData[0].mwl} stroke="#f59e0b" strokeDasharray="6 3"
+                          label={{ value: `MWL ${wlChartData[0].mwl.toFixed(1)} m`, fill: '#f59e0b', fontSize: 10, position: 'insideTopRight' }} />
+                      )}
+                      <Line type="monotone" dataKey="value" stroke="#0ea5e9" strokeWidth={1.5} dot={false}
+                        activeDot={{ r: 5, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>

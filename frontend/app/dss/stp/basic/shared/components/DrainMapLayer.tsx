@@ -1,11 +1,43 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
+import { createPortal } from 'react-dom';
+import { Info } from 'lucide-react';
 import { useBasicStore } from '../store/basic.store';
 import { API_BASE_URL } from '../utils/constants';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import { attachLeafletCommonControls } from '../utils/leafletCommonControls';
+
+function Tip({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={() => ref.current && setRect(ref.current.getBoundingClientRect())}
+      onMouseLeave={() => setRect(null)}
+      style={{ display:'inline-flex', flexShrink:0, alignItems:'center', cursor:'help' }}
+    >
+      <Info size={11} color="#94a3b8" />
+      {rect && createPortal(
+        <div style={{
+          position:'fixed', zIndex:99999, pointerEvents:'none',
+          left: rect.left + rect.width / 2, top: rect.top - 8,
+          transform:'translate(-50%,-100%)',
+          background:'#1e293b', color:'#f1f5f9',
+          borderRadius:8, padding:'8px 12px',
+          fontSize:11, lineHeight:1.55, width:220, whiteSpace:'normal',
+          boxShadow:'0 6px 20px rgba(0,0,0,0.3)', textAlign:'left',
+        }}>
+          {text}
+          <div style={{ position:'absolute', top:'100%', left:'50%', transform:'translateX(-50%)', borderWidth:'5px 5px 0', borderStyle:'solid', borderColor:'#1e293b transparent transparent' }}/>
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+}
 
 interface DrainMapViewProps { className?: string; }
 
@@ -486,7 +518,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
         style={{ background: '#fff', overflow: 'hidden' }}
       >
         {/* ── Legend overlay ── */}
-        <div className="absolute top-2 left-14 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
+        <div className="absolute top-3 right-18 z-[1000] bg-white bg-opacity-90 p-2 rounded-lg shadow-lg border border-gray-300">
           <div className="flex flex-wrap gap-2 text-xs">
             {[
               { color: 'rgb(121,0,151)', label: 'Basin' },
@@ -595,8 +627,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#1e293b', flex: 1 }}>Thematic Map</span>
-                <span title="Click on a village polygon on the map to see detailed population data"
-                  style={{ fontSize: 12, color: '#94a3b8', cursor: 'help', lineHeight: 1, userSelect: 'none' }}>ⓘ</span>
+                <Tip text={isWDWS ? 'Click on map to see water supply or water demand' : 'Click on map to see population density'} />
                 <button type="button" onClick={() => setThematicLayerVisible(v => !v)}
                   style={{ fontSize: 9, fontWeight: 600, padding: '1px 6px', borderRadius: 5,
                     border: '1px solid #cbd5e1', cursor: 'pointer',
@@ -605,9 +636,7 @@ export default function DrainMapView({ className }: DrainMapViewProps) {
                   {thematicLayerVisible ? 'Hide' : 'Show'}
                 </button>
               </div>
-              <div style={{ fontSize: 9, color: '#64748b', marginBottom: 5, lineHeight: 1.3 }}>
-                Click on map to see village details
-              </div>
+             
               {availableMethods.length > 0 && (
                 <div style={{ marginBottom: 4 }}>
                   <label style={{ fontSize: 9, fontWeight: 600, color: '#94a3b8', display: 'block', marginBottom: 2 }}>Method</label>
