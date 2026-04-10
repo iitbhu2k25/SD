@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { ColorStop } from "@/interface/raster_operations";
 import { useRaster } from "@/contexts/raster_operations/RasterContext";
 import { SLDGenerator, CLASSIFICATION_METHODS } from "@/interface/sldGenerator";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SLDEditor — TerraOps Light Theme
@@ -314,7 +314,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
   const addColorStop = () => {
     if (colorStops.length >= 15) {
-      toast.warning("Maximum 15 color stops");
+      toast("Maximum 15 color stops");
       return;
     }
     const sorted = [...colorStops].sort((a, b) => a.value - b.value);
@@ -334,7 +334,7 @@ export const SLDEditor: React.FC<SLDEditorProps> = ({ onApply, onClose }) => {
 
   const removeColorStop = (id: string) => {
     if (colorStops.length <= 2) {
-      toast.warning("Minimum 2 stops required");
+      toast("Minimum 2 stops required");
       return;
     }
     setColorStops((p) => p.filter((s) => s.id !== id));

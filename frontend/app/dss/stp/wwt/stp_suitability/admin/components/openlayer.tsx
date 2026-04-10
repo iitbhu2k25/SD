@@ -20,10 +20,8 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
-import "ol/ol.css";
+import { useMap } from "@/contexts/stp/stp_suitability/admin/MapContext";
+import { useLocation } from "@/contexts/stp/stp_suitability/admin/LocationContext";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM } from '@/interface/openlayer'
 
@@ -57,14 +55,13 @@ const Mapping: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Context hooks
-  const { displayRaster } = useLocation();
+  const { displayRaster,resultLayer } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
     LayerFilter,
     LayerFilterValue,
     defaultWorkspace,
-    resultLayer,
     selectedradioLayer,
     handleLayerSelection,
     setRasterLayerInfo,
@@ -324,7 +321,7 @@ const Mapping: React.FC = () => {
 
   useEffect(() => {
     handleVectorLayer(secondaryLayer, 'secondary');
-  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles, showSecondaryLayer]);
+  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
 
   useEffect(() => {
     handleVectorLayer(resultLayer, 'result');

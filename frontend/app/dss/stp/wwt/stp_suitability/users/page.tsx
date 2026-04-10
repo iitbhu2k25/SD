@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/stp_suitability/users/DrainContext";
-import { CategoryProvider } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { MapProvider } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { RiverSystemProvider } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { CategoryProvider } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
+import { MapProvider } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
 import RiverSelector from "@/app/dss/stp/wwt/stp_suitability/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import MapView from "@/app/dss/stp/wwt/stp_suitability/users/components/openlayer";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { TreatmentForm } from "@/app/dss/stp/wwt/stp_suitability/users/components/Stp_area";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
-import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";

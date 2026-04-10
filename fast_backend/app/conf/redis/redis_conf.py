@@ -112,13 +112,20 @@ async def get_redis(
     await _singleton.initialize()
     return _singleton.client
 
-sync_redis_client=redis.Redis(
-        host=sett.REDIS_HOST,
-        port=sett.REDIS_PORT,
-        db = 0,
-        username= sett.REDIS_USERNAME,
-        password=sett.REDIS_PASSWORD,
-        decode_responses=True
-    )
+
+
+_sync_pool = redis.ConnectionPool(
+    host=sett.REDIS_HOST,
+    port=sett.REDIS_PORT,
+    db=0,
+    username=sett.REDIS_USERNAME,
+    password=sett.REDIS_PASSWORD,
+    decode_responses=True,
+    max_connections=50,
+)
+
+def get_sync_redis() -> redis.Redis:
+    return redis.Redis(connection_pool=_sync_pool)
+
 async def close_redis():
     await _singleton.close()

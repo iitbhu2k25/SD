@@ -11,10 +11,9 @@ import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
 import MapView from "@/app/dss/gwm/mar_suitability/admin/components/openlayer";
 import { useMap } from "@/contexts/mar_suitability/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
-import "react-toastify/dist/ReactToastify.css";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { downloadCSV } from "@/components/utils/downloadCsv";
 import AnalysisList from '@/app/dss/gwm/mar_suitability/component/AnalysisItem'

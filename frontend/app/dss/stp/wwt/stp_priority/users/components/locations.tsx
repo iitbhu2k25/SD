@@ -3,12 +3,12 @@ import React from "react";
 import { RiverMultiSelect } from "./Multiselect";
 import {
   useRiverSystem,
-} from "@/contexts/stp_priority/users/DrainContext";
+} from "@/contexts/stp/stp_priority/users/DrainContext";
 import   {Stretch,
   Drain,
   Catchment,} from "@/interface/raster_context";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];

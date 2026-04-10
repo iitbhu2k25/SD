@@ -31,7 +31,7 @@ import { useLocation } from "@/contexts/mar_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { api } from "@/services/api";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;
@@ -557,6 +557,10 @@ const Mapping: React.FC = () => {
         })
         if (response.status > 201) {
           toast.error("No subsurface data found", { position: "top-center" });
+          setBoreholeData(null);
+          setPinCoordinate(null);
+          setBoreholePosition(null);
+          return;
         }
 
         const data = await response.message as MarSuitabilityResponse

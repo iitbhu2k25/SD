@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider, useLocation } from "@/contexts/pumping_location/admin/LocationContext";
-import { CategoryProvider, useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
-import { MapProvider, useMap } from "@/contexts/pumping_location/admin/MapContext";
+import { LocationProvider, useLocation } from "@/contexts/gwm/pumping_location/admin/LocationContext";
+import { CategoryProvider, useCategory } from "@/contexts/gwm/pumping_location/admin/CategoryContext";
+import { MapProvider, useMap } from "@/contexts/gwm/pumping_location/admin/MapContext";
 
 import LocationSelector from "@/app/dss/gwm/pumping_location/admin/components/locations";
 import CategorySelector from "@/app/dss/gwm/pumping_location/admin/components/Category";
@@ -11,10 +11,9 @@ import MapView from "@/app/dss/gwm/pumping_location/admin/components/openlayer";
 import CsvUploader from "./components/handle_csv";
 import { CategorySlider } from "./components/weight_slider";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import DataTable from "react-data-table-component";
 import { Gwpl_columns } from "@/interface/table";
-import "react-toastify/dist/ReactToastify.css";
 import { FaLock, FaUnlock } from "react-icons/fa";
 
 const MainContent = () => {

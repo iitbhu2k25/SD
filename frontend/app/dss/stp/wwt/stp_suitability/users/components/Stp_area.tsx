@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
-import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
-import { toast } from "react-toastify";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
+import toast from "react-hot-toast";
 import { useSTPStore } from "@/store/useSTPStore";
 
 type FormValues = {

@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import { api } from "@/services/api";
-import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
-import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
+import { useLocation } from "@/contexts/stp/stp_suitability/admin/LocationContext";
+import { useMap } from "@/contexts/stp/stp_suitability/admin/MapContext";
 import { useSTPStore } from "@/store/useSTPStore";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { MapPin, Layers, Sliders, ChevronDown, Loader2, CheckCircle2 } from "lucide-react";
 
 type FormValues = {
@@ -16,8 +16,8 @@ type FormValues = {
 
 export const TreatmentForm: React.FC = () => {
   const { StpArea, OptSetStpArea } = useCategory();
-  const { displayRaster } = useLocation();
-  const { setResultLayer, setIsMapLoading } = useMap();
+  const { setResultLayer,displayRaster } = useLocation();
+  const {  setIsMapLoading } = useMap();
   const Q = useSTPStore(s => s.Q);
   const setParams = useSTPStore(s => s.setParams);
   const [submitting, setSubmitting] = useState(false);

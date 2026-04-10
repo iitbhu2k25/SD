@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 import { Upload, AlertCircle, MapPin, Trash2 } from "lucide-react";
 import { CsvRow } from "@/interface/table";
-import { useLocation } from "@/contexts/pumping_location/admin/LocationContext";
+import { useLocation } from "@/contexts/gwm/pumping_location/admin/LocationContext";
 
 const REQUIRED_HEADERS = ["Well_id", "Longitude", "Latitude"];
 

@@ -24,14 +24,14 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/water_quality_assesment/users/DrainMapContext";
-import { useRiverSystem } from "@/contexts/water_quality_assesment/users/DrainContext";
+import { useMap } from "@/contexts/gwm/water_quality_assesment/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/gwm/water_quality_assesment/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer';
 import { WQIInterface } from "@/interface/table";
 import AddPointModal from "./coordinate";
-import { useYear } from "@/contexts/water_quality_assesment/users/yearContext";
+import { useYear } from "@/contexts/gwm/water_quality_assesment/users/yearContext";
 
 const createVectorStyle = (layerType: string, showLabels: boolean = false) => (feature: any, resolution: number) => {
   const geometry = feature.getGeometry();
@@ -144,6 +144,9 @@ const Maping: React.FC = () => {
   const [showDrainLayer, setShowDrainLayer] = useState<boolean>(true);
   const [showCatchmentLayer, setShowCatchmentLayer] = useState<boolean>(true);
   const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [selectedWellPoint, setSelectedWellPoint] = useState<any | null>(null);
+  const [popupPixel, setPopupPixel] = useState<[number, number] | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [addedPoints, setAddedPoints] = useState<any[]>([]);
   const [showPointModal, setShowPointModal] = useState(false);
   const [pendingPoint, setPendingPoint] = useState<{
@@ -173,9 +176,8 @@ const Maping: React.FC = () => {
     Sodium: 0,
     Sulfate: 0,
     Uranium: 0,
-    Year: new Date().getFullYear(),
   });
-  const { setWqiData, wqi_data } = useYear();
+  const { setWqiData, wqi_data, focusedWellPoint, setFocusedWellPoint } = useYear();
   const {
     selectedDrains,
     displayRaster,
@@ -382,7 +384,6 @@ const Maping: React.FC = () => {
       Sodium: 0,
       Sulfate: 0,
       Uranium: 0,
-      Year: new Date().getFullYear(),
     });
     setPendingPoint(null);
     setShowPointModal(false);
@@ -509,6 +510,45 @@ const Maping: React.FC = () => {
       selectInteractionRef.current.setActive(true);
     }
   }, [selectionsLocked]);
+
+  // Fly to focused well point and show popup
+  useEffect(() => {
+    if (!focusedWellPoint || !mapInstanceRef.current) return;
+    const coordinate = fromLonLat([focusedWellPoint.Longitude, focusedWellPoint.Latitude]);
+    const map = mapInstanceRef.current;
+    map.getView().animate({ center: coordinate, zoom: 14, duration: 800 }, () => {
+      const pixel = map.getPixelFromCoordinate(coordinate);
+      if (pixel) {
+        setSelectedWellPoint(focusedWellPoint);
+        setPopupPixel([pixel[0], pixel[1]]);
+      }
+      setFocusedWellPoint(null);
+    });
+  }, [focusedWellPoint]);
+
+  // Click handler for well point popup (non-add-point mode)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const handlePointClick = (event: any) => {
+      if (isAddingPoint) return;
+      let found = false;
+      map.forEachFeatureAtPixel(event.pixel, (feature: any, layer: any) => {
+        if (!found && layer === pointsLayerRef.current) {
+          const data = feature.get('wqiData');
+          if (data) {
+            setSelectedWellPoint(data);
+            setPopupPixel([event.pixel[0], event.pixel[1]]);
+            found = true;
+          }
+          return true;
+        }
+      });
+      if (!found) setSelectedWellPoint(null);
+    };
+    map.on('singleclick', handlePointClick);
+    return () => map.un('singleclick', handlePointClick);
+  }, [isAddingPoint, mapReady]);
 
   // Initialize map only once
   useEffect(() => {
@@ -648,8 +688,10 @@ const Maping: React.FC = () => {
     selectInteractionRef.current = selectInteraction;
     hoverInteractionRef.current = hoverInteraction;
     mapInstanceRef.current = map;
+    setMapReady(true);
 
     setTimeout(() => {
+      map.updateSize();
       setLoading(false);
       setIsLoading(false);
     }, 500);
@@ -1012,7 +1054,7 @@ const Maping: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-full h-[600px] flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="relative w-full h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="relative w-full h-full flex-grow overflow-hidden rounded-xl shadow-2xl border border-gray-200" ref={containerRef}>
         <div
           ref={mapRef}
@@ -1027,6 +1069,78 @@ const Maping: React.FC = () => {
           hoveredFeature={hoveredFeature}
           mousePosition={mousePosition}
         />
+
+        {/* Well Point Popup */}
+        {selectedWellPoint && popupPixel && (() => {
+          const containerW = containerRef.current?.clientWidth ?? 800;
+          const containerH = containerRef.current?.clientHeight ?? 600;
+          const popupW = 280; const popupH = 380;
+          const ox = 12; const oy = 12;
+          const left = popupPixel[0] + popupW + ox > containerW ? popupPixel[0] - popupW - ox : popupPixel[0] + ox;
+          const top  = popupPixel[1] + popupH + oy > containerH ? popupPixel[1] - popupH - oy : popupPixel[1] + oy;
+          const params = [
+            { label: 'pH',    val: selectedWellPoint.pH_Level,               unit: ''       },
+            { label: 'EC',    val: selectedWellPoint.Electrical_Conductivity, unit: 'µS/cm' },
+            { label: 'TH',    val: selectedWellPoint.Hardness,                unit: 'mg/L'  },
+            { label: 'As',    val: selectedWellPoint.Arsenic,                 unit: 'mg/L'  },
+            { label: 'F⁻',    val: selectedWellPoint.Fluoride,                unit: 'mg/L'  },
+            { label: 'Fe',    val: selectedWellPoint.Iron,                    unit: 'mg/L'  },
+            { label: 'NO₃',   val: selectedWellPoint.Nitrate,                 unit: 'mg/L'  },
+            { label: 'Cl⁻',   val: selectedWellPoint.Chloride,                unit: 'mg/L'  },
+            { label: 'SO₄',   val: selectedWellPoint.Sulfate,                 unit: 'mg/L'  },
+            { label: 'Ca²⁺',  val: selectedWellPoint.Calcium,                 unit: 'mg/L'  },
+            { label: 'Mg²⁺',  val: selectedWellPoint.Magnesium,               unit: 'mg/L'  },
+            { label: 'Na⁺',   val: selectedWellPoint.Sodium,                  unit: 'mg/L'  },
+            { label: 'K⁺',    val: selectedWellPoint.Potassium,               unit: 'mg/L'  },
+            { label: 'HCO₃',  val: selectedWellPoint.Bicarbonate,             unit: 'mg/L'  },
+            { label: 'CO₃',   val: selectedWellPoint.Carbonate,               unit: 'mg/L'  },
+            { label: 'U',     val: selectedWellPoint.Uranium,                 unit: 'µg/L'  },
+          ];
+          return (
+            <div className="absolute z-50 pointer-events-auto" style={{ left, top, width: popupW }}>
+              <div className="bg-slate-900 rounded-xl shadow-2xl overflow-hidden border border-slate-700">
+                <div className="flex items-start justify-between px-3.5 py-2.5 bg-slate-800 border-b border-slate-700">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white text-xs font-semibold truncate">{selectedWellPoint.Location}</p>
+  
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedWellPoint(null)} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-2 mt-0.5">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="flex gap-3 px-3.5 py-2 border-b border-slate-700/60">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] font-semibold text-slate-500 uppercase">Lat</span>
+                    <span className="text-[11px] font-mono text-slate-300">{Number(selectedWellPoint.Latitude).toFixed(4)}°</span>
+                  </div>
+                  <div className="w-px bg-slate-700" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] font-semibold text-slate-500 uppercase">Lon</span>
+                    <span className="text-[11px] font-mono text-slate-300">{Number(selectedWellPoint.Longitude).toFixed(4)}°</span>
+                  </div>
+                </div>
+                <div className="px-3 py-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5 max-h-[260px] overflow-y-auto">
+                  {params.map(p => (
+                    <div key={p.label} className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-semibold text-slate-500 shrink-0">{p.label}</span>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-[11px] font-mono font-semibold text-slate-200 tabular-nums">{typeof p.val === 'number' ? p.val.toFixed(2) : p.val}</span>
+                        {p.unit && <span className="text-[9px] text-slate-500">{p.unit}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Header Panel */}
         <div className="absolute top-3 left-1/2 transform -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl px-6 py-3 flex items-center space-x-4">

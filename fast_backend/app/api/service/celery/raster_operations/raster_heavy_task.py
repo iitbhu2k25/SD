@@ -14,13 +14,13 @@ import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import transform_bounds
 from pyproj import CRS as ProjCRS
-from app.api.schema.raster_operation import RasterReclassify,ReclassRule, rasterMetaSchame, useroperSchema
+from app.api.schema.raster_operation import rasterMetaSchame, useroperSchema
 from whitebox.whitebox_tools import WhiteboxTools
 import math
 import os
 from app.conf.celery import app
 from app.conf.settings import Settings
-from app.conf.redis.redis_conf import sync_redis_client
+from app.conf.redis.redis_manager import redis_manager
 from app.database.config.dependency import celery_session
 from app.database.crud.raster_operations import rasterMetacrud, rasterOperCrud, userstorecrud
 from app.api.service.geoserver_svc.geoserver import Geoserver
@@ -273,8 +273,8 @@ def celery_task_update(task_id: str, status: str, progress: int=0,layer_name:str
     }
     payload = json.dumps(data)
     channel = f"opr_updates:{task_id}" 
-    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
-    sync_redis_client.publish(channel, payload)
+    redis_manager.setex(f"opr_status:{task_id}", 3600, payload)
+    redis_manager.publish(channel, payload)
 
 
 

@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, } from "react";
-import { useCategory } from "@/contexts/potential_zone/admin/CategoryContext";
+import { useCategory } from "@/contexts/gwm/potential_zone/admin/CategoryContext";
 
 interface CategorySliderProps {
   editable?: boolean;

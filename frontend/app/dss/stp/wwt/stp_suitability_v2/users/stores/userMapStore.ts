@@ -198,7 +198,7 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
       set({
         rasterLayerInfo: suitabilityRaster,
         selectedRadioLayer: suitabilityRaster.file_name,
-        resultVectorLayer: result.vector_name && result.vector_name !== "none" ? result.vector_name : null,
+    
         showLegend: true,
       });
     } catch (error) {

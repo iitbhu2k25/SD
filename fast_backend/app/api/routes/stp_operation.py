@@ -3,7 +3,7 @@ from typing import Annotated
 from app.dependency.token_dependency import validate_user
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_suitability_Area,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
+from app.api.schema.stp_schema import  STP_suitability_Area, STPPriorityVisualOutput, STPSuitabilityVisualOutput,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper,STP_Area
 from app.api.service.celery.pdf_generations.stp_priority_admin_document import document_gen
 from app.api.service.celery.pdf_generations.stp_priority_drain_document import document_gen1
@@ -29,7 +29,7 @@ router=APIRouter()
 async def get_priority_category(db:db_dependency,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
     return Stp_service.get_priority_category(db,all_data)
 
-@router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,)
+@router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityVisualOutput])
 @validate
 async def stp_priority_visual_display(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
     return await STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
@@ -65,7 +65,7 @@ async def get_raster_suitability(db:db_dependency,category:str,user: Annotated[b
     return Stp_service.get_raster_suitability(db,category,all_data)
 
 
-@router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,)
+@router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,response_model=STPSuitabilityVisualOutput)
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
     return await STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)

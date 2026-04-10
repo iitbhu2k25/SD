@@ -1,7 +1,7 @@
 import axios, { AxiosProgressEvent, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { performLogout } from "@/utils/logout";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
@@ -15,6 +15,7 @@ interface RequestOptions {
   authToken?: string;
   responseType?: "json" | "blob" | "text";
   onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void;
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -53,7 +54,7 @@ async function callBackend(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<AxiosResponse> {
-  const { headers = {}, params, body, authToken, responseType,onDownloadProgress } = options;
+  const { headers = {}, params, body, authToken, responseType, onDownloadProgress, onUploadProgress } = options;
 
   const token = authToken ?? useAuthStore.getState().accessToken;
   const isFormData = body instanceof FormData;
@@ -69,10 +70,11 @@ async function callBackend(
     withCredentials: true,
     responseType: axiosResponseType,
     onDownloadProgress,
+    onUploadProgress,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
-      ...(isFormData ? {} : headers),
+      ...headers,
     },
     ...(body ? { data: isFormData ? body : body } : {}), 
   };
@@ -80,7 +82,7 @@ async function callBackend(
   return axiosInstance.request(config);
 }
 
-async function refreshAccessToken(): Promise<string> {
+export async function refreshAccessToken(): Promise<string> {
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
   }

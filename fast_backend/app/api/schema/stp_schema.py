@@ -31,7 +31,14 @@ class Sub_district_request(BaseModel):
 
 
 
-
+class STPPriorityVisualOutput(BaseModel):
+    workspace:str
+    layer_name:str
+    file_name:str
+    
+class STPSuitabilityVisualOutput(BaseModel):
+    raster_layer:Annotated[List[STPPriorityVisualOutput],None]
+    vector_layer:str
     
 class STPRasterInputt(BaseModel):
     id: int
@@ -91,8 +98,7 @@ class STPsuitabilityInput(BaseModel):
     all_data: bool = True
     place: str = None
     drain_clip:Optional[List[int]]=None
-    class Config:
-        from_attributes = True
+    village_layer: str = None
 
 
 

@@ -27,7 +27,6 @@ export interface WQIInterface {
   Sodium: number;
   Sulfate: number;
   Uranium: number;
-  Year: number;
 }
 
 interface AddPointModalProps {

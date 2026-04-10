@@ -22,8 +22,7 @@ import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { downloadCSV } from "@/components/utils/downloadCsv";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import toast from "react-hot-toast";
 
 const MainContent = () => {
   const [submitting, setSubmitting] = useState(false);

@@ -1,3 +1,5 @@
+import asyncio
+
 from app.api.schema.wqi import WQIOperation, Well_input,Well_response
 from app.database.config.dependency import PostgresDb
 from typing import List,Tuple
@@ -27,15 +29,23 @@ from pathlib import Path
 from app.utils.name import Unique_name
 from fastapi import HTTPException,status
 from rasterio.warp import calculate_default_transform, reproject, Resampling
-from app.api.service.script_svc.geoserver_svc import upload_shapefile
-from app.conf.redis.redis_conf import sync_redis_client
+from app.conf.redis.redis_manager import redis_manager
 from celery import group, chord
 from app.conf.celery import app
+import math
+SQRT3 = math.sqrt(3)
 
-
-geo=Geoserver()
 geo_config=GeoConfig() 
 
+def celery_status(task_id: str, status: str):
+    data={
+        "task_id": task_id,
+        "status": status
+    }
+    payload = json.dumps(data)
+    channel = f"opr_updates:{task_id}" 
+    redis_manager.setex(f"opr_status:{task_id}", 3600, payload)
+    redis_manager.publish(channel, payload)
 
 class VectorProcess(GeoConfig):
     def __init__(self):
@@ -239,6 +249,385 @@ class RasterProcess(VectorProcess):
             return False
 
 
+class HydroChartService:
+
+    # ── Constants ──────────────────────────────────────────────────────────
+    _EW = {
+        "Ca":   20.04, "Mg":  12.15, "Na":  22.99, "K":   39.10,
+        "HCO3": 61.02, "CO3": 30.00, "Cl":  35.45, "SO4": 48.03,
+    }
+    _SQRT3 = math.sqrt(3)
+
+    _PCA_FEATURES = [
+        "pH", "EC", "Hardness",
+        "Ca", "Mg", "Na", "K",
+        "HCO3", "CO3", "Cl", "SO4",
+    ]
+    _RDA_RESPONSE_FEATURES    = ["Ca", "Mg", "Na", "K", "HCO3", "CO3", "Cl", "SO4"]
+    _RDA_EXPLANATORY_FEATURES = ["pH", "EC", "Hardness"]
+
+    # ── Preprocessing ──────────────────────────────────────────────────────
+
+    def _to_meq(self, well: Well_response) -> dict:
+        """Convert mg/L → meq/L for all major ions."""
+        EW = self._EW
+        return {
+            "Ca":   well.Calcium     / EW["Ca"],
+            "Mg":   well.Magnesium   / EW["Mg"],
+            "Na":   well.Sodium      / EW["Na"],
+            "K":    well.Potassium   / EW["K"],
+            "HCO3": well.Bicarbonate / EW["HCO3"],
+            "CO3":  well.Carbonate   / EW["CO3"],
+            "Cl":   well.Chloride    / EW["Cl"],
+            "SO4":  well.Sulfate     / EW["SO4"],
+        }
+
+    def _ion_percentages(self, meq: dict) -> dict:
+        """Compute cation% and anion% for each ion."""
+        total_cat = meq["Ca"] + meq["Mg"] + meq["Na"] + meq["K"]
+        total_ani = meq["HCO3"] + meq["CO3"] + meq["Cl"] + meq["SO4"]
+
+        tc = total_cat if total_cat > 0 else 1e-9
+        ta = total_ani if total_ani > 0 else 1e-9
+
+        return {
+            "Ca_pct":        meq["Ca"]   / tc * 100,
+            "Mg_pct":        meq["Mg"]   / tc * 100,
+            "Na_pct":        meq["Na"]   / tc * 100,
+            "K_pct":         meq["K"]    / tc * 100,
+            "HCO3_pct":      meq["HCO3"] / ta * 100,
+            "CO3_pct":       meq["CO3"]  / ta * 100,
+            "Cl_pct":        meq["Cl"]   / ta * 100,
+            "SO4_pct":       meq["SO4"]  / ta * 100,
+            "total_cat_meq": total_cat,
+            "total_ani_meq": total_ani,
+        }
+
+    def _preprocess(self, wells: List[Well_response]) -> List[dict]:
+        """Steps 1 & 2: convert to meq and compute ion percentages for every well."""
+        result = []
+        for w in wells:
+            meq = self._to_meq(w)
+            pct = self._ion_percentages(meq)
+            result.append({
+                "location":  w.Location,
+                "latitude":  w.Latitude,
+                "longitude": w.Longitude,
+                "raw": {
+                    "Ca": w.Calcium, "Mg": w.Magnesium, "Na": w.Sodium,
+                    "K": w.Potassium, "HCO3": w.Bicarbonate, "CO3": w.Carbonate,
+                    "Cl": w.Chloride, "SO4": w.Sulfate,
+                    "EC": w.Electrical_Conductivity, "pH": w.pH_Level,
+                    "Hardness": w.Hardness,
+                },
+                "meq": meq,
+                "pct": pct,
+            })
+        return result
+
+    # ── Chart helpers ──────────────────────────────────────────────────────
+
+    def _piper_point(self, pct: dict, D: float = 120.0) -> dict:
+        """
+        Project one sample onto the Piper diagram.
+
+        Cation triangle (left):
+            X = 0.5 * (200 - 2*Ca% - Mg%)
+            Y = (√3/2) * Mg%
+
+        Anion triangle (right, offset by D):
+            X = D + 0.5 * (200 - 2*(HCO3%+CO3%) - SO4%)
+            Y = (√3/2) * SO4%
+
+        Central diamond:
+            X_dim = 0.5 * (X_cat + X_ani + (Y_cat - Y_ani) / √3)
+            Y_dim = Y_cat + √3 * (X_dim - X_cat)
+        """
+        Ca   = pct["Ca_pct"]
+        Mg   = pct["Mg_pct"]
+        SO4  = pct["SO4_pct"]
+        HCO3 = pct["HCO3_pct"]
+        CO3  = pct["CO3_pct"]
+
+        x_cat = 0.5 * (200 - 2 * Ca - Mg)
+        y_cat = (self._SQRT3 / 2) * Mg
+
+        x_ani = D + 0.5 * (200 - 2 * (HCO3 + CO3) - SO4)
+        y_ani = (self._SQRT3 / 2) * SO4
+
+        x_dim = 0.5 * (x_cat + x_ani + (y_cat - y_ani) / self._SQRT3)
+        y_dim = y_cat + self._SQRT3 * (x_dim - x_cat)
+
+        return {
+            "cation":  {"x": round(x_cat, 4), "y": round(y_cat, 4)},
+            "anion":   {"x": round(x_ani, 4), "y": round(y_ani, 4)},
+            "diamond": {"x": round(x_dim, 4), "y": round(y_dim, 4)},
+        }
+
+    def _durov_point(self, pct: dict) -> dict:
+        """
+        Left triangle (cations):
+            X = -(Na%+K%) * (√3/2)
+            Y =  Mg% + 0.5*(Na%+K%)
+
+        Top triangle (anions):
+            X = Cl% + 0.5*SO4%
+            Y = 100 + SO4%*(√3/2)
+
+        Central square intersection:
+            X_sq = X_ani
+            Y_sq = Y_cat
+        """
+        Mg  = pct["Mg_pct"]
+        Na  = pct["Na_pct"]
+        K   = pct["K_pct"]
+        Cl  = pct["Cl_pct"]
+        SO4 = pct["SO4_pct"]
+
+        nak   = Na + K
+        x_cat = -nak * (self._SQRT3 / 2)
+        y_cat =  Mg + 0.5 * nak
+        x_ani = Cl + 0.5 * SO4
+        y_ani = 100 + SO4 * (self._SQRT3 / 2)
+
+        return {
+            "cation_tri": {"x": round(x_cat, 4), "y": round(y_cat, 4)},
+            "anion_tri":  {"x": round(x_ani, 4), "y": round(y_ani, 4)},
+            "square":     {"x": round(x_ani, 4), "y": round(y_cat, 4)},
+        }
+
+    def _gibbs_point(self, w: dict) -> dict:
+        """
+        TDS  = EC * 0.64
+        Cation ratio = Na / (Na + Ca)
+        Anion  ratio = Cl / (Cl + HCO3)
+        """
+        raw  = w["raw"]
+        Na   = raw["Na"]
+        Ca   = raw["Ca"]
+        Cl   = raw["Cl"]
+        HCO3 = raw["HCO3"]
+        EC   = raw["EC"]
+
+        tds          = EC * 0.64
+        cation_ratio = Na / (Na + Ca)   if (Na + Ca)   > 0 else 0.0
+        anion_ratio  = Cl / (Cl + HCO3) if (Cl + HCO3) > 0 else 0.0
+
+        def _classify(tds_val, _):
+            if tds_val < 100:
+                return "Precipitation dominance"
+            elif tds_val > 1000:
+                return "Evaporation dominance"
+            return "Rock-water interaction"
+
+        return {
+            "tds":              round(tds, 3),
+            "cation_ratio":     round(cation_ratio, 4),
+            "anion_ratio":      round(anion_ratio,  4),
+            "mechanism_cation": _classify(tds, cation_ratio),
+            "mechanism_anion":  _classify(tds, anion_ratio),
+        }
+
+    def _build_feature_matrix(self, wells: List[Well_response]) -> np.ndarray:
+        """Build (n_samples, 11) raw feature matrix for PCA."""
+        rows = [
+            [
+                w.pH_Level, w.Electrical_Conductivity, w.Hardness,
+                w.Calcium, w.Magnesium, w.Sodium, w.Potassium,
+                w.Bicarbonate, w.Carbonate, w.Chloride, w.Sulfate,
+            ]
+            for w in wells
+        ]
+        return np.array(rows, dtype=float)
+
+    @staticmethod
+    def _standardise(M: np.ndarray) -> np.ndarray:
+        mu = M.mean(axis=0)
+        sd = M.std(axis=0, ddof=1)
+        sd[sd == 0] = 1e-9
+        return (M - mu) / sd
+
+    # ── Public chart methods ───────────────────────────────────────────────
+
+    def calculate_piper(self, _db: session, payload: WQIOperation) -> dict:
+        """Returns Piper trilinear diagram projection coordinates for every well."""
+        processed = self._preprocess(payload.data)
+        points = []
+        for w in processed:
+            proj = self._piper_point(w["pct"])
+            points.append({
+                "location":  w["location"],
+                "latitude":  w["latitude"],
+                "longitude": w["longitude"],
+                **proj,
+                "ion_pct": {k: round(v, 2) for k, v in w["pct"].items()
+                            if k.endswith("_pct")},
+            })
+        return {"chart": "piper", "gap_D": 120.0, "points": points}
+
+    def calculate_durov(self, _db: session, payload: WQIOperation) -> dict:
+        processed = self._preprocess(payload.data)
+        points = []
+        for w in processed:
+            proj = self._durov_point(w["pct"])
+            points.append({
+                "location":  w["location"],
+                "latitude":  w["latitude"],
+                "longitude": w["longitude"],
+                **proj,
+                "ion_pct": {k: round(v, 2) for k, v in w["pct"].items()
+                            if k.endswith("_pct")},
+            })
+        return {"chart": "durov", "points": points}
+
+    def calculate_gibbs(self, _db: session, payload: WQIOperation) -> dict:
+        processed = self._preprocess(payload.data)
+        points = []
+        for w in processed:
+            g = self._gibbs_point(w)
+            points.append({
+                "location":  w["location"],
+                "latitude":  w["latitude"],
+                "longitude": w["longitude"],
+                **g,
+            })
+        return {"chart": "gibbs", "points": points}
+
+    def calculate_pca(self, _db: session, payload: WQIOperation,
+                      n_components: int = 2) -> dict:
+        """
+        Steps:
+        1. Z-score normalise  →  X_std = (X - μ) / σ
+        2. Covariance matrix  →  C = Xᵀ X / (n-1)
+        3. SVD               →  eigenvalues + eigenvectors (loadings)
+        4. Scores            →  X_std @ V  (V = eigenvector matrix)
+        """
+        wells = payload.data
+        X     = self._build_feature_matrix(wells)
+        n     = X.shape[0]
+
+        X_std = self._standardise(X)
+        C     = (X_std.T @ X_std) / (n - 1)
+
+        _, s, Vt    = np.linalg.svd(C)
+        eigenvalues  = s
+        eigenvectors = Vt.T
+
+        loadings        = eigenvectors[:, :n_components]
+        scores          = X_std @ loadings
+        explained_var   = eigenvalues / eigenvalues.sum() * 100
+        cumulative_var  = np.cumsum(explained_var)
+
+        score_list = [
+            {
+                "location":  w.Location,
+                "latitude":  w.Latitude, "longitude": w.Longitude,
+                "PC1": round(float(scores[i, 0]), 5),
+                "PC2": round(float(scores[i, 1]), 5),
+            }
+            for i, w in enumerate(wells)
+        ]
+        loading_list = [
+            {
+                "feature": feat,
+                "PC1": round(float(loadings[fi, 0]), 5),
+                "PC2": round(float(loadings[fi, 1]), 5),
+            }
+            for fi, feat in enumerate(self._PCA_FEATURES)
+        ]
+
+        return {
+            "chart": "pca",
+            "n_components": n_components,
+            "explained_variance_pct":  [round(float(v), 3) for v in explained_var[:n_components]],
+            "cumulative_variance_pct": [round(float(v), 3) for v in cumulative_var[:n_components]],
+            "eigenvalues": [round(float(v), 5) for v in eigenvalues[:n_components]],
+            "loadings":    loading_list,
+            "scores":      score_list,
+        }
+
+    def calculate_rda(self, _db: session, payload: WQIOperation,
+                      n_components: int = 2) -> dict:
+        """
+        Steps:
+        1. Standardise both Y (response ions) and X (explanatory env. vars)
+        2. Regress each Y column on X  →  fitted values  Ŷ = X(XᵀX)⁻¹Xᵀ Y
+        3. PCA on Ŷ  →  constrained axes (RDA axes)
+        4. Scores = Ŷ @ eigenvectors
+        5. Loadings for Y and X vectors mapped onto RDA space
+        """
+        wells = payload.data
+
+        Y_raw = np.array([[
+            w.Calcium, w.Magnesium, w.Sodium, w.Potassium,
+            w.Bicarbonate, w.Carbonate, w.Chloride, w.Sulfate,
+        ] for w in wells], dtype=float)
+
+        X_raw = np.array([[
+            w.pH_Level, w.Electrical_Conductivity, w.Hardness,
+        ] for w in wells], dtype=float)
+
+        Y = self._standardise(Y_raw)
+        X = self._standardise(X_raw)
+
+        XtX_inv = np.linalg.pinv(X.T @ X)
+        Y_hat   = X @ XtX_inv @ X.T @ Y
+
+        U, s, Vt    = np.linalg.svd(Y_hat, full_matrices=False)
+        explained   = (s ** 2) / (s ** 2).sum() * 100
+        site_scores = U[:, :n_components] * s[:n_components]
+
+        response_loadings = Vt.T[:, :n_components]
+
+        explanatory_loadings = [
+            {
+                "variable": xname,
+                "RDA1": round(float(np.corrcoef(X[:, xi], site_scores[:, 0])[0, 1]), 5),
+                "RDA2": round(float(np.corrcoef(X[:, xi], site_scores[:, 1])[0, 1]), 5)
+                        if n_components > 1 else 0.0,
+            }
+            for xi, xname in enumerate(self._RDA_EXPLANATORY_FEATURES)
+        ]
+
+        response_loading_list = [
+            {
+                "ion":  yname,
+                "RDA1": round(float(response_loadings[yi, 0]), 5),
+                "RDA2": round(float(response_loadings[yi, 1]), 5) if n_components > 1 else 0.0,
+            }
+            for yi, yname in enumerate(self._RDA_RESPONSE_FEATURES)
+        ]
+
+        site_score_list = [
+            {
+                "location":  w.Location, 
+                "latitude":  w.Latitude, "longitude": w.Longitude,
+                "RDA1": round(float(site_scores[i, 0]), 5),
+                "RDA2": round(float(site_scores[i, 1]), 5) if n_components > 1 else 0.0,
+            }
+            for i, w in enumerate(wells)
+        ]
+
+        return {
+            "chart": "rda",
+            "n_components": n_components,
+            "explained_variance_pct": [round(float(v), 3) for v in explained[:n_components]],
+            "response_loadings":      response_loading_list,
+            "explanatory_loadings":   explanatory_loadings,
+            "site_scores":            site_score_list,
+        }
+
+    def calculate_all_charts(self, _db: session, payload: WQIOperation) -> dict:
+        """Run all 5 charts in one call and return a combined response."""
+        return {
+            "piper": self.calculate_piper(_db, payload),
+            "durov": self.calculate_durov(_db, payload),
+            "gibbs": self.calculate_gibbs(_db, payload),
+            "pca":   self.calculate_pca(_db, payload),
+            "rda":   self.calculate_rda(_db, payload),
+        }
+
+
 class WQ_Index:
     def __init__(self):
        
@@ -343,13 +732,14 @@ class WQ_Index:
         temp_path=output_folder / file_id
         with open(temp_path, "w") as f:
             json.dump(payload.model_dump(), f, default=str)
-        
         task_id=start_Interpolation.delay(output_folder=str(output_folder),payload_path=str(temp_path),sub_dis=payload.location)
-        sync_redis_client().setex(f"{str(task_id.id)}", 3600, "Working on Interpolation ")
+        celery_status(task_id.id,"started")
         return task_id.id
 
 wqi_obj=WQ_Index() 
 raster_obj=RasterProcess()
+
+
 
 @app.task(bind=True,name='celery_start_Interpolation')
 def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str, threshold: float,sub_dis:list):
@@ -415,9 +805,9 @@ def celery_start_Interpolation(self, output_folder:str,param: str, df_json: str,
     unique_store_name =Unique_name.unique_name("wqi_store")
 
     sld_path,sld_name=raster_obj.sld_path(file_path=str(path))
-    status,layer_name=geo.upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path))
-    status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
-    sync_redis_client.hset(self.request.root_id+"_Result", mapping={param: layer_name})
+    _,layer_name=asyncio.run(Geoserver().upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(path)))
+    asyncio.run(Geoserver().apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name))
+    redis_manager.hset(f"opr_result:{self.request.root_id}", mapping={param: layer_name})
 
     return {
         'parameter': param,
@@ -493,7 +883,7 @@ def celery_concentration_Index(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_Concentration_Index')
 def start_Concentration_Index(self,result,threshold:list,*args, **kwargs):
-    sync_redis_client.setex("self.request.root_id", 3600,"finish interpolation")
+    celery_status(self.request.root_id,"finish interpolation")
     CI_raster=[]
     for i in result:
         CI_raster.append(
@@ -540,7 +930,7 @@ def celery_rank_raster(self,raster_detail:dict):
 
 @app.task(bind=True,name='start_rank_raster')  
 def start_rank_raster(self,result,*args, **kwargs):
-    sync_redis_client.setex("self.request.root_id", 3600,"finish Ranking")
+    celery_status(self.request.root_id,"finish Ranking")
     rank_raster=[]
     for i in result:
         rank_raster.append(
@@ -563,7 +953,7 @@ def start_rank_raster(self,result,*args, **kwargs):
 
 @app.task(bind=True,name='start_weight_raster')
 def start_weight_raster(self,result:list):
-    sync_redis_client.setex("self.request.root_id", 3600,"overlay started")
+    celery_status(self.request.root_id,"overlay started")
     weight_rank=[]
     output_path=result[0]["Rank_raster"]
     for i in result:
@@ -615,11 +1005,11 @@ def start_weight_raster(self,result:list):
     unique_store_name =Unique_name.unique_name("wqi_store")
     
     sld_path,sld_name=raster_obj.sld_path(file_path=str(ans),overlay=True)
-    status,layer_name=geo.upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans))
-    status=geo.apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+    _,layer_name=asyncio.run(Geoserver().upload_raster(workspace_name=geo_config.raster_workspace,store_name=unique_store_name,raster_path=str(ans)))
+    asyncio.run(Geoserver().apply_sld_to_layer(workspace_name=geo_config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name))
     
-    sync_redis_client.hset(self.request.root_id+"_Result",mapping={"GWI_overlay":layer_name})
-    sync_redis_client.setex(self.request.root_id, 3600, "Done")
+    redis_manager.hset(f"opr_result:{self.request.root_id}",mapping={"GWI_overlay":layer_name})
+    celery_status(self.request.root_id,"completed")
 
    
     

@@ -159,15 +159,12 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
       useAdminLocationStore.setState({
         displayRaster: nextRaster,
         selectedVillages:
-          result.clip_villages && result.clip_villages.length > 0
-            ? result.clip_villages
-            : selectedVillages,
+          selectedVillages,
       });
 
       set({
         rasterLayerInfo: suitabilityRaster,
         selectedRadioLayer: suitabilityRaster.file_name,
-        resultVectorLayer: result.vector_name && result.vector_name !== "none" ? result.vector_name : null,
         showLegend: true,
       });
     } catch (error) {

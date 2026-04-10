@@ -17,7 +17,7 @@ import {
 
 import "@/styles/terraops-theme.css";
 import { api } from "@/services/api";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { downloadRaster } from "@/utils/rasterUtils";
 
 type RightTab = "details" | "symbology";
@@ -66,7 +66,7 @@ const AnalyticsInner: React.FC = () => {
   }, [layer]);
 
   const handleUploadNew = () => {
-    toast.info("layer remove")
+    toast("layer remove")
     removeLayer();
     mapViewRef.current?.removeRasterLayer();
   };

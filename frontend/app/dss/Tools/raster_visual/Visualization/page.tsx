@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/services/api";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import MapView, { MapViewHandle } from "./components/MapView";
 

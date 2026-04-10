@@ -21,8 +21,8 @@ import {
 } from "ol/control";
 import { INDIA_CENTER, INITIAL_ZOOM } from '@/interface/openlayer'
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/admin/MapContext";
-import { useLocation } from "@/contexts/stp_priority/admin/LocationContext";
+import { useMap } from "@/contexts/stp/stp_priority/admin/MapContext";
+import { useLocation } from "@/contexts/stp/stp_priority/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 

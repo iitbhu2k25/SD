@@ -20,9 +20,9 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { createWFSVectorSource } from "@/components/utils/geoserver_url";

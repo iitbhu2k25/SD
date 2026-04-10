@@ -6,7 +6,7 @@ import {
   TaskResult,
   TaskState,
 } from "@/interface/raster_operations";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 
 export const INITIAL_TASK_STATE: TaskState = {

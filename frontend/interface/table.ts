@@ -168,7 +168,6 @@ export interface WQIInterface {
   Sodium: number;
   Sulfate: number;
   Uranium: number;
-  Year: number;
 }
 
 export const WQI_columns: TableColumn<WQIInterface>[] = [

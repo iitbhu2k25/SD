@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 
 export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);
@@ -105,7 +105,7 @@ export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(message);
     } else {
-      toast.warn('Cannot send message: WebSocket not connected');
+      toast('Cannot send message: WebSocket not connected');
     }
   }, []);
 

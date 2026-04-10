@@ -58,7 +58,7 @@ async def gwpl_raster_operation(db:db_dependency,payload: STPsuitabilityInput,us
 @router.post("/gwpl_find_score", status_code=status.HTTP_201_CREATED,response_model=GWPL_output)
 @validate
 async def gwpl_find_score(db:db_dependency,payload:GWPL_Table_input,user: Annotated[bool, Depends(validate_user)]):
-    return GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location,payload.village_list)
+    return await GWPumpingMapper().gwpl_table(db,payload.raster_name,payload.location,payload.village_list)
 
 
 # MAR suitability 

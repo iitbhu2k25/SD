@@ -659,11 +659,11 @@ class GWPumpingMapper:
         self.processor = RasterProcess(self.config)
         self.BASE_DIR = Settings().BASE_DIR
         self.Temp=Settings().TEMP_DIR
-    def _get_relevance_raster(self,db:db_dependency,raster:str):
+    async def _get_relevance_raster(self,db:db_dependency,raster:str):
         unique_folder=Unique_name.unique_name("relevance_raster")
         self.Temp=os.path.join(self.Temp,unique_folder)
         os.makedirs(self.Temp,exist_ok=True)
-        resp = Geoserver().raster_download(
+        resp = await Geoserver().raster_download(
             temp_path=self.Temp, 
             layer_name=raster
         )
@@ -783,7 +783,7 @@ class GWPumpingMapper:
         return wells_gdf
     def _get_validate_points(self,well_point:list,village_list:list):
         df = pd.DataFrame(well_point)
-        print(df)
+   
         df["Latitude"] = df["Latitude"].astype(float)
         df["Longitude"] = df["Longitude"].astype(float)
         wells_gdf = gpd.GeoDataFrame(
@@ -799,7 +799,7 @@ class GWPumpingMapper:
             predicate="within",
             how="inner"
         )
-        print(wells_inside_village.columns)
+
         result = (
             wells_inside_village[
                 ["Well_id", "Latitude", "Longitude", "Distance", "Name_left"]
@@ -812,8 +812,8 @@ class GWPumpingMapper:
     
 
 
-    def gwpl_table(self,db:db_dependency,raster:str,well_point:list,village_list:list):
-        Relevance=self._get_relevance_raster(db,raster)
+    async def gwpl_table(self,db:db_dependency,raster:str,well_point:list,village_list:list):
+        Relevance=await self._get_relevance_raster(db,raster)
         records = []
         well_point=self._get_validate_points(well_point,village_list)      
 
@@ -839,7 +839,7 @@ class GWPumpingMapper:
                         val = None
 
                     well_data[col_name] = val
-            print(well_name)
+
             well_data["Name"]=well_name
             records.append(well_data)
         return {

@@ -8,7 +8,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { uploadFileInChunks } from "@/utils/chunkUpload";
 import {
   RasterDetails,
@@ -58,7 +58,6 @@ export const BASE_MAPS = {
 
 export type BaseMapKey = keyof typeof BASE_MAPS;
 
-const MAX_FILE_SIZE = 500 * 1024 * 1024;
 
 interface CtxValue {
   uploading: boolean;
@@ -262,11 +261,6 @@ export function RasterProvider({ children }: { children: ReactNode }) {
 
   const handleUpload = useCallback(
     async (file: File) => {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`File must be ${MAX_FILE_SIZE / 1024 / 1024} MB or less`);
-        return;
-      }
-
       setUploading(true);
       setUploadProgress(0);
       setError(null);
