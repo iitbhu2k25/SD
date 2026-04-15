@@ -7,7 +7,7 @@ from app.api.routes import app_router
 from app.api.routes.token import app as token_router
 from prometheus_fastapi_instrumentator import Instrumentator
 from contextlib import asynccontextmanager
-from app.conf.redis.redis_manager import redis_manager
+from app.conf.redis.redis_async_manager import async_redis_manager
 from app.conf.redis.redis_conf import close_redis
 from app.conf.settings import Settings
 
@@ -18,7 +18,7 @@ from app.conf.logging import logger
 async def lifespan(app: FastAPI):
     logger.info("Starting application...")
 
-    await redis_manager.initialize()
+    await async_redis_manager.initialize()
     logger.info("Redis ready")
 
     logger.info("Redis listener ready for websockets")

@@ -32,7 +32,7 @@ from app.api.service.raster_work.raster_operation import RasterOperation
 from app.dependency.token_dependency import validate_user
 router=APIRouter()
 
-from app.conf.redis.redis_manager import redis_manager
+from app.conf.redis.redis_async_manager import async_redis_manager
 
 @router.post("/post_data",status_code=status.HTTP_201_CREATED)
 @validate
@@ -43,9 +43,12 @@ async def post_data(db:db_dependency,file: UploadFile = File(...)):
 
 @router.post("/upload_data_chunk",status_code=status.HTTP_201_CREATED)
 @validate
-async def upload_data_chunk(file: UploadFile = File(...),
+async def upload_data_chunk(
+    user: Annotated[bool, Depends(validate_user)],
+    file: UploadFile = File(...),
     upload_id: str = Header(...),
     chunk_index: int = Header(...),
+    
 ):
     return await RasterOperation().chunk_upload(file,upload_id,chunk_index)   
 
@@ -175,7 +178,7 @@ async def get_report(db:db_dependency,fileId:str,user: Annotated[bool, Depends(v
 async def task_websocket(websocket: WebSocket, task_id: str):
     await websocket.accept()
     await connection_manager.connect(websocket, task_id)   
-    last = await redis_manager.get(f"opr_status:{task_id}")
+    last = await async_redis_manager.get(f"opr_status:{task_id}")
     if last:
         last_data = json.loads(last)
         await websocket.send_json(last_data)
@@ -184,7 +187,7 @@ async def task_websocket(websocket: WebSocket, task_id: str):
             await websocket.close()
             await connection_manager.disconnect(websocket, task_id)
             return
-    pubsub = redis_manager.pubsub()
+    pubsub = async_redis_manager.pubsub()
     await pubsub.subscribe(f"opr_updates:{task_id}")
 
     try:

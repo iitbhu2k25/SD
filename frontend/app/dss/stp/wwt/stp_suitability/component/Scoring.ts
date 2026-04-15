@@ -7,7 +7,11 @@ import type {
   RouteResult,
   SystemType,
 } from '@/interface/stp_suitability/stp'
-import { C_WEIGHTS, D_WEIGHTS } from '@/interface/stp_suitability/data'
+import {
+  C_WEIGHTS, D_WEIGHTS,
+  BOD_SCORES, COD_SCORES, COLIFORM_SCORES,
+  getBODIndex, getCODIndex, getColiformIndex,
+} from '@/interface/stp_suitability/data'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,25 +109,48 @@ export function getStepSequence(answers: Answer[]): string[] {
   return ['category']
 }
 
+// ─── Compatibility Scoring ────────────────────────────────────────────────────
+
+/** Compute BOD/COD/Coliform compatibility score (0–10) for a tech key */
+export function getCompatibilityScore(
+  techKey: string,
+  BOD: number,
+  COD: number,
+  Coliform: number,
+): number {
+  const bodScore      = (BOD_SCORES[techKey]      ?? [5, 5, 5, 5])[getBODIndex(BOD)]
+  const codScore      = (COD_SCORES[techKey]      ?? [5, 5, 5, 5])[getCODIndex(COD)]
+  const coliformScore = (COLIFORM_SCORES[techKey] ?? [5, 5, 5, 5])[getColiformIndex(Coliform)]
+  return (bodScore + codScore + coliformScore) / 3
+}
+
 // ─── Scoring: Centralized ─────────────────────────────────────────────────────
 
 export function scoreCentralized(
   Q: number,
   techs: CentralizedTechMap,
+  BOD: number,
+  COD: number,
+  Coliform: number,
+  selectedKeys?: string[],
 ): CentralizedResult[] {
-  const keys = Object.keys(techs) as (keyof CentralizedTechMap)[]
+  const allKeys = Object.keys(techs) as (keyof CentralizedTechMap)[]
+  const keys = selectedKeys && selectedKeys.length > 0
+    ? allKeys.filter(k => selectedKeys.includes(k))
+    : allKeys
 
   const calcs = keys.map(k => {
     const t = techs[k]
     return {
-      key:   k,
-      name:  t.name,
-      land:  Q * t.land,
-      cap:   Q * t.cap,
-      om:    (Q * 1000 * t.om * 365) / 1e7, // ₹ Crore/year
-      rel:   t.rel,
-      ease:  t.ease,
-      track: t.track,
+      key:          k,
+      name:         t.name,
+      land:         Q * t.land,
+      cap:          Q * t.cap,
+      om:           (Q * 1000 * t.om * 365) / 1e7, // ₹ Crore/year
+      rel:          t.rel,
+      ease:         t.ease,
+      track:        t.track,
+      sCompatibility: getCompatibilityScore(k, BOD, COD, Coliform),
     }
   })
 
@@ -141,12 +168,13 @@ export function scoreCentralized(
       const sCap  = normalize(c.cap,  cMin, cMax)
       const sOM   = normalize(c.om,   oMin, oMax)
       const total =
-        C_WEIGHTS.rel   * c.rel   +
-        C_WEIGHTS.cap   * sCap    +
-        C_WEIGHTS.land  * sLand   +
-        C_WEIGHTS.om    * sOM     +
-        C_WEIGHTS.ease  * c.ease  +
-        C_WEIGHTS.track * c.track
+        C_WEIGHTS.rel      * c.rel            +
+        C_WEIGHTS.cap      * sCap             +
+        C_WEIGHTS.land     * sLand            +
+        C_WEIGHTS.om       * sOM              +
+        C_WEIGHTS.ease     * c.ease           +
+        C_WEIGHTS.track    * c.track          +
+        C_WEIGHTS.effluent * c.sCompatibility
       return { ...c, sLand, sCap, sOM, total: +total.toFixed(1) }
     })
     .sort((a, b) => b.total - a.total)
@@ -157,20 +185,28 @@ export function scoreCentralized(
 export function scoreDecentralized(
   Q: number,
   techs: DecentralizedTechMap,
+  BOD: number,
+  COD: number,
+  Coliform: number,
+  selectedKeys?: string[],
 ): DecentralizedResult[] {
-  const keys = Object.keys(techs) as (keyof DecentralizedTechMap)[]
+  const allKeys = Object.keys(techs) as (keyof DecentralizedTechMap)[]
+  const keys = selectedKeys && selectedKeys.length > 0
+    ? allKeys.filter(k => selectedKeys.includes(k))
+    : allKeys
 
   const calcs = keys.map(k => {
     const t = techs[k]
     return {
-      key:    k,
-      name:   t.name,
-      land:   Q * t.land,
-      cap:    Q * t.cap,
-      om:     (Q * 1000 * t.om * 365) / 1e7,
-      energy: Q * 1000 * t.energy, // kWh/day
-      rel:    t.rel,
-      ease:   t.ease,
+      key:            k,
+      name:           t.name,
+      land:           Q * t.land,
+      cap:            Q * t.cap,
+      om:             (Q * 1000 * t.om * 365) / 1e7,
+      energy:         Q * 1000 * t.energy, // kWh/day
+      rel:            t.rel,
+      ease:           t.ease,
+      sCompatibility: getCompatibilityScore(k, BOD, COD, Coliform),
     }
   })
 
@@ -191,12 +227,13 @@ export function scoreDecentralized(
       const sOM     = normalize(c.om,     oMin, oMax)
       const sEnergy = normalize(c.energy, eMin, eMax)
       const total =
-        D_WEIGHTS.rel    * c.rel    +
-        D_WEIGHTS.cap    * sCap     +
-        D_WEIGHTS.land   * sLand    +
-        D_WEIGHTS.om     * sOM      +
-        D_WEIGHTS.energy * sEnergy  +
-        D_WEIGHTS.ease   * c.ease
+        D_WEIGHTS.rel      * c.rel             +
+        D_WEIGHTS.cap      * sCap              +
+        D_WEIGHTS.land     * sLand             +
+        D_WEIGHTS.om       * sOM               +
+        D_WEIGHTS.energy   * sEnergy           +
+        D_WEIGHTS.ease     * c.ease            +
+        D_WEIGHTS.effluent * c.sCompatibility
       return { ...c, sLand, sCap, sOM, sEnergy, total: +total.toFixed(1) }
     })
     .sort((a, b) => b.total - a.total)

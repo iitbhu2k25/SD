@@ -1,130 +1,93 @@
 "use client";
 import React from "react";
 import { RiverMultiSelect } from "./Multiselect";
-import {
-  useRiverSystem,
-} from "@/contexts/stp_suitability/users/DrainContext";
-import {  Stretch,
-  Drain,
-  Catchment,} from "@/interface/raster_context";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { Stretch, Drain, Catchment } from "@/interface/raster_context";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
+
 interface RiverSelectorProps {
   onConfirm?: (selectedData: {
     stretches: Stretch[];
     drains: Drain[];
-    catchments: Catchment[];
-    totalArea: number;
-    totalCatchments: number;
   }) => void;
   onReset?: () => void;
 }
 
-const RiverSelector: React.FC<RiverSelectorProps> = ({
-  onConfirm,
-  onReset,
-}) => {
-  // Use the river system context instead of local state
+const RiverSelector: React.FC<RiverSelectorProps> = ({ onConfirm, onReset }) => {
   const {
     rivers,
     stretches,
     drains,
-    catchments,
     selectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
-    totalArea,
-    totalCatchments,
     selectionsLocked,
     isLoading,
     handleRiverChange,
     setSelectedStretches,
     setSelectedDrains,
     setSelectedCatchments,
+    setShowCatchment,
     confirmSelections,
     resetSelections,
   } = useRiverSystem();
 
-  const {resetMapView} = useMap();
+  const { resetMapView,catchmentLayer } = useMap();
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
   const handleRiverSelect = (e: React.ChangeEvent<HTMLSelectElement>): void => {
-    if (!selectionsLocked) {
-      handleRiverChange(parseInt(e.target.value));
-    }
+    if (!selectionsLocked) handleRiverChange(parseInt(e.target.value));
   };
 
-  // Handle multi-select changes
-  const handleStretchesChange = (selectedIds: number[]): void => {
-    if (!selectionsLocked) {
-      setSelectedStretches(selectedIds);
-    }
+  const handleStretchesChange = (ids: number[]): void => {
+    if (!selectionsLocked) setSelectedStretches(ids);
   };
 
-  const handleDrainsChange = (selectedIds: number[]): void => {
-    if (!selectionsLocked) {
-      setSelectedDrains(selectedIds);
-    }
+  const handleDrainsChange = (ids: number[]): void => {
+    if (!selectionsLocked) setSelectedDrains(ids);
   };
 
-  const handleCatchmentsChange = (selectedIds: number[]): void => {
-    if (!selectionsLocked) {
-      setSelectedCatchments(selectedIds);
-    }
-  };
 
-  // Handle confirm button click
   const handleConfirm = (): void => {
-    if (selectedCatchments.length > 0 && !selectionsLocked) {
+    if (!selectionsLocked) {
       const selectedData = confirmSelections();
-
-      // Call the onConfirm prop to notify parent component
       if (onConfirm && selectedData) {
         onConfirm({
           stretches: selectedData.stretches,
           drains: selectedData.drains,
-          catchments: selectedData.catchments,
-          totalArea: selectedData.totalArea,
-          totalCatchments,
         });
       }
     }
   };
 
-  // Handle reset button click
   const handleReset = (): void => {
     resetSelections();
     resetMapView();
-
-  
+    onReset?.();
   };
 
-  // Format stretch display
-  const formatStretchDisplay = (stretch: Stretch): string => {
-    return stretch.name
-      ? `${stretch.name} (ID: ${stretch.Stretch_ID})`
-      : `Stretch ${stretch.Stretch_ID}`;
-  };
+  // ── Display helpers ────────────────────────────────────────────────────────
 
-  // Format drain display
-  const formatDrainDisplay = (drain: Drain): string => {
-    return drain.name
-      ? `${drain.name} `
-      : `Drain ${drain.Drain_No}`;
-  };
+  const formatStretch = (s: Stretch): string =>
+    s.name ? `${s.name} (ID: ${s.Stretch_ID})` : `Stretch ${s.Stretch_ID}`;
 
-  // Format catchment display
-  const formatCatchmentDisplay = (catchment: Catchment): string => {
-    return catchment.village_name;
-  };
+  const formatDrain = (d: Drain): string =>
+    d.name ? `${d.name}` : `Drain ${d.Drain_No}`;
+
+ 
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-md relative">
-      {" "}
-      {/* relative added here */}
-      {/* Dim and disable interactions on content when loading */}
       <div className={isLoading ? "pointer-events-none opacity-50" : ""}>
+
+        {/* ── 4-column grid: River → Stretch → Drain → Catchment ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* River Dropdown */}
+
+          {/* River */}
           <div>
             <label
               htmlFor="river-dropdown"
@@ -135,58 +98,43 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
             <select
               id="river-dropdown"
               className="w-full p-2 text-sm border border-blue-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={selectedRiver || ""}
+              value={selectedRiver ?? ""}
               onChange={handleRiverSelect}
               disabled={selectionsLocked || isLoading}
             >
-              <option value="">--Choose a River--</option>
-              {rivers.map((river) => (
-                <option key={river.River_Code} value={river.River_Code}>
-                  {river.River_Name}
+              <option value="">-- Choose a River --</option>
+              {rivers.map(r => (
+                <option key={r.River_Code} value={r.River_Code}>
+                  {r.River_Name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Stretch Multiselect */}
+          {/* Stretch */}
           <RiverMultiSelect
             items={stretches}
             selectedItems={selectedStretches}
             onSelectionChange={handleStretchesChange}
             label="Stretch"
-            placeholder="--Choose Stretches--"
+            placeholder="-- Choose Stretches --"
             disabled={!selectedRiver || selectionsLocked || isLoading}
-            displayPattern={formatStretchDisplay}
+            displayPattern={formatStretch}
           />
 
-          {/* Drain Multiselect */}
+          {/* Drain */}
           <RiverMultiSelect
             items={drains}
             selectedItems={selectedDrains}
             onSelectionChange={handleDrainsChange}
             label="Drain"
-            placeholder="--Choose Drains--"
-            disabled={
-              selectedStretches.length === 0 || selectionsLocked || isLoading
-            }
-            displayPattern={formatDrainDisplay}
-          />
-
-          {/* Catchment Multiselect */}
-          <RiverMultiSelect
-            items={catchments}
-            selectedItems={selectedCatchments}
-            onSelectionChange={handleCatchmentsChange}
-            label="Catchment Villages"
-            placeholder="--Choose Catchments--"
-            disabled={
-              selectedDrains.length === 0 || selectionsLocked || isLoading
-            }
-            displayPattern={formatCatchmentDisplay}
+            placeholder="-- Choose Drains --"
+            disabled={selectedStretches.length === 0 || selectionsLocked || isLoading}
+            displayPattern={formatDrain}
           />
         </div>
 
-        {/* Display selected values for demonstration */}
+        {/* ── Summary panel ── */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
           <h3 className="text-md font-medium text-gray-800 mb-2">
             Selected River System
@@ -194,8 +142,7 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
           <div className="space-y-2 text-sm text-gray-700">
             <p>
               <span className="font-medium">River:</span>{" "}
-              {rivers.find((r) => r.River_Code === selectedRiver)?.River_Name ||
-                "None"}
+              {rivers.find(r => r.River_Code === selectedRiver)?.River_Name ?? "None"}
             </p>
             <p>
               <span className="font-medium">Stretches:</span>{" "}
@@ -203,8 +150,8 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
                 ? selectedStretches.length === stretches.length
                   ? "All Stretches"
                   : stretches
-                      .filter((s) => selectedStretches.includes(Number(s.id)))
-                      .map((s) => formatStretchDisplay(s))
+                      .filter(s => selectedStretches.includes(Number(s.id)))
+                      .map(formatStretch)
                       .join(", ")
                 : "None"}
             </p>
@@ -214,35 +161,14 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
                 ? selectedDrains.length === drains.length
                   ? "All Drains"
                   : drains
-                      .filter((d) => selectedDrains.includes(Number(d.id)))
-                      .map((d) => formatDrainDisplay(d))
+                      .filter(d => selectedDrains.includes(Number(d.id)))
+                      .map(formatDrain)
                       .join(", ")
                 : "None"}
             </p>
-            <p>
-              <span className="font-medium">Catchments:</span>{" "}
-              {selectedCatchments.length > 0
-                ? selectedCatchments.length === catchments.length
-                  ? "All Catchments"
-                  : catchments
-                      .filter((c) => selectedCatchments.includes(Number(c.id)))
-                      .map((c) => formatCatchmentDisplay(c))
-                      .join(", ")
-                : "None"}
-            </p>
+            
 
-            {selectedCatchments.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-300">
-                <p>
-                  <span className="font-medium">Total Area:</span>{" "}
-                  {totalArea.toFixed(2)} sq Km
-                </p>
-                <p>
-                  <span className="font-medium">Total Catchments:</span>{" "}
-                  {totalCatchments}
-                </p>
-              </div>
-            )}
+            
 
             {selectionsLocked && (
               <p className="mt-2 text-green-600 font-medium">
@@ -252,35 +178,36 @@ const RiverSelector: React.FC<RiverSelectorProps> = ({
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* ── Action buttons ── */}
         <div className="flex space-x-4 mt-4">
           <button
-            className={`${
-              selectedCatchments.length > 0 && !selectionsLocked
+            onClick={handleConfirm}
+            disabled={catchmentLayer === null || selectionsLocked || isLoading}
+            className={`py-2 px-4 rounded text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 ${
+              catchmentLayer !== null && !selectionsLocked
                 ? "bg-blue-500 hover:bg-blue-700"
                 : "bg-gray-400 cursor-not-allowed"
-            } text-white py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
-            onClick={handleConfirm}
-            disabled={
-              selectedCatchments.length === 0 || selectionsLocked || isLoading
-            }
+            }`}
           >
             Confirm Selection
           </button>
+
           <button
-          className={`bg-red-500 hover:bg-red-700 text-white py-2 px-4 rounded
-    focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50
-    disabled:bg-red-300 disabled:cursor-not-allowed disabled:hover:bg-red-300`}
-          onClick={handleReset}
-          disabled={selectedRiver === null}
-        >
-           Edit
-        </button>
-         
+            onClick={handleReset}
+            disabled={selectedRiver === null}
+            className="py-2 px-4 rounded text-white text-sm font-medium bg-red-500 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 disabled:bg-red-300 disabled:cursor-not-allowed"
+          >
+            Edit
+          </button>
         </div>
       </div>
-       {isLoading && (
-        <WholeLoading visible={true} title="Connecting to server" message="Working on preparing data" />
+
+      {isLoading && (
+        <WholeLoading
+          visible={true}
+          title="Connecting to server"
+          message="Working on preparing data"
+        />
       )}
     </div>
   );

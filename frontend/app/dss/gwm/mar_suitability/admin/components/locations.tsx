@@ -1,7 +1,7 @@
 'use client'
 import React from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation } from '@/contexts/mar_suitability/admin/LocationContext';
+import { useLocation } from '@/contexts/gwm/mar_suitability/admin/LocationContext';
 import { SubDistrict } from '@/interface/raster_context';
 import WholeLoading from "@/components/app_layout/newLoading";
 interface LocationSelectorProps {

@@ -37,6 +37,7 @@ export interface CentralizedResult {
   rel: number
   ease: number
   track: number
+  sCompatibility: number
   sLand: number
   sCap: number
   sOM: number
@@ -52,6 +53,7 @@ export interface DecentralizedResult {
   energy: number
   rel: number
   ease: number
+  sCompatibility: number
   sLand: number
   sCap: number
   sOM: number
@@ -97,10 +99,13 @@ export interface RouteResult {
 
 // ─── App State ────────────────────────────────────────────────────────────────
 
-export type Screen = 'wizard' | 'inputs' | 'perf_table' | 'results'
+export type Screen = 'wizard' | 'tech_select' | 'inputs' | 'perf_table' | 'results'
 
 export interface ProjectParams {
-  Q: number   // MLD
-  Ce: number  // ₹/kWh
-  AL: number  // ha available
+  Q: number        // MLD
+  Ce: number       // ₹/kWh
+  AL: number       // ha available
+  BOD: number      // mg/L  (1–1000)
+  COD: number      // mg/L  (1–10000)
+  Coliform: number // MPN/100mL (1–1000)
 }

@@ -1,7 +1,7 @@
 import axios, { AxiosProgressEvent, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { performLogout } from "@/utils/logout";
-import { toast } from "react-toastify";
+import {toast} from "react-toastify";
 
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
@@ -15,20 +15,35 @@ interface RequestOptions {
   authToken?: string;
   responseType?: "json" | "blob" | "text";
   onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void;
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL;
 
 function extractMessage(data: any): string {
-  
   if (!data) return "Something went wrong";
   if (typeof data === "string") return data;
-  
-  if ((data?.detail)) {
-    return data.detail
+
+  const detail = data?.detail;
+
+  if (!detail) return data?.message ?? data?.error ?? "Something went wrong";
+
+  // FastAPI 422: detail is an array of validation error objects
+  if (Array.isArray(detail)) {
+    return detail
+      .map((err: any) => {
+        const loc = Array.isArray(err.loc)
+          ? err.loc.filter((l: any) => l !== "body").join(" → ")
+          : "";
+        const msg = err.msg ?? "Invalid value";
+        return loc ? `${loc}: ${msg}` : msg;
+      })
+      .join("; ");
   }
-  if (typeof data?.detail === "string") return data.detail;
+
+  // Plain string detail
+  if (typeof detail === "string") return detail;
 
   return data?.message ?? data?.error ?? "Something went wrong";
 }
@@ -53,7 +68,7 @@ async function callBackend(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<AxiosResponse> {
-  const { headers = {}, params, body, authToken, responseType,onDownloadProgress } = options;
+  const { headers = {}, params, body, authToken, responseType, onDownloadProgress, onUploadProgress } = options;
 
   const token = authToken ?? useAuthStore.getState().accessToken;
   const isFormData = body instanceof FormData;
@@ -69,10 +84,11 @@ async function callBackend(
     withCredentials: true,
     responseType: axiosResponseType,
     onDownloadProgress,
+    onUploadProgress,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
-      ...(isFormData ? {} : headers),
+      ...headers,
     },
     ...(body ? { data: isFormData ? body : body } : {}), 
   };
@@ -80,7 +96,7 @@ async function callBackend(
   return axiosInstance.request(config);
 }
 
-async function refreshAccessToken(): Promise<string> {
+export async function refreshAccessToken(): Promise<string> {
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
   }

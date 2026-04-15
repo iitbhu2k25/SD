@@ -11,10 +11,11 @@ const STEPS: { id: Screen; label: string }[] = [
 ]
 
 const PROGRESS: Record<Screen, number> = {
-  wizard:     25,
-  inputs:     50,
-  perf_table: 75,
-  results:    100,
+  wizard:      25,
+  tech_select: 25,
+  inputs:      50,
+  perf_table:  75,
+  results:     100,
 }
 
 export function StepProgress() {

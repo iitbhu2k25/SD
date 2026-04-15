@@ -1,5 +1,5 @@
 from app.conf.settings import Settings
-from app.conf.logging import logger
+from app.conf.redis.redis_manager import redis_manager
 from kombu import Queue, Exchange
 from celery import Celery
 import logging

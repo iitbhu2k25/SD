@@ -1,9 +1,7 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react';
-import { River, Stretch, Drain, Catchment} from '@/interface/raster_context';
+import { Stretch, Drain, Catchment } from '@/interface/raster_context';
 
-
-// Base interface for items that can be selected
 interface SelectableItem {
   id: number;
   name?: string;
@@ -13,7 +11,7 @@ interface RiverMultiSelectProps<T extends SelectableItem> {
   items: T[];
   selectedItems: number[];
   onSelectionChange: (selectedIds: number[]) => void;
-  label: string;  
+  label: string;
   placeholder: string;
   disabled?: boolean;
   displayPattern?: (item: T) => string;
@@ -27,279 +25,158 @@ export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
   placeholder,
   disabled = false,
   displayPattern = (item) => {
-    // Default display pattern based on item type
-    if ('Stretch_ID' in item) {
-      return (item as Stretch).name ? `${(item as Stretch).name} (ID: ${(item as Stretch).Stretch_ID})` : `Stretch ${(item as Stretch).Stretch_ID}`;
-    }
-    if ('Drain_No' in item) {
-      return (item as Drain).name ? `${(item as Drain).name} (No: ${(item as Drain).Drain_No})` : `Drain ${(item as Drain).Drain_No}`;
-    }
-    if ('village_name' in item) {
-      return (item as Catchment).name ? `${(item as Catchment).name} (Grid: ${(item as Catchment).village_name})` : `Catchment ${(item as Catchment).village_name}`;
-    }
+    if ('Stretch_ID' in item) return (item as Stretch).name ? `${(item as Stretch).name} (${(item as Stretch).Stretch_ID})` : `Stretch ${(item as Stretch).Stretch_ID}`;
+    if ('Drain_No' in item)   return (item as Drain).name   ? `${(item as Drain).name} (${(item as Drain).Drain_No})`       : `Drain ${(item as Drain).Drain_No}`;
+    if ('village_name' in item) return (item as Catchment).village_name;
     return '';
   },
 }: RiverMultiSelectProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
+  const [dropUp, setDropUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const allItemIds = items.map(item => Number(item.id));
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const allIds = items.map(i => Number(i.id));
   const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const someSelected = selectedItems.length > 0 && !allSelected;
 
-  // Filter items based on search query
-  const filteredItems = items.filter(item => {
-
-    const displayText = displayPattern(item).toLowerCase();
-    const searchTerm = searchQuery.toLowerCase();
-    
-    // Search in display text
-    if (displayText.includes(searchTerm)) return true;
-    
-    // Search in name if available
-    if (item.name && item.name.toLowerCase().includes(searchTerm)) return true;
-    
-    // Search in specific fields based on item type
-    if ('Stretch_ID' in item && item.Stretch_ID.toString().includes(searchTerm)) return true;
-    if ('Drain_No' in item && item.Drain_No.toString().includes(searchTerm)) return true;
-    if ('village_name' in item && item.village_name.toString().includes(searchTerm)) return true;
-    
+  const filtered = items.filter(item => {
+    const text = displayPattern(item).toLowerCase();
+    const q = searchQuery.toLowerCase();
+    if (text.includes(q)) return true;
+    if (item.name?.toLowerCase().includes(q)) return true;
+    if ('Stretch_ID' in item && String((item as Stretch).Stretch_ID).includes(q)) return true;
+    if ('Drain_No' in item && String((item as Drain).Drain_No).includes(q)) return true;
+    if ('village_name' in item && (item as Catchment).village_name.toLowerCase().includes(q)) return true;
     return false;
   });
 
-  // Calculate dropdown position based on available space
-  const calculateDropdownPosition = () => {
-    if (!triggerRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240; // max-h-60 = 15rem = 240px
-    
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-    
-    // If there's not enough space below but there's space above, position on top
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
-    } else {
-      setDropdownPosition('bottom');
-    }
-  };
-
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setIsOpen(false);
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Focus search input when dropdown opens and calculate position
-  useEffect(() => {
-    if (isOpen) {
-      calculateDropdownPosition();
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }
-  }, [isOpen]);
+  useEffect(() => { if (!isOpen) setSearchQuery(''); }, [isOpen]);
 
-
-  // Reset search and position when dropdown closes
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery('');
-      setDropdownPosition('bottom');
+  const open = () => {
+    if (disabled) return;
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropUp(window.innerHeight - rect.bottom < 280);
     }
-  }, [isOpen]);
-
-  // Recalculate position on window resize (only if dropdown is open)
-  useEffect(() => {
-    if (isOpen) {
-      const handleResize = () => calculateDropdownPosition();
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
-    }
-  }, [isOpen]);
-
-  // Toggle dropdown
-  const toggleDropdown = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
-    }
+    setIsOpen(true);
   };
 
-  // Handle select all
-  const handleSelectAll = () => {
-    if (allSelected) {
-      // If all are selected, deselect all
-      onSelectionChange([]);
-    } else {
-      // Otherwise select all
-      onSelectionChange([...allItemIds]);
-    }
-  };
+  const toggle = () => (isOpen ? setIsOpen(false) : open());
+  const toggleAll = () => onSelectionChange(allSelected ? [] : [...allIds]);
+  const toggleItem = (id: number) =>
+    onSelectionChange(selectedItems.includes(id) ? selectedItems.filter(x => x !== id) : [...selectedItems, id]);
 
-  // Handle item selection
-  const handleItemSelect = (itemId: number) => {
-    if (selectedItems.includes(itemId)) {
-      // Item is already selected, remove it
-      onSelectionChange(selectedItems.filter(id => id !== itemId));
-      
-    } else {
-      // Item is not selected, add it
-      onSelectionChange([...selectedItems, itemId]);
-    }
-  };
-
-  // Format the display text
-  const getDisplayText = () => {
-    if (selectedItems.length === 0) {
-      return placeholder;
-    }
-    
-    if (allSelected) {
-      return `All ${label}s`;
-    }
-    
+  const displayText = () => {
+    if (selectedItems.length === 0) return null;
+    if (allSelected) return `All ${label}s`;
     if (selectedItems.length === 1) {
-      const selected = items.find(item => item.id === selectedItems[0]);
-      return selected ? displayPattern(selected) : placeholder;
+      const found = items.find(i => Number(i.id) === selectedItems[0]);
+      return found ? displayPattern(found) : null;
     }
-    
-    return `${selectedItems.length} ${label}s selected`;
+    return `${selectedItems.length} selected`;
   };
 
-  // Get dropdown positioning classes
-  const getDropdownClasses = () => {
-    const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
-    
-    if (dropdownPosition === 'top') {
-      return `${baseClasses} bottom-full mb-1`;
-    } else {
-      return `${baseClasses} top-full mt-1`;
-    }
-  };
+  const text = displayText();
+
+  const Checkbox: React.FC<{ checked: boolean; indeterminate?: boolean }> = ({ checked, indeterminate }) => (
+    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${checked || indeterminate ? 'bg-emerald-600 border-emerald-600' : 'border-slate-300 bg-white'}`}>
+      {checked && !indeterminate && <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+      {indeterminate && <div className="w-2 h-0.5 bg-white rounded-full" />}
+    </div>
+  );
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">
-        {label}:
-      </label>
-      <div
+      <button
         ref={triggerRef}
-        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
-          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
-        }`}
-        onClick={toggleDropdown}
+        type="button"
+        onClick={toggle}
+        disabled={disabled}
+        className={`
+          w-full flex items-center justify-between pl-3 pr-2.5 py-2 rounded-lg border text-xs
+          transition-all duration-150 text-left
+          ${disabled
+            ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+            : isOpen
+              ? 'bg-white border-emerald-500 ring-2 ring-emerald-500/20 text-slate-700'
+              : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400 cursor-pointer'
+          }
+        `}
       >
-        <span className={selectedItems.length === 0 ? 'text-gray-400' : ''}>
-          {getDisplayText()}
+        <span className={text ? 'font-medium text-slate-800 truncate' : 'text-slate-400 truncate'}>
+          {text ?? placeholder}
         </span>
-        <svg
-          className="w-4 h-4 ml-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d={isOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
-          />
-        </svg>
-      </div>
-      
+        <div className="flex items-center gap-1.5 ml-2 shrink-0">
+          {selectedItems.length > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-600 text-white text-[9px] font-bold">
+              {selectedItems.length}
+            </span>
+          )}
+          <svg className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()}>
-          {/* Search box */}
-          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
+        <div className={`absolute z-50 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden ${dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}>
+          {/* Search */}
+          <div className="p-2 border-b border-slate-100">
             <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+              </svg>
               <input
-                ref={searchInputRef}
+                autoFocus
                 type="text"
-                placeholder={`Search ${label}s...`}
+                placeholder="Search…"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                onClick={(e) => e.stopPropagation()} // Prevent dropdown from closing
+                onChange={e => setSearchQuery(e.target.value)}
+                onClick={e => e.stopPropagation()}
+                className="w-full pl-7 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 focus:bg-white transition-all"
               />
               {searchQuery && (
-                <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSearchQuery('');
-                  }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
+                <button className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" onClick={e => { e.stopPropagation(); setSearchQuery(''); }}>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               )}
             </div>
           </div>
-          
-          {/* Select All option */}
-          {items.length > 0 && (
-            <div
-              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${
-                allSelected ? 'bg-blue-50' : ''
-              }`}
-              onClick={handleSelectAll}
-            >
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={handleSelectAll}
-                className="mr-2"
-              />
-              All {label}s
-            </div>
-          )}
-          
-          {/* No results message */}
-          {filteredItems.length === 0 && searchQuery && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s found matching "{searchQuery}"
+
+          {/* Select All */}
+          {items.length > 1 && (
+            <div className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer border-b border-slate-100 hover:bg-slate-50 transition-colors ${allSelected ? 'bg-emerald-50/60' : ''}`} onClick={toggleAll}>
+              <Checkbox checked={allSelected} indeterminate={someSelected} />
+              <span className="text-[11px] font-semibold text-slate-600">Select all <span className="font-normal text-slate-400">({items.length})</span></span>
             </div>
           )}
 
-          {/* No items available message */}
-          {items.length === 0 && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s available
-            </div>
-          )}
-          
-          {/* Individual items */}
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className={`p-2 hover:bg-blue-100 cursor-pointer ${
-                selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleItemSelect(Number(item.id))}
-            >
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(Number(item.id))}
-                onChange={() => handleItemSelect(Number(item.id))}
-                className="mr-2"
-              />
-              <span className="text-sm">{displayPattern(item)}</span>
-            </div>
-          ))}
+          <div className="max-h-44 overflow-y-auto overscroll-contain">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-5 text-center text-[11px] text-slate-400">No results for &ldquo;{searchQuery}&rdquo;</div>
+            ) : (
+              filtered.map(item => {
+                const id = Number(item.id);
+                const selected = selectedItems.includes(id);
+                return (
+                  <div key={item.id} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors ${selected ? 'bg-emerald-50/40' : ''}`} onClick={() => toggleItem(id)}>
+                    <Checkbox checked={selected} />
+                    <span className={`text-[11px] leading-tight ${selected ? 'font-medium text-slate-800' : 'text-slate-600'}`}>{displayPattern(item)}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/pumping_location/users/DrainContext";
-import { CategoryProvider } from "@/contexts/pumping_location/admin/CategoryContext";
-import { MapProvider } from "@/contexts/pumping_location/users/DrainMapContext";
+import { RiverSystemProvider } from "@/contexts/gwm/pumping_location/users/DrainContext";
+import { CategoryProvider } from "@/contexts/gwm/pumping_location/admin/CategoryContext";
+import { MapProvider } from "@/contexts/gwm/pumping_location/users/DrainMapContext";
 
 import RiverSelector from "@/app/dss/gwm/pumping_location/users/components/locations";
 import CategorySelector from "@/app/dss/gwm/pumping_location/users/components/Category";
@@ -15,11 +15,10 @@ import DataTable from "react-data-table-component";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { Gwpl_columns } from "@/interface/table";
 import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
-import { useRiverSystem } from "@/contexts/pumping_location/users/DrainContext";
-import { useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
-import { useMap } from "@/contexts/pumping_location/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/gwm/pumping_location/users/DrainContext";
+import { useCategory } from "@/contexts/gwm/pumping_location/admin/CategoryContext";
+import { useMap } from "@/contexts/gwm/pumping_location/users/DrainMapContext";
 import { FaLock, FaUnlock } from "react-icons/fa";
 
 const MainContent = () => {

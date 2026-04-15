@@ -1,6 +1,4 @@
-import axios from "axios";
 import { api, ApiError } from "@/services/api";
-import { uploadClient } from "./uploadClient";
 
 const CHUNK_SIZE = 1 * 1024 * 1024; // 5MB
 
@@ -20,21 +18,17 @@ export async function uploadFileInChunks(
     const formData = new FormData();
     formData.append("file", chunk);
 
-    await uploadClient.post("/tools/upload_data_chunk", formData, {
+    await api.post("/tools/upload_data_chunk", {
+      body: formData,
       headers: {
         "Upload-Id": uploadId,
-        "Chunk-Index": i,
-        "Total-Chunks": totalChunks,
+        "Chunk-Index": String(i),
+        "Total-Chunks": String(totalChunks),
       },
       onUploadProgress: (event) => {
         if (!event.total) return;
-
-        const chunkPercent =
-          (event.loaded / event.total) * 100;
-
-        const overallPercent =
-          ((i + chunkPercent / 100) / totalChunks) * 100;
-
+        const chunkPercent = (event.loaded / event.total) * 100;
+        const overallPercent = ((i + chunkPercent / 100) / totalChunks) * 100;
         onProgress?.(overallPercent);
       },
     });

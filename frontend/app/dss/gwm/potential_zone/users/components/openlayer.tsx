@@ -22,8 +22,8 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/potential_zone/users/DrainMapContext";
-import { useRiverSystem } from "@/contexts/potential_zone/users/DrainContext";
+import { useMap } from "@/contexts/gwm/potential_zone/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/gwm/potential_zone/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from "@/interface/openlayer";

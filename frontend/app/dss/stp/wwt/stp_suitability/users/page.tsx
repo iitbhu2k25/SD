@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RiverSystemProvider } from "@/contexts/stp_suitability/users/DrainContext";
-import { CategoryProvider } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { MapProvider } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { RiverSystemProvider } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { CategoryProvider } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
+import { MapProvider } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
+import { STPAreaProvider } from "@/contexts/stp/stp_suitability/STPAreaContext";
 import RiverSelector from "@/app/dss/stp/wwt/stp_suitability/users/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
-import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import MapView from "@/app/dss/stp/wwt/stp_suitability/users/components/openlayer";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
 import { CategorySlider } from "./components/weight_slider";
-import { TreatmentForm } from "@/app/dss/stp/wwt/stp_suitability/users/components/Stp_area";
 import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
-import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";
@@ -97,11 +96,8 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({
 const MainContent = () => {
   const {
     selectedCatchments,
-    totalArea,
-    totalCatchments,
     selectionsLocked,
     displayRaster,
-    selectedCatchmentsNames,
     selectedStreachNames,
     selectedDrainsNames,
     selectedRiverName,
@@ -138,7 +134,10 @@ const MainContent = () => {
   }, [selectionsLocked]);
 
   useEffect(() => {
-    if (tableData.length > 0) setOpenResults(true);
+    if (tableData.length > 0) {
+      setOpenResults(true);
+      setOpenTechDSS(true);
+    }
   }, [tableData.length]);
 
   // ── handlers ─────────────────────────────────────────────────────────────
@@ -177,7 +176,6 @@ const MainContent = () => {
             River:     selectedRiverName,
             Stretch:   selectedStreachNames,
             Drain:     selectedDrainsNames,
-            Catchment: selectedCatchmentsNames,
           },
           weight_data:     selectedCondition,
           non_weight_data: selectedConstraint,
@@ -232,12 +230,6 @@ const MainContent = () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-1">
               River System Selection
             </h2>
-            {selectionsLocked && (
-              <p className="text-sm text-green-600">
-                {totalCatchments} catchments selected &bull; Total area:{" "}
-                {totalArea.toFixed(2)} sq Km
-              </p>
-            )}
           </section>
 
           <section className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -348,21 +340,7 @@ const MainContent = () => {
             </AccordionSection>
           )}
 
-          {/* 3 — STP Area & Location Finder */}
-          {tableData.length > 0 && (
-            <AccordionSection
-              open={openCluster}
-              onToggle={() => setOpenCluster(v => !v)}
-              icon={<MapPin className="h-4 w-4" />}
-              iconBg="bg-teal-600" iconText="text-white"
-              borderColor="border-teal-200" bgColor="bg-teal-50"
-              chevronColor="text-teal-700"
-              label="STP Area & Location Finder"
-              sublabel="Select technology and capacity to identify clusters on the map"
-            >
-              <TreatmentForm />
-            </AccordionSection>
-          )}
+  
 
           {/* 4 — STP Technology Selection */}
           {tableData.length > 0 && (
@@ -425,9 +403,11 @@ const MainContent = () => {
 const SuitabilityDrain = () => (
   <RiverSystemProvider>
     <CategoryProvider>
-      <MapProvider>
-        <MainContent />
-      </MapProvider>
+      <STPAreaProvider>
+        <MapProvider>
+          <MainContent />
+        </MapProvider>
+      </STPAreaProvider>
     </CategoryProvider>
   </RiverSystemProvider>
 );

@@ -6,10 +6,7 @@ export const AUTH_ROUTES = {
   LOGIN: "/authentication",
   SIGNUP: "/authentication",
   FORGOT_PASSWORD: "/authentication/forgot-password",
-  VERIFY_OTP: "/authentication/verify-otp",
   RESET_PASSWORD: "/authentication/reset-password",
-  SEND_OTP: "/authentication/send-otp",
-  VERIFY_EMAIL: "/authentication/verify-email",
 } as const;
 
 export const PROTECTED_ROUTES = {

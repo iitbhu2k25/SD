@@ -4,8 +4,7 @@ import React from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { api, ApiError } from "@/services/api";
 import { validateField } from "@/app/authentication/components/validation";
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { toast } from "react-toastify";
 
 interface SignupProps {
   onSwitch: () => void;

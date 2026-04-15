@@ -7,20 +7,21 @@ import zipfile
 from requests import Session
 from app.conf.logging import logger
 import json
-from typing import Any, Dict, Optional,List
+from typing import Any, Dict
+import threading
 from uuid import uuid4
 import numpy as np
 import rasterio
 from rasterio.enums import Resampling
 from rasterio.warp import transform_bounds
 from pyproj import CRS as ProjCRS
-from app.api.schema.raster_operation import RasterReclassify,ReclassRule, rasterMetaSchame, useroperSchema
+from app.api.schema.raster_operation import rasterMetaSchame, useroperSchema
 from whitebox.whitebox_tools import WhiteboxTools
 import math
 import os
 from app.conf.celery import app
 from app.conf.settings import Settings
-from app.conf.redis.redis_conf import sync_redis_client
+from app.conf.redis.redis_manager import redis_manager
 from app.database.config.dependency import celery_session
 from app.database.crud.raster_operations import rasterMetacrud, rasterOperCrud, userstorecrud
 from app.api.service.geoserver_svc.geoserver import Geoserver
@@ -38,13 +39,21 @@ ALGORITHMS = {
 
 
 
-wbt = WhiteboxTools()
-wbt.set_whitebox_dir(os.environ["WBT_PATH"])
-wbt.set_working_dir("/tmp")
+
+def get_wbt():
+    wbt = WhiteboxTools()
+    wbt.set_whitebox_dir(os.environ["WBT_PATH"])
+    wbt.set_working_dir("/tmp")
+    wbt.set_verbose_mode(True)
+    wbt.set_compress_rasters(False)
+    wbt.set_max_procs(24)
+    return wbt
+
 
 raster_workspace="raster_work"
-
 work_state=["started","in_progress","completed","failed"]
+
+wbt = get_wbt()
 
 class RasterMetaData:
     def _safe_float(self, value):
@@ -273,8 +282,8 @@ def celery_task_update(task_id: str, status: str, progress: int=0,layer_name:str
     }
     payload = json.dumps(data)
     channel = f"opr_updates:{task_id}" 
-    sync_redis_client.setex(f"opr_status:{task_id}", 3600, payload)
-    sync_redis_client.publish(channel, payload)
+    redis_manager.setex(f"opr_status:{task_id}", 3600, payload)
+    redis_manager.publish(channel, payload)
 
 
 
@@ -789,7 +798,7 @@ def _fill_depressions(input_path: str, tmp_dir: str) -> str:
     if ret != 0:
         raise RuntimeError(
             f"WhiteboxTools fill_depressions failed (exit {ret}). "
-            f"Check logs: {wbt.get_working_directory()}"
+            f"Check logs: {wbt.get_working_dir()}"
         )
 
     if not os.path.exists(filled_path):
@@ -1014,7 +1023,6 @@ def compute_flow_accumulation_task(
     log_transform: bool,
     input_path:   str,
     output_path:  str,
-    src_nodata: str,
 ) -> str:
     try:
         celery_task_update(

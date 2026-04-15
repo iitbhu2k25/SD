@@ -22,9 +22,9 @@ import {
   ZoomToExtent,
 } from "ol/control";
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/pumping_location/users/DrainMapContext";
-import { useCategory } from "@/contexts/pumping_location/admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/pumping_location/users/DrainContext";
+import { useMap } from "@/contexts/gwm/pumping_location/users/DrainMapContext";
+import { useCategory } from "@/contexts/gwm/pumping_location/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/gwm/pumping_location/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip } from "@/components/MapComponents";
 import { CsvRow } from '@/interface/table'

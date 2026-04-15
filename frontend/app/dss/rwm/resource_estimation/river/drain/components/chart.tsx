@@ -17,7 +17,7 @@ import {
   ProcessedWaterQualityData,
   ComparisonTableRow,
 } from "@/contexts/riverwater_assessment/drain/ChartContext";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import {
   LineChart,
   Line,
@@ -1967,11 +1967,9 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
       link.remove();
       URL.revokeObjectURL(objectUrl);
 
-      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, {
-        id: toastId,
-      });
+      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, );
     } catch (error: any) {
-      toast.error(error?.message || "Failed to download raster.", { id: toastId });
+      toast.error(error?.message || "Failed to download raster.", );
     } finally {
       setIsRasterDownloading(false);
     }

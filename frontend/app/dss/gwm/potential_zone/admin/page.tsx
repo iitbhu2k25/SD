@@ -1,21 +1,20 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider } from "@/contexts/potential_zone/admin/LocationContext";
-import { CategoryProvider } from "@/contexts/potential_zone/admin/CategoryContext";
-import { MapProvider } from "@/contexts/potential_zone/admin/MapContext";
+import { LocationProvider } from "@/contexts/gwm/potential_zone/admin/LocationContext";
+import { CategoryProvider } from "@/contexts/gwm/potential_zone/admin/CategoryContext";
+import { MapProvider } from "@/contexts/gwm/potential_zone/admin/MapContext";
 import LocationSelector from "@/app/dss/gwm/potential_zone/admin/components/locations";
 import WholeLoading from "@/components/app_layout/newLoading";
 import CategorySelector from "@/app/dss/gwm/potential_zone/admin/components/Category";
-import { useLocation } from "@/contexts/potential_zone/admin/LocationContext";
-import { useCategory } from "@/contexts/potential_zone/admin/CategoryContext";
+import { useLocation } from "@/contexts/gwm/potential_zone/admin/LocationContext";
+import { useCategory } from "@/contexts/gwm/potential_zone/admin/CategoryContext";
 import MapView from "@/app/dss/gwm/potential_zone/admin/components/openlayer";
-import { useMap } from "@/contexts/potential_zone/admin/MapContext";
+import { useMap } from "@/contexts/gwm/potential_zone/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
-import "react-toastify/dist/ReactToastify.css";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";

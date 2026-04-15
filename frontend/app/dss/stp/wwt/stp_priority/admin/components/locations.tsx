@@ -1,8 +1,8 @@
 'use client'
 import React, { useMemo } from 'react';
 import { MultiSelect } from './Multiselect';
-import { useLocation } from '@/contexts/stp_priority/admin/LocationContext';
-import { useMap } from '@/contexts/stp_priority/admin/MapContext';
+import { useLocation } from '@/contexts/stp/stp_priority/admin/LocationContext';
+import { useMap } from '@/contexts/stp/stp_priority/admin/MapContext';
 import { SubDistrict } from '@/interface/raster_context';
 import WholeLoading from "@/components/app_layout/newLoading";
 

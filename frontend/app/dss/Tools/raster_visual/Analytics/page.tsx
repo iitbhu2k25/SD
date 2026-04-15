@@ -66,7 +66,7 @@ const AnalyticsInner: React.FC = () => {
   }, [layer]);
 
   const handleUploadNew = () => {
-    toast.info("layer remove")
+    toast("layer remove")
     removeLayer();
     mapViewRef.current?.removeRasterLayer();
   };

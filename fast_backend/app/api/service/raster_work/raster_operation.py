@@ -54,7 +54,7 @@ from .raster_resize_test import dry_run_resample
 from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.database.crud.raster_operations import userstorecrud,rasterMetacrud,rasterOperCrud,vectorMetacrud
 from enum import Enum
-from app.conf.redis.redis_manager import redis_manager
+from app.conf.redis.redis_async_manager import async_redis_manager
 
 class EPSG(Enum):
     WGS84 = 4326
@@ -70,7 +70,7 @@ class EPSG(Enum):
 class RasterOperation:
 
     def __init__(self):
-        self.get_redis=redis_manager
+        self.get_redis=async_redis_manager
         self.temp_dir = Path(Settings().TEMP_DIR+"/raster_tools")
         self.chunk_dir=Path(Settings().TEMP_DIR+"/chunk_dir")
         os.makedirs(self.temp_dir, exist_ok=True)
@@ -368,7 +368,7 @@ class RasterOperation:
         
         await self._prepare_shapefile_for_upload(file_path,file_id)
         await self.get_redis.setex(f"storage:{file_id}", 10800, str(file_path))
-        await Geoserver().upload_vector(self.vector_workspace,"user_upload_vector",file_path,file_id)
+        await Geoserver().upload_vector(self.vector_workspace,file_path,file_id)
         useroperSchemaObj=useroperSchema(
             file_id=file_id,
             layer_name=file_id,

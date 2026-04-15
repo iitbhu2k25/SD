@@ -1,6 +1,9 @@
 "use client";
 import React from "react";
-import { useYear } from "@/contexts/water_quality_assesment/admin/yearContext";
+import { useYear } from "@/contexts/gwm/water_quality_assesment/admin/yearContext";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface MultiSelectButtonsProps {
   options: string[];
@@ -8,83 +11,154 @@ interface MultiSelectButtonsProps {
   onChange?: (selectedParam: string[]) => void;
 }
 
-const MultiSelectButtons: React.FC<MultiSelectButtonsProps> = ({ options, label, onChange }) => {
+/* ── Parameter metadata: display symbol + group ── */
+const PARAM_META: Record<string, { symbol: string; group: string }> = {
+  "pH Level":                  { symbol: "pH",     group: "Physical" },
+  "Electrical Conductivity":   { symbol: "EC",     group: "Physical" },
+  "Hardness":                  { symbol: "TH",     group: "Physical" },
+  "Calcium":                   { symbol: "Ca²⁺",   group: "Major Ions" },
+  "Magnesium":                 { symbol: "Mg²⁺",   group: "Major Ions" },
+  "Sodium":                    { symbol: "Na⁺",    group: "Major Ions" },
+  "Potassium":                 { symbol: "K⁺",     group: "Major Ions" },
+  "Bicarbonate":               { symbol: "HCO₃⁻",  group: "Major Ions" },
+  "Carbonate":                 { symbol: "CO₃²⁻",  group: "Major Ions" },
+  "Chloride":                  { symbol: "Cl⁻",    group: "Major Ions" },
+  "Sulfate":                   { symbol: "SO₄²⁻",  group: "Major Ions" },
+  "Nitrate":                   { symbol: "NO₃⁻",   group: "Major Ions" },
+  "Arsenic":                   { symbol: "As",     group: "Trace" },
+  "Fluoride":                  { symbol: "F⁻",     group: "Trace" },
+  "Iron":                      { symbol: "Fe",     group: "Trace" },
+  "Uranium":                   { symbol: "U",      group: "Trace" },
+};
+
+const GROUP_ORDER = ["Physical", "Major Ions", "Trace"];
+
+const GROUP_COLORS: Record<string, { dot: string; label: string }> = {
+  "Physical":   { dot: "bg-violet-500", label: "text-violet-600" },
+  "Major Ions": { dot: "bg-blue-500",   label: "text-blue-600"   },
+  "Trace":      { dot: "bg-amber-500",  label: "text-amber-600"  },
+};
+
+const fmt = (opt: string) => opt.trim().replace(/\s+/g, "_");
+
+const MultiSelectButtons: React.FC<MultiSelectButtonsProps> = ({ options, onChange }) => {
   const { selectedParam, setSelectedParam } = useYear();
 
-  // Toggle single select
-  const toggleSelect = (option: string) => {
-    const formattedOption = option.trim().replace(/\s+/g, "_");
-
-    const newSelected = selectedParam.includes(formattedOption)
-      ? selectedParam.filter((item) => item !== formattedOption)
-      : [...selectedParam, formattedOption];
-
-    setSelectedParam(newSelected);
-    onChange?.(newSelected);
+  const toggle = (option: string) => {
+    const key = fmt(option);
+    const next = selectedParam.includes(key)
+      ? selectedParam.filter(x => x !== key)
+      : [...selectedParam, key];
+    setSelectedParam(next);
+    onChange?.(next);
   };
 
-  // Select all
-  const handleSelectAll = () => {
-    const allOptions = options.map((opt) => opt.trim().replace(/\s+/g, "_"));
-    setSelectedParam(allOptions);
-    onChange?.(allOptions);
+  const selectAll = () => {
+    const all = options.map(fmt);
+    setSelectedParam(all);
+    onChange?.(all);
   };
 
-  // Reset all
-  const handleResetAll = () => {
+  const reset = () => {
     setSelectedParam([]);
     onChange?.([]);
   };
 
+  /* group options that appear in props */
+  const grouped = GROUP_ORDER.reduce<Record<string, string[]>>((acc, group) => {
+    const members = options.filter(o => (PARAM_META[o]?.group ?? "Other") === group);
+    if (members.length) acc[group] = members;
+    return acc;
+  }, {});
+
+  /* options not in any known group */
+  const others = options.filter(o => !PARAM_META[o]);
+  if (others.length) grouped["Other"] = others;
+
+  const count = selectedParam.length;
+  const total = options.length;
+
   return (
-    <div className="p-6 bg-white rounded-2xl shadow-md">
+    <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        {label && <h2 className="text-lg font-semibold text-gray-800">{label}</h2>}
-        <div className="flex gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {count > 0 ? (
+            <Badge className="h-5 px-2 text-xs font-bold bg-blue-600 text-white border-0">
+              {count}/{total}
+            </Badge>
+          ) : (
+            <span className="text-xs text-slate-400">{total} parameters</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
           <button
-            onClick={handleSelectAll}
-            className="px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
+            onClick={selectAll}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
           >
-            Select All
+            Select all
           </button>
+          <span className="w-px h-3 bg-slate-200" />
           <button
-            onClick={handleResetAll}
-            className="px-3 py-1.5 text-sm font-medium bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
+            onClick={reset}
+            disabled={count === 0}
+            className="text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Reset All
+            Clear
           </button>
         </div>
       </div>
 
-      {/* 4-column grid layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {options.map((option) => {
-          const formattedOption = option.trim().replace(/\s+/g, "_");
-          const isSelected = selectedParam.includes(formattedOption);
-          return (
-            <button
-              key={option}
-              onClick={() => toggleSelect(option)}
-              className={`w-full text-center px-4 py-2 rounded-xl border text-sm font-medium tracking-wide transition-all duration-200
-                ${isSelected
-                  ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                  : "bg-gray-50 text-gray-800 border-gray-300 hover:bg-blue-50 hover:border-blue-400"
-                }
-              `}
-            >
-              {option}
-            </button>
-          );
-        })}
-      </div>
+      {/* Groups */}
+      {Object.entries(grouped).map(([group, members]) => {
+        const colors = GROUP_COLORS[group] ?? { dot: "bg-slate-400", label: "text-slate-500" };
+        const groupSelectedCount = members.filter(o => selectedParam.includes(fmt(o))).length;
 
-      {/* Display selected params */}
-      {selectedParam.length > 0 && (
-        <div className="mt-5 text-sm text-gray-700 border-t pt-3">
-         
-        </div>
-      )}
+        return (
+          <div key={group}>
+            {/* Group label */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", colors.dot)} />
+              <span className={cn("text-[11px] font-bold uppercase tracking-[0.1em]", colors.label)}>
+                {group}
+              </span>
+              {groupSelectedCount > 0 && (
+                <span className="ml-auto text-[11px] font-semibold text-slate-400">
+                  {groupSelectedCount}/{members.length}
+                </span>
+              )}
+            </div>
+
+            {/* Chips */}
+            <div className="flex flex-wrap gap-1.5">
+              {members.map(option => {
+                const key = fmt(option);
+                const active = selectedParam.includes(key);
+                const meta = PARAM_META[option];
+                const displayLabel = meta?.symbol ?? option;
+
+                return (
+                  <Button
+                    key={option}
+                    size="xs"
+                    onClick={() => toggle(option)}
+                    className={cn(
+                      "h-7 px-3 text-sm font-semibold rounded-full border transition-all duration-150",
+                      active
+                        ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-sm"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                    )}
+                    title={option}
+                  >
+                    {displayLabel}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
     </div>
   );
 };

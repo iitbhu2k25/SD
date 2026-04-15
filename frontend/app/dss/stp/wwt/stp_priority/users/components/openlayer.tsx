@@ -21,8 +21,8 @@ import {
 } from "ol/control";
 
 import { Style, Fill, Stroke, Circle, Text } from "ol/style";
-import { useMap } from "@/contexts/stp_priority/users/DrainMapContext";
-import { useRiverSystem } from "@/contexts/stp_priority/users/DrainContext";
+import { useMap } from "@/contexts/stp/stp_priority/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/stp/stp_priority/users/DrainContext";
 import "ol/ol.css";
 import { GISCompass, baseMaps, HoverTooltip, getColorFromStretchId } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer'

@@ -37,10 +37,10 @@ export function STPDss({ embedded = false }: STPDssProps) {
 
       <StepProgress />
 
-      {screen === 'wizard'     && <WizardScreen />}
-      {screen === 'inputs'     && <InputsScreen />}
-      {screen === 'perf_table' && <PerfTableScreen />}
-      {screen === 'results'    && <ResultsScreen />}
+      {screen === 'wizard'  && <WizardScreen />}
+      {screen === 'inputs'  && <InputsScreen />}
+      {screen === 'perf_table'  && <PerfTableScreen />}
+      {screen === 'results'     && <ResultsScreen />}
     </>
   )
 

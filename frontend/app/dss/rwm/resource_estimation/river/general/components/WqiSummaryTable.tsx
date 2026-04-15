@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { BarChart2, Download, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 const BACKEND_URL =   `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
 
@@ -226,10 +226,10 @@ const WqiSummaryTable: React.FC<WqiSummaryTableProps> = ({
                       link.remove();
                       URL.revokeObjectURL(objectUrl);
 
-                      toast.success(`${activeParameter} ${rasterDownloadFormat.toUpperCase()} download started.`, { id: toastId });
+                      toast.success(`${activeParameter} ${rasterDownloadFormat.toUpperCase()} download started.`, );
                     } catch (error: any) {
                       const message = error?.message || "Failed to download raster.";
-                      toast.error(message, { id: toastId });
+                      toast.error(message, );
                     } finally {
                       setIsRasterDownloading(false);
                     }

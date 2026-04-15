@@ -20,10 +20,9 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/stp_suitability/admin/MapContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { useLocation } from "@/contexts/stp_suitability/admin/LocationContext";
-import "ol/ol.css";
+import { useMap } from "@/contexts/stp/stp_suitability/admin/MapContext";
+import { useLocation } from "@/contexts/stp/stp_suitability/admin/LocationContext";
+import { useSTPArea } from "@/contexts/stp/stp_suitability/STPAreaContext";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM } from '@/interface/openlayer'
 
@@ -34,6 +33,8 @@ const Mapping: React.FC = () => {
   const primaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const secondaryLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const clusterLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const clusterPathLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
@@ -41,7 +42,7 @@ const Mapping: React.FC = () => {
 
   // Simplified state management
   const [isLoading, setIsLoading] = useState(true);
-  const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0, result: 0 });
+  const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0, result: 0, cluster: 0, clusterPath: 0 });
   const [layerOpacity, setLayerOpacity] = useState(70);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
@@ -49,6 +50,8 @@ const Mapping: React.FC = () => {
   const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showSecondaryLayer, setShowSecondaryLayer] = useState(true);
+  const [showClusterLayer, setShowClusterLayer] = useState(true);
+  const [showClusterPath, setShowClusterPath] = useState(true);
 
   const [showPrimaryLayer, setShowPrimaryLayer] = useState(true);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -57,22 +60,21 @@ const Mapping: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Context hooks
-  const { displayRaster } = useLocation();
+  const { displayRaster,resultLayer } = useLocation();
   const {
     primaryLayer,
     secondaryLayer,
     LayerFilter,
     LayerFilterValue,
     defaultWorkspace,
-    resultLayer,
     selectedradioLayer,
     handleLayerSelection,
     setRasterLayerInfo,
     rasterLayerInfo,
     showResultLayer,
-    setShowResultLayer
-
+    setShowResultLayer,
   } = useMap();
+  const { stpAreaResult } = useSTPArea();
   // Helper functions
   const toggleFullScreen = () => {
     if (!containerRef.current) return;
@@ -324,11 +326,86 @@ const Mapping: React.FC = () => {
 
   useEffect(() => {
     handleVectorLayer(secondaryLayer, 'secondary');
-  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles, showSecondaryLayer]);
+  }, [secondaryLayer, LayerFilter, LayerFilterValue, showTitles]);
 
   useEffect(() => {
     handleVectorLayer(resultLayer, 'result');
   }, [resultLayer, defaultWorkspace]);
+
+  // Load cluster layer and cluster path from stpAreaResult
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Remove existing cluster layer
+    if (clusterLayerRef.current) {
+      mapInstanceRef.current.removeLayer(clusterLayerRef.current);
+      clusterLayerRef.current = null;
+      setFeatureCounts(prev => ({ ...prev, cluster: 0 }));
+    }
+    // Remove existing cluster path layer
+    if (clusterPathLayerRef.current) {
+      mapInstanceRef.current.removeLayer(clusterPathLayerRef.current);
+      clusterPathLayerRef.current = null;
+      setFeatureCounts(prev => ({ ...prev, clusterPath: 0 }));
+    }
+
+    if (!stpAreaResult) return;
+
+    const addLayer = (
+      layerName: string | null,
+      ref: React.RefObject<VectorLayer<VectorSource> | null>,
+      color: string,
+      zIndex: number,
+      countKey: 'cluster' | 'clusterPath',
+      visible: boolean,
+    ) => {
+      if (!layerName || !mapInstanceRef.current) return;
+
+      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
+
+      const source = new VectorSource({ format: new GeoJSON(), url: wfsUrl });
+
+      const layer = new VectorLayer({
+        source,
+        zIndex,
+        visible,
+        style: (feature: any) => {
+          const type = feature.getGeometry().getType();
+          if (type.includes('Polygon')) {
+            return new Style({
+              stroke: new Stroke({ color, width: 2 }),
+              fill: new Fill({ color: `${color}33` }),
+            });
+          }
+          if (type.includes('LineString')) {
+            return new Style({ stroke: new Stroke({ color, width: 3 }) });
+          }
+          return new Style({
+            image: new Circle({ radius: 6, fill: new Fill({ color }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
+          });
+        },
+      });
+
+      source.on('featuresloadend', (event: any) => {
+        const count = event.features ? event.features.length : 0;
+        setFeatureCounts(prev => ({ ...prev, [countKey]: count }));
+        if (count > 0) {
+          const extent = source.getExtent();
+          if (extent && extent.every((v: number) => isFinite(v))) {
+            mapInstanceRef.current?.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000, maxZoom: 16 });
+          }
+        }
+      });
+
+      source.on('featuresloaderror', () => setError(`Failed to load ${countKey} layer`));
+
+      mapInstanceRef.current.addLayer(layer);
+      ref.current = layer;
+    };
+
+    addLayer(stpAreaResult.cluster_layer, clusterLayerRef, '#f97316', 11, 'cluster', showClusterLayer);
+    addLayer(stpAreaResult.suitable_path, clusterPathLayerRef, '#22c55e', 12, 'clusterPath', showClusterPath);
+  }, [stpAreaResult, defaultWorkspace]);
 
   // Handle raster layer
  useEffect(() => {

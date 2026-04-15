@@ -29,8 +29,87 @@ export const DECENTRALIZED_TECH: DecentralizedTechMap = {
 
 // ─── DPR Weight Factors ───────────────────────────────────────────────────────
 
-export const C_WEIGHTS = { rel: 2, cap: 2, land: 2, om: 1.5, ease: 1.5, track: 1 }
-export const D_WEIGHTS = { rel: 2, cap: 2, land: 2, om: 1.5, energy: 1, ease: 1.5 }
+export const C_WEIGHTS = { rel: 2, cap: 2, land: 2, om: 1.5, ease: 1.5, track: 1, effluent: 2 }
+export const D_WEIGHTS = { rel: 2, cap: 2, land: 2, om: 1.5, energy: 1, ease: 1.5, effluent: 2 }
+
+type SewageScoreMap = Record<string, [number, number, number, number]>
+
+// ─── Centralized BOD / COD / Coliform Scores ─────────────────────────────────
+
+export const BOD_SCORES: SewageScoreMap = {
+  // Centralized
+  TF:     [8,  7,  5,  3],
+  ASP:    [8,  8,  7,  5],
+  EA:     [7,  8,  7,  6],
+  SBR:    [9,  9,  9,  8],
+  BIOFOR: [8,  8,  9,  8],
+  MBR:    [10, 10, 10, 10],
+  // Decentralized  (<150 | 150–300 | 300–500 | >500)
+  CW:      [9, 8, 6, 4],
+  WSP:     [9, 8, 6, 4],
+  ABR:     [7, 8, 8, 7],
+  UASB_CW: [7, 8, 9, 8],
+  MBBR:    [8, 9, 9, 9],
+  PACK:    [8, 9, 9, 9],
+}
+
+export const COD_SCORES: SewageScoreMap = {
+  // Centralized
+  TF:     [7,  6,  5,  3],
+  ASP:    [7,  7,  6,  5],
+  EA:     [7,  7,  6,  5],
+  SBR:    [9,  9,  8,  7],
+  BIOFOR: [8,  9,  9,  8],
+  MBR:    [10, 10, 10, 10],
+  // Decentralized  (<300 | 300–600 | 600–1000 | >1000)
+  CW:      [8, 7, 5, 3],
+  WSP:     [8, 7, 5, 3],
+  ABR:     [7, 8, 7, 6],
+  UASB_CW: [7, 8, 8, 7],
+  MBBR:    [9, 9, 9, 8],
+  PACK:    [9, 9, 9, 8],
+}
+
+export const COLIFORM_SCORES: SewageScoreMap = {
+  // Centralized
+  TF:     [6,  5,  4,  3],
+  ASP:    [7,  6,  5,  4],
+  EA:     [7,  6,  5,  4],
+  SBR:    [8,  8,  7,  6],
+  BIOFOR: [8,  7,  6,  5],
+  MBR:    [10, 10, 9,  9],
+  // Decentralized  (<1 000 | 1 000–10⁴ | 10⁴–10⁶ | >10⁶)
+  CW:      [6, 5, 4, 3],
+  WSP:     [6, 5, 4, 3],
+  ABR:     [6, 5, 4, 3],
+  UASB_CW: [7, 6, 5, 4],
+  MBBR:    [8, 7, 6, 5],
+  PACK:    [8, 7, 6, 5],
+}
+
+/** Returns 0-based range index for BOD (mg/L) */
+export function getBODIndex(bod: number): number {
+  if (bod < 150)  return 0
+  if (bod <= 300) return 1
+  if (bod <= 500) return 2
+  return 3
+}
+
+/** Returns 0-based range index for COD (mg/L) */
+export function getCODIndex(cod: number): number {
+  if (cod < 300)  return 0
+  if (cod <= 600) return 1
+  if (cod <= 1000) return 2
+  return 3
+}
+
+/** Returns 0-based range index for Coliform (MPN/100mL) */
+export function getColiformIndex(col: number): number {
+  if (col < 1000)      return 0
+  if (col <= 10000)    return 1
+  if (col <= 1000000)  return 2
+  return 3
+}
 
 // ─── Wizard Steps ─────────────────────────────────────────────────────────────
 

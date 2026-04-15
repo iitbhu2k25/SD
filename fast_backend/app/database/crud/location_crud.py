@@ -124,7 +124,7 @@ class Stp_drain_new_crud(CrudBase):
     
     def get_sum_elevation(self,drain_id:list,all_data:bool=True):
         query = self.db.query(func.sum(self.Model.Elevation)).filter(
-        self.Model.id.in_(drain_id))
+        self.Model.Drain_No.in_(drain_id))
         total_elevation = query.scalar() 
         return total_elevation
     

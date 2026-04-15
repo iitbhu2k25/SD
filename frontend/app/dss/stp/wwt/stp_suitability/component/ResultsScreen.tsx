@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ChevronLeft, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, RefreshCw, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -13,15 +14,22 @@ import { Progress } from '@/components/ui/progress'
 import { useSTPStore } from '@/store/useSTPStore'
 import { scoreCentralized, scoreDecentralized } from './Scoring'
 import { ScoreChart } from './ScoreChart'
-import type { CentralizedResult, DecentralizedResult } from '@/interface/stp_suitability/stp'
+import type { DecentralizedResult } from '@/interface/stp_suitability/stp'
+import { useSTPArea } from '@/contexts/stp/stp_suitability/STPAreaContext'
 
 export function ResultsScreen() {
-  const { systemType, Q, Ce, AL, cTech, dTech, setScreen, resetAll } = useSTPStore()
+  const {
+    systemType, Q, Ce, AL,
+    BOD, COD, Coliform,
+    cTech, dTech,
+    selectedCTechs, selectedDTechs,
+    setScreen, resetAll,
+  } = useSTPStore()
   const isC = systemType === 'centralized'
 
   const ranked = isC
-    ? scoreCentralized(Q, cTech)
-    : scoreDecentralized(Q, dTech)
+    ? scoreCentralized(Q, cTech, BOD, COD, Coliform, selectedCTechs)
+    : scoreDecentralized(Q, dTech, BOD, COD, Coliform, selectedDTechs)
 
   const best = ranked[0]
   const bestTech = isC ? cTech[best.key as keyof typeof cTech] : dTech[best.key as keyof typeof dTech]
@@ -31,6 +39,21 @@ export function ResultsScreen() {
   const capCr    = (Q * bestTech.cap).toFixed(1)
   const omAnnual = (Q * 1000 * bestTech.om * 365 / 1e7).toFixed(2)
   const landFeasible = parseFloat(landHA) <= AL
+
+  // User-selected technology (defaults to top recommendation)
+  const [selectedTechKey, setSelectedTechKey] = useState<string>(best.key)
+  const selectedTech = isC
+    ? cTech[selectedTechKey as keyof typeof cTech]
+    : dTech[selectedTechKey as keyof typeof dTech]
+
+  // Area analysis — only available when a raster layer has been generated
+  const { findSTPArea, stpAreaLoading, rasterLayerInfo } = useSTPArea()
+  const canAnalyzeArea = rasterLayerInfo !== null
+
+  const handleFindArea = () => {
+    if (!selectedTech) return
+    findSTPArea(selectedTech.land, Q)
+  }
 
   return (
     <motion.div
@@ -47,6 +70,20 @@ export function ResultsScreen() {
           <p className="mt-1 text-sm text-emerald-100">
             {isC ? 'Centralised STP' : 'Decentralised System'} — Score: {best.total.toFixed(1)} / 100
           </p>
+        </div>
+        {/* User selected technology display */}
+        <div className="border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Your Selected Technology
+          </p>
+          <p className="text-base font-semibold text-slate-800">{selectedTech?.name ?? '—'}</p>
+          {selectedTech && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Land: <span className="font-medium">{selectedTech.land} ha/MLD</span>
+              {' · '}Total: <span className="font-medium">{(Q * selectedTech.land).toFixed(2)} ha</span>
+            </p>
+          )}
+          <p className="mt-1 text-xs text-slate-400">Click any row in Technology Ranking to change selection</p>
         </div>
         <CardContent className="pt-5 space-y-4">
           {/* Metric cards */}
@@ -67,7 +104,7 @@ export function ResultsScreen() {
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="outline">Q = {Q} MLD</Badge>
             <Badge variant="outline">Tariff = ₹{Ce}/kWh</Badge>
-            <Badge variant="outline">Available land = {AL} ha</Badge>
+    
             {landFeasible ? (
               <Badge className="gap-1 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50">
                 <CheckCircle2 className="h-3 w-3" /> Land feasible
@@ -102,29 +139,56 @@ export function ResultsScreen() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ranked.map((r, i) => (
-                    <TableRow key={r.key} className={i === 0 ? 'bg-emerald-50/60' : ''}>
-                      <TableCell>
-                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                          i === 0 ? 'bg-amber-400 text-amber-900' : 'bg-muted text-muted-foreground'
-                        }`}>
-                          {i + 1}
-                        </span>
-                      </TableCell>
-                      <TableCell className={i === 0 ? 'font-medium' : ''}>{r.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress
-                            value={(r.total / maxScore) * 100}
-                            className="h-1.5 w-24"
-                          />
-                          <span className="text-sm font-medium tabular-nums">{r.total.toFixed(1)}</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {ranked.map((r, i) => {
+                    const isSelected = r.key === selectedTechKey
+                    return (
+                      <TableRow
+                        key={r.key}
+                        onClick={() => setSelectedTechKey(r.key)}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-blue-200 ring-1 ring-inset ring-blue-400 hover:bg-blue-200'
+                            : i === 0
+                            ? 'bg-emerald-50/60 hover:bg-emerald-50'
+                            : 'hover:bg-muted/40'
+                        }`}
+                      >
+                        <TableCell>
+                          <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                            i === 0 ? 'bg-amber-400 text-amber-900' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {i + 1}
+                          </span>
+                        </TableCell>
+                        <TableCell className={i === 0 ? 'font-medium' : ''}>{r.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress
+                              value={(r.total / maxScore) * 100}
+                              className="h-1.5 w-24"
+                            />
+                            <span className="text-sm font-medium tabular-nums">{r.total.toFixed(1)}</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
+              {canAnalyzeArea && (
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    onClick={handleFindArea}
+                    disabled={stpAreaLoading}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                  >
+                    {stpAreaLoading
+                      ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Analyzing…</>
+                      : 'Find Area Analysis'
+                    }
+                  </Button>
+                </div>
+              )}
             </TabsContent>
 
             {/* Chart tab */}

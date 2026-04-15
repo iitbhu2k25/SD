@@ -93,14 +93,14 @@ async def get_stretch(db:db_dependency,payload:STPDrainInput,user: Annotated[boo
 @router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
 async def get_stretch(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
-    ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
-    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
+    return STPPriorityMapper().cachement_villages(payload.drain_nos)
+
 
 @router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
 async def get_stretch(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
-    ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
-    return STPCatchmentOutput(data=ans[0],layer_name=ans[1])
+    return  STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
+
 
 @router.get("/get_raster_visual",status_code=status.HTTP_201_CREATED)
 @validate

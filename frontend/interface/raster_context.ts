@@ -27,6 +27,10 @@ export interface ClipRasters{
   workspace?:string;
 }
 
+export interface suitability_visual{
+  raster_layer:ClipRasters[]
+  vector_layer:string
+}
 export interface stp_priority_Output{
   workspace:string,                  
   layer_name:string,
@@ -43,12 +47,12 @@ export interface gwpl_Output{
 export interface stp_sutability_Output{
   workspace:string,                  
   layer_name:string,
-  vector_name:string
-  clip_villages:number[],
   csv_details:DataRow[]
 }
 
-
+export interface  Stp_suit_catchment{
+  layer_name:string
+}
 export interface State {
   id: string | number;
   name: string;
@@ -87,7 +91,9 @@ export interface Drain {
   id: number;
   Drain_No: number;
   stretch_id: number;
-  name?: string; // Optional name field
+  name?: string; 
+  latitude: number;
+  longitude: number;
 }
 
 export interface Catchment {
@@ -102,6 +108,8 @@ export interface Towns {
   name: string;
   population: number;
   subdistrict_code: string | number;
+  latitude: number;
+  longitude: number;
 }
 
 export interface RiverSelectionsData {
@@ -110,6 +118,12 @@ export interface RiverSelectionsData {
   drains: Drain[];
   catchments: Catchment[];
   totalArea: number;
+}
+export interface SuitRiverSelectionsData {
+  rivers: River[];
+  stretches: Stretch[];
+  drains: Drain[];
+
 }
 export interface Layer_name{
   layer_name:string
@@ -168,5 +182,3 @@ export interface MarSuitabilityResponse {
   layers: MarLayerInfo[];
   validation: MarValidationItem[];
 }
-
-

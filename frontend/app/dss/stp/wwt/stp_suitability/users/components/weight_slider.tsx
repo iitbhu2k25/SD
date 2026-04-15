@@ -1,6 +1,6 @@
 'use client'
 import React from 'react';
-import { useCategory } from '@/contexts/stp_suitability/admin/CategoryContext';
+import { useCategory } from '@/contexts/stp/stp_suitability/admin/CategoryContext';
 
 interface CategorySliderProps {
   activeTab: 'condition' | 'constraint';

@@ -25,9 +25,9 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/mar_suitability/admin/MapContext";
-import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
-import { useLocation } from "@/contexts/mar_suitability/admin/LocationContext";
+import { useMap } from "@/contexts/gwm/mar_suitability/admin/MapContext";
+import { useCategory } from "@/contexts/gwm/mar_suitability/admin/CategoryContext";
+import { useLocation } from "@/contexts/gwm/mar_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { api } from "@/services/api";
@@ -557,6 +557,10 @@ const Mapping: React.FC = () => {
         })
         if (response.status > 201) {
           toast.error("No subsurface data found", { position: "top-center" });
+          setBoreholeData(null);
+          setPinCoordinate(null);
+          setBoreholePosition(null);
+          return;
         }
 
         const data = await response.message as MarSuitabilityResponse

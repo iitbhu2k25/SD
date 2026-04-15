@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect } from "react";
-import { useCategory } from "@/contexts/stp_priority/admin/CategoryContext";
+import { useCategory } from "@/contexts/stp/stp_priority/admin/CategoryContext";
 
 interface CategorySliderProps {
   editable?: boolean;

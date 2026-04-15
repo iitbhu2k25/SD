@@ -20,9 +20,9 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/stp_suitability/users/DrainMapContext";
-import { useCategory } from "@/contexts/stp_suitability/admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/stp_suitability/users/DrainContext";
+import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
+import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
+import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { createWFSVectorSource } from "@/components/utils/geoserver_url";
@@ -655,7 +655,7 @@ const Maping: React.FC = () => {
         {/* Catchment Button */}
         {selectedDrains.length > 0 && !AnalysisCachement && (
           <button onClick={handleClick} className="absolute left-4 bottom-20 flex items-center justify-center gap-2 text-gray-800 text-sm font-medium rounded-full bg-gray-100 px-3 py-2 w-52 z-50">
-            Analysis Catchment
+            Analysis buffer Catchment
           </button>
         )}
 

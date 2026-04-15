@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { useCategory } from '@/contexts/stp_suitability/admin/CategoryContext';
+import { useCategory } from '@/contexts/stp/stp_suitability/admin/CategoryContext';
 import { AiOutlineInfoCircle } from 'react-icons/ai';
 const CategorySelector: React.FC = () => {
   // State to track which category type is currently active
