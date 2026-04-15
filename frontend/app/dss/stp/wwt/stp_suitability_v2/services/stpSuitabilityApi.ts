@@ -34,6 +34,8 @@ interface RawDrain {
   Drain_No: number;
   stretch_id: number;
   name?: string;
+  latitude: number;
+  longitude: number;
 }
 
 interface SuitabilityCatchmentResponse {
@@ -132,6 +134,8 @@ export async function fetchUserSuitabilityReferenceData(): Promise<UserSuitabili
           Drain_No: drain.Drain_No,
           stretch_id: drain.stretch_id,
           name: drain.name,
+          latitude: drain.latitude,
+          longitude: drain.longitude,
         })),
         (drain) => drain.id,
       ),
