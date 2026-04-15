@@ -11,6 +11,9 @@ import type {
 } from '@/interface/stp_suitability/stp'
 import { CENTRALIZED_TECH, DECENTRALIZED_TECH } from '@/interface/stp_suitability/data'
 
+const DEFAULT_C_TECHS = Object.keys(CENTRALIZED_TECH)
+const DEFAULT_D_TECHS = Object.keys(DECENTRALIZED_TECH)
+
 interface STPStore extends ProjectParams {
   // Navigation
   screen: Screen
@@ -36,11 +39,17 @@ interface STPStore extends ProjectParams {
   updateDTech: (key: string, field: string, value: number) => void
   resetTech: () => void
 
+  // Technology selection (keys selected by user for comparison)
+  selectedCTechs: string[]
+  selectedDTechs: string[]
+  setSelectedCTechs: (keys: string[]) => void
+  setSelectedDTechs: (keys: string[]) => void
+
   // Full reset
   resetAll: () => void
 }
 
-const DEFAULT_PARAMS: ProjectParams = { Q: 5, Ce: 8, AL: 2 }
+const DEFAULT_PARAMS: ProjectParams = { Q: 5, Ce: 8, AL: 2, BOD: 200, COD: 400, Coliform: 500 }
 
 export const useSTPStore = create<STPStore>((set) => ({
   screen: 'wizard',
@@ -82,6 +91,11 @@ export const useSTPStore = create<STPStore>((set) => ({
       dTech: structuredClone(DECENTRALIZED_TECH),
     }),
 
+  selectedCTechs: [...DEFAULT_C_TECHS],
+  selectedDTechs: [...DEFAULT_D_TECHS],
+  setSelectedCTechs: (keys) => set({ selectedCTechs: keys }),
+  setSelectedDTechs: (keys) => set({ selectedDTechs: keys }),
+
   resetAll: () =>
     set({
       screen: 'wizard',
@@ -90,5 +104,7 @@ export const useSTPStore = create<STPStore>((set) => ({
       ...DEFAULT_PARAMS,
       cTech: structuredClone(CENTRALIZED_TECH),
       dTech: structuredClone(DECENTRALIZED_TECH),
+      selectedCTechs: [...DEFAULT_C_TECHS],
+      selectedDTechs: [...DEFAULT_D_TECHS],
     }),
 }))

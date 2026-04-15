@@ -17,7 +17,7 @@ import {
 
 import "@/styles/terraops-theme.css";
 import { api } from "@/services/api";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import { downloadRaster } from "@/utils/rasterUtils";
 
 type RightTab = "details" | "symbology";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import toast from "react-hot-toast";
+import {toast} from "react-toastify";;
 
 export function useWebSocket(url: string, options?: { reconnect?: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);

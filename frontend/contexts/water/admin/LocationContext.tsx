@@ -14,8 +14,8 @@ const showToast = (message: string, type: "error" | "success" = "error") => {
   // import { toast } from "sonner";
   // toast[type](message);
 
-  // Option 2: If using react-hot-toast, uncomment:
-  // import toast from 'react-hot-toast';
+  // Option 2: If using import { toast } from "react-toastify";, uncomment:
+  // import toast from 'import { toast } from "react-toastify";';
   // toast[type](message);
 
   // Option 3: Fallback to console

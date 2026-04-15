@@ -43,12 +43,12 @@ class rasterOperCrud(CrudBase):
         super().__init__(db,Model)
         self.obj=None
     
-    def start_task(self,task_id:str,file_id:str):
+    def start_task(self,task_id:str,file_id:str,task_name:str="lol"):
         return self.create({
             "task_id":task_id,
             "file_id":file_id,
             "task_status":"started",
-            "task_name":"lol"
+            "task_name":task_name
             })
 
 

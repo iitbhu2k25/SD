@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { OperationDef } from "./registry";
 import { api, ApiError } from "@/services/api";
 import {
@@ -6,7 +6,8 @@ import {
   TaskResult,
   TaskState,
 } from "@/interface/raster_operations";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
+import { useWebSocket } from "@/services/websocket";
 
 
 export const INITIAL_TASK_STATE: TaskState = {
@@ -131,22 +132,24 @@ export function useOperationTask(
   srcNodata: string = "0",
   setTaskState: React.Dispatch<React.SetStateAction<TaskState>>,
 ) {
-  const wsRef = useRef<WebSocket | null>(null);
+  const [wsUrl, setWsUrl] = useState("");
+  const taskIdRef = useRef<string | null>(null);
 
-  const addLog = (message: string) =>
-    setTaskState((prev) => ({
-      ...prev,
-      logs: [...prev.logs, { timestamp: nowISO(), message }],
-    }));
+  const { lastMessage, isConnected, disconnect } = useWebSocket(wsUrl);
 
-  /** Tear down any existing WebSocket cleanly */
-  const closeWs = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.onclose = null;
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, []);
+  const addLog = useCallback(
+    (message: string) =>
+      setTaskState((prev) => ({
+        ...prev,
+        logs: [...prev.logs, { timestamp: nowISO(), message }],
+      })),
+    [setTaskState],
+  );
+
+  /** Log when the central WebSocket connects */
+  useEffect(() => {
+    if (isConnected) addLog("Connected to task stream");
+  }, [isConnected, addLog]);
 
   /** Step 3: fetch the final result after task completes */
   const fetchResult = useCallback(
@@ -169,78 +172,63 @@ export function useOperationTask(
         addLog("Output ready");
       } catch (err: unknown) {
         const msg =
-          err instanceof ApiError
-            ? err.message 
-            : "Unknown error";
+          err instanceof ApiError ? err.message : "Unknown error";
         toast.error(msg);
         setTaskState((prev) => ({ ...prev, status: "failed", error: msg }));
         addLog(`Failed to fetch result: ${msg}`);
       }
     },
-    [setTaskState],
+    [setTaskState, addLog],
   );
 
-  /** Step 2: open WebSocket and listen for task events */
-  const openWebSocket = useCallback(
-    (taskId: string) => {
-      closeWs();
-      const ws = new WebSocket(`${WS_BASE}/tools/ws/operation/${taskId}`);
-      wsRef.current = ws;
+  /** Step 2: process messages from the central WebSocket */
+  useEffect(() => {
+    if (!lastMessage) return;
 
-      ws.onopen = () => addLog("Connected to task stream");
+    try {
+      const msg = JSON.parse(lastMessage) as {
+        status?: string;
+        progress?: number;
+        message?: string;
+        error?: string;
+      };
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data as string) as {
-            status?: string;
-            progress?: number;
-            message?: string;
-            error?: string;
-          };
+      if (msg.message) addLog(msg.message);
 
-          if (msg.message) addLog(msg.message);
+      if (msg.progress !== undefined) {
+        setTaskState((prev) => ({ ...prev, progress: msg.progress! }));
+      }
 
-          if (msg.progress !== undefined) {
-            setTaskState((prev) => ({ ...prev, progress: msg.progress! }));
-          }
+      if (msg.status) {
+        const status = msg.status.toLowerCase() as TaskStatus;
+        setTaskState((prev) => ({ ...prev, status }));
 
-          if (msg.status) {
-            const status = msg.status.toLowerCase() as TaskStatus;
-            setTaskState((prev) => ({ ...prev, status }));
-
-            if (status === "completed") {
-              closeWs();
-              fetchResult(taskId);
-            } else if (status === "failed") {
-              closeWs();
-              setTaskState((prev) => ({
-                ...prev,
-                status: "failed",
-                error: msg.error ?? "Task failed on the server",
-              }));
-            }
-          }
-        } catch {
-          // ignore malformed messages
+        if (status === "completed") {
+          disconnect();
+          setWsUrl("");
+          if (taskIdRef.current) fetchResult(taskIdRef.current);
+        } else if (status === "failed") {
+          disconnect();
+          setWsUrl("");
+          setTaskState((prev) => ({
+            ...prev,
+            status: "failed",
+            error: msg.error ?? "Task failed on the server",
+          }));
         }
-      };
-
-      ws.onerror = () => {
-        addLog("WebSocket error — retrying via polling…");
-        closeWs();
-      };
-
-      ws.onclose = (e) => {
-        if (!e.wasClean) addLog("WebSocket closed unexpectedly");
-      };
-    },
-    [closeWs, fetchResult, setTaskState],
-  );
+      }
+    } catch {
+      // ignore malformed messages
+    }
+  }, [lastMessage, addLog, disconnect, fetchResult, setTaskState]);
 
   /** Step 1: submit operation to the API */
   const execute = useCallback(
     async (op: OperationDef, params: Record<string, unknown>) => {
-      closeWs();
+      disconnect();
+      setWsUrl("");
+      taskIdRef.current = null;
+
       setTaskState({
         taskId: null,
         status: "submitting",
@@ -302,6 +290,8 @@ export function useOperationTask(
         const res = await api.post(`${endpoint}`, { body: payload });
         const task_id = (await res.message) as string;
 
+        taskIdRef.current = task_id;
+
         setTaskState((prev) => ({
           ...prev,
           taskId: task_id,
@@ -312,12 +302,11 @@ export function useOperationTask(
           ],
         }));
 
-        openWebSocket(task_id);
+        // Open the central WebSocket by setting the URL
+        setWsUrl(`${WS_BASE}/tools/ws/operation/${task_id}`);
       } catch (err: unknown) {
         const msg =
-          err instanceof ApiError
-            ? err.message 
-            : "Unknown error";
+          err instanceof ApiError ? err.message : "Unknown error";
 
         toast.error(msg);
 
@@ -332,14 +321,16 @@ export function useOperationTask(
         }));
       }
     },
-    [fileId, srcNodata, closeWs, openWebSocket, setTaskState],
+    [fileId, srcNodata, disconnect, addLog, setTaskState],
   );
 
   /** Allow re-running from the task panel */
   const reset = useCallback(() => {
-    closeWs();
+    disconnect();
+    setWsUrl("");
+    taskIdRef.current = null;
     setTaskState(INITIAL_TASK_STATE);
-  }, [closeWs, setTaskState]);
+  }, [disconnect, setTaskState]);
 
   return { execute, reset };
 }

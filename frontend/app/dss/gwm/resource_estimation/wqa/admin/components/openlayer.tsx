@@ -29,7 +29,7 @@ import { useLocation } from "@/contexts/gwm/water_quality_assesment/admin/Locati
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { useYear } from "@/contexts/gwm/water_quality_assesment/admin/yearContext";
 import { WQIInterface } from "@/interface/table";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 // ── LegendEntry ───────────────────────────────────────────────────────────────
 interface LegendEntry {

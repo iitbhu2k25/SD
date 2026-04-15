@@ -1,7 +1,7 @@
 import axios, { AxiosProgressEvent, AxiosRequestConfig, AxiosResponse, ResponseType } from "axios";
 import { useAuthStore } from "@/store/authStore";
 import { performLogout } from "@/utils/logout";
-import toast from "react-hot-toast";
+import {toast} from "react-toastify";
 
 let isRefreshing = false;
 let refreshPromise: Promise<string> | null = null;
@@ -22,14 +22,28 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL;
 
 function extractMessage(data: any): string {
-  
   if (!data) return "Something went wrong";
   if (typeof data === "string") return data;
-  
-  if ((data?.detail)) {
-    return data.detail
+
+  const detail = data?.detail;
+
+  if (!detail) return data?.message ?? data?.error ?? "Something went wrong";
+
+  // FastAPI 422: detail is an array of validation error objects
+  if (Array.isArray(detail)) {
+    return detail
+      .map((err: any) => {
+        const loc = Array.isArray(err.loc)
+          ? err.loc.filter((l: any) => l !== "body").join(" → ")
+          : "";
+        const msg = err.msg ?? "Invalid value";
+        return loc ? `${loc}: ${msg}` : msg;
+      })
+      .join("; ");
   }
-  if (typeof data?.detail === "string") return data.detail;
+
+  // Plain string detail
+  if (typeof detail === "string") return detail;
 
   return data?.message ?? data?.error ?? "Something went wrong";
 }

@@ -368,7 +368,7 @@ class RasterOperation:
         
         await self._prepare_shapefile_for_upload(file_path,file_id)
         await self.get_redis.setex(f"storage:{file_id}", 10800, str(file_path))
-        await Geoserver().upload_vector(self.vector_workspace,"user_upload_vector",file_path,file_id)
+        await Geoserver().upload_vector(self.vector_workspace,file_path,file_id)
         useroperSchemaObj=useroperSchema(
             file_id=file_id,
             layer_name=file_id,

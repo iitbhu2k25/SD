@@ -3,7 +3,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useLocation } from '@/contexts/stp/stp_suitability/admin/LocationContext';
 import { useCategory } from '@/contexts/stp/stp_suitability/admin/CategoryContext';
 import { api } from '@/services/api';
-import {stp_sutability_Output,ADMIN_TOWN_LAYER_NAMES, ClipRasters} from "@/interface/raster_context"
+import { stp_sutability_Output, ADMIN_TOWN_LAYER_NAMES, ClipRasters } from "@/interface/raster_context"
+import { useSTPArea } from '@/contexts/stp/stp_suitability/STPAreaContext';
 
 interface MapContextType {
   primaryLayer: string;
@@ -26,23 +27,20 @@ interface MapContextType {
   loading: boolean;
   setLoading: (loading: boolean) => void;
   selectedradioLayer: string | null;
-  setSelectedradioLayer: (layer: string | null) => void; 
+  setSelectedradioLayer: (layer: string | null) => void;
   handleLayerSelection: (layer: string) => void;
   rasterLayerInfo: ClipRasters | null;
   setRasterLayerInfo: (layer: null) => void;
-  showResultLayer: boolean
-  setShowResultLayer: (layer: boolean) => void 
-
+  showResultLayer: boolean;
+  setShowResultLayer: (layer: boolean) => void;
 }
 
-// Props for the MapProvider component
 interface MapProviderProps {
   children: ReactNode;
   geoServerUrl?: string;
   defaultWorkspace?: string;
 }
 
-// Create the map context with default values
 const MapContext = createContext<MapContextType>({
   primaryLayer: ADMIN_TOWN_LAYER_NAMES.STATE,
   secondaryLayer: null,
@@ -69,16 +67,14 @@ const MapContext = createContext<MapContextType>({
   rasterLayerInfo: null,
   setRasterLayerInfo: () => { },
   showResultLayer: true,
-  setShowResultLayer: () => { }
+  setShowResultLayer: () => { },
 });
 
-// Create the provider component
 export const MapProvider: React.FC<MapProviderProps> = ({
   children,
   geoServerUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   defaultWorkspace = "vector_work"
 }) => {
-  // State for layer m
   const [primaryLayer, setPrimaryLayer] = useState<string>(ADMIN_TOWN_LAYER_NAMES.STATE);
   const [secondaryLayer, setSecondaryLayer] = useState<string | null>(null);
   const [LayerFilter, setLayerFilter] = useState<string | null>(null);
@@ -87,81 +83,80 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [stpOperation, setstpOperation] = useState<boolean>(false);
   const [rasterLayerInfo, setRasterLayerInfo] = useState<ClipRasters | null>(null);
   const [selectedradioLayer, setSelectedradioLayer] = useState("");
-    const [showResultLayer, setShowResultLayer] = useState(true);
-    
+  const [showResultLayer, setShowResultLayer] = useState(true);
+
+  const { setSTPAreaParams } = useSTPArea();
+
   const {
     selectedState,
     selectedDistricts,
     selectedSubDistricts,
     selectedTowns,
+    towns,
     setSelectedVillages,
     setDisplayRaster,
     displayRaster,
     resultLayer,
     setResultLayer,
   } = useLocation();
-  const { selectedCategory, setShowTable, setTableData} =
-    useCategory();
+  const { selectedCategory, setShowTable, setTableData } = useCategory();
+
+  // Keep STPAreaContext in sync with current raster layer and town locations
+  useEffect(() => {
+    const selectedTownObjects = towns.filter(t => selectedTowns.includes(Number(t.id)));
+    const location: [number, number][] = selectedTownObjects.map(t => [t.latitude, t.longitude]);
+    setSTPAreaParams(rasterLayerInfo, location);
+  }, [rasterLayerInfo, selectedTowns, towns]);
 
   const resetMapView = (): void => {
     setRasterLayerInfo(null);
     setShowTable(false);
     setTableData([]);
-    setResultLayer(null)
-    setSelectedVillages([]); 
-    resultLayer
+    setResultLayer(null);
+    setSelectedVillages([]);
   };
+
   const handleLayerSelection = (layerName: string) => {
     setSelectedradioLayer(layerName);
-  
   };
-  // Function to zoom to a specific feature
+
   const zoomToFeature = (featureId: string, layerName: string): void => {
     console.log(`Zoom to feature ${featureId} in layer ${layerName} requested`);
   };
 
-  // Synchronize layers based on location selections
   const syncLayersWithLocation = (): void => {
     setIsMapLoading(true);
 
-    // Default to showing states
     let primary: string = ADMIN_TOWN_LAYER_NAMES.INDIA;
     let secondary: string | null = null;
     let filters_type: string | null = null;
     let filters_value: number[] = [];
+
     if (selectedTowns.length) {
       secondary = ADMIN_TOWN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = '"ID"';
       filters_value = selectedTowns;
-    }
-    // Logic for determining which layers to show based on selection state
-    else if (selectedSubDistricts.length) {
+    } else if (selectedSubDistricts.length) {
       secondary = ADMIN_TOWN_LAYER_NAMES.SUB_DISTRICT;
       filters_type = 'subdis_cod';
       filters_value = selectedSubDistricts;
-    }
-    else if (selectedDistricts.length) {
+    } else if (selectedDistricts.length) {
       secondary = ADMIN_TOWN_LAYER_NAMES.DISTRICT;
       filters_type = 'district_c';
       filters_value = selectedDistricts;
-    }
-    else if (selectedState) {
+    } else if (selectedState) {
       secondary = ADMIN_TOWN_LAYER_NAMES.STATE;
       filters_type = 'State_Code';
       filters_value = [selectedState];
     }
 
-
-    // Update state with new layer configuration
     setPrimaryLayer(primary);
     setSecondaryLayer(secondary);
     setLayerFilter(filters_type);
-    setLayerFilterValue(filters_value)
+    setLayerFilterValue(filters_value);
     setIsMapLoading(false);
   };
 
-
-  // Listen for changes in location selection and update layers accordingly
   useEffect(() => {
     syncLayersWithLocation();
   }, [
@@ -177,10 +172,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     const performSTP = async () => {
       try {
         const resp = await api.post("/stp_operation/stp_suitability", {
-          body: { 
-            data: selectedCategory, 
+          body: {
+            data: selectedCategory,
             clip: selectedTowns,
-            village_layer:resultLayer},
+            village_layer: resultLayer
+          },
         });
 
         if (resp.status != 201) {
@@ -200,7 +196,6 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           );
           let newData;
           if (index !== -1) {
-          
             newData = [...displayRaster];
             newData[index] = append_data;
           } else {
@@ -221,45 +216,42 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     performSTP();
   }, [rasterLayerInfo, stpOperation]);
 
+  const contextValue: MapContextType = {
+    primaryLayer,
+    setLayerFilter,
+    secondaryLayer,
+    LayerFilter,
+    LayerFilterValue,
+    stpOperation,
+    setstpOperation,
+    setPrimaryLayer,
+    setSecondaryLayer,
+    syncLayersWithLocation,
+    isMapLoading,
+    zoomToFeature,
+    setIsMapLoading,
+    resetMapView,
+    geoServerUrl,
+    defaultWorkspace,
+    ADMIN_TOWN_LAYER_NAMES,
+    loading: false,
+    setLoading: () => { },
+    selectedradioLayer,
+    setSelectedradioLayer: () => {},
+    handleLayerSelection,
+    rasterLayerInfo,
+    setRasterLayerInfo,
+    showResultLayer,
+    setShowResultLayer,
+  };
 
-// Context value
-const contextValue: MapContextType = {
-  primaryLayer,
-  setLayerFilter,
-  secondaryLayer,
-  LayerFilter,
-  LayerFilterValue,
-  stpOperation,
-  setstpOperation,
-  setPrimaryLayer,
-  setSecondaryLayer,
-  syncLayersWithLocation,
-  isMapLoading,
-  zoomToFeature,
-  setIsMapLoading,
-  resetMapView,
-  geoServerUrl,
-  defaultWorkspace,
-  ADMIN_TOWN_LAYER_NAMES,
-  loading: false,
-  setLoading: () => { },
-  selectedradioLayer,
-  setSelectedradioLayer: () => {},
-  handleLayerSelection,
-  rasterLayerInfo,
-  setRasterLayerInfo,
-  showResultLayer,
-  setShowResultLayer
+  return (
+    <MapContext.Provider value={contextValue}>
+      {children}
+    </MapContext.Provider>
+  );
 };
 
-return (
-  <MapContext.Provider value={contextValue}>
-    {children}
-  </MapContext.Provider>
-);
-};
-
-// Custom hook to use the map context
 export const useMap = (): MapContextType => {
   const context = useContext(MapContext);
   if (context === undefined) {

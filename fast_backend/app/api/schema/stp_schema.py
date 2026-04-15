@@ -1,5 +1,5 @@
 from pydantic import BaseModel,Field
-from typing import Annotated,List,Optional,Text
+from typing import Annotated,List,Optional,Text, Tuple
 
 
 class Stp_response(BaseModel):
@@ -13,6 +13,8 @@ class Stp_response(BaseModel):
 class Stp_town_respons(Stp_response):
     population:int
     subdistrict_code:int
+    latitude:float
+    longitude:float
 
 
 class District_request(BaseModel):
@@ -53,10 +55,11 @@ class STPClassification(BaseModel):
         from_attributes = True
 
 class STP_suitability_Area(BaseModel):
-    TREATMENT_TECHNOLOGY:int
-    MLD_CAPACITY:float
-    CUSTOM_LAND_PER_MLD: float = Field(2.0, le=2) 
+    treatment_technology:float
+    mld_capacity:float
+    custom_land_per_mld: float = Field(2.0, le=2) 
     layer_name:str
+    location:List[Tuple[float, float]]
     
 class Raster_operation_input(BaseModel):
     id :int
@@ -140,6 +143,7 @@ class MARsuitabilityOutput(STPsuitabilityOutput):
 class category_raster(BaseModel):
     clip:List[int]=None
     place:str=None
+    layer_name:str=None
 
 class STPRiverOutput(BaseModel):
     River_Name: str
@@ -168,8 +172,8 @@ class cachement_village(BaseModel):
     area:float
 
 class STPCatchmentOutput(BaseModel):
-    catchments:list[cachement_village]=None
     layer_name:str
+    catchments:list=None
 
 
 
@@ -282,3 +286,8 @@ class RasterVisual(BaseModel):
     moduleName:str
     rasterName:str
     fileName:Optional[str]=None
+
+class stp_area_resp(BaseModel):
+    cluster_layer:str|None=None
+    suitable_path:str|None=None
+

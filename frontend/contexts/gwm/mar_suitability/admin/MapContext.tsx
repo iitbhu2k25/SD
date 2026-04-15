@@ -1,9 +1,9 @@
 'use client'
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from '@/contexts/mar_suitability/admin/LocationContext';
-import { useCategory } from '@/contexts/mar_suitability/admin/CategoryContext';
+import { useLocation } from '@/contexts/gwm/mar_suitability/admin/LocationContext';
+import { useCategory } from '@/contexts/gwm/mar_suitability/admin/CategoryContext';
 import { ADMIN_LAYER_NAMES, stp_priority_Output, ClipRasters, MarValidationItem } from '@/interface/raster_context';
-import { api } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 
 interface MapContextType {
   primaryLayer: string;
@@ -187,9 +187,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           },
         });
 
-        if (resp.status > 201) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
+       
         const result = await resp.message as stp_priority_Output;
         if (result) {
           const append_data = {
@@ -221,8 +219,11 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           setRasterLoading(false);
         }
       } catch (error: any) {
-        console.log("Error performing STP operation:", error);
-        setError(`Error communicating with STP service: ${error.message}`);
+        if (error instanceof ApiError) {
+          setError(`Error communicating with STP service: ${error.message}`);
+        } else {
+          setError("An unknown error occurred");
+        }
         setRasterLoading(false);
         setShowTable(false);
       } finally {

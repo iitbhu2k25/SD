@@ -10,6 +10,7 @@ import React, {
 import { api } from "@/services/api";
 import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
 import { useCategory } from "../admin/CategoryContext";
+import { useSTPArea } from "@/contexts/stp/stp_suitability/STPAreaContext";
 import { stp_sutability_Output, DRAIN_LAYER_NAMES, ClipRasters } from "@/interface/raster_context";
 
 // Updated interface with separate filters for each layer
@@ -158,18 +159,36 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   const [shouldLoadAllLayers, setShouldLoadAllLayers] = useState<boolean>(true);
   const [hasSelections, setHasSelections] = useState<boolean>(false);
   const { selectedCategory } = useCategory();
+  const { setSTPAreaParams } = useSTPArea();
   // Get river system context data
   const {
     selectedRiver,
     selectedStretches,
     selectedDrains,
     selectedCatchments,
+    drains,
     setTableData,
     displayRaster,
     setDisplayRaster,
-     setShowTable
-
+    setShowTable,
+    catchmentLayerName,
   } = useRiverSystem();
+
+  // When the API returns the catchment layer name after analysis, load it on the map
+  useEffect(() => {
+    if (catchmentLayerName) {
+      setCatchmentLayer(catchmentLayerName);
+    }
+  }, [catchmentLayerName]);
+
+  // Keep STPAreaContext in sync with current raster layer and selected drain locations
+  useEffect(() => {
+    const selectedDrainObjects = drains.filter(d => selectedDrains.includes(d.id));
+    const location: [number, number][] = selectedDrainObjects
+      .filter(d => d.latitude != null && d.longitude != null)
+      .map(d => [d.latitude, d.longitude]);
+    setSTPAreaParams(rasterLayerInfo, location);
+  }, [rasterLayerInfo, selectedDrains, drains]);
 
   // Function to reset map view (zoom to default)
   const resetMapView = (): void => {
@@ -305,8 +324,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     const performSTP = async () => {
       try {
         const resp = await api.post("/stp_operation/stp_suitability", {
-
-          body: { data: selectedCategory, clip: selectedCatchments, place: "Drain", drain_clip: selectedDrains },
+          body: { data: selectedCategory, village_layer: catchmentLayer, place: "Drain", drain_clip: selectedDrains },
         });
 
         if (resp.status > 201) throw new Error(`STP operation failed: ${resp.status}`);

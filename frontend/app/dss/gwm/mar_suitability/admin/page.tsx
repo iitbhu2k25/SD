@@ -1,17 +1,17 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LocationProvider } from "@/contexts/mar_suitability/admin/LocationContext";
-import { CategoryProvider } from "@/contexts/mar_suitability/admin/CategoryContext";
-import { MapProvider } from "@/contexts/mar_suitability/admin/MapContext";
+import { LocationProvider } from "@/contexts/gwm/mar_suitability/admin/LocationContext";
+import { CategoryProvider } from "@/contexts/gwm/mar_suitability/admin/CategoryContext";
+import { MapProvider } from "@/contexts/gwm/mar_suitability/admin/MapContext";
 import LocationSelector from "@/app/dss/gwm/mar_suitability/admin/components/locations";
 import CategorySelector from "@/app/dss/gwm/mar_suitability/admin/components/Category";
-import { useLocation } from "@/contexts/mar_suitability/admin/LocationContext";
-import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
+import { useLocation } from "@/contexts/gwm/mar_suitability/admin/LocationContext";
+import { useCategory } from "@/contexts/gwm/mar_suitability/admin/CategoryContext";
 import MapView from "@/app/dss/gwm/mar_suitability/admin/components/openlayer";
-import { useMap } from "@/contexts/mar_suitability/admin/MapContext";
+import { useMap } from "@/contexts/gwm/mar_suitability/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import WholeLoading from "@/components/app_layout/newLoading";

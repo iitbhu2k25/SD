@@ -1,8 +1,8 @@
-"""new updates 
+"""new 
 
-Revision ID: 8f5eeaad72af
+Revision ID: 74ba065be647
 Revises: 
-Create Date: 2026-03-28 19:54:46.603360
+Create Date: 2026-04-14 18:34:56.787042
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '8f5eeaad72af'
+revision: str = '74ba065be647'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -363,6 +363,8 @@ def upgrade() -> None:
     sa.Column('Drain_No', sa.Integer(), nullable=False),
     sa.Column('stretch_id', sa.Integer(), nullable=False),
     sa.Column('River_code', sa.Integer(), nullable=False),
+    sa.Column('latitude', sa.Float(), nullable=False),
+    sa.Column('longitude', sa.Float(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -379,6 +381,8 @@ def upgrade() -> None:
     sa.Column('Name', sa.String(), nullable=False),
     sa.Column('Drain_Area', sa.Float(), nullable=False),
     sa.Column('Elevation', sa.Integer(), nullable=False),
+    sa.Column('latitude', sa.Float(), nullable=False),
+    sa.Column('longitude', sa.Float(), nullable=False),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
@@ -416,6 +420,8 @@ def upgrade() -> None:
     sa.Column('population', sa.Integer(), nullable=False),
     sa.Column('elevation', sa.Float(), nullable=False),
     sa.Column('subdistrict_code', sa.Integer(), nullable=False),
+    sa.Column('latitude', sa.Float(), nullable=False),
+    sa.Column('longitude', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('modified_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['subdistrict_code'], ['stp_subdistrict.subdistrict_code'], ),

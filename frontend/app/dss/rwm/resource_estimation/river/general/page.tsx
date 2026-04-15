@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import UploadPanel from "./components/uploadPanel";
 import CsvUploadPanel, { CsvUploadResult } from "./components/CsvUploadPanel";
 import Map from "./components/Map";
@@ -168,10 +168,10 @@ const GeneralRiverWaterManagement: React.FC = () => {
                     legendImage: activeResult.wqiRaster.legendImage,
                     chartImage,
                   });
-                  toast.success("PDF download started.", { id: toastId });
+                  toast.success("PDF download started.", );
                 } catch (error) {
                   console.error("PDF generation failed:", error);
-                  toast.error("Failed to generate PDF report.", { id: toastId });
+                  toast.error("Failed to generate PDF report.", );
                 } finally {
                   setIsDownloadingReport(false);
                 }

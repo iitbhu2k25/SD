@@ -1,8 +1,20 @@
-'use client'
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '@/services/api';
-import { State,District,SubDistrict,villages,ClipRasters } from '@/interface/raster_context';
-
+"use client";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { api, ApiError } from "@/services/api";
+import {
+  State,
+  District,
+  SubDistrict,
+  villages,
+  ClipRasters,
+} from "@/interface/raster_context";
+import { toast } from "react-toastify";
 
 export interface SelectionsData {
   subDistricts: SubDistrict[];
@@ -50,17 +62,19 @@ const LocationContext = createContext<LocationContextType>({
   selectionsLocked: false,
   isLoading: false,
   displayRaster: [],
-  setDisplayRaster: () => { },
-  handleStateChange: () => { },
-  setSelectedDistricts: () => { },
-  setSelectedSubDistricts: () => { },
-  setSelectedvillages: () => { },
+  setDisplayRaster: () => {},
+  handleStateChange: () => {},
+  setSelectedDistricts: () => {},
+  setSelectedSubDistricts: () => {},
+  setSelectedvillages: () => {},
   confirmSelections: () => null,
-  resetSelections: () => { },
+  resetSelections: () => {},
 });
 
 // Create the provider component
-export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) => {
+export const LocationProvider: React.FC<LocationProviderProps> = ({
+  children,
+}) => {
   // State for location data
   const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -69,8 +83,12 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
   // State for selected locations
   const [selectedState, setSelectedState] = useState<number | null>(null);
-  const [selectedDistricts, setSelectedDistricts] = useState<number | null>(null);
-  const [selectedSubDistricts, setSelectedSubDistricts] = useState<number | null>(null);
+  const [selectedDistricts, setSelectedDistricts] = useState<number | null>(
+    null,
+  );
+  const [selectedSubDistricts, setSelectedSubDistricts] = useState<
+    number | null
+  >(null);
   const [selectedvillages, setSelectedvillages] = useState<number[]>([]);
 
   const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
@@ -81,21 +99,25 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchStates = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get('/location/get_states?all_data=true');
+        const response = await api.get("/location/get_states?all_data=true");
 
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as State[];
+        const data = (await response.message) as State[];
         const stateData = data.map((state: State) => ({
           id: state.id,
-          name: state.name
+          name: state.name,
         }));
 
         setStates(stateData);
       } catch (error) {
-        console.log('Error fetching states:', error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -116,28 +138,32 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     const fetchDistricts = async () => {
       setIsLoading(true);
       try {
-        const response = await api.post('/location/get_districts', {
+        const response = await api.post("/location/get_districts", {
           body: {
             state: selectedState,
             all_data: true,
           },
-        })
+        });
 
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as District[];
+        const data = (await response.message) as District[];
 
         const districtData = data.map((district: District) => ({
           id: district.id,
           name: district.name,
-          stateId: selectedState
+          stateId: selectedState,
         }));
 
         setDistricts(districtData);
       } catch (error) {
-        console.log('Error fetching districts:', error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -159,7 +185,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       return;
     }
 
-
     const fetchSubDistricts = async () => {
       setIsLoading(true);
       try {
@@ -174,16 +199,24 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const data = await response.message as SubDistrict[];
+        const data = (await response.message) as SubDistrict[];
         const subDistrictData = data.map((subDistrict: SubDistrict) => ({
           id: subDistrict.id,
           name: subDistrict.name,
-          districtId: subDistrict.districtId
+          districtId: subDistrict.districtId,
         }));
 
         setSubDistricts(subDistrictData);
       } catch (error) {
-        console.log('Error fetching sub-districts:', error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -201,16 +234,28 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       if (selectionsLocked === true) {
         setIsLoading(true);
         try {
-          const response = await api.post("/gwz_operation/mar_suitability_visual_display", {
-            body: {
-              clip: selectedvillages,
-              place: "District",
+          const response = await api.post(
+            "/gwz_operation/mar_suitability_visual_display",
+            {
+              body: {
+                clip: selectedvillages,
+                place: "District",
+              },
             },
-          })
-          const data = await response.message as ClipRasters[];
+          );
+          const data = (await response.message) as ClipRasters[];
           setDisplayRaster(data);
         } catch (error) {
-          console.log("Error:", error);
+          if (error instanceof ApiError) {
+            toast.error(error.message);
+          } else {
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "An unknown error occurred",
+            );
+          }
+        } finally {
         }
         setIsLoading(false);
       }
@@ -230,16 +275,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
         const response = await api.post("/location/get_villages/", {
           body: {
             subdis_code: [selectedSubDistricts],
-            all_data: true
+            all_data: true,
           },
         });
-
-        if (response.status != 201) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        const data = await response.message as villages[];
-
+        const data = (await response.message) as villages[];
         const townData = data.map((town: villages) => ({
           id: town.id,
           name: town.name,
@@ -247,7 +286,15 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 
         setvillages(townData);
       } catch (error) {
-        console.log('Error fetching villages:', error);
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
+          );
+        }
       } finally {
         setIsLoading(false);
       }
@@ -263,10 +310,9 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
   const handleStateChange = (stateId: number): void => {
     setSelectedState(stateId);
     setSelectedDistricts(null);
-    setSelectedSubDistricts(null)
+    setSelectedSubDistricts(null);
     setSelectedvillages([]);
     setSelectionsLocked(false);
-
   };
 
   // Lock selections and return selected data (now requires towns to be selected)
@@ -276,12 +322,12 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
       return null;
     }
 
-    const selectedSubDistrictObjects = subDistricts.filter(subDistrict =>
-      subDistrict.id === selectedSubDistricts
+    const selectedSubDistrictObjects = subDistricts.filter(
+      (subDistrict) => subDistrict.id === selectedSubDistricts,
     );
 
-    const selectedTownObjects = villages.filter(town =>
-      selectedvillages.includes(Number(town.id))
+    const selectedTownObjects = villages.filter((town) =>
+      selectedvillages.includes(Number(town.id)),
     );
 
     setSelectionsLocked(true);
@@ -290,7 +336,6 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     return {
       subDistricts: selectedSubDistrictObjects,
       villages: selectedTownObjects,
-
     };
   };
 
@@ -322,7 +367,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
     confirmSelections,
     resetSelections,
     displayRaster,
-    setDisplayRaster
+    setDisplayRaster,
   };
 
   return (
@@ -336,7 +381,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({ children }) 
 export const useLocation = (): LocationContextType => {
   const context = useContext(LocationContext);
   if (context === undefined) {
-    throw new Error('useLocation must be used within a LocationProvider');
+    throw new Error("useLocation must be used within a LocationProvider");
   }
   return context;
 };

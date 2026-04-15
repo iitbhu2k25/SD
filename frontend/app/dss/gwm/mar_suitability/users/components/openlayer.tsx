@@ -21,8 +21,8 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/mar_suitability/users/DrainMapContext";
-import { useRiverSystem } from "@/contexts/mar_suitability/users/DrainContext";
+import { useMap } from "@/contexts/gwm/mar_suitability/users/DrainMapContext";
+import { useRiverSystem } from "@/contexts/gwm/mar_suitability/users/DrainContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { INDIA_CENTER, INITIAL_ZOOM, LAYER_COLORS } from '@/interface/openlayer'

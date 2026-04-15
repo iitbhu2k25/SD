@@ -7,7 +7,7 @@ import {
 } from "@/contexts/riverwater_assessment/admin/ChartContext";
 import { useLocation } from "@/contexts/riverwater_assessment/admin/LocationContext";
 import { useMap } from "@/contexts/riverwater_assessment/admin/MapContext";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -560,11 +560,9 @@ const Chart: React.FC = () => {
       link.remove();
       URL.revokeObjectURL(objectUrl);
 
-      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, {
-        id: toastId,
-      });
+      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, );
     } catch (error: any) {
-      toast.error(error?.message || "Failed to download raster.", { id: toastId });
+      toast.error(error?.message || "Failed to download raster.", );
     } finally {
       setIsRasterDownloading(false);
     }

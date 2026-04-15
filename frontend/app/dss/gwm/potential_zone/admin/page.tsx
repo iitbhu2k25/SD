@@ -12,7 +12,7 @@ import { useCategory } from "@/contexts/gwm/potential_zone/admin/CategoryContext
 import MapView from "@/app/dss/gwm/potential_zone/admin/components/openlayer";
 import { useMap } from "@/contexts/gwm/potential_zone/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import { api } from "@/services/api";

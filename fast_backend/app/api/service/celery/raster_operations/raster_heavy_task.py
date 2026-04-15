@@ -7,7 +7,8 @@ import zipfile
 from requests import Session
 from app.conf.logging import logger
 import json
-from typing import Any, Dict, Optional,List
+from typing import Any, Dict
+import threading
 from uuid import uuid4
 import numpy as np
 import rasterio
@@ -38,13 +39,21 @@ ALGORITHMS = {
 
 
 
-wbt = WhiteboxTools()
-wbt.set_whitebox_dir(os.environ["WBT_PATH"])
-wbt.set_working_dir("/tmp")
+
+def get_wbt():
+    wbt = WhiteboxTools()
+    wbt.set_whitebox_dir(os.environ["WBT_PATH"])
+    wbt.set_working_dir("/tmp")
+    wbt.set_verbose_mode(True)
+    wbt.set_compress_rasters(False)
+    wbt.set_max_procs(24)
+    return wbt
+
 
 raster_workspace="raster_work"
-
 work_state=["started","in_progress","completed","failed"]
+
+wbt = get_wbt()
 
 class RasterMetaData:
     def _safe_float(self, value):
@@ -789,7 +798,7 @@ def _fill_depressions(input_path: str, tmp_dir: str) -> str:
     if ret != 0:
         raise RuntimeError(
             f"WhiteboxTools fill_depressions failed (exit {ret}). "
-            f"Check logs: {wbt.get_working_directory()}"
+            f"Check logs: {wbt.get_working_dir()}"
         )
 
     if not os.path.exists(filled_path):
@@ -1014,7 +1023,6 @@ def compute_flow_accumulation_task(
     log_transform: bool,
     input_path:   str,
     output_path:  str,
-    src_nodata: str,
 ) -> str:
     try:
         celery_task_update(

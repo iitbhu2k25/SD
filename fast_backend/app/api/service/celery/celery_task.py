@@ -17,3 +17,6 @@ from app.api.service.celery.wqi.water_quality import (
 from app.api.service.celery.raster_operations.raster_heavy_task import (
     celery_reprojection,    
 )
+from app.api.service.celery.stp_area.stp_area import (
+    find_suitable_area,
+)

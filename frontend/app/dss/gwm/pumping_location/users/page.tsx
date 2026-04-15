@@ -14,7 +14,7 @@ import CsvUploader from "./components/handle_csv";
 import DataTable from "react-data-table-component";
 import WholeLoading from "@/components/app_layout/newLoading";
 import { Gwpl_columns } from "@/interface/table";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 import { useRiverSystem } from "@/contexts/gwm/pumping_location/users/DrainContext";
 import { useCategory } from "@/contexts/gwm/pumping_location/admin/CategoryContext";

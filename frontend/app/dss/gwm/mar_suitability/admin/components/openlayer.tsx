@@ -25,13 +25,13 @@ import {
   ZoomSlider,
   ZoomToExtent,
 } from "ol/control";
-import { useMap } from "@/contexts/mar_suitability/admin/MapContext";
-import { useCategory } from "@/contexts/mar_suitability/admin/CategoryContext";
-import { useLocation } from "@/contexts/mar_suitability/admin/LocationContext";
+import { useMap } from "@/contexts/gwm/mar_suitability/admin/MapContext";
+import { useCategory } from "@/contexts/gwm/mar_suitability/admin/CategoryContext";
+import { useLocation } from "@/contexts/gwm/mar_suitability/admin/LocationContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { api } from "@/services/api";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 const INDIA_CENTER = { lon: 78.9629, lat: 20.5937 };
 const INITIAL_ZOOM = 6;

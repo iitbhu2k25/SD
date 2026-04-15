@@ -15,22 +15,27 @@ import { cn } from '@/lib/utils'
 
 export function InputsScreen() {
   const {
-    systemType, Q, Ce, AL,
+    systemType, Q, Ce, AL, BOD, COD, Coliform,
     setParams, setScreen,
     cTech, dTech, updateCTech, updateDTech, resetTech,
   } = useSTPStore()
 
   const isC = systemType === 'centralized'
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const localQ = String(Q)
-  const [localCe, setLocalCe] = useState(String(Ce))
-  const [localAL, setLocalAL] = useState(String(AL))
+  const [techResetKey, setTechResetKey] = useState(0)
+  const [localQ , setLocalQ]             = useState(String(Q))
+  const [localCe, setLocalCe]           = useState(String(Ce))
+  const [localBOD, setLocalBOD]         = useState(String(BOD))
+  const [localCOD, setLocalCOD]         = useState(String(COD))
+  const [localColiform, setLocalColiform] = useState(String(Coliform))
 
   const handleCalculate = () => {
     setParams({
-      Q: parseFloat(localQ) || 5,
-      Ce: parseFloat(localCe) || 8,
-      AL: parseFloat(localAL) || 2,
+      Q:        parseFloat(localQ)        || 5,
+      Ce:       parseFloat(localCe)       || 8,
+      BOD:      parseFloat(localBOD)      || 200,
+      COD:      parseFloat(localCOD)      || 400,
+      Coliform: parseFloat(localColiform) || 500,
     })
     setScreen('perf_table')
   }
@@ -48,9 +53,11 @@ export function InputsScreen() {
   }
 
   const metrics = [
-    { label: 'Capacity (Q)', value: localQ, unit: 'MLD' },
-    { label: 'Electricity', value: localCe, unit: '₹/kWh' },
-    { label: 'Land (AL)', value: localAL, unit: 'ha' },
+    { label: 'Capacity (Q)', value: localQ,        unit: 'MLD'     },
+    { label: 'Electricity',  value: localCe,       unit: '₹/kWh'  },
+    { label: 'BOD',          value: localBOD,      unit: 'mg/L'    },
+    { label: 'COD',          value: localCOD,      unit: 'mg/L'    },
+    { label: 'Coliform',     value: localColiform, unit: 'MPN/100mL' },
   ]
 
   return (
@@ -119,20 +126,22 @@ export function InputsScreen() {
             <span>Fill in your project details to compute technology scores and rankings.</span>
           </div>
 
-          {/* Q + Ce side by side */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Q + Ce + AL in one row */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="inputQ" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 STP Capacity (Q)
-                <span className="ml-2 normal-case font-normal text-[10px] text-muted-foreground/60">Set in STP Area finder</span>
               </Label>
               <div className="relative">
                 <Input
                   id="inputQ"
                   type="number"
                   value={localQ}
-                  readOnly
-                  className="pr-14 font-medium text-base bg-muted cursor-not-allowed"
+                  min="1"
+                  step="1"
+                  max="100"
+                  onChange={e => setLocalQ(e.target.value)}
+                  className="pr-14 font-medium text-base"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
                   MLD
@@ -148,11 +157,12 @@ export function InputsScreen() {
                 <Input
                   id="inputCe"
                   type="number"
+                  value={localCe}
                   min="1"
                   step="0.5"
-                  value={localCe}
+                  max="100"
                   onChange={e => setLocalCe(e.target.value)}
-                  className="pr-16 font-medium text-base"
+                  className="pr-14 font-medium text-base"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
                   ₹/kWh
@@ -161,24 +171,82 @@ export function InputsScreen() {
             </div>
           </div>
 
-          {/* AL alone, half-width */}
-          <div className="max-w-xs space-y-1.5">
-            <Label htmlFor="inputAL" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Available Land (AL)
-            </Label>
-            <div className="relative">
-              <Input
-                id="inputAL"
-                type="number"
-                min="0.01"
-                step="0.1"
-                value={localAL}
-                onChange={e => setLocalAL(e.target.value)}
-                className="pr-10 font-medium text-base"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-                ha
-              </span>
+          {/* Wastewater Quality Parameters */}
+          <div className="border-t pt-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Wastewater Quality
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+
+              {/* BOD */}
+              <div className="space-y-1.5">
+                <Label htmlFor="inputBOD" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  BOD
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="inputBOD"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    step="1"
+                    value={localBOD}
+                    onChange={e => setLocalBOD(e.target.value)}
+                    className="pr-14 font-medium text-base"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    mg/L
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/60">Range: 1 – 1000</p>
+              </div>
+
+              {/* COD */}
+              <div className="space-y-1.5">
+                <Label htmlFor="inputCOD" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  COD
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="inputCOD"
+                    type="number"
+                    min="1"
+                    max="10000"
+                    step="1"
+                    value={localCOD}
+                    onChange={e => setLocalCOD(e.target.value)}
+                    className="pr-14 font-medium text-base"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    mg/L
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/60">Range: 1 – 10000</p>
+              </div>
+
+              {/* Coliform */}
+              <div className="space-y-1.5">
+                <Label htmlFor="inputColiform" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Coliform
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="inputColiform"
+                    type="number"
+                    min="1"
+                    max="10000000"
+                    step="1"
+                    value={localColiform}
+                    onChange={e => setLocalColiform(e.target.value)}
+                    className="pr-24 font-medium text-base"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    MPN/100mL
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/60">e.g. &lt;1 000 | 10 000 | 1 000 000 | &gt;10⁶</p>
+              </div>
+
             </div>
           </div>
         </CardContent>
@@ -202,7 +270,7 @@ export function InputsScreen() {
         {/* Collapsible table */}
         {showAdvanced && (
           <div className="border-t">
-            <div className="overflow-x-auto">
+            <div key={techResetKey} className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">
@@ -243,7 +311,7 @@ export function InputsScreen() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={resetTech}
+                onClick={() => { resetTech(); setTechResetKey(k => k + 1) }}
                 className="text-xs text-muted-foreground gap-1.5"
               >
                 <RotateCcw className="h-3.5 w-3.5" />

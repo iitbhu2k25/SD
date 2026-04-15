@@ -3,8 +3,9 @@ from typing import Annotated
 from app.dependency.token_dependency import validate_user
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.api.schema.stp_schema import  STP_suitability_Area, STPPriorityVisualOutput, STPSuitabilityVisualOutput,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id
-from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper,STP_Area
+from app.api.schema.stp_schema import  STP_suitability_Area, STPPriorityVisualOutput, STPSuitabilityVisualOutput,Stp_Area,STPCategory,STPCatchmentInput,STPCatchmentOutput,StpsuitabilityAdminReport,StpsuitabilityDrainReport,STPsuitabilityOutput,STPPriorityOutput,STPsuitabilityInput,category_raster,StpPriorityDrainReport,StpPriorityAdminReport,celery_id, stp_area_resp
+from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
+from app.api.service.celery.stp_area.stp_area import find_suitable_area
 from app.api.service.celery.pdf_generations.stp_priority_admin_document import document_gen
 from app.api.service.celery.pdf_generations.stp_priority_drain_document import document_gen1
 from app.api.service.celery.pdf_generations.stp_suitability_admin_report import document_gen2
@@ -14,47 +15,52 @@ from fastapi import  WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from celery.result import AsyncResult
 import asyncio
-from app.conf.celery import app 
 from app.utils.exception import validate
 from pathlib import Path
 from app.conf.logging import logger
+from app.api.service.raster_work.raster_operation import RasterOperation
 
 
 connection_manager=ConnectionManager()
 router=APIRouter()
 
-# stp priority
+
 @router.get("/get_priority_category",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityOutput])
 @validate
 async def get_priority_category(db:db_dependency,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
+    """ It return the priority raster information"""
     return Stp_service.get_priority_category(db,all_data)
 
 @router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityVisualOutput])
 @validate
 async def stp_priority_visual_display(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
+    """ It make the stp priority visual raster for displaying"""
     return await STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
 
 @router.post("/stp_priority",status_code=status.HTTP_201_CREATED,)
 @validate
 async def stp_priority(db:db_dependency,payload: STPCategory,user: Annotated[bool, Depends(validate_user)]):
-    raster_path,raster_weights=Stp_service.get_raster(db,payload)
-    return  await STPPriorityMapper().create_priority_map(raster_path,raster_weights,payload.clip,payload.place)
+    """ It calculater the stp priority """
+    return  await STPPriorityMapper().create_priority_map(db,payload)
 
 @router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
 async def get_priority_cachement(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
-    ans=STPPriorityMapper().cachement_villages(payload.drain_nos)
-    return STPCatchmentOutput(catchments=ans[0],layer_name=ans[1])
+    """It make the stp priority cachement """
+    return await STPPriorityMapper().cachement_villages(payload.drain_nos)
+
 
 @router.post("/stp_priority_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_priority_admin_report(payload:StpPriorityAdminReport,user: Annotated[bool, Depends(validate_user)]):
+    """It make the stp priority admin report """
     task_id= document_gen.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
 @router.post("/stp_priority_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_priority_drain_report(payload:StpPriorityDrainReport,user: Annotated[bool, Depends(validate_user)]):
+    """It make the stp priority drain report """
     task_id= document_gen1.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id) 
  
@@ -62,52 +68,56 @@ async def stp_priority_drain_report(payload:StpPriorityDrainReport,user: Annotat
 @router.get("/get_suitability_by_category",status_code=status.HTTP_201_CREATED,response_model=list[STPsuitabilityOutput])
 @validate
 async def get_raster_suitability(db:db_dependency,category:str,user: Annotated[bool, Depends(validate_user)],all_data: bool = False):
+    """ It return the suitability raster information"""
     return Stp_service.get_raster_suitability(db,category,all_data)
 
 
 @router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,response_model=STPSuitabilityVisualOutput)
 @validate
 async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
-    return await STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place)
+    """ It make the stp suitability visual raster for displaying"""
+    return await STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place,payload.layer_name)
 
     
 @router.post("/stp_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
-async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
+async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,):
+    """ It calculater the stp suitability """
     return await STPsuitabilityMapper().create_suitability_map(db,payload)
 
 
 @router.post("/stp_suitability_admin_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_suitability_admin_report(payload:StpsuitabilityAdminReport,user: Annotated[bool, Depends(validate_user)]):
+    """It make the stp suitability admin report """
     task_id= document_gen2.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
 @router.post("/stp_suitability_drain_report",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
 async def stp_suitability_drain_report(payload:StpsuitabilityDrainReport,user: Annotated[bool, Depends(validate_user)]):
+    """It make the stp suitability drain report """
     task_id= document_gen3.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
 @router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
 async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
-    ans=STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
-    return STPCatchmentOutput(catchments=ans[0],layer_name=ans[1])
+    """It make the stp suitability cachement """
+    return await STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
+    
 
-# stp area
-@router.get("/get_stp_suitability_area",response_model=list[Stp_Area],status_code=status.HTTP_201_CREATED)
+@router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def stp_suitability_area(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
-    return  Stp_service.get_suitability_area(db)
+async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
+    task_id=find_suitable_area.delay(treatment_technology=payload.treatment_technology,mld_capacity=payload.mld_capacity,custom_land_per_mld=payload.custom_land_per_mld,layer_name=payload.layer_name,location=payload.location)
+    return celery_id(task_id=task_id.id)
 
-
-@router.post("/stp_suitability_area")
+@router.get("/stp_area/{task_id}",status_code=status.HTTP_200_OK,response_model=stp_area_resp)
 @validate
-async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area,user: Annotated[bool, Depends(validate_user)]):
-    return await STP_Area().stp_area_finding(db,payload)
-        
-   
+async def stp_area(db:db_dependency,task_id:str):
+    resp=await RasterOperation().get_result(db,task_id)
+    return stp_area_resp(cluster_layer=resp.layer_name,suitable_path=resp.file_path)
 
 @router.get("/get_report",status_code=status.HTTP_200_OK,response_class=FileResponse)
 @validate

@@ -2,7 +2,6 @@ import os
 from typing import List, Tuple
 import geopandas as gpd
 import rasterio
-from fastapi import HTTPException,status
 from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
@@ -19,7 +18,7 @@ from app.utils.network_conf import GeoConfig
 import uuid
 from app.database.config.dependency import db_dependency
 from pathlib import Path
-from app.api.service.river_water_management import spt_service
+from app.api.service.river_water_management.spt_service import Stp_service
 from app.database.crud.stp_crud import STP_suitability_crud
 from app.conf.settings import Settings
 import zipfile
@@ -29,18 +28,21 @@ import numpy as np
 import pandas as pd
 from rasterstats import zonal_stats
 from rasterio.enums import Resampling
-from app.api.service.script_svc.geoserver_svc import upload_shapefile
 from app.database.crud.location_crud import Stp_towns_crud,Stp_drain_new_crud
 from sqlalchemy.orm import Session
 from rasterio.features import rasterize
 import pandas as pd
 from rasterstats import zonal_stats
-from app.api.schema.stp_schema import STP_suitability_Area, STPsuitabilityInput
+from app.api.schema.stp_schema import STP_suitability_Area, STPCatchmentOutput, STPCategory, STPsuitabilityInput
 from scipy.ndimage import label
 from app.database.crud.stp_crud import Stp_area_crud
 from app.utils.name import Unique_name
 from shapely.ops import unary_union
 from app.conf.redis.redis_async_manager import async_redis_manager
+from app.api.exception.exceptions import CustomException
+import networkx as nx
+from pyproj import Transformer
+from shapely.geometry import shape, LineString, Point
 
 geo=Geoserver()
 
@@ -708,7 +710,7 @@ class RasterProcess(VectorProcess):
 
       
     
-    def save_vector(self,vector,name:str):
+    async def save_vector(self,vector,name:str):
        
         unique_village_zip = f"{name}.zip"
         output_zip_path = self.config.output_path / unique_village_zip
@@ -724,8 +726,7 @@ class RasterProcess(VectorProcess):
                     zipf.write(file, file.name)
 
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-
-        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        await geo.upload_vector("vector_work",str(output_zip_path),name_only)
         return name_only
 
 class STPPriorityMapper:
@@ -734,48 +735,45 @@ class STPPriorityMapper:
         self.processor = RasterProcess(self.config)
         self.vectorProcess=VectorProcess()
     
-    def cachement_villages(self,drain_no:List[int]):        
-        try:
-            catchment_villages=self.vectorProcess.catchment
-            villages=self.vectorProcess.village
-            catchment_polygon = catchment_villages[catchment_villages["Drain_No"].isin(drain_no)].geometry.union_all()
-            villages_intersect = villages[villages.intersects(catchment_polygon)]
-            villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
-            villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
+    async def cachement_villages(self,drain_no:List[int]):        
+        catchment_villages=self.vectorProcess.catchment
+        villages=self.vectorProcess.village
+        catchment_polygon = catchment_villages[catchment_villages["Drain_No"].isin(drain_no)].geometry.union_all()
+        villages_intersect = villages[villages.intersects(catchment_polygon)]
+        villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
+        villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
+        
+        if 'FID' in villages_intersect.columns:
+            villages_intersect = villages_intersect.drop(columns=['FID'])
+        if 'fid' in villages_intersect.columns:
+            villages_intersect = villages_intersect.drop(columns=['fid'])
+        if 'ID' in villages_intersect.columns:
+            villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
             
-            if 'FID' in villages_intersect.columns:
-                villages_intersect = villages_intersect.drop(columns=['FID'])
-            if 'fid' in villages_intersect.columns:
-                villages_intersect = villages_intersect.drop(columns=['fid'])
-            if 'ID' in villages_intersect.columns:
-                villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
-                
-            random_name=Unique_name.unique_name("catchment_villages")
-            unique_village_zip = f"{random_name}.zip"
-            output_zip_path = self.config.output_path / unique_village_zip
+        random_name=Unique_name.unique_name("catchment")
+        unique_village_zip = f"{random_name}.zip"
+        output_zip_path = self.config.output_path / unique_village_zip
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_shp = Path(temp_dir) /  f"{random_name}.shp"
-                villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_shp = Path(temp_dir) /  f"{random_name}.shp"
+            villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
 
-                with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                    for file in temp_shp.parent.glob(f"{random_name}.*"):
-                        zipf.write(file, file.name)
+            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+                for file in temp_shp.parent.glob(f"{random_name}.*"):
+                    zipf.write(file, file.name)
 
-            name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-
-            upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
-            data = [
-                {
-                    "id": village_id,  # Now using village_id instead of ID
-                    "village_name": name,
-                    "area": geom.area
-                }
-                for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
-            ]
-            return [data, name_only]
-        except Exception as e:
-            print(e)
+        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+        await geo.upload_vector("vector_work",str(output_zip_path),name_only)
+       
+        data = [
+            {
+                "id": village_id,  # Now using village_id instead of ID
+                "village_name": name,
+                "area": geom.area
+            }
+            for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
+        ]
+        return STPCatchmentOutput(catchments=data,layer_name=name_only)
     
     def _raster_polyon_color(self,raster_path:str,clip:List[int]=None,place:str=None  ):
         with rasterio.open(raster_path) as src:
@@ -810,7 +808,7 @@ class STPPriorityMapper:
         return output_path
     
     async def visual_priority_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
-        raster_path=spt_service.Stp_service.get_priority_visual(db)
+        raster_path=Stp_service.get_priority_visual(db)
         raster_path = [{"file_name": i.file_name,
                         "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
                         "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
@@ -829,12 +827,13 @@ class STPPriorityMapper:
             })
         return response
     
-    async def create_priority_map(self, raster_paths: List[str], weights: List[float],clip:List[int]=None,place:str=None) -> str:
-        if len(raster_paths) != len(weights):
-            raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(weights)})")
+    async def create_priority_map(self, db:db_dependency, payload:STPCategory) -> str:
+        raster_paths,raster_weights=Stp_service.get_raster(db,payload)
+        if len(raster_paths) != len(raster_weights):
+            raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(raster_weights)})")
         self.processor.align_rasters(raster_paths)
         weighted_sum = self.processor.create_weighted_overlay(
-            weights
+            raster_weights
         )
         output_name=Unique_name.unique_name_with_ext("constrained_STP_Priority","tif")
         constrained_path, _ = self.processor.apply_constraint(
@@ -846,9 +845,9 @@ class STPPriorityMapper:
             shapefile_path=self.config.basin_shapefile , output_name=final_name
         )
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-        final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=clip,place=place)
-        final_path1=self._raster_polyon_color(raster_path=final_path,clip=clip,place=place)
-        csv_details=self.processor.clip_details(raster_path=final_path,priority_raster=final_path1,clip=clip,place=place,logic="priority")
+        final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=payload.clip,place=payload.place)
+        final_path1=self._raster_polyon_color(raster_path=final_path,clip=payload.clip,place=payload.place)
+        csv_details=self.processor.clip_details(raster_path=final_path,priority_raster=final_path1,clip=payload.clip,place=payload.place,logic="priority")
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
@@ -868,54 +867,28 @@ class STPsuitabilityMapper:
         self.TEMP_DIR=Settings().TEMP_DIR+"/STP_suitability"
         os.makedirs(self.TEMP_DIR, exist_ok=True)
     
-    def cachement_villages(self,db:Session,drain_no:List[int]):
-        try:
-            vector_process=VectorProcess()
-            catchment_buffer = vector_process.get_drain_buffer(clip=drain_no).iloc[0].geometry
-            villages_sindex = vector_process.village.sindex
-            possible_matches_idx = list(villages_sindex.query(catchment_buffer, predicate="intersects"))
-            villages = vector_process.village.iloc[possible_matches_idx]
-            villages_intersect = villages[villages.geometry.intersects(catchment_buffer)].copy()
-            villages_intersect = villages_intersect[villages_intersect.geometry.is_valid].copy()
-            villages_intersect = villages_intersect.set_geometry(
-                villages_intersect.geometry.buffer(0)
-            )
-            villages_intersect["geometry"] = villages_intersect.geometry.buffer(0)
-            if 'ID' in villages_intersect.columns:
-                villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
-            # Generate unique names
-            random_name = f"{uuid.uuid4().hex}"
-            unique_village_zip = f"catchment_villages_{random_name}.zip"
-            output_zip_path = self.config.output_path / unique_village_zip
-
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_shp = Path(temp_dir) / f"catchment_villages_{random_name}.shp"
-                
-                # Save using fiona engine explicitly
-                villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
-                
-                # Create zip with all shapefile components
-                with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                    for file in temp_shp.parent.glob(f"catchment_villages_{random_name}.*"):
-                        zipf.write(file, file.name)
-
-            name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-
-            upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
-
-            # Update data array to use the new column name
-            data = [
-                {
-                    "id": village_id,  # Now using village_id instead of ID
-                    "village_name": name,
-                    "area": geom.area
-                }
-                for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
-            ]
-            return [data, name_only]
-        except Exception as e:
-            print(e)
-            return False
+    async def cachement_villages(self,db:Session,drain_no:List[int]):
+        vector_process=VectorProcess()
+        catchment_buffer = vector_process.get_drain_buffer(clip=drain_no).iloc[0].geometry
+        villages_sindex = vector_process.village.sindex
+        possible_matches_idx = list(villages_sindex.query(catchment_buffer, predicate="intersects"))
+        villages = vector_process.village.iloc[possible_matches_idx]
+        villages_intersect = villages[villages.geometry.intersects(catchment_buffer)].copy()
+        villages_intersect = villages_intersect[villages_intersect.geometry.is_valid].copy()
+        villages_intersect = villages_intersect.set_geometry(
+            villages_intersect.geometry.buffer(0)
+        )
+        villages_intersect["geometry"] = villages_intersect.geometry.buffer(0)
+        if 'ID' in villages_intersect.columns:
+            villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
+        
+        temp_vill_name=Unique_name.unique_name("catch_vill")
+        village_temp_path=os.path.join(self.TEMP_DIR,temp_vill_name+".shp")
+        villages_intersect.to_file(village_temp_path, driver='ESRI Shapefile', engine='fiona')
+        vector_name=await self._temporory_vector(vector_temp_file=villages_intersect)
+        await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
+        return STPCatchmentOutput(layer_name=vector_name)
+        
     
     def temporary_raster(self,raster_path:str,elevation_value:float):
         with rasterio.open(raster_path) as src:
@@ -976,19 +949,19 @@ class STPsuitabilityMapper:
         self.processor._saveraster(processed_data,output_path,out_meta)
         return output_path
 
-    def _temporory_vector(self,vector_temp_file:gpd.GeoDataFrame):
+    async def _temporory_vector(self,vector_temp_file:gpd.GeoDataFrame):
         random_name = f"{uuid.uuid4().hex}"
-        unique_village_zip = f"catchment_villages_{random_name}.zip"
+        unique_village_zip = f"catchment_{random_name}.zip"
         output_zip_path = self.TEMP_DIR+"/"+ unique_village_zip
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_shp = Path(temp_dir) / f"catchment_villages_{random_name}.shp"
+            temp_shp = Path(temp_dir) / f"catchment_{random_name}.shp"
             vector_temp_file.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
             with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                for file in temp_shp.parent.glob(f"catchment_villages_{random_name}.*"):
+                for file in temp_shp.parent.glob(f"catchment_{random_name}.*"):
                     zipf.write(file, file.name)
 
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-        upload_shapefile("vector_work", "stp_vector_store", Path(output_zip_path), layer_name=name_only)
+        await geo.upload_vector("vector_work",str(output_zip_path),name_only)
         return name_only
     
     def _get_operations_raster(self,db:db_dependency,payload:List):
@@ -1039,16 +1012,17 @@ class STPsuitabilityMapper:
         vector_name=self._temporory_vector(vector_temp_file=selected_villages)
         return selected_villages['ID'].tolist(),vector_name
     
-    async def _get_suitability_vill(self,place:str,clip:list)->Tuple[gpd.GeoDataFrame,str]:
+    async def _get_suitability_vill(self,place:str,clip:list,layer_name:str)->Tuple[gpd.GeoDataFrame,str]:
         villages_vector=None
         if place == 'Drain':
-            villages_vector=self.processor.get_village(clip)
-        else:
-            villages_vector=self.vector_process.get_town_village(clip)
+            village_vector=await async_redis_manager.get(layer_name)
+            village_vector=gpd.read_file(village_vector)
+            return village_vector,layer_name
+        villages_vector=self.vector_process.get_town_village(clip)
         temp_vill_name=Unique_name.unique_name("suit_vill")
         village_temp_path=os.path.join(self.TEMP_DIR,temp_vill_name+".shp")
         villages_vector.to_file(str(village_temp_path),driver="ESRI Shapefile")
-        vector_name=self._temporory_vector(vector_temp_file=villages_vector)
+        vector_name=await self._temporory_vector(vector_temp_file=villages_vector)
         await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
         return villages_vector,vector_name
     
@@ -1060,6 +1034,7 @@ class STPsuitabilityMapper:
             elevation_value=Stp_drain_new_crud(db).get_sum_elevation(payload.drain_clip)/len(payload.drain_clip)
         else: 
             elevation_value=Stp_towns_crud(db).get_sum_elevation(payload.clip)/len(payload.clip)
+        
         for i in condition_raster:
             if i[2] == 'STP_Elevation_Raster':
                 elevation_path=self.temporary_raster(i[0],elevation_value)
@@ -1107,20 +1082,21 @@ class STPsuitabilityMapper:
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
         await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
+        await async_redis_manager.setex(layer_name, 10800, str(final_path))
         return {
                 "workspace": self.config.raster_workspace,
                 "layer_name": layer_name,
                 "csv_details":csv_details
             }
 
-    async def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
-            raster_path=spt_service.Stp_service.get_suitability_visual(db,all_data=True)
+    async def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None,layer_name:str=None) -> str:
+            raster_path=Stp_service.get_suitability_visual(db,all_data=True)
             raster_path = [{"file_name": i.file_name,
                             "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
                             "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
                            } for i in raster_path]
             response=[]
-            village_vector,geo_vector_layer=await self._get_suitability_vill(place,clip)
+            village_vector,geo_vector_layer=await self._get_suitability_vill(place,clip,layer_name)
             for i in raster_path:
                 final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
                 final_path=self._cliping_raster(i['path'],final_name,village_vector)
@@ -1137,148 +1113,3 @@ class STPsuitabilityMapper:
                 "vector_layer":geo_vector_layer
             }
      
-class STP_Area:
-    def __init__(self):
-        self.N_CLASSES = 5  
-        self.TOP_N_CLUSTERS = 3 
-        self.USE_THRESHOLD_MODE = True 
-        self.SUITABILITY_THRESHOLD = 0.417
-        self.USE_FAST_CLASSIFICATION = True 
-        self.MAX_SAMPLE_SIZE = 50000
-    
-    def read_raster(self,path:str):
-        with rasterio.open(path) as src:
-            data = src.read(1, resampling=Resampling.nearest)
-            profile = src.profile
-            transform = src.transform
-            crs = src.crs
-            bounds = src.bounds
-            nodata = src.nodata
-        
-
-        if nodata is not None:
-            data = np.where(data == nodata, np.nan, data)
-
-        data = np.where(data < -1e10, np.nan, data)
-
-        data = np.where(data > 1e10, np.nan, data)
-
-        data = np.where((data < 0) | (data > 1), np.nan, data)
-        
-
-        res_x = abs(transform[0]) 
-        res_y = abs(transform[4])  
-        
-
-        valid_data = data[~np.isnan(data)]
-        if len(valid_data) == 0:
-            raise ValueError("Raster contains no valid data after cleaning")
-        
-        return data, profile, res_x, res_y, transform, crs, bounds
-    
-    def apply_threshold_classification(self,data, threshold=0.353):    
-        valid_mask = ~np.isnan(data) & (data >= 0) & (data <= 1) & np.isfinite(data)
-        suitable_mask = (data >= threshold) & valid_mask
-        reclassified = np.zeros_like(data, dtype=np.uint8)
-        reclassified[suitable_mask] = 5
-        return reclassified, threshold
-    
-    def calculate_required_pixels(self,required_area_m2, res_x, res_y):
-     
-        pixel_area = res_x * res_y
-        pixels_needed = int(np.ceil(required_area_m2 / pixel_area))
-        kernel_size = int(np.ceil(np.sqrt(pixels_needed)))
-        return kernel_size, pixels_needed, pixel_area
-
-    def find_suitable_areas(self,reclassified, kernel_size, required_pixels, threshold_mode=True):
-        rows, cols = reclassified.shape
-        suitable_mask = np.zeros_like(reclassified, dtype=np.uint8)
-        
-        total_windows = (rows - kernel_size + 1) * (cols - kernel_size + 1)
-
-        with tqdm(total=total_windows, desc="Analyzing windows", unit="windows") as pbar:
-            for i in range(rows - kernel_size + 1):
-                for j in range(cols - kernel_size + 1):
-                    window = reclassified[i:i+kernel_size, j:j+kernel_size]
-                    
-                  
-                    if np.all(window == 5) and np.sum(window == 5) >= required_pixels:
-                        suitable_mask[i:i+kernel_size, j:j+kernel_size] = 1
-                    
-                    pbar.update(1)
-        
-        return suitable_mask
-
-    def extract_clusters_as_polygons(self,mask_array, transform, crs, min_area_m2=None,max_area_m2=None):
-        labeled_array, num_features = label(mask_array)
-        polygons, areas = [], []
-        for geom, value in shapes(labeled_array.astype(np.uint8), transform=transform):
-            if value > 0:
-                poly = shape(geom)
-                area_m2 = poly.area
-                if min_area_m2 is None or area_m2 >= min_area_m2:
-                    polygons.append(poly)
-                    areas.append(area_m2)
-        if not polygons:
-            return None
-        gdf = gpd.GeoDataFrame({
-            'cluster_id': range(1, len(polygons) + 1),
-            'area_m2': areas,
-            'area_ha': [a/10000 for a in areas],
-            'geometry': polygons
-        }, crs=crs)
-        return gdf.sort_values('area_m2', ascending=False).reset_index(drop=True)
-
-    def save_results(self,clusters_gdf, output_path, top_n=3):
-
-        if clusters_gdf is None or len(clusters_gdf) == 0:
-            return False
-        if "closeness" in clusters_gdf.columns:
-            clusters_gdf = clusters_gdf.drop(columns=["closeness"])
-
-        return RasterProcess().save_vector(vector=clusters_gdf,name=f"area_{uuid.uuid4().hex}")
-    def display_results(self,clusters_gdf, required_area_ha, top_n=5, tolerance_pct=20):
-        if clusters_gdf is None or len(clusters_gdf) == 0:
-            raise ValueError("No clusters found")
-        tolerance = tolerance_pct / 100.0
-        selected = gpd.GeoDataFrame()
-        with tqdm(total=9, desc="Expanding tolerance", unit="step") as pbar:
-            while len(selected) < top_n and tolerance <= 1.0:
-                lower = required_area_ha * (1 - tolerance)
-                upper = required_area_ha * (1 + tolerance)
-                mask = (clusters_gdf["area_ha"] >= lower) & (clusters_gdf["area_ha"] <= upper)
-                selected = clusters_gdf[mask].copy()
-                if len(selected) < top_n:
-                    tolerance += 0.1
-                    pbar.update(1)
-                else:
-                    break
-        if len(selected) == 0:
-            return
-
-        selected["closeness"] = (selected["area_ha"] - required_area_ha).abs()
-        selected = selected.sort_values("closeness").head(top_n).reset_index(drop=True)
-       
-        return selected
-    async def stp_area_finding(self,db:db_dependency,payload:STP_suitability_Area):
-        raster_path=await geo.raster_download(temp_path=Settings().TEMP_DIR,layer_name=payload.layer_name)
-        raster_path=raster_path['raster_path']
-        MLD_CAPACITY=payload.MLD_CAPACITY
-        land_per_mld=Stp_area_crud(db).get_stp_area_value(payload.TREATMENT_TECHNOLOGY).tech_value
-        required_area_ha = MLD_CAPACITY * land_per_mld +(payload.CUSTOM_LAND_PER_MLD if payload.CUSTOM_LAND_PER_MLD else 0)
-        max_area_m2 = required_area_ha * 10000
-
-
-        data, profile, res_x, res_y, transform, crs, bounds=self.read_raster(raster_path)
-        reclassified, threshold_info = self.apply_threshold_classification(data, self.SUITABILITY_THRESHOLD)
-        kernel_size, required_pixels, pixel_area = self.calculate_required_pixels(
-            max_area_m2, res_x, res_y
-        )
-        suitable_mask = self.find_suitable_areas(reclassified, kernel_size, required_pixels, self.USE_THRESHOLD_MODE)
-
-        clusters_gdf = self.extract_clusters_as_polygons(
-            suitable_mask, transform, crs, min_area_m2=max_area_m2,max_area_m2=max_area_m2
-        )
-        new_cluster=self.display_results(clusters_gdf, required_area_ha, top_n=3, tolerance_pct=20)
-        temp_shape_file=Settings().TEMP_DIR+"/temp.shp"
-        return self.save_results(new_cluster,temp_shape_file,top_n=3)

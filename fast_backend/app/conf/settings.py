@@ -46,8 +46,11 @@ class Settings(BaseSettings):
     #media path
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     TEMP_DIR:str = os.path.dirname(BASE_DIR)+'/temp'
+
     subdistrict_path:str
     villages_path :str
+    road_path:str
+    elivation_path:str
     MODELED_WATER:str
     VERIFY_URL:str
     ADMIN_EMAIL:str

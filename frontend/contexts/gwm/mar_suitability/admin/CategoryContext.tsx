@@ -1,7 +1,7 @@
 'use client'
 import React, { createContext, useState, useContext, ReactNode, useEffect, useMemo } from 'react';
 import { DataRow } from '@/interface/table';
-import { api } from '@/services/api';
+import { api, ApiError } from '@/services/api';
 import { MARCategory, SelectRasterLayer, Stp_area, RasterLayer } from '@/interface/raster_context';
 
 
@@ -70,9 +70,6 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
       try {
         setIsLoading(true);
         const response = await api.get("/gwz_operation/get_mar_suitability_category?category=condition&all_data=true")
-        if (response.status != 201) {
-          throw new Error('Failed to fetch condition categories');
-        }
         const data = await response.message as MARCategory[];
         const enhancedCategories = data.map((category: MARCategory) => ({
           ...category,
@@ -80,8 +77,14 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
 
         setConditionCategories(enhancedCategories);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        console.log('Error fetching condition categories:', err);
+        if (err instanceof ApiError) {
+          setError(err.message);
+        }
+        else{
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        }
+       
+       
       } finally {
         // Don't set isLoading to false here, wait for both fetch operations
       }
@@ -91,9 +94,7 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     const fetchConstraintCategories = async () => {
       try {
         const response = await api.get("/gwz_operation/get_mar_suitability_category?category=constraint&all_data=true")
-        if (response.status != 201) {
-          throw new Error('Failed to fetch condition categories');
-        }
+  
         const data = await response.message as MARCategory[];
         const enhancedCategories = data.map((category: MARCategory) => ({
           ...category,
@@ -101,8 +102,13 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
 
         setConstraintCategories(enhancedCategories);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        console.log('Error fetching constraint categories:', err);
+        if (err instanceof ApiError) {
+          setError(err.message);
+        }
+        else{
+          setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        }
+      
       } finally {
 
       }

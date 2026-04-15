@@ -19,7 +19,7 @@ interface RiverMultiSelectProps<T extends SelectableItem> {
   displayPattern?: (item: T) => string;
 }
 
-export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
+export const RiverMultiSelect = <T extends Stretch | Drain >({
   items,
   selectedItems,
   onSelectionChange,
@@ -33,9 +33,6 @@ export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
     }
     if ('Drain_No' in item) {
       return (item as Drain).name ? `${(item as Drain).name} (Nos: ${(item as Drain).Drain_No})` : `Drain ${(item as Drain).Drain_No}`;
-    }
-    if ('village_name' in item) {
-      return (item as Catchment).name ? `${(item as Catchment).name} (Grid: ${(item as Catchment).village_name})` : `Catchment ${(item as Catchment).village_name}`;
     }
     return '';
   },
@@ -64,7 +61,6 @@ export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
     // Search in specific fields based on item type
     if ('Stretch_ID' in item && item.Stretch_ID.toString().includes(searchTerm)) return true;
     if ('Drain_No' in item && item.Drain_No.toString().includes(searchTerm)) return true;
-    if ('village_name' in item && item.village_name.toString().includes(searchTerm)) return true;
     
     return false;
   });
@@ -168,11 +164,6 @@ export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
     
     if (allSelected) {
       return `All ${label}s`;
-    }
-    
-    if (selectedItems.length === 1) {
-      const selected = items.find(item => item.id === selectedItems[0]);
-      return selected ? displayPattern(selected) : placeholder;
     }
     
     return `${selectedItems.length} ${label}s selected`;
@@ -281,25 +272,28 @@ export const RiverMultiSelect = <T extends Stretch | Drain | Catchment>({
               No {label}s available
             </div>
           )}
-          
-          {/* Individual items */}
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className={`p-2 hover:bg-blue-100 cursor-pointer ${
-                selectedItems.includes(Number(item.id)) ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleItemSelect(Number(item.id))}
-            >
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(Number(item.id))}
-                onChange={() => handleItemSelect(Number(item.id))}
-                className="mr-2"
-              />
-              <span className="text-sm">{displayPattern(item)}</span>
-            </div>
-          ))}
+
+          {/* Items list */}
+          {filteredItems.map(item => {
+            const itemId = Number(item.id);
+            const isSelected = selectedItems.includes(itemId);
+            return (
+              <div
+                key={itemId}
+                className={`p-2 hover:bg-blue-100 cursor-pointer ${isSelected ? 'bg-blue-50' : ''}`}
+                onClick={() => handleItemSelect(itemId)}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => handleItemSelect(itemId)}
+                  className="mr-2"
+                />
+                {displayPattern(item)}
+              </div>
+            );
+          })}
+
         </div>
       )}
     </div>

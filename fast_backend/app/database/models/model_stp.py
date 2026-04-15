@@ -46,6 +46,8 @@ class Towns(Base):
     elevation: Mapped[float] = mapped_column(Float, nullable=False)
     subdistrict_code: Mapped[int] = mapped_column(ForeignKey("stp_subdistrict.subdistrict_code"), nullable=False)
     subdistrict: Mapped["SubDistrict"] = relationship(back_populates="towns")
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
 
 class STP_River(Base):
     __tablename__ = "stp_river"
@@ -70,6 +72,8 @@ class STP_Drain(Base):
     stretch: Mapped["STP_Stretches"] = relationship(back_populates="drains")
     catchment: Mapped["STP_Catchment"] = relationship(back_populates="drains")
     River_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
 
 class STP_Drain_suitability(Base):
     __tablename__ = "stp_drain_suitability"
@@ -82,6 +86,8 @@ class STP_Drain_suitability(Base):
     Name : Mapped[str] = mapped_column(String, nullable=False)
     Drain_Area: Mapped[float] = mapped_column(Float, nullable=False)
     Elevation: Mapped[Integer] = mapped_column(Integer, nullable=False)
+    latitude: Mapped[float] = mapped_column(Float, nullable=False)
+    longitude: Mapped[float] = mapped_column(Float, nullable=False)
 
 class STP_Catchment(Base):
     __tablename__ = "stp_catchment"

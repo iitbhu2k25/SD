@@ -8,9 +8,13 @@ import React, {
   useCallback,
 } from "react";
 import { useCategory } from "../admin/CategoryContext";
-import { useRiverSystem } from "@/contexts/mar_suitability/users/DrainContext";
-import { DRAIN_LAYER_NAMES, stp_priority_Output } from "@/interface/raster_context";
-import { api } from "@/services/api";
+import { useRiverSystem } from "@/contexts/gwm/mar_suitability/users/DrainContext";
+import {
+  DRAIN_LAYER_NAMES,
+  stp_priority_Output,
+} from "@/interface/raster_context";
+import { api, ApiError } from "@/services/api";
+import { toast } from "react-toastify";
 
 // Updated interface with separate filters for each layer
 interface LayerFilter {
@@ -81,26 +85,26 @@ const MapContext = createContext<MapContextType>({
 
   shouldLoadAllLayers: true,
   hasSelections: false,
-  handleLayerSelection: () => { },
-  setSelectedradioLayer: () => { },
+  handleLayerSelection: () => {},
+  setSelectedradioLayer: () => {},
   stpOperation: false,
-  setstpOperation: () => { },
-  setPrimaryLayer: () => { },
-  setRiverLayer: () => { },
-  setStretchLayer: () => { },
-  setDrainLayer: () => { },
-  setCatchmentLayer: () => { },
-  syncLayersWithRiverSystem: () => { },
+  setstpOperation: () => {},
+  setPrimaryLayer: () => {},
+  setRiverLayer: () => {},
+  setStretchLayer: () => {},
+  setDrainLayer: () => {},
+  setCatchmentLayer: () => {},
+  syncLayersWithRiverSystem: () => {},
   isMapLoading: false,
-  zoomToFeature: () => { },
-  resetMapView: () => { },
+  zoomToFeature: () => {},
+  resetMapView: () => {},
   geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   defaultWorkspace: "vector_work",
   DRAIN_LAYER_NAMES,
   loading: false,
-  setLoading: () => { },
-  setRasterLoading: () => { },
-  setError: () => { },
+  setLoading: () => {},
+  setRasterLoading: () => {},
+  setError: () => {},
   selectedradioLayer: null,
 });
 
@@ -111,30 +115,42 @@ export const MapProvider: React.FC<MapProviderProps> = ({
   defaultWorkspace = "vector_work",
 }) => {
   // State for layer management
-  const [primaryLayer, setPrimaryLayer] = useState<string>(DRAIN_LAYER_NAMES.INDIA);
-  const [boundarylayer, setboundarylayer] = useState<string | null>(DRAIN_LAYER_NAMES.BOUNDARY);
-  const [riverLayer, setRiverLayer] = useState<string | null>(DRAIN_LAYER_NAMES.RIVER); // Always load river layer
-  const [stretchLayer, setStretchLayer] = useState<string | null>(DRAIN_LAYER_NAMES.STRETCH); // Always load stretch layer
-  const [drainLayer, setDrainLayer] = useState<string | null>(DRAIN_LAYER_NAMES.DRAIN); // Always load drain layer
-  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(DRAIN_LAYER_NAMES.CATCHMENT); // Always load catchment layer
+  const [primaryLayer, setPrimaryLayer] = useState<string>(
+    DRAIN_LAYER_NAMES.INDIA,
+  );
+  const [boundarylayer, setboundarylayer] = useState<string | null>(
+    DRAIN_LAYER_NAMES.BOUNDARY,
+  );
+  const [riverLayer, setRiverLayer] = useState<string | null>(
+    DRAIN_LAYER_NAMES.RIVER,
+  ); // Always load river layer
+  const [stretchLayer, setStretchLayer] = useState<string | null>(
+    DRAIN_LAYER_NAMES.STRETCH,
+  ); // Always load stretch layer
+  const [drainLayer, setDrainLayer] = useState<string | null>(
+    DRAIN_LAYER_NAMES.DRAIN,
+  ); // Always load drain layer
+  const [catchmentLayer, setCatchmentLayer] = useState<string | null>(
+    DRAIN_LAYER_NAMES.CATCHMENT,
+  ); // Always load catchment layer
   const [rasterLoading, setRasterLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   // Separate filter states for each layer
   const [riverFilter, setRiverFilter] = useState<LayerFilter>({
     filterField: null,
-    filterValue: null
+    filterValue: null,
   });
   const [stretchFilter, setStretchFilter] = useState<LayerFilter>({
     filterField: null,
-    filterValue: null
+    filterValue: null,
   });
   const [drainFilter, setDrainFilter] = useState<LayerFilter>({
     filterField: null,
-    filterValue: null
+    filterValue: null,
   });
   const [catchmentFilter, setCatchmentFilter] = useState<LayerFilter>({
     filterField: null,
-    filterValue: null
+    filterValue: null,
   });
 
   const [isMapLoading, setIsMapLoading] = useState<boolean>(false);
@@ -158,19 +174,13 @@ export const MapProvider: React.FC<MapProviderProps> = ({
 
   const { selectedCategory, setStpProcess } = useCategory();
   // Function to reset map view (zoom to default)
-  const resetMapView = (): void => {
-
-  };
+  const resetMapView = (): void => {};
 
   // Function to zoom to a specific feature
-  const zoomToFeature = (featureId: string, layerName: string): void => {
-
-  };
+  const zoomToFeature = (featureId: string, layerName: string): void => {};
 
   // Synchronize layers based on river system selections with hierarchical filtering
   const syncLayersWithRiverSystem = useCallback((): void => {
-
-
     setIsMapLoading(true);
 
     // Check if we have any selections
@@ -193,12 +203,10 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     if (selectedRiver) {
       setRiverFilter({
         filterField: "River_Code",
-        filterValue: [selectedRiver]
+        filterValue: [selectedRiver],
       });
-
     } else {
       setRiverFilter({ filterField: null, filterValue: null });
-
     }
 
     // 2. Stretch Filter - Hierarchical logic
@@ -206,20 +214,17 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       // If specific stretches are selected, filter by stretch IDs
       setDrainFilter({
         filterField: "Drain_No",
-        filterValue: selectedDrains
+        filterValue: selectedDrains,
       });
-
     } else if (selectedRiver) {
       // If only river is selected, filter stretches by river
       setStretchFilter({
         filterField: "River_Code", // Assuming stretches have a River_Code field
-        filterValue: [selectedRiver]
+        filterValue: [selectedRiver],
       });
-
     } else {
       // No selection - show all stretches
       setStretchFilter({ filterField: null, filterValue: null });
-
     }
 
     // 3. Drain Filter - Hierarchical logic
@@ -227,39 +232,32 @@ export const MapProvider: React.FC<MapProviderProps> = ({
       // If specific drains are selected, filter by drain numbers
       setDrainFilter({
         filterField: "Drain_No",
-        filterValue: selectedDrains
+        filterValue: selectedDrains,
       });
-
     } else if (selectedStretches && selectedStretches.length > 0) {
       // If stretches are selected, filter drains by stretch IDs
       setDrainFilter({
         filterField: "Stretch_ID", // Assuming drains have a Stretch_ID field
-        filterValue: selectedStretches
+        filterValue: selectedStretches,
       });
-
     } else if (selectedRiver) {
       // If only river is selected, filter drains by river
       setDrainFilter({
         filterField: "River_Code", // Assuming drains have a River_Code field
-        filterValue: [selectedRiver]
+        filterValue: [selectedRiver],
       });
-
     } else {
-
       setDrainFilter({ filterField: null, filterValue: null });
-
     }
 
     // 4. Catchment Filter - Keep original logic (independent)
     if (selectedCatchments && selectedCatchments.length > 0) {
       setCatchmentFilter({
         filterField: "village_id",
-        filterValue: selectedCatchments
+        filterValue: selectedCatchments,
       });
-
     } else {
       setCatchmentFilter({ filterField: null, filterValue: null });
-
     }
 
     setIsMapLoading(false);
@@ -271,9 +269,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     syncLayersWithRiverSystem();
   }, [syncLayersWithRiverSystem]);
   const handleLayerSelection = (layerName: string) => {
-
     setSelectedradioLayer(layerName);
-
   };
   // Context value
   useEffect(() => {
@@ -287,13 +283,8 @@ export const MapProvider: React.FC<MapProviderProps> = ({
             clip: selectedCatchments,
             place: "Drain",
           },
-        }
-        );
-
-        if (resp.status > 201) {
-          throw new Error(`STP operation failed with status: ${resp.status}`);
-        }
-        const result = await resp.message as stp_priority_Output;
+        });
+        const result = (await resp.message) as stp_priority_Output;
 
         if (result) {
           const append_data = {
@@ -304,7 +295,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
           setTableData(result.csv_details);
 
           const index = displayRaster.findIndex(
-            (item) => item.file_name === "mar_suitability"
+            (item) => item.file_name === "mar_suitability",
           );
 
           let newData;
@@ -315,13 +306,22 @@ export const MapProvider: React.FC<MapProviderProps> = ({
             newData = displayRaster.concat(append_data);
           }
           setDisplayRaster(newData);
-          handleLayerSelection(append_data.file_name)
+          handleLayerSelection(append_data.file_name);
         } else {
           console.log("STP operation did not return success:", result);
           setRasterLoading(false);
         }
-      } catch (error: any) {
-        setError(`Error communicating with STP service: ${error.message}`);
+      } catch (error) {
+        if (error instanceof ApiError) {
+          toast.error(error.message);
+          setError(error.message);
+        } else {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "An unknown error occurred",
+          );
+        }
         setRasterLoading(false);
         setShowTable(false);
       } finally {
@@ -348,7 +348,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({
     boundarylayer,
     selectedradioLayer,
     handleLayerSelection,
-    setSelectedradioLayer: () => { },
+    setSelectedradioLayer: () => {},
     setRasterLoading,
     riverFilter,
     stretchFilter,

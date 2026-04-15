@@ -494,7 +494,7 @@ class Geoserver:
             print(f"Error uploading raster file: {str(e)}")
             return False
         
-    async def upload_vector(self,workspace_name:str, store_name:str,shapefile_path:str, layer_name:str):
+    async def upload_vector(self,workspace_name:str,shapefile_path:str, layer_name:str):
         try:
             await self._make_workspace(workspace_name)
             return await self._geoserver_vector(workspace_name, layer_name, shapefile_path, layer_name, "application/zip")

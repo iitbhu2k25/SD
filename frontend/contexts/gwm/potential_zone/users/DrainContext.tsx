@@ -244,6 +244,8 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
           Drain_No: drain.Drain_No,
           stretch_id: drain.stretch_id,
           name: drain.name,
+          latitude: drain.latitude,
+          longitude: drain.longitude
         }));
 
         setDrains(drainData);

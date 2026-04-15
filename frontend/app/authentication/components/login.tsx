@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { validateField } from "@/app/authentication/components/validation";
 import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 import { useAuthStore } from "@/store/authStore";
 
 interface respData {
@@ -76,7 +75,6 @@ export default function Login({
         },
       });
       const data: respData = response.message as respData;
-      toast.success("Login successful!");
       const User = {
         fullname: data.fullname,
         email: data.email,
@@ -84,12 +82,13 @@ export default function Login({
       setUser(User);
       setAccessToken(data.access_token);
 
-
       onSuccess?.();
 
       if (data.is_verified) {
+        toast.success("Login successful!");
         router.push("/");
       } else {
+        toast("Your account is pending admin approval. You will be notified once verified.");
         router.push("/authentication/admin-approval");
       }
       setFormValues({ email: "", password: "" });

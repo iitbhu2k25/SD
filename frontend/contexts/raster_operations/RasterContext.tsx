@@ -8,7 +8,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import { uploadFileInChunks } from "@/utils/chunkUpload";
 import {
   RasterDetails,

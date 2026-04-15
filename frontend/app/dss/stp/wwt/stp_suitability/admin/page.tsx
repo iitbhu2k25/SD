@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { LocationProvider } from "@/contexts/stp/stp_suitability/admin/LocationContext";
 import { CategoryProvider } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import { MapProvider } from "@/contexts/stp/stp_suitability/admin/MapContext";
+import { STPAreaProvider } from "@/contexts/stp/stp_suitability/STPAreaContext";
 import LocationSelector from "@/app/dss/stp/wwt/stp_suitability/admin/components/locations";
 import MapView from "@/app/dss/stp/wwt/stp_suitability/admin/components/openlayer";
 import { useLocation } from "@/contexts/stp/stp_suitability/admin/LocationContext";
@@ -11,20 +12,18 @@ import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContex
 import { useMap } from "@/contexts/stp/stp_suitability/admin/MapContext";
 import { CategorySlider } from "./components/weight_slider";
 import WholeLoading from "@/components/app_layout/newLoading";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 import DataTable from "react-data-table-component";
 import { Village_columns } from "@/interface/table";
 import { api } from "@/services/api";
 import PDFGenerationStatus from "@/components/utils/PdfGeneration";
 import { downloadCSV } from "@/components/utils/downloadCsv";
-import { TreatmentForm } from "@/app/dss/stp/wwt/stp_suitability/admin/components/Stp_area";
 import { FaLock, FaUnlock } from "react-icons/fa";
 import { STPDss } from "@/app/dss/stp/wwt/stp_suitability/component/STPDss";
 import {
   ChevronDown,
   Download,
   BarChart3,
-  MapPin,
   FileText,
   SlidersHorizontal,
 } from "lucide-react";
@@ -134,7 +133,10 @@ const MainContent: React.FC = () => {
   }, [selectionsLocked]);
 
   useEffect(() => {
-    if (tableData.length > 0) setOpenResults(true);
+    if (tableData.length > 0) {
+      setOpenResults(true);
+      setOpenTechDSS(true);
+    }
   }, [tableData.length]);
 
   // ── handlers ─────────────────────────────────────────────────────────────
@@ -336,21 +338,7 @@ const MainContent: React.FC = () => {
             </AccordionSection>
           )}
 
-          {/* 3 — STP Cluster Finder */}
-          {tableData.length > 0 && (
-            <AccordionSection
-              open={openCluster}
-              onToggle={() => setOpenCluster(v => !v)}
-              icon={<MapPin className="h-4 w-4" />}
-              iconBg="bg-teal-600" iconText="text-white"
-              borderColor="border-teal-200" bgColor="bg-teal-50"
-              chevronColor="text-teal-700"
-              label="STP Area & Location Finder"
-              sublabel="Select technology and capacity to identify clusters on the map"
-            >
-              <TreatmentForm />
-            </AccordionSection>
-          )}
+
 
           {/* 4 — STP Technology DSS */}
           {tableData.length > 0 && (
@@ -413,9 +401,11 @@ const MainContent: React.FC = () => {
 const SuitabilityAdminWrapper: React.FC = () => (
   <LocationProvider>
     <CategoryProvider>
-      <MapProvider>
-        <MainContent />
-      </MapProvider>
+      <STPAreaProvider>
+        <MapProvider>
+          <MainContent />
+        </MapProvider>
+      </STPAreaProvider>
     </CategoryProvider>
   </LocationProvider>
 );

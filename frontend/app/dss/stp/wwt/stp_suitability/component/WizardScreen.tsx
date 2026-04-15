@@ -4,11 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { useSTPStore } from '@/store/useSTPStore'
 import { WIZARD_STEPS } from '@/interface/stp_suitability/data'
 import { resolveRoute, getStepSequence } from './Scoring'
-import type { Answer, StepId } from '@/interface/stp_suitability/stp'
+import type { StepId } from '@/interface/stp_suitability/stp'
 
 export function WizardScreen() {
   const { answers, pushAnswer, popAnswer, setSystemType, setScreen } = useSTPStore()

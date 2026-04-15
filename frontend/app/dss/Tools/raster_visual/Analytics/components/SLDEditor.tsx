@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { ColorStop } from "@/interface/raster_operations";
 import { useRaster } from "@/contexts/raster_operations/RasterContext";
 import { SLDGenerator, CLASSIFICATION_METHODS } from "@/interface/sldGenerator";
-import toast from "react-hot-toast";
+import { toast } from "react-toastify";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SLDEditor — TerraOps Light Theme

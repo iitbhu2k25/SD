@@ -7,7 +7,7 @@ import { useYear } from './yearContext';
 import { ADMIN_LAYER_NAMES } from '@/interface/raster_context';
 import type { AllChartsResponse } from '@/interface/charts';
 import { useWebSocket } from "@/services/websocket";
-import toast from 'react-hot-toast';
+import { toast } from "react-toastify";
 
 interface MapContextType {
   primaryLayer: string;
