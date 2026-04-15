@@ -81,7 +81,7 @@ async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster,us
     
 @router.post("/stp_suitability",status_code=status.HTTP_201_CREATED,)
 @validate
-async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,):
+async def stp_classify(db:db_dependency,payload:STPsuitabilityInput,user: Annotated[bool, Depends(validate_user)]):
     """ It calculater the stp suitability """
     return await STPsuitabilityMapper().create_suitability_map(db,payload)
 
@@ -109,13 +109,13 @@ async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput,u
 
 @router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED,response_model=celery_id)
 @validate
-async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area):
+async def stp_suitability_area(db:db_dependency,payload:STP_suitability_Area,user: Annotated[bool, Depends(validate_user)]):
     task_id=find_suitable_area.delay(treatment_technology=payload.treatment_technology,mld_capacity=payload.mld_capacity,custom_land_per_mld=payload.custom_land_per_mld,layer_name=payload.layer_name,location=payload.location)
     return celery_id(task_id=task_id.id)
 
 @router.get("/stp_area/{task_id}",status_code=status.HTTP_200_OK,response_model=stp_area_resp)
 @validate
-async def stp_area(db:db_dependency,task_id:str):
+async def stp_area(db:db_dependency,task_id:str,user: Annotated[bool, Depends(validate_user)]):
     resp=await RasterOperation().get_result(db,task_id)
     return stp_area_resp(cluster_layer=resp.layer_name,suitable_path=resp.file_path)
 
