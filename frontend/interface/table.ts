@@ -13,6 +13,8 @@ export interface DataRow {
   Medium: number;
   High: number;
   Very_High: number;
+  mean?: number;
+  "Risk Factor"?: string;
 }
 
 export interface Gwpl_Table{

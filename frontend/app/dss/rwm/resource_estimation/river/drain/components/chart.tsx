@@ -241,6 +241,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
     stretchBufferData,
     isLoadingWaterQuality,
     waterQualityError,
+    returnToSelection,
   } = useStretch();
 
   const {
@@ -1873,7 +1874,11 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
 
     try {
       const targetBackendAttribute =
-        BACKEND_PARAMETER_MAPPING[selectedAttribute] || selectedAttribute;
+        selectedAttribute in BACKEND_PARAMETER_MAPPING
+          ? BACKEND_PARAMETER_MAPPING[
+            selectedAttribute as keyof typeof BACKEND_PARAMETER_MAPPING
+          ]
+          : selectedAttribute;
       const selectedAttributeToken = sanitizeLayerAttributeToken(targetBackendAttribute);
       const seasonForLayer = selectedSeason || "premonsoon";
 
@@ -1990,6 +1995,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
                 onDownloadRaster={handleRasterDownload}
                 isRasterDownloadAvailable={isRasterDownloadAvailable}
                 isRasterDownloading={isRasterDownloading}
+                onBackToSelection={returnToSelection}
               />
 
               <div className="mt-3 rounded-xl border border-slate-200/80 bg-white/95 p-2 shadow-md backdrop-blur-md">
@@ -2087,7 +2093,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
                   selectedAttributeUnit={WQ_PARAMETERS.find(p => p.key === selectedAttribute)?.unit || ""}
                   borderColors={borderColors}
                   parseValue={parseValue}
-                  currentInterpolationLayerName={currentInterpolationLayerName}
+                  interpolationLayerName={currentInterpolationLayerName}
                   riverBufferData={stretchBufferData || riverBufferData || null}
                 />
               )}

@@ -227,7 +227,6 @@ export default function WaterV2Page() {
         onToggleLeft={() => setIsLeftOpen((open) => !open)}
         onCloseLeft={() => setIsLeftOpen(false)}
         isDark={isDark}
-        hideHeader
       />
       <ModuleInfoModal
         open={showInfo}
