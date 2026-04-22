@@ -44,6 +44,7 @@ interface UserCategoryState {
   updateCategoryInfluence: (id: number, fileName: string, influence: number) => void;
   selectAllCategories: () => void;
   clearAllCategories: () => void;
+  resetSelectedCategoriesToDefaults: () => void;
   setStpProcess: (value: boolean) => void;
   reset: () => void;
   isSelected: (id: number) => boolean;
@@ -146,6 +147,29 @@ export const useUserCategoryStore = create<UserCategoryState>((set, get) => ({
     set({ selectedCategories: calculateSelectedCategories(allSelected) });
   },
   clearAllCategories: () => set({ selectedCategories: [] }),
+  resetSelectedCategoriesToDefaults: () => {
+    const { categories, selectedCategories } = get();
+
+    if (selectedCategories.length === 0) {
+      return;
+    }
+
+    const resetSelected = selectedCategories.map((selectedCategory) => {
+      const category = categories.find((item) => item.id === selectedCategory.id);
+
+      if (!category) {
+        return selectedCategory;
+      }
+
+      return {
+        id: category.id,
+        file_name: selectedCategory.file_name || category.file_name,
+        Influence: category.weight.toString(),
+      };
+    });
+
+    set({ selectedCategories: calculateSelectedCategories(resetSelected) });
+  },
   setStpProcess: (value) => set({ stpProcess: value }),
   reset: () =>
     set({

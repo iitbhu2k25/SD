@@ -1,17 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useStretch } from "@/contexts/riverwater_assessment/drain/LocationContext";
 import {
   useStretchMap,
-} from "@/contexts/riverwater_assessment/drain/MapContext";
-import {
-  WQ_PARAMETERS,
-  WATER_QUALITY_ATTRIBUTES,
-  WATER_QUALITY_ATTRIBUTE_LABELS,
   BACKEND_PARAMETER_MAPPING,
-  getBackendAttributeName,
-} from "@/app/dss/rwm/resource_estimation/river/components/waterQualityParameters";
+} from "@/contexts/riverwater_assessment/drain/MapContext";
 import {
   useStretchChart,
   ProcessedWaterQualityData,
@@ -86,10 +80,103 @@ ChartJS.register(
   annotationPlugin,
 );
 
+// Water Quality Parameters
+const WQ_PARAMETERS = [
+  { key: "ph", label: "pH", unit: "", range: "6.5-8.5", min: 0, max: 14 },
+  { key: "tds", label: "TDS", unit: "mg/L", range: "< 500", min: 0, max: 2000 },
+  { key: "ec", label: "EC", unit: "µS/cm", range: "", min: 0, max: 5000 },
+  {
+    key: "temperature",
+    label: "Temperature",
+    unit: "°C",
+    range: "",
+    min: 0,
+    max: 50,
+  },
+  {
+    key: "turbidity",
+    label: "Turbidity",
+    unit: "NTU",
+    range: "< 1",
+    min: 0,
+    max: 1000,
+  },
+  {
+    key: "dissolvedOxygen",
+    label: "Dissolved Oxygen",
+    unit: "mg/L",
+    range: "> 5",
+    min: 0,
+    max: 15,
+  },
+  { key: "orp", label: "ORP", unit: "mV", range: "", min: -500, max: 500 },
+  { key: "tss", label: "TSS", unit: "mg/L", range: "", min: 0, max: 500 },
+  { key: "cod", label: "COD", unit: "mg/L", range: "< 3", min: 0, max: 100 },
+  { key: "bod", label: "BOD", unit: "mg/L", range: "< 2", min: 0, max: 50 },
+  {
+    key: "ts",
+    label: "Total Solids",
+    unit: "mg/L",
+    range: "",
+    min: 0,
+    max: 2000,
+  },
+  {
+    key: "chloride",
+    label: "Chloride",
+    unit: "mg/L",
+    range: "< 250",
+    min: 0,
+    max: 1000,
+  },
+  {
+    key: "nitrate",
+    label: "Nitrate",
+    unit: "mg/L",
+    range: "< 45",
+    min: 0,
+    max: 100,
+  },
+  {
+    key: "hardness",
+    label: "Hardness",
+    unit: "mg/L",
+    range: "< 200",
+    min: 0,
+    max: 1000,
+  },
+  {
+    key: "faecalColiform",
+    label: "Faecal Coliform",
+    unit: "MPN/100ml",
+    range: "≤0",
+  },
+  {
+    key: "totalColiform",
+    label: "Total Coliform",
+    unit: "MPN/100ml",
+    range: "≤50",
+  },
+  {
+    key: "wqi",
+    label: "Water Quality Index",
+    unit: "",
+    range: "0-100",
+    min: 0,
+    max: 100,
+  },
+];
 
 const reportParameters = WQ_PARAMETERS.filter((param) => param.key !== "wqi");
-const attributes = WATER_QUALITY_ATTRIBUTES;
-const attributeLabels = WATER_QUALITY_ATTRIBUTE_LABELS;
+
+const attributes = WQ_PARAMETERS.map((param) => param.key);
+const attributeLabels: Record<string, string> = WQ_PARAMETERS.reduce(
+  (acc, param) => {
+    acc[param.key] = `${param.label}${param.unit ? ` (${param.unit})` : ""}`;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
 
 const parseValue = (value: string | number | null | undefined): number => {
   if (value === null || value === undefined || value === "") return 0;
@@ -154,7 +241,6 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
     stretchBufferData,
     isLoadingWaterQuality,
     waterQualityError,
-    returnToSelection,
   } = useStretch();
 
   const {
@@ -165,8 +251,6 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
     selectedAttribute,
     setSelectedAttribute,
   } = useStretchChart();
-  const selectedAttributeLabel =
-    attributeLabels[selectedAttribute]?.split("(")[0].trim() || "";
   const { interpolationData } = useStretchMap();
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<"sampling" | "summary" | "seasonal" | "graph" | "report">("sampling");
 
@@ -180,9 +264,6 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [completedParameters, setCompletedParameters] = useState(0);
   const [isRasterDownloading, setIsRasterDownloading] = useState(false);
-  const [graphLayerCache, setGraphLayerCache] = useState<Record<string, string>>({});
-  const [isPreparingGraphRaster, setIsPreparingGraphRaster] = useState(false);
-  const [graphRasterError, setGraphRasterError] = useState<string | null>(null);
 
   // Process water quality data directly from LocationContext
 
@@ -219,6 +300,26 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
       return value > 0;
     });
   }, [processedChartData, selectedAttribute]);
+
+  const attributeMapping: { [key: string]: string } = {
+    ph: "pH",
+    tds: "TDS_mg_L_",
+    ec: "EC__S_cm_",
+    temperature: "Temperatur",
+    turbidity: "Turbidity_",
+    dissolvedOxygen: "DO_mg_L_",
+    orp: "ORP",
+    tss: "TSS_mg_L_",
+    cod: "COD_mg_L_",
+    bod: "BOD_mg_L_",
+    ts: "TS_mg_L_",
+    chloride: "Chloride_m",
+    nitrate: "Nitrate_mg",
+    hardness: "Hardness_m",
+    faecalColiform: "Faecal_Col",
+    totalColiform: "Total_Coli",
+    WQI: "WQI",
+  };
 
   // NEW: Helper function to get parameter value from data point
   const getParameterValue = (
@@ -296,7 +397,8 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
       }
 
       const backendAttributes = selectedParameters.map(
-        (param) => getBackendAttributeName(param) || param,
+        (param) =>
+          attributeMapping[param as keyof typeof attributeMapping] || param,
       );
 
       backendAttributes.push("WQI");
@@ -308,7 +410,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
 
       // ==================== FETCH DATA FROM BACKEND ====================
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/start-pdf-report`, {
+      const response = await fetch(`/django/rwm/start-pdf-report/`, {
         method: "POST",
         body: JSON.stringify({
           stretch_ids: selectedStretches,
@@ -1659,7 +1761,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
   };
 
   const handleDeselectTopTen = () => {
-    const topTenKeys = new Set<string>(
+    const topTenKeys = new Set(
       reportParameters
         .map((param) => param.key)
         .filter((key) => TOP_TEN_PRIORITY[key] !== undefined),
@@ -1760,57 +1862,29 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
     areaConfirmed &&
     selectedStretches.length > 0 &&
     !!waterQualityData?.features?.length;
-  const seasonForLayer = selectedSeason || "premonsoon";
-  const selectedAttributeToken = sanitizeLayerAttributeToken(
-    BACKEND_PARAMETER_MAPPING[
-      selectedAttribute as keyof typeof BACKEND_PARAMETER_MAPPING
-    ] || selectedAttribute,
-  );
-  const currentLayerMatchesSelectedAttribute =
-    extractLayerAttributeToken(
-      currentInterpolationLayerName,
-      seasonForLayer,
-      "stretchbased",
-    ) === selectedAttributeToken;
-  const cachedGraphLayerName = graphLayerCache[selectedAttribute] || null;
-  const cachedLayerMatchesSelectedAttribute =
-    extractLayerAttributeToken(
-      cachedGraphLayerName,
-      seasonForLayer,
-      "stretchbased",
-    ) === selectedAttributeToken;
-  const graphInterpolationLayerName = currentLayerMatchesSelectedAttribute
-    ? currentInterpolationLayerName
-    : cachedLayerMatchesSelectedAttribute
-      ? cachedGraphLayerName
-      : null;
 
-  useEffect(() => {
-    setGraphLayerCache({});
-    setGraphRasterError(null);
-  }, [selectedSeason, selectedStretches]);
+  const handleRasterDownload = async (downloadFormat: "png" | "tiff") => {
+    if (isRasterDownloading) return;
 
-  const prepareRasterLayerForAttribute = useCallback(
-    async (
-      chartAttribute: string,
-      preferredLayerName: string | null = null,
-    ): Promise<string> => {
+    setIsRasterDownloading(true);
+    const toastId = toast.loading(
+      `Preparing ${downloadFormat.toUpperCase()} raster download...`
+    );
+
+    try {
       const targetBackendAttribute =
-        BACKEND_PARAMETER_MAPPING[
-          chartAttribute as keyof typeof BACKEND_PARAMETER_MAPPING
-        ] || chartAttribute;
-      const targetAttributeToken =
-        sanitizeLayerAttributeToken(targetBackendAttribute);
+        BACKEND_PARAMETER_MAPPING[selectedAttribute] || selectedAttribute;
+      const selectedAttributeToken = sanitizeLayerAttributeToken(targetBackendAttribute);
       const seasonForLayer = selectedSeason || "premonsoon";
 
-      let layerForUse = preferredLayerName;
+      let layerForDownload = currentInterpolationLayerName;
       const currentLayerToken = extractLayerAttributeToken(
-        layerForUse,
+        currentInterpolationLayerName,
         seasonForLayer,
         "stretchbased",
       );
 
-      if (!layerForUse || currentLayerToken !== targetAttributeToken) {
+      if (!layerForDownload || currentLayerToken !== selectedAttributeToken) {
         if (selectedStretches.length === 0 || !waterQualityData?.features?.length) {
           throw new Error(
             "Required data is missing. Please select stretches and load water quality points first.",
@@ -1818,7 +1892,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
         }
 
         const interpolationResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/interpolate/${encodeURIComponent(targetBackendAttribute)}/stretchbased/${seasonForLayer}`,
+          `/django/rwm/interpolate/${encodeURIComponent(targetBackendAttribute)}/stretchbased/${seasonForLayer}/`,
           {
             method: "POST",
             headers: {
@@ -1834,114 +1908,28 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
         if (!interpolationResponse.ok) {
           const interpolationError = await interpolationResponse.text();
           throw new Error(
-            `Failed to prepare ${chartAttribute.toUpperCase()} raster (${interpolationResponse.status}): ${interpolationError}`,
+            `Failed to prepare selected parameter raster (${interpolationResponse.status}): ${interpolationError}`,
           );
         }
 
         const interpolationPayload = await interpolationResponse.json();
-        if (
-          interpolationPayload?.status !== "success" ||
-          !interpolationPayload?.primary_layer
-        ) {
+        if (interpolationPayload?.status !== "success" || !interpolationPayload?.primary_layer) {
           throw new Error(
-            interpolationPayload?.message ||
-            `Interpolation did not return a ${chartAttribute.toUpperCase()} raster layer.`,
+            interpolationPayload?.message || "Interpolation did not return a downloadable raster layer.",
           );
         }
-
-        layerForUse = interpolationPayload.primary_layer;
+        layerForDownload = interpolationPayload.primary_layer;
       }
-
-      if (!layerForUse) {
-        throw new Error(
-          `No raster layer found for ${chartAttribute.toUpperCase()}.`,
-        );
-      }
-
-      return layerForUse;
-    },
-    [selectedSeason, selectedStretches, waterQualityData],
-  );
-
-  useEffect(() => {
-    if (activeAnalysisTab !== "graph") return;
-
-    if (currentLayerMatchesSelectedAttribute && currentInterpolationLayerName) {
-      setGraphLayerCache((previous) =>
-        previous[selectedAttribute] === currentInterpolationLayerName
-          ? previous
-          : { ...previous, [selectedAttribute]: currentInterpolationLayerName },
-      );
-      setGraphRasterError(null);
-      return;
-    }
-
-    if (cachedLayerMatchesSelectedAttribute && cachedGraphLayerName) {
-      setGraphRasterError(null);
-      return;
-    }
-
-    let cancelled = false;
-    setIsPreparingGraphRaster(true);
-    setGraphRasterError(null);
-
-    prepareRasterLayerForAttribute(selectedAttribute)
-      .then((layerName) => {
-        if (cancelled) return;
-        setGraphLayerCache((previous) => ({
-          ...previous,
-          [selectedAttribute]: layerName,
-        }));
-      })
-      .catch((error: any) => {
-        if (cancelled) return;
-        setGraphRasterError(
-          error?.message || `Failed to prepare ${selectedAttributeLabel} raster.`,
-        );
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsPreparingGraphRaster(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeAnalysisTab,
-    cachedGraphLayerName,
-    cachedLayerMatchesSelectedAttribute,
-    currentInterpolationLayerName,
-    currentLayerMatchesSelectedAttribute,
-    prepareRasterLayerForAttribute,
-    selectedAttribute,
-    selectedAttributeLabel,
-  ]);
-
-  const handleRasterDownload = async (downloadFormat: "png" | "tiff") => {
-    if (isRasterDownloading) return;
-
-    setIsRasterDownloading(true);
-    const toastId = toast.loading(
-      `Preparing ${downloadFormat.toUpperCase()} raster download...`
-    );
-
-    try {
-      const layerForDownload = await prepareRasterLayerForAttribute(
-        selectedAttribute,
-        currentInterpolationLayerName,
-      );
 
       const workspace = layerForDownload.includes(":")
         ? layerForDownload.split(":", 1)[0]
-        : "myworkspace";
+        : "dss_vector";
       const fileExtension = downloadFormat === "png" ? "png" : "tif";
       const safeParam = (selectedAttribute || "interpolation")
         .replace(/[^a-zA-Z0-9._-]+/g, "_");
       const safeSeason = (selectedSeason || "season").replace(/[^a-zA-Z0-9._-]+/g, "_");
       const fileName = `${safeParam}_${safeSeason}_interpolation.${fileExtension}`;
-      const url = `${process.env.NEXT_PUBLIC_DJANGO_URL}/rwm/general/download-raster?layer_name=${encodeURIComponent(layerForDownload)}&workspace=${encodeURIComponent(workspace)}&filename=${encodeURIComponent(fileName)}&format=${encodeURIComponent(downloadFormat)}`;
+      const url = `/django/rwm/general/download-raster?layer_name=${encodeURIComponent(layerForDownload)}&workspace=${encodeURIComponent(workspace)}&filename=${encodeURIComponent(fileName)}&format=${encodeURIComponent(downloadFormat)}`;
 
       const response = await fetch(url, { method: "GET" });
       if (!response.ok) {
@@ -1967,7 +1955,7 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
       link.remove();
       URL.revokeObjectURL(objectUrl);
 
-      toast.success(`${downloadFormat.toUpperCase()} raster download started.`, );
+      toast.success(`${downloadFormat.toUpperCase()} raster download started.`,);
     } catch (error: any) {
       toast.error(error?.message || "Failed to download raster.", );
     } finally {
@@ -1999,7 +1987,6 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
                 stats={stats}
                 wqiMean={wqiMean}
                 wqiInfo={wqiInfo}
-                onBackToSelection={returnToSelection}
                 onDownloadRaster={handleRasterDownload}
                 isRasterDownloadAvailable={isRasterDownloadAvailable}
                 isRasterDownloading={isRasterDownloading}
@@ -2100,10 +2087,8 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
                   selectedAttributeUnit={WQ_PARAMETERS.find(p => p.key === selectedAttribute)?.unit || ""}
                   borderColors={borderColors}
                   parseValue={parseValue}
-                  interpolationLayerName={graphInterpolationLayerName}
+                  currentInterpolationLayerName={currentInterpolationLayerName}
                   riverBufferData={stretchBufferData || riverBufferData || null}
-                  isPreparingRaster={isPreparingGraphRaster}
-                  rasterError={graphRasterError}
                 />
               )}
 
@@ -2141,5 +2126,4 @@ const StretchMapComponent: React.FC<StretchChartProps> = ({ }) => {
   );
 };
 export default StretchMapComponent;
-
 

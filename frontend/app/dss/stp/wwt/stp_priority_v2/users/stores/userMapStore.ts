@@ -177,6 +177,7 @@ export const useUserMapStore = create<UserMapState>((set) => ({
   },
   runAnalysis: async () => {
     const { selectedCategories, setStpProcess } = useUserCategoryStore.getState();
+    const { catchmentLayer } = useUserMapStore.getState();
     const {
       selectedCatchments,
       displayRaster,
@@ -201,6 +202,7 @@ export const useUserMapStore = create<UserMapState>((set) => ({
         data: selectedCategories,
         clip: selectedCatchments,
         place: "Drain",
+        village_layer: catchmentLayer,
       });
 
       const priorityRaster: ClipRasters = {

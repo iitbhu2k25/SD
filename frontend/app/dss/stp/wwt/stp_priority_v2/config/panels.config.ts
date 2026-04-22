@@ -16,9 +16,25 @@ export interface RightPanelSettings extends PanelSizeSettings {
   maxWidthPercent: number;
 }
 
+export interface BottomPanelSettings extends PanelSizeSettings {
+  // Height when this panel is visible.
+  heightOpen: string;
+  // Height when this panel is visible on smaller screens.
+  mobileHeightOpen: string;
+  // Height when this panel is collapsed.
+  heightClosed: string;
+  // Initial open/closed state when the page loads.
+  defaultOpen: boolean;
+  // Desktop resize clamp lower bound.
+  minHeightPercent: number;
+  // Desktop resize clamp upper bound.
+  maxHeightPercent: number;
+}
+
 export interface PanelSettings {
   left: PanelSizeSettings;
   right: RightPanelSettings;
+  bottom: BottomPanelSettings;
 }
 
 export const stpPriorityPanelSettings: PanelSettings = {
@@ -29,12 +45,23 @@ export const stpPriorityPanelSettings: PanelSettings = {
     defaultOpen: true,
   },
   right: {
-    widthOpen: "38%",
+    widthOpen: "25%",
     mobileWidthOpen: "min(24rem, calc(100vw - 4rem))",
     widthClosed: "0px",
     defaultOpen: false,
     minWidthPercent: 25,
     maxWidthPercent: 45,
+  },
+  bottom: {
+    widthOpen: "0px",
+    mobileWidthOpen: "0px",
+    widthClosed: "0px",
+    heightOpen: "38%",
+    mobileHeightOpen: "min(20rem, 46vh)",
+    heightClosed: "3rem",
+    defaultOpen: false,
+    minHeightPercent: 22,
+    maxHeightPercent: 55,
   },
 };
 

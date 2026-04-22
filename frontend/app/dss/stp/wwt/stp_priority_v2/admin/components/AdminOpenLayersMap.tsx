@@ -3,7 +3,7 @@
 // This file controls the admin map.
 // It creates the map, loads layers, and handles map actions like hover,
 // fullscreen, base map change, and selection.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import Map from "ol/Map";
 import { fromLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
@@ -39,10 +39,12 @@ import {
   createHoverSelectInteraction,
   toggleBrowserFullscreen,
 } from "@/components/map_core/interactions";
-import BaseMaps from "../../shared/ui/BaseMaps";
-import MapHeaderControls from "../../shared/ui/MapHeaderControls";
-import MapRasterSelector from "../../shared/ui/MapRasterSelector";
-import CloseIcon from "../../shared/ui/icons/CloseIcon";
+import BaseMaps from "@/components/dss_common/BaseMaps";
+import CloseIcon from "@/components/dss_common/CloseIcon";
+import MapCoordinatesOverlay from "@/components/dss_common/MapCoordinatesOverlay";
+import MapHeaderControls from "@/components/dss_common/MapHeaderControls";
+import MapLegendOverlay from "@/components/dss_common/MapLegendOverlay";
+import MapRasterSelector from "@/components/dss_common/MapRasterSelector";
 import { useAdminLocationStore } from "../stores/adminLocationStore";
 import { useAdminMapStore } from "../stores/adminMapStore";
 
@@ -51,7 +53,8 @@ function createVectorStyle(isSecondary: boolean, showTitles: boolean) {
     const geometry = feature.getGeometry();
     const geometryType = geometry.getType();
     const zoom = Math.round(Math.log(156543.03392 / resolution) / Math.log(2));
-    const featureName = feature.get("name") || feature.get("Name") || feature.get("NAME");
+    const featureName =
+      feature.get("name") || feature.get("Name") || feature.get("NAME");
     const color = isSecondary ? "#7c2d12" : "#2563eb";
     const width = isSecondary ? 3 : 2;
     const styles: Style[] = [];
@@ -116,7 +119,7 @@ export default function AdminOpenLayersMap() {
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
 
-  const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState("terrain");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -124,13 +127,24 @@ export default function AdminOpenLayersMap() {
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [featureCounts, setFeatureCounts] = useState({ primary: 0, secondary: 0 });
+  const mapInstanceId = useId();
+  const mouseTargetId = `mouse-position-${mapInstanceId.replace(/:/g, "")}`;
+  const [featureCounts, setFeatureCounts] = useState({
+    primary: 0,
+    secondary: 0,
+  });
 
   const displayRaster = useAdminLocationStore((state) => state.displayRaster);
-  const selectionsLocked = useAdminLocationStore((state) => state.selectionsLocked);
+  const selectionsLocked = useAdminLocationStore(
+    (state) => state.selectionsLocked,
+  );
   const selectedState = useAdminLocationStore((state) => state.selectedState);
-  const setSelectedState = useAdminLocationStore((state) => state.setSelectedState);
-  const setSelectedDistricts = useAdminLocationStore((state) => state.setSelectedDistricts);
+  const setSelectedState = useAdminLocationStore(
+    (state) => state.setSelectedState,
+  );
+  const setSelectedDistricts = useAdminLocationStore(
+    (state) => state.setSelectedDistricts,
+  );
   const setSelectedSubDistricts = useAdminLocationStore(
     (state) => state.setSelectedSubDistricts,
   );
@@ -166,9 +180,9 @@ export default function AdminOpenLayersMap() {
 
     const { map, baseLayer } = createIndiaMapWithBaseLayer({
       target: mapRef.current,
-      mouseTargetId: "mouse-position",
+      mouseTargetId,
       baseMaps,
-      defaultBaseMapKey: "satellite",
+      defaultBaseMapKey: "terrain",
       center: INDIA_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: 5,
@@ -176,32 +190,37 @@ export default function AdminOpenLayersMap() {
     });
     baseLayerRef.current = baseLayer;
 
-    const selectInteraction = createDoubleClickSelectInteraction((event, interaction) => {
-      const feature = event.selected[0];
-      if (!feature) {
-        return;
-      }
+    const selectInteraction = createDoubleClickSelectInteraction(
+      (event, interaction) => {
+        const feature = event.selected[0];
+        if (!feature) {
+          return;
+        }
 
-      const stateCode = feature.get("State_Code");
-      const districtCode = feature.get("district_c");
-      const subDistrictCode = feature.get("subdis_cod");
+        const stateCode = feature.get("State_Code");
+        const districtCode = feature.get("district_c");
+        const subDistrictCode = feature.get("subdis_cod");
 
-      if (subDistrictCode) {
-        setSelectedSubDistricts([Number(subDistrictCode)]);
-      } else if (districtCode) {
-        setSelectedDistricts([Number(districtCode)]);
-      } else if (stateCode) {
-        setSelectedState(Number(stateCode));
-      }
+        if (subDistrictCode) {
+          setSelectedSubDistricts([Number(subDistrictCode)]);
+        } else if (districtCode) {
+          setSelectedDistricts([Number(districtCode)]);
+        } else if (stateCode) {
+          setSelectedState(Number(stateCode));
+        }
 
-      setTimeout(() => interaction.getFeatures().clear(), 300);
-    });
+        setTimeout(() => interaction.getFeatures().clear(), 300);
+      },
+    );
 
     const hoverInteraction = createHoverSelectInteraction((event) => {
       setHoveredFeature(event.selected[0] ?? null);
     });
 
-    const cleanupMouseTracking = attachPointerMoveTracker(map, setMousePosition);
+    const cleanupMouseTracking = attachPointerMoveTracker(
+      map,
+      setMousePosition,
+    );
     map.addInteraction(selectInteraction);
     map.addInteraction(hoverInteraction);
     selectInteractionRef.current = selectInteraction;
@@ -214,7 +233,13 @@ export default function AdminOpenLayersMap() {
       cleanupMouseTracking();
       map.setTarget("");
     };
-  }, [setLoading, setSelectedDistricts, setSelectedState, setSelectedSubDistricts]);
+  }, [
+    mouseTargetId,
+    setLoading,
+    setSelectedDistricts,
+    setSelectedState,
+    setSelectedSubDistricts,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -223,13 +248,22 @@ export default function AdminOpenLayersMap() {
       return;
     }
 
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      map.updateSize();
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
+      resizeTimer = setTimeout(() => {
+        map.updateSize();
+      }, 100);
     });
 
     resizeObserver.observe(container);
 
     return () => {
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
       resizeObserver.disconnect();
     };
   }, []);
@@ -272,7 +306,8 @@ export default function AdminOpenLayersMap() {
           event,
           source,
           map: mapInstanceRef.current,
-          onCount: (count) => setFeatureCounts((prev) => ({ ...prev, primary: count })),
+          onCount: (count) =>
+            setFeatureCounts((prev) => ({ ...prev, primary: count })),
         }),
       onFeaturesLoadError: () => setError("Failed to load primary features"),
     });
@@ -311,7 +346,8 @@ export default function AdminOpenLayersMap() {
           event,
           source,
           map,
-          onCount: (count) => setFeatureCounts((prev) => ({ ...prev, secondary: count })),
+          onCount: (count) =>
+            setFeatureCounts((prev) => ({ ...prev, secondary: count })),
         }),
     });
 
@@ -341,7 +377,8 @@ export default function AdminOpenLayersMap() {
     }
 
     try {
-      const { layerName, fullLayerName } = resolveRasterLayerNames(rasterLayerInfo);
+      const { layerName, fullLayerName } =
+        resolveRasterLayerNames(rasterLayerInfo);
       const { legendUrl, layerId, layer } = createRasterWmsLayer({
         geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
         fullLayerName,
@@ -369,7 +406,9 @@ export default function AdminOpenLayersMap() {
   ]);
 
   useEffect(() => {
-    const selectedLayer = displayRaster.find((item) => item.file_name === selectedradioLayer);
+    const selectedLayer = displayRaster.find(
+      (item) => item.file_name === selectedradioLayer,
+    );
     setRasterLayerInfo(selectedLayer ?? null);
   }, [displayRaster, selectedradioLayer, setRasterLayerInfo]);
 
@@ -469,7 +508,9 @@ export default function AdminOpenLayersMap() {
                 className={`relative h-5 w-10 rounded-full transition-all duration-300 ${
                   showPrimaryLayer ? "bg-blue-500" : "bg-gray-300"
                 }`}
-                title={showPrimaryLayer ? "Hide India layer" : "Show India layer"}
+                title={
+                  showPrimaryLayer ? "Hide India layer" : "Show India layer"
+                }
               >
                 <span
                   className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
@@ -609,7 +650,7 @@ export default function AdminOpenLayersMap() {
             </div>
             <button
               onClick={goToHomeView}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-100"
+              className="cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-100"
             >
               Reset
             </button>
@@ -620,7 +661,9 @@ export default function AdminOpenLayersMap() {
               <div>
                 <div className="font-medium text-gray-800">Raster Opacity</div>
                 <div className="text-xs text-gray-500">
-                  {selectedradioLayer ? selectedradioLayer : "Select a raster layer to adjust"}
+                  {selectedradioLayer
+                    ? selectedradioLayer
+                    : "Select a raster layer to adjust"}
                 </div>
               </div>
               <span className="rounded-md bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
@@ -632,7 +675,9 @@ export default function AdminOpenLayersMap() {
               min="0"
               max="100"
               value={layerOpacity}
-              onChange={(event) => setLayerOpacity(parseInt(event.target.value, 10))}
+              onChange={(event) =>
+                setLayerOpacity(parseInt(event.target.value, 10))
+              }
               className="w-full"
               aria-label="Adjust raster opacity"
               disabled={!selectedradioLayer}
@@ -644,10 +689,16 @@ export default function AdminOpenLayersMap() {
   );
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-slate-100" ref={containerRef}>
+    <div
+      className="relative h-full w-full overflow-hidden bg-slate-100"
+      ref={containerRef}
+    >
       <div ref={mapRef} className="h-full w-full" />
 
-      <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
+      <HoverTooltip
+        hoveredFeature={hoveredFeature}
+        mousePosition={mousePosition}
+      />
 
       <MapHeaderControls
         activePanel={activePanel}
@@ -668,37 +719,15 @@ export default function AdminOpenLayersMap() {
       {activePanel === "basemap" && renderBaseMapPanel()}
       {activePanel === "tools" && renderToolsPanel()}
 
-      {showLegend && legendUrl && rasterLayerInfo && (
-        <div className="absolute bottom-24 right-2 z-30 max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur sm:bottom-10 sm:p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-              Legend
-            </div>
-            <button
-              onClick={() => setShowLegend(false)}
-              className="text-white bg-slate-300  hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200"
-              title="Close legend"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <img src={legendUrl} alt="Legend" className="max-h-[40vh] max-w-[180px] sm:max-w-[220px]" />
-        </div>
-      )}
+      <MapLegendOverlay
+        legendUrl={legendUrl}
+        showLegend={showLegend}
+        hasActiveRaster={Boolean(rasterLayerInfo)}
+        onShowLegend={() => setShowLegend(true)}
+        onHideLegend={() => setShowLegend(false)}
+      />
 
-      <div className="absolute bottom-4 left-2 right-2 z-30 rounded-lg border border-slate-600 bg-slate-800/90 px-3 py-2 shadow-lg backdrop-blur-md sm:bottom-10 sm:right-auto sm:px-4">
-        <div className="flex items-center gap-2">
-          <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-            />
-          </svg>
-          <div className="text-xs font-mono text-slate-100" id="mouse-position"></div>
-        </div>
-      </div>
+      <MapCoordinatesOverlay targetId={mouseTargetId} />
 
       {rasterLoading && (
         <div className="absolute inset-x-0 top-0 z-30 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">

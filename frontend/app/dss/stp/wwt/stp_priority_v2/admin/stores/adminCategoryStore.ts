@@ -7,6 +7,11 @@ import {
 } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
 import { fetchPriorityCategories } from "../../services/stpPriorityApi";
+import {
+  buildPriorityRiskCounts,
+  EMPTY_PRIORITY_RISK_COUNTS,
+  PriorityRiskCounts,
+} from "../../utils/riskFactorSummary";
 
 function calculateSelectedCategories(
   selectedCategories: SelectRasterLayer[],
@@ -54,6 +59,7 @@ interface AdminCategoryStoreState {
   selectedCategories: SelectRasterLayer[];
   stpProcess: boolean;
   tableData: DataRow[];
+  villageRiskCounts: PriorityRiskCounts;
 }
 
 interface AdminCategoryStoreActions {
@@ -63,6 +69,7 @@ interface AdminCategoryStoreActions {
   updateCategoryInfluence: (id: number, fileName: string, influence: number) => void;
   selectAllCategories: () => void;
   clearAllCategories: () => void;
+  resetSelectedCategoriesToDefaults: () => void;
   setStpProcess: (value: boolean) => void;
   setTableData: (value: DataRow[]) => void;
   reset: () => void;
@@ -183,12 +190,42 @@ function clearAllAdminCategories(set: AdminCategorySet) {
   set({ selectedCategories: [] });
 }
 
+function resetAdminSelectedCategoriesToDefaults(
+  set: AdminCategorySet,
+  get: AdminCategoryGet,
+) {
+  const { categories, selectedCategories } = get();
+
+  if (selectedCategories.length === 0) {
+    return;
+  }
+
+  const resetSelected = selectedCategories.map((selectedCategory) => {
+    const category = categories.find((item) => item.id === selectedCategory.id);
+
+    if (!category) {
+      return selectedCategory;
+    }
+
+    return buildSelectedCategory(
+      category,
+      selectedCategory.file_name || category.file_name,
+      category.weight,
+    );
+  });
+
+  set({ selectedCategories: calculateSelectedCategories(resetSelected) });
+}
+
 function setAdminStpProcess(set: AdminCategorySet, value: boolean) {
   set({ stpProcess: value });
 }
 
 function setAdminTableData(set: AdminCategorySet, value: DataRow[]) {
-  set({ tableData: value });
+  set({
+    tableData: value,
+    villageRiskCounts: buildPriorityRiskCounts(value),
+  });
 }
 
 function resetAdminCategoryStore(set: AdminCategorySet) {
@@ -196,6 +233,7 @@ function resetAdminCategoryStore(set: AdminCategorySet) {
     selectedCategories: [],
     stpProcess: false,
     tableData: [],
+    villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
     error: null,
   });
 }
@@ -231,6 +269,7 @@ export const useAdminCategoryStore = create<AdminCategoryStore>((set, get) => ({
   selectedCategories: [],
   stpProcess: false,
   tableData: [],
+  villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
   initialize: () => initializeAdminCategoryStore(set, get),
   refreshCategories: () => refreshAdminCategories(set),
   toggleCategory: (id, fileName) => toggleAdminCategory(set, get, id, fileName),
@@ -238,6 +277,8 @@ export const useAdminCategoryStore = create<AdminCategoryStore>((set, get) => ({
     updateAdminCategoryInfluence(set, get, id, fileName, influence),
   selectAllCategories: () => selectAllAdminCategories(set, get),
   clearAllCategories: () => clearAllAdminCategories(set),
+  resetSelectedCategoriesToDefaults: () =>
+    resetAdminSelectedCategoriesToDefaults(set, get),
   setStpProcess: (value) => setAdminStpProcess(set, value),
   setTableData: (value) => setAdminTableData(set, value),
   reset: () => resetAdminCategoryStore(set),

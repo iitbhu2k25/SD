@@ -30,9 +30,9 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "STP", href: "#" },
     { label: "Basic Module", href: "/dss/basic" }
   ],
-  "/dss/stp/wwt/stp_priority_v2": [
+  "/dss/stp/wwt/stp_priority": [
     { label: "STP", href: "#" },
-    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority_v2" }
+    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority" }
   ],
   "/dss/stp/wwt/stp_suitability": [
     { label: "STP", href: "#" },
@@ -96,10 +96,10 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "Tools", href: "#" },
     { label: "Raster", href: "/dss/Tools/raster_visual" }
   ],
-  // "/dss/Tools/model_water": [
-  //   { label: "Tools", href: "#" },
-  //   { label: "Water", href: "/dss/Tools/model_water" }
-  // ],
+  "/dss/Tools/model_water": [
+    { label: "Tools", href: "#" },
+    { label: "Water", href: "/dss/Tools/model_water" }
+  ],
   "/dss/seawage_infrastructure": [
     { label: "Tools", href: "#" },
     { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }
@@ -275,7 +275,7 @@ const Navbar = (): JSX.Element => {
         className={`${isSticky
             ? "bg-slate-900/98 shadow-2xl fixed top-0 left-0 w-full backdrop-blur-sm border-b border-slate-700/50"
             : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900"
-          }  relative transition-all duration-300 z-[200]`}
+          } relative transition-all duration-300 z-[200]`}
       >
         <div className="container mx-auto px-4 lg:px-6">
           {/* Mobile menu button */}
@@ -512,17 +512,17 @@ const Navbar = (): JSX.Element => {
                     >
                       <li>
                         <Link
-                          href="/dss/gwm/pumping_location"
+                          href="/dss/gwm/pumping_location_v2"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location" }])}>
+                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location_v2" }])}>
                           Pumping Location Identification
                         </Link>
                       </li>
                       <li>
                         <Link
-                          href="/dss/gwm/potential_zone"
+                          href="/dss/gwm/potential_zone_v2"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "GW Potential Zone", href: "/dss/gwm/potential_zone" }])}>
+                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "GW Potential Zone", href: "/dss/gwm/potential_zone_v2" }])}>
                           GW Potential Zone
                         </Link>
                       </li>
@@ -615,9 +615,9 @@ const Navbar = (): JSX.Element => {
                       </li>
                       <li>
                         <Link
-                          href="/dss/gwm/mar_suitability"
+                          href="/dss/gwm/mar_suitability_v2"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability" }])}>
+                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability_v2" }])}>
                           MAR site Suitability
                         </Link>
                       </li>
@@ -756,13 +756,13 @@ const Navbar = (): JSX.Element => {
                             </Link>
                           </li>
 
-                          <li>
+                          {/* <li>
                             <Link href="https://dssiitbhu.users.earthengine.app/view/water-budget" className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                               onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Satellite Based Assessment", href: "/default" }])}
                             >
                               Satellite Based Assessment
                             </Link>
-                          </li>
+                          </li> */}
                         </ul>
                       </li>
 
@@ -1281,14 +1281,14 @@ const Navbar = (): JSX.Element => {
                       Watershed
                     </Link>
                   </li>
-                  {/* <li>
+                  <li>
                     <Link
                       href="/dss/Tools/model_water"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                       onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Water", href: "/dss/Tools/model_water" }])}>
                       Water
                     </Link>
-                  </li> */}
+                  </li>
                   <li>
                     <Link
                       href="/dss/Tools/seawage_infrastructure"
@@ -1375,7 +1375,7 @@ const Navbar = (): JSX.Element => {
 
       {/* Improved Breadcrumbs */}
       {/* {!isHomePage && (
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3.5 border-t border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 border-t border-slate-200 shadow-sm">
           <div className="container mx-auto flex justify-center items-center space-x-2 text-sm md:text-base overflow-x-auto pb-1">
             {breadcrumbs.map((item, index) => (
               <div key={index} className="flex items-center space-x-2 whitespace-nowrap">

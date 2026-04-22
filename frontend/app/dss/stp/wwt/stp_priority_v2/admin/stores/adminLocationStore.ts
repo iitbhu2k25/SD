@@ -35,6 +35,7 @@ interface AdminLocationStoreState {
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
+  resultLayer: string | null;
   selectedStateName: string;
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
@@ -158,6 +159,7 @@ function handleAdminStateChange(
     selectedSubDistricts: [],
     selectionsLocked: false,
     displayRaster: [],
+    resultLayer: null,
     ...derived,
   });
 
@@ -214,6 +216,7 @@ function setAdminSelectedDistricts(
     selectedSubDistricts: validSubDistricts,
     selectionsLocked: false,
     displayRaster: [],
+    resultLayer: null,
     ...derived,
   });
 
@@ -246,6 +249,7 @@ function setAdminSelectedSubDistricts(
     selectedSubDistricts: subDistrictIds,
     selectionsLocked: false,
     displayRaster: [],
+    resultLayer: null,
     ...derived,
   });
 
@@ -264,14 +268,15 @@ async function confirmAdminSelections(
   set({ isLoading: true, error: null });
 
   try {
-    const displayRaster = await fetchAdminDisplayRaster(selectedSubDistricts);
+    const { rasterLayer, vectorLayer } = await fetchAdminDisplayRaster(selectedSubDistricts);
     const selectedSubDistrictObjects = allSubDistricts.filter((subDistrict) =>
       selectedSubDistricts.includes(Number(subDistrict.id)),
     );
 
     set({
       selectionsLocked: true,
-      displayRaster,
+      displayRaster: rasterLayer,
+      resultLayer: vectorLayer,
     });
 
     useAdminMapStore.getState().syncLayersWithLocation();
@@ -295,6 +300,7 @@ function resetAdminSelections(set: AdminLocationSet) {
     selectionsLocked: false,
     totalPopulation: 0,
     displayRaster: [],
+    resultLayer: null,
   });
 
   clearAdminDownstreamState();
@@ -322,6 +328,7 @@ function resetAdminLocationStore(set: AdminLocationSet, get: AdminLocationGet) {
     totalPopulation: 0,
     selectionsLocked: false,
     displayRaster: [],
+    resultLayer: null,
     ...derived,
   });
 
@@ -346,6 +353,7 @@ export const useAdminLocationStore = create<AdminLocationStore>((set, get) => ({
   totalPopulation: 0,
   selectionsLocked: false,
   displayRaster: [],
+  resultLayer: null,
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],

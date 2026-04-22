@@ -3,20 +3,22 @@
 import React, { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import WholeLoading from "@/components/app_layout/newLoading";
-import PDFGenerationStatus from "@/components/utils/PdfGeneration";
+import ModuleInfoModal from "@/components/dss_common/ModuleInfoModal";
+import PageLayout from "@/components/dss_common/PageLayout";
+import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
 import { MapMode, getMapModeInfo } from "./config/mapModes";
 import { stpPriorityPanelSettings } from "./config/panels.config";
 import UserDataInit from "./users/components/UserDataInit";
 import UserLeftPanel from "./users/components/UserLeftPanel";
 import UserRightPanel from "./users/components/UserRightPanel";
-import PageLayout from "./shared/layout/PageLayout";
+import UserBottomResultsPanel from "./users/components/UserBottomResultsPanel";
 import AdminDataInit from "./admin/components/AdminDataInit";
 import AdminLeftPanel from "./admin/components/AdminLeftPanel";
 import AdminRightPanel from "./admin/components/AdminRightPanel";
-import ModuleInfoModal from "./shared/ui/ModuleInfoModal";
-import RightPanelToggle from "./shared/ui/RightPanelToggle";
+import AdminBottomResultsPanel from "./admin/components/AdminBottomResultsPanel";
 import { useAdminViewModel } from "./admin/hooks/useAdminViewModel";
 import { useUserViewModel } from "./users/hooks/useUserViewModel";
+import { useUiModeService } from "./services/uiModeService";
 
 const AdminMapView = dynamic(() => import("./admin/components/AdminOpenLayersMap"), {
   ssr: false,
@@ -47,13 +49,35 @@ const DrainIcon = () => (
   </svg>
 );
 
+const MoonIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+  </svg>
+);
+
+const SunIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+  </svg>
+);
+
 export default function StpPriorityV2Page() {
   const panelSettings = stpPriorityPanelSettings;
   const [selectedMode, setSelectedMode] = useState<MapMode>("admin");
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
   const [showInfo, setShowInfo] = useState<boolean>(false);
   const activeModeInfo = getMapModeInfo(selectedMode);
+  const isDark = useUiModeService((s) => s.isDark);
+  const toggleTheme = useUiModeService((s) => s.toggleTheme);
   const [rightPanelWidth, setRightPanelWidth] = useState<string>(panelSettings.right.widthOpen);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState<string>(
+    panelSettings.bottom.heightOpen
+  );
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState<boolean>(
+    panelSettings.bottom.defaultOpen
+  );
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   const adminViewModel = useAdminViewModel();
@@ -72,17 +96,32 @@ export default function StpPriorityV2Page() {
     setRightPanelWidth(
       isDesktop ? panelSettings.right.widthOpen : panelSettings.right.mobileWidthOpen
     );
+    setBottomPanelHeight(
+      isDesktop
+        ? panelSettings.bottom.heightOpen
+        : panelSettings.bottom.mobileHeightOpen
+    );
 
     const handleChange = (e: MediaQueryListEvent) => {
       setIsMobile(!e.matches);
       setRightPanelWidth(
         e.matches ? panelSettings.right.widthOpen : panelSettings.right.mobileWidthOpen
       );
+      setBottomPanelHeight(
+        e.matches
+          ? panelSettings.bottom.heightOpen
+          : panelSettings.bottom.mobileHeightOpen
+      );
     };
 
     mq.addEventListener("change", handleChange);
     return () => mq.removeEventListener("change", handleChange);
-  }, [panelSettings.right.mobileWidthOpen, panelSettings.right.widthOpen]);
+  }, [
+    panelSettings.bottom.heightOpen,
+    panelSettings.bottom.mobileHeightOpen,
+    panelSettings.right.mobileWidthOpen,
+    panelSettings.right.widthOpen,
+  ]);
 
   useEffect(() => {
     if (selectedMode === "admin") {
@@ -117,7 +156,9 @@ export default function StpPriorityV2Page() {
       tooltip: "Admin Mode",
       onClick: () => handleModeChange("admin"),
       isActive: selectedMode === "admin",
-      activeClassName: "bg-blue-600 text-white shadow-lg shadow-blue-200",
+      activeClassName: isDark
+        ? "bg-blue-700 text-white shadow-lg shadow-blue-900"
+        : "bg-blue-600 text-white shadow-lg shadow-blue-200",
     },
     {
       id: "drain",
@@ -126,16 +167,42 @@ export default function StpPriorityV2Page() {
       tooltip: "Drain Mode",
       onClick: () => handleModeChange("user"),
       isActive: selectedMode === "user",
-      activeClassName: "bg-emerald-600 text-white shadow-lg shadow-emerald-200",
+      activeClassName: isDark
+        ? "bg-emerald-700 text-white shadow-lg shadow-emerald-900"
+        : "bg-emerald-600 text-white shadow-lg shadow-emerald-200",
+    },
+    {
+      id: "theme",
+      icon: isDark ? <SunIcon /> : <MoonIcon />,
+      label: isDark ? "Light" : "Dark",
+      tooltip: isDark ? "Switch to Light Mode" : "Switch to Dark Mode",
+      onClick: toggleTheme,
+      isActive: isDark,
+      activeClassName: "bg-slate-700 text-cyan-400 shadow-lg",
     },
   ];
 
   const adminShowCategories = adminViewModel.selectionsLocked;
-  const adminCanShowRightPanel =
-    adminShowCategories || adminViewModel.tableData.length > 0;
+  const adminCanShowRightPanel = adminShowCategories;
   const userShowCategories = userViewModel.selectionsLocked;
-  const userCanShowRightPanel =
-    userShowCategories || userViewModel.tableData.length > 0;
+  const userCanShowRightPanel = userShowCategories;
+  const activeTableData =
+    selectedMode === "admin" ? adminViewModel.tableData : userViewModel.tableData;
+  const activeIsPdfGenerating =
+    selectedMode === "admin"
+      ? adminViewModel.isPdfGenerating
+      : userViewModel.isPdfGenerating;
+  const activeHandleReport =
+    selectedMode === "admin"
+      ? adminViewModel.handleReport
+      : userViewModel.handleReport;
+  const canShowBottomPanel = activeTableData.length > 0;
+
+  useEffect(() => {
+    if (canShowBottomPanel) {
+      setIsBottomPanelOpen(true);
+    }
+  }, [canShowBottomPanel, selectedMode]);
 
   const leftPanelContent =
     selectedMode === "admin" ? <AdminLeftPanel /> : <UserLeftPanel />;
@@ -149,17 +216,18 @@ export default function StpPriorityV2Page() {
             isOpen={adminViewModel.isRightPanelOpen}
             width={rightPanelWidth}
             showCategories={adminShowCategories}
-            tableData={adminViewModel.tableData}
             categoriesEditable={adminViewModel.categoriesEditable}
             stpProcess={adminViewModel.stpProcess}
-            isPdfGenerating={adminViewModel.isPdfGenerating}
             toggleCategoriesEditable={adminViewModel.toggleCategoriesEditable}
             onClose={() => adminViewModel.setRightPanelOpen(false)}
             handleSubmit={adminViewModel.handleSubmit}
-            handleReport={adminViewModel.handleReport}
             onWidthChange={setRightPanelWidth}
             panelSettings={panelSettings.right}
             isMobile={isMobile}
+            showPdfStatus={adminViewModel.showPdfStatus}
+            taskId={adminViewModel.taskId}
+            onPdfComplete={adminViewModel.completePdfGeneration}
+            onPdfFailure={adminViewModel.failPdfGeneration}
           />
         ) : null
       : userCanShowRightPanel ? (
@@ -167,17 +235,18 @@ export default function StpPriorityV2Page() {
             isOpen={userViewModel.isRightPanelOpen}
             width={rightPanelWidth}
             showCategories={userShowCategories}
-            tableData={userViewModel.tableData}
             categoriesEditable={userViewModel.categoriesEditable}
             stpProcess={userViewModel.stpProcess}
-            isPdfGenerating={userViewModel.isPdfGenerating}
             toggleCategoriesEditable={userViewModel.toggleCategoriesEditable}
             onClose={() => userViewModel.setRightPanelOpen(false)}
             handleSubmit={userViewModel.handleSubmit}
-            handleReport={userViewModel.handleReport}
             onWidthChange={setRightPanelWidth}
             panelSettings={panelSettings.right}
             isMobile={isMobile}
+            showPdfStatus={userViewModel.showPdfStatus}
+            taskId={userViewModel.taskId}
+            onPdfComplete={userViewModel.completePdfGeneration}
+            onPdfFailure={userViewModel.failPdfGeneration}
           />
         ) : null;
 
@@ -188,6 +257,7 @@ export default function StpPriorityV2Page() {
             isOpen={adminViewModel.isRightPanelOpen}
             openOffset={rightPanelWidth}
             onToggle={adminViewModel.toggleRightPanel}
+            isDark={isDark}
           />
         ) : null
       : userCanShowRightPanel ? (
@@ -195,8 +265,35 @@ export default function StpPriorityV2Page() {
             isOpen={userViewModel.isRightPanelOpen}
             openOffset={rightPanelWidth}
             onToggle={userViewModel.toggleRightPanel}
+            isDark={isDark}
           />
         ) : null;
+
+  const bottomPanelContent = canShowBottomPanel
+    ? selectedMode === "admin" ? (
+        <AdminBottomResultsPanel
+          isOpen={isBottomPanelOpen}
+          height={bottomPanelHeight}
+          tableData={activeTableData}
+          panelSettings={panelSettings.bottom}
+          isMobile={isMobile}
+          isPdfGenerating={activeIsPdfGenerating}
+          onToggle={() => setIsBottomPanelOpen((open) => !open)}
+          onReport={activeHandleReport}
+        />
+      ) : (
+        <UserBottomResultsPanel
+          isOpen={isBottomPanelOpen}
+          height={bottomPanelHeight}
+          tableData={activeTableData}
+          panelSettings={panelSettings.bottom}
+          isMobile={isMobile}
+          isPdfGenerating={activeIsPdfGenerating}
+          onToggle={() => setIsBottomPanelOpen((open) => !open)}
+          onReport={activeHandleReport}
+        />
+      )
+    : null;
 
   const loadingVisible =
     selectedMode === "admin"
@@ -221,20 +318,6 @@ export default function StpPriorityV2Page() {
     selectedMode === "admin"
       ? adminViewModel.reportLoading
       : userViewModel.reportLoading;
-  const showPdfStatus =
-    selectedMode === "admin"
-      ? adminViewModel.showPdfStatus
-      : userViewModel.showPdfStatus;
-  const taskId =
-    selectedMode === "admin" ? adminViewModel.taskId : userViewModel.taskId;
-  const handlePdfComplete =
-    selectedMode === "admin"
-      ? adminViewModel.completePdfGeneration
-      : userViewModel.completePdfGeneration;
-  const handlePdfFailure =
-    selectedMode === "admin"
-      ? adminViewModel.failPdfGeneration
-      : userViewModel.failPdfGeneration;
 
   const pageLayout = (
     <>
@@ -267,22 +350,15 @@ export default function StpPriorityV2Page() {
         mapContent={mapContent}
         rightPanel={rightPanelContent}
         rightPanelToggle={rightPanelToggle}
+        bottomPanel={bottomPanelContent}
+        isBottomOpen={canShowBottomPanel && isBottomPanelOpen}
+        bottomPanelOpenHeight={bottomPanelHeight}
+        bottomPanelClosedHeight={panelSettings.bottom.heightClosed}
         isLeftOpen={isPanelOpen}
         isMobile={isMobile}
         onToggleLeft={() => setIsPanelOpen((open) => !open)}
-        onCloseLeft={() => setIsPanelOpen(false)}
+        isDark={isDark}
       />
-      {showPdfStatus && taskId && (
-        <PDFGenerationStatus
-          taskId={taskId}
-          className="fixed inset-x-4 bottom-4 z-50 animate-fadeIn sm:inset-x-auto sm:bottom-6 sm:left-6 sm:w-80 lg:bottom-8 lg:left-8 lg:w-96"
-          autoClose={true}
-          closeDelay={3000}
-          enableAutoDownload={true}
-          onComplete={handlePdfComplete}
-          onFailure={handlePdfFailure}
-        />
-      )}
       <ModuleInfoModal
         open={showInfo}
         onClose={() => setShowInfo(false)}

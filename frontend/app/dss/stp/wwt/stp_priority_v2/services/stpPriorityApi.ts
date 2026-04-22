@@ -36,24 +36,51 @@ interface RawDrain {
   Drain_No: number;
   stretch_id: number;
   name?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
 }
+
+interface RasterVisualResponse {
+  raster_layer: ClipRasters[];
+  vector_layer?: string | null;
+}
+
+type DisplayRasterApiMessage = ClipRasters[] | RasterVisualResponse;
 
 function uniqueById<T>(items: T[], getId: (item: T) => number | string): T[] {
   return Array.from(new Map(items.map((item) => [getId(item), item])).values());
+}
+
+function normalizeDisplayRasterPayload(message: DisplayRasterApiMessage | null | undefined): {
+  rasterLayer: ClipRasters[];
+  vectorLayer: string | null;
+} {
+  if (Array.isArray(message)) {
+    return { rasterLayer: message, vectorLayer: null };
+  }
+
+  if (message && Array.isArray(message.raster_layer)) {
+    return {
+      rasterLayer: message.raster_layer,
+      vectorLayer: typeof message.vector_layer === "string" ? message.vector_layer : null,
+    };
+  }
+
+  return { rasterLayer: [], vectorLayer: null };
 }
 
 export interface AdminPriorityAnalysisPayload {
   data: SelectRasterLayer[];
   clip: number[];
   place: "sub_district";
+  village_layer?: string | null;
 }
 
 export interface UserPriorityAnalysisPayload {
   data: SelectRasterLayer[];
   clip: number[];
   place: "Drain";
+  village_layer?: string | null;
 }
 
 export interface AdminPriorityReportPayload {
@@ -87,6 +114,11 @@ export interface ReportTaskResponse {
   task_id: string;
 }
 
+export interface DisplayRasterResult {
+  rasterLayer: ClipRasters[];
+  vectorLayer: string | null;
+}
+
 export async function fetchPriorityCategories(): Promise<Category[]> {
   const response =
     await api.get<Category[]>("/stp_operation/get_priority_category?all_data=true");
@@ -114,8 +146,8 @@ export async function fetchAdminLocationReferenceData(): Promise<AdminLocationRe
   };
 }
 
-export async function fetchAdminDisplayRaster(clip: number[]): Promise<ClipRasters[]> {
-  const response = await api.post<ClipRasters[]>(
+export async function fetchAdminDisplayRaster(clip: number[]): Promise<DisplayRasterResult> {
+  const response = await api.post<DisplayRasterApiMessage>(
     "/stp_operation/stp_priority_visual_display",
     {
       body: {
@@ -125,7 +157,7 @@ export async function fetchAdminDisplayRaster(clip: number[]): Promise<ClipRaste
     },
   );
 
-  return response.message ?? [];
+  return normalizeDisplayRasterPayload(response.message);
 }
 
 export async function runAdminPriorityAnalysis(
@@ -172,8 +204,8 @@ export async function fetchUserRiverReferenceData(): Promise<UserRiverReferenceD
         Drain_No: drain.Drain_No,
         stretch_id: drain.stretch_id,
         name: drain.name,
-        latitude: drain.latitude,
-        longitude: drain.longitude,
+        latitude: drain.latitude ?? 0,
+        longitude: drain.longitude ?? 0,
       })),
       (drain) => drain.id,
     ),
@@ -195,18 +227,31 @@ export async function fetchPriorityCatchments(drainNos: number[]): Promise<Layer
   return response.message;
 }
 
-export async function fetchUserDisplayRaster(clip: number[]): Promise<ClipRasters[]> {
-  const response = await api.post<ClipRasters[]>(
+export async function fetchUserDisplayRaster(
+  clip: number[],
+  layerName?: string | null,
+): Promise<DisplayRasterResult> {
+  const requestBody: {
+    clip: number[];
+    place: "Drain";
+    layer_name?: string;
+  } = {
+    clip,
+    place: "Drain",
+  };
+
+  if (layerName) {
+    requestBody.layer_name = layerName;
+  }
+
+  const response = await api.post<DisplayRasterApiMessage>(
     "/stp_operation/stp_priority_visual_display",
     {
-      body: {
-        clip,
-        place: "Drain",
-      },
+      body: requestBody,
     },
   );
 
-  return response.message ?? [];
+  return normalizeDisplayRasterPayload(response.message);
 }
 
 export async function runUserPriorityAnalysis(

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import Map from "ol/Map";
 import { fromLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
@@ -38,10 +38,12 @@ import {
   createHoverSelectInteraction,
   toggleBrowserFullscreen,
 } from "@/components/map_core/interactions";
-import BaseMaps from "../../shared/ui/BaseMaps";
-import MapHeaderControls from "../../shared/ui/MapHeaderControls";
-import MapRasterSelector from "../../shared/ui/MapRasterSelector";
-import CloseIcon from "../../shared/ui/icons/CloseIcon";
+import BaseMaps from "@/components/dss_common/BaseMaps";
+import CloseIcon from "@/components/dss_common/CloseIcon";
+import MapCoordinatesOverlay from "@/components/dss_common/MapCoordinatesOverlay";
+import MapHeaderControls from "@/components/dss_common/MapHeaderControls";
+import MapLegendOverlay from "@/components/dss_common/MapLegendOverlay";
+import MapRasterSelector from "@/components/dss_common/MapRasterSelector";
 import { useUserRiverStore } from "../stores/userRiverStore";
 import { useUserMapStore } from "../stores/userMapStore";
 
@@ -126,7 +128,7 @@ export default function UserOpenLayersMap() {
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
 
-  const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState("terrain");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [showTitles, setShowTitles] = useState(false);
@@ -137,6 +139,8 @@ export default function UserOpenLayersMap() {
   const [showRiverLayer, setShowRiverLayer] = useState(true);
   const [showStretchLayer, setShowStretchLayer] = useState(true);
   const [showDrainLayer, setShowDrainLayer] = useState(true);
+  const mapInstanceId = useId();
+  const mouseTargetId = `mouse-position-${mapInstanceId.replace(/:/g, "")}`;
   const [featureCounts, setFeatureCounts] = useState({
     primary: 0,
     river: 0,
@@ -154,7 +158,6 @@ export default function UserOpenLayersMap() {
   );
   const showCatchmentLayer = useUserRiverStore((state) => state.showCatchmentLayer);
   const displayRaster = useUserRiverStore((state) => state.displayRaster);
-  const setShowCatchment = useUserRiverStore((state) => state.setShowCatchment);
   const setSelectedRiver = useUserRiverStore((state) => state.setSelectedRiver);
   const setSelectedCatchments = useUserRiverStore(
     (state) => state.setSelectedCatchments,
@@ -164,10 +167,6 @@ export default function UserOpenLayersMap() {
   );
   const setSelectedDrains = useUserRiverStore((state) => state.setSelectedDrains);
   const selectionsLocked = useUserRiverStore((state) => state.selectionsLocked);
-  const AnalysisCachement = useUserRiverStore((state) => state.AnalysisCachement);
-  const setAnalysisCachement = useUserRiverStore(
-    (state) => state.setAnalysisCachement,
-  );
 
   const {
     primaryLayer,
@@ -203,9 +202,9 @@ export default function UserOpenLayersMap() {
 
     const { map, baseLayer } = createIndiaMapWithBaseLayer({
       target: mapRef.current,
-      mouseTargetId: "mouse-position",
+      mouseTargetId,
       baseMaps,
-      defaultBaseMapKey: "satellite",
+      defaultBaseMapKey: "terrain",
       center: INDIA_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: 4,
@@ -278,7 +277,7 @@ export default function UserOpenLayersMap() {
       setHoveredFeature(null);
       map.setTarget("");
     };
-  }, [setLoading, setSelectedCatchments, setSelectedDrains, setSelectedRiver, setSelectedStretches]);
+  }, [mouseTargetId, setLoading, setSelectedCatchments, setSelectedDrains, setSelectedRiver, setSelectedStretches]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -312,13 +311,22 @@ export default function UserOpenLayersMap() {
       return;
     }
 
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const resizeObserver = new ResizeObserver(() => {
-      map.updateSize();
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
+      resizeTimer = setTimeout(() => {
+        map.updateSize();
+      }, 100);
     });
 
     resizeObserver.observe(container);
 
     return () => {
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
       resizeObserver.disconnect();
     };
   }, []);
@@ -599,11 +607,6 @@ export default function UserOpenLayersMap() {
     }
   };
 
-  const handleCatchmentAnalysis = async () => {
-    setAnalysisCachement(true);
-    await setShowCatchment(true);
-  };
-
   const renderLayerPanel = () => (
     <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
       <div className="rounded-xl border border-white/50 bg-white/10 p-3 shadow-2xl backdrop-blur-md">
@@ -810,7 +813,7 @@ export default function UserOpenLayersMap() {
             </div>
             <button
               onClick={goToHomeView}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-100"
+              className="cursor-pointer rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-100"
             >
               Reset
             </button>
@@ -865,15 +868,6 @@ export default function UserOpenLayersMap() {
         onSelectLayer={handleLayerSelection}
       />
 
-      {selectedDrains.length > 0 && !AnalysisCachement && (
-        <button
-          onClick={handleCatchmentAnalysis}
-          className="absolute bottom-24 left-2 right-2 z-30 rounded-full border border-white/30 bg-white/90 px-4 py-3 text-center text-sm font-medium text-slate-800 shadow-lg backdrop-blur sm:left-4 sm:right-auto cursor-pointer"
-        >
-          Analyze Catchment
-        </button>
-      )}
-
       {activePanel === "layers" && renderLayerPanel()}
       {activePanel === "basemap" && (
         <BaseMaps
@@ -885,37 +879,15 @@ export default function UserOpenLayersMap() {
       )}
       {activePanel === "tools" && renderToolsPanel()}
 
-      {showLegend && legendUrl && rasterLayerInfo && (
-        <div className="absolute bottom-24 right-2 z-30 max-w-[calc(100vw-1rem)] rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur sm:bottom-10 sm:p-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-              Legend
-            </div>
-            <button
-              onClick={() => setShowLegend(false)}
-              className="text-white bg-slate-300 hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200"
-              title="Close legend"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-          <img src={legendUrl} alt="Legend" className="max-h-[40vh] max-w-[180px] sm:max-w-[220px]" />
-        </div>
-      )}
+      <MapLegendOverlay
+        legendUrl={legendUrl}
+        showLegend={showLegend}
+        hasActiveRaster={Boolean(rasterLayerInfo)}
+        onShowLegend={() => setShowLegend(true)}
+        onHideLegend={() => setShowLegend(false)}
+      />
 
-      <div className="absolute bottom-4 left-2 right-2 z-30 rounded-lg border border-slate-600 bg-slate-800/90 px-3 py-2 shadow-lg backdrop-blur-md sm:bottom-10 sm:right-auto sm:px-4">
-        <div className="flex items-center gap-2">
-          <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-            />
-          </svg>
-          <div className="text-xs font-mono text-slate-100" id="mouse-position"></div>
-        </div>
-      </div>
+      <MapCoordinatesOverlay targetId={mouseTargetId} />
 
       {rasterLoading && (
         <div className="absolute inset-x-0 top-0 z-30 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">

@@ -157,6 +157,7 @@ async function runAdminAnalysis(set: AdminMapSet) {
     selectedSubDistricts,
     displayRaster,
     setDisplayRaster,
+    resultLayer,
   } = useAdminLocationStore.getState();
 
   if (selectedCategories.length === 0 || selectedSubDistricts.length === 0) {
@@ -176,6 +177,7 @@ async function runAdminAnalysis(set: AdminMapSet) {
       data: selectedCategories,
       clip: selectedSubDistricts,
       place: "sub_district",
+      village_layer: resultLayer,
     });
 
     const priorityRaster: ClipRasters = {

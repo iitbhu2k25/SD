@@ -89,7 +89,7 @@ export const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature
   
   return (
     <div 
-      className="absolute z-50 bg-gray-900/90 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none transition-all duration-200 backdrop-blur-sm border border-gray-700"
+      className="absolute z-9 bg-gray-900/90 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none transition-all duration-200 backdrop-blur-sm border border-gray-700"
       style={{
         left: `${mousePosition.x + 15}px`,
         top: `${mousePosition.y - 35}px`,

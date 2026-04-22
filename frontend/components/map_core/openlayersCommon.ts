@@ -20,7 +20,7 @@ const INDIA_BOUNDS = {
 export function formatMouseCoordinates(coordinate?: number[]): string {
   if (!coordinate) return "No coordinates";
   const [longitude, latitude] = coordinate;
-  return `${latitude.toFixed(6)} deg N, ${longitude.toFixed(6)} deg E`;
+  return `${latitude.toFixed(6)}\u00B0 N, ${longitude.toFixed(6)}\u00B0 E`;
 }
 
 export function createIndiaMapControls(mouseTargetId: string) {

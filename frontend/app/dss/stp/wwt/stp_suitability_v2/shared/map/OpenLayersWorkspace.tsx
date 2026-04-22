@@ -19,9 +19,9 @@ import { Circle, Fill, Stroke, Style, Text } from "ol/style";
 import { GISCompass, HoverTooltip, baseMaps } from "@/components/MapComponents";
 import { buildInClauseFilter, createWfsUrlVectorSource } from "@/components/map_core/wfs";
 import { INDIA_CENTER, INITIAL_ZOOM } from "@/interface/openlayer";
-import BaseMaps from "../../../stp_priority_v2/shared/ui/BaseMaps";
-import CloseIcon from "../../../stp_priority_v2/shared/ui/icons/CloseIcon";
-import MapHeaderControls from "../../../stp_priority_v2/shared/ui/MapHeaderControls";
+import BaseMaps from "@/components/dss_common/BaseMaps";
+import CloseIcon from "@/components/dss_common/CloseIcon";
+import MapHeaderControls from "@/components/dss_common/MapHeaderControls";
 import type { ClipRasters } from "../../services/stpSuitabilityTypes";
 
 interface LayerFilterLike {

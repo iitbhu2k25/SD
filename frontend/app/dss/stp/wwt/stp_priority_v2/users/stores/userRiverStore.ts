@@ -13,6 +13,11 @@ import {
   fetchUserDisplayRaster,
   fetchUserRiverReferenceData,
 } from "../../services/stpPriorityApi";
+import {
+  buildPriorityRiskCounts,
+  EMPTY_PRIORITY_RISK_COUNTS,
+  PriorityRiskCounts,
+} from "../../utils/riskFactorSummary";
 import { useUserMapStore } from "./userMapStore";
 
 export interface UserSelectionsData {
@@ -50,6 +55,7 @@ interface UserRiverState {
   AnalysisCachement: boolean;
   showCatchmentLayer: boolean;
   tableData: DataRow[];
+  villageRiskCounts: PriorityRiskCounts;
   initialize: () => Promise<void>;
   handleRiverChange: (riverCode: number) => void;
   setSelectedRiver: (riverCode: number | null) => void;
@@ -61,7 +67,6 @@ interface UserRiverState {
   setShowCatchmentLayer: (value: boolean) => void;
   setDisplayRaster: (layers: ClipRasters[]) => void;
   setTableData: (rows: DataRow[]) => void;
-  syncDisplayRasterForSelections: () => Promise<void>;
   confirmSelections: () => Promise<UserSelectionsData | null>;
   resetSelections: () => void;
   reset: () => void;
@@ -144,6 +149,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
   AnalysisCachement: false,
   showCatchmentLayer: true,
   tableData: [],
+  villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
   initialize: async () => {
     if (get().initialized || get().isLoading) {
       return;
@@ -193,6 +199,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       AnalysisCachement: false,
       showCatchmentLayer: true,
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       ...derived,
     });
     DRAIN_LAYER_NAMES.CATCHMENT = null;
@@ -233,6 +240,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       AnalysisCachement: false,
       showCatchmentLayer: true,
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       ...derived,
     });
     DRAIN_LAYER_NAMES.CATCHMENT = null;
@@ -260,6 +268,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       AnalysisCachement: false,
       showCatchmentLayer: true,
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       ...derived,
     });
     DRAIN_LAYER_NAMES.CATCHMENT = null;
@@ -290,6 +299,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       selectionsLocked: false,
       displayRaster: [],
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       ...derived,
     });
     useUserMapStore.getState().syncLayersWithRiverSystem();
@@ -349,25 +359,11 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
   setAnalysisCachement: (AnalysisCachement) => set({ AnalysisCachement }),
   setShowCatchmentLayer: (showCatchmentLayer) => set({ showCatchmentLayer }),
   setDisplayRaster: (displayRaster) => set({ displayRaster }),
-  setTableData: (tableData) => set({ tableData }),
-  syncDisplayRasterForSelections: async () => {
-    const { selectionsLocked, selectedCatchments } = get();
-    if (!selectionsLocked || selectedCatchments.length === 0) {
-      return;
-    }
-
-    set({ isLoading: true, error: null });
-    try {
-      const displayRaster = await fetchUserDisplayRaster(selectedCatchments);
-      set({ displayRaster });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to fetch display raster";
-      set({ error: message });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
+  setTableData: (tableData) =>
+    set({
+      tableData,
+      villageRiskCounts: buildPriorityRiskCounts(tableData),
+    }),
   confirmSelections: async () => {
     const {
       allRivers,
@@ -384,20 +380,42 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       return null;
     }
 
-    set({ selectionsLocked: true });
-    return {
-      rivers: selectedRiver
-        ? allRivers.filter((river) => river.River_Code === selectedRiver)
-        : [],
-      stretches: allStretches.filter((stretch) =>
-        selectedStretches.includes(Number(stretch.id)),
-      ),
-      drains: allDrains.filter((drain) => selectedDrains.includes(Number(drain.id))),
-      catchments: catchments.filter((catchment) =>
-        selectedCatchments.includes(Number(catchment.id)),
-      ),
-      totalArea,
-    };
+    set({ isLoading: true, error: null });
+    try {
+      const { rasterLayer, vectorLayer } = await fetchUserDisplayRaster(
+        selectedCatchments,
+        DRAIN_LAYER_NAMES.CATCHMENT,
+      );
+      if (vectorLayer) {
+        DRAIN_LAYER_NAMES.CATCHMENT = vectorLayer;
+      }
+      set({
+        selectionsLocked: true,
+        displayRaster: rasterLayer,
+      });
+      useUserMapStore.getState().syncLayersWithRiverSystem();
+
+      return {
+        rivers: selectedRiver
+          ? allRivers.filter((river) => river.River_Code === selectedRiver)
+          : [],
+        stretches: allStretches.filter((stretch) =>
+          selectedStretches.includes(Number(stretch.id)),
+        ),
+        drains: allDrains.filter((drain) => selectedDrains.includes(Number(drain.id))),
+        catchments: catchments.filter((catchment) =>
+          selectedCatchments.includes(Number(catchment.id)),
+        ),
+        totalArea,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch display raster";
+      set({ error: message });
+      return null;
+    } finally {
+      set({ isLoading: false });
+    }
   },
   resetSelections: () => {
     const { allRivers, allStretches, allDrains, selectedRiver, selectedStretches, selectedDrains } =
@@ -418,6 +436,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       selectionsLocked: false,
       displayRaster: [],
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       showCatchment: false,
       AnalysisCachement: false,
       showCatchmentLayer: true,
@@ -440,6 +459,7 @@ export const useUserRiverStore = create<UserRiverState>((set, get) => ({
       AnalysisCachement: false,
       showCatchmentLayer: true,
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       ...derived,
     });
     DRAIN_LAYER_NAMES.CATCHMENT = null;
