@@ -31,21 +31,21 @@ async def get_priority_category(db:db_dependency,user: Annotated[bool, Depends(v
     """ It return the priority raster information"""
     return Stp_service.get_priority_category(db,all_data)
 
-@router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,response_model=list[STPPriorityVisualOutput])
+@router.post("/stp_priority_visual_display",status_code=status.HTTP_201_CREATED,response_model=STPPriorityVisualOutput)
 @validate
-async def stp_priority_visual_display(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
+async def stp_priority_visual_display(db:db_dependency,payload:category_raster):
     """ It make the stp priority visual raster for displaying"""
-    return await STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place)
+    return await STPPriorityMapper().visual_priority_map(db,payload.clip,payload.place,payload.layer_name)
 
 @router.post("/stp_priority",status_code=status.HTTP_201_CREATED,)
 @validate
-async def stp_priority(db:db_dependency,payload: STPCategory,user: Annotated[bool, Depends(validate_user)]):
+async def stp_priority(db:db_dependency,payload: STPCategory):
     """ It calculater the stp priority """
     return  await STPPriorityMapper().create_priority_map(db,payload)
 
 @router.post("/get_priority_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
 @validate
-async def get_priority_cachement(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
+async def get_priority_cachement(db:db_dependency,payload:STPCatchmentInput):
     """It make the stp priority cachement """
     return await STPPriorityMapper().cachement_villages(payload.drain_nos)
 
@@ -74,9 +74,15 @@ async def get_raster_suitability(db:db_dependency,category:str,user: Annotated[b
 
 @router.post("/stp_suitability_visual_display",status_code=status.HTTP_201_CREATED,response_model=STPSuitabilityVisualOutput)
 @validate
-async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster,user: Annotated[bool, Depends(validate_user)]):
+async def stp_priority_raster_dislay(db:db_dependency,payload:category_raster):
     """ It make the stp suitability visual raster for displaying"""
     return await STPsuitabilityMapper().visual_sutabilty_map(db,payload.clip,payload.place,payload.layer_name)
+
+@router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
+@validate
+async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput):
+    """It make the stp suitability cachement """
+    return await STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
 
     
 @router.post("/stp_suitability",status_code=status.HTTP_201_CREATED,)
@@ -100,11 +106,7 @@ async def stp_suitability_drain_report(payload:StpsuitabilityDrainReport,user: A
     task_id= document_gen3.delay(payload=payload.model_dump())
     return celery_id(task_id=task_id.id)
 
-@router.post("/get_suitability_cachement",response_model=STPCatchmentOutput,status_code=status.HTTP_201_CREATED)
-@validate
-async def get_suitability_cachement(db:db_dependency,payload:STPCatchmentInput,user: Annotated[bool, Depends(validate_user)]):
-    """It make the stp suitability cachement """
-    return await STPsuitabilityMapper().cachement_villages(db,payload.drain_nos)
+
     
 
 @router.post("/stp_suitability_area",status_code=status.HTTP_201_CREATED,response_model=celery_id)

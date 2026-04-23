@@ -286,7 +286,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
       if (selectionsLocked && catchmentLayerName) {
         setIsLoading(true);
         try {
-          const response = await api.post("/stp_operation/stp_raster_visual_resp_display", {
+          const response = await api.post("/stp_operation/stp_suitability_visual_display", {
             body: {
               layer_name: catchmentLayerName,
               place: "Drain",

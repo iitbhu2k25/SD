@@ -69,12 +69,14 @@ class STP_Area:
         lat_sum = 0
 
         for lat, lon in location:
-            lon_sum += lon
             lat_sum += lat
+            lon_sum += lon
 
         n = len(location)
         centroid_lon = lon_sum / n
         centroid_lat = lat_sum / n
+
+        return centroid_lon, centroid_lat
 
         return centroid_lon, centroid_lat
     def _read_raster(self,layer_name:str):
