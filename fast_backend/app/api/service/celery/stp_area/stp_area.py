@@ -68,7 +68,7 @@ class STP_Area:
         lon_sum = 0
         lat_sum = 0
 
-        for lon, lat in location:
+        for lat, lon in location:
             lon_sum += lon
             lat_sum += lat
 

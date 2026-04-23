@@ -446,7 +446,7 @@ const Navbar = (): JSX.Element => {
                   </li>
                   <li>
                     <Link
-                      href="/dss/stp/wwt/stp_priority_v2"
+                      href="/dss/stp/wwt/stp_priority"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm
                         hover:bg-orange-50 hover:text-orange-600
                         rounded-lg transition-all duration-200"

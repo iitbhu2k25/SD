@@ -282,7 +282,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
         setIsLoading(true);
         try {
           const response = await api.post(
-            "/stp_operation/stp_raster_visual_resp_display",
+            "/stp_operation/stp_suitability_visual_display",
             {
               body: {
                 clip: selectedTowns,
