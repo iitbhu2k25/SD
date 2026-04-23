@@ -718,9 +718,9 @@ const Navbar = (): JSX.Element => {
                     >
                       <li>
                         <Link
-                          href="/dss/water"
+                          href="/dss/rwm/resource_estimation/water"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Availability", href: "/dss/water" }])}>
+                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Availability", href: "/dss/rwm/resource_estimation/water" }])}>
                           Water Availability
                         </Link>
                       </li>

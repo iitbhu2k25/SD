@@ -28,7 +28,7 @@ import { useAdminMapStore } from "../stores/adminMapStore";
 import { useAdminLocationStore } from "../stores/adminLocationStore";
 
 const GEOSERVER_WFS_BASE =
-  "/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json&srsname=EPSG:3857";
+  "/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json&srsname=EPSG:3857";
 const WORKSPACE = "dss_vector";
 const VECTOR_Z = {
   indiaBoundary: 30,
@@ -65,7 +65,7 @@ function boundaryStyle(highlight: boolean) {
   ];
 }
 
-const GEOSERVER_WMS_URL = "/geoserver/api/wms";
+const GEOSERVER_WMS_URL = "/geoserver/wms";
 
 function buildLegendUrl(workspace: string, layerName: string, style: string) {
   return (

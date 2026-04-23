@@ -24,7 +24,7 @@ import "ol/ol.css";
 import { useUserMapStore } from "../stores/userMapStore";
 import { useUserRiverStore } from "../stores/userRiverStore";
 
-const GEOSERVER_WMS_URL = "/geoserver/api/wms";
+const GEOSERVER_WMS_URL = "/geoserver/wms";
 const WORKSPACE = "dss_vector";
 const VECTOR_OVERLAY_Z = {
   stretch: 29,
@@ -437,7 +437,7 @@ export default function UserOpenLayersMap() {
 
     const source = new VectorSource({
       format: new GeoJSON(),
-      url: `/geoserver/api/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${WORKSPACE}:Catchment&outputFormat=application/json&srsname=EPSG:3857&cql_filter=Drain_No=${selectedDrain}`,
+      url: `/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${WORKSPACE}:Catchment&outputFormat=application/json&srsname=EPSG:3857&cql_filter=Drain_No=${selectedDrain}`,
     });
 
     const layer = new VectorLayer({

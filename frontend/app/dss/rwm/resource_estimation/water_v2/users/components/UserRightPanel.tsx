@@ -13,7 +13,7 @@ const WaterIndexChart = dynamic(
   { ssr: false },
 );
 const UserPDFExportButton = dynamic(
-  () => import("@/app/dss/rwm/resource_estimation/water/users/components/export/ExportPage"),
+  () => import("@/app/dss/rwm/resource_estimation/water_v2/users/components/export/ExportPage"),
   { ssr: false },
 );
 
