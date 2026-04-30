@@ -40,7 +40,9 @@ export function MultiSelect<T extends SelectableItem>({
   const triggerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const allItemIds = items.map((item) => Number(item.id));
-  const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const allSelected =
+    items.length > 0 &&
+    items.every((item) => selectedItems.includes(Number(item.id)));
 
   const filteredItems = items.filter((item) => {
     const text = displayPattern(item).toLowerCase();
@@ -242,7 +244,9 @@ export function MultiSelect<T extends SelectableItem>({
           {filteredItems.map((item) => (
             <div
               key={item.id}
-              className={`group cursor-pointer flex items-start gap-2 p-2.5 transition-all duration-150 ${
+              className={`group flex items-start gap-2 p-2.5 transition-all duration-150 ${
+                "cursor-pointer"
+              } ${
                 selectedItems.includes(Number(item.id))
                   ? isDark
                     ? "border-l-2 border-l-cyan-400 bg-cyan-900/20 text-cyan-200 shadow-[inset_0_0_12px_rgba(6,182,212,0.05)]"
@@ -261,7 +265,9 @@ export function MultiSelect<T extends SelectableItem>({
                   isDark ? "border-[#1e3a5f] bg-[#0c1626] checked:bg-cyan-500 checked:border-cyan-500 focus:ring-cyan-500/40" : "accent-blue-600"
                 }`}
               />
-              <span className="min-w-0 break-words text-xs sm:text-sm leading-5">{displayPattern(item)}</span>
+              <span className="min-w-0 break-words text-xs leading-5 sm:text-sm">
+                {displayPattern(item)}
+              </span>
             </div>
           ))}
         </div>

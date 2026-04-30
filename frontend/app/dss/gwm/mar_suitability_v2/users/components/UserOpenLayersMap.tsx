@@ -47,6 +47,8 @@ import CloseIcon from "@/components/dss_common/CloseIcon";
 import { useUserRiverStore } from "../stores/userRiverStore";
 import { useUserMapStore } from "../stores/userMapStore";
 
+const DEFAULT_BASE_MAP_KEY = "terrain";
+
 function createVectorStyle(layerType: string, showLabels: boolean) {
   return (feature: any, resolution: number) => {
     const geometry = feature.getGeometry();
@@ -128,7 +130,7 @@ export default function UserOpenLayersMap() {
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
 
-  const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState(DEFAULT_BASE_MAP_KEY);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState(false);
   const [showTitles, setShowTitles] = useState(false);
@@ -212,7 +214,7 @@ export default function UserOpenLayersMap() {
       target: mapRef.current,
       mouseTargetId,
       baseMaps,
-      defaultBaseMapKey: "satellite",
+      defaultBaseMapKey: DEFAULT_BASE_MAP_KEY,
       center: INDIA_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: 4,

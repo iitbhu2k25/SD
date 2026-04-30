@@ -147,7 +147,7 @@ export default function AdminOpenLayersMap() {
   const manualWellCounterRef = useRef(0);
   const isAddingWellPointRef = useRef(false);
 
-  const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState("terrain");
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -227,7 +227,7 @@ export default function AdminOpenLayersMap() {
       target: mapRef.current,
       mouseTargetId,
       baseMaps,
-      defaultBaseMapKey: "satellite",
+      defaultBaseMapKey: "terrain",
       center: INDIA_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: 5,

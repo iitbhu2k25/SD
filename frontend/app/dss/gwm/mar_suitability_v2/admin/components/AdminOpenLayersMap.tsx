@@ -55,6 +55,7 @@ import { useAdminMapStore } from "../stores/adminMapStore";
 
 const BOREHOLE_CARD_WIDTH = 280;
 const BOREHOLE_CARD_HEIGHT = 360;
+const DEFAULT_BASE_MAP_KEY = "terrain";
 
 function getBoreholeCardPosition(pixel: number[], container: HTMLDivElement | null) {
   const containerWidth = container?.clientWidth ?? 0;
@@ -139,7 +140,7 @@ export default function AdminOpenLayersMap() {
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
 
-  const [selectedBaseMap, setSelectedBaseMap] = useState("satellite");
+  const [selectedBaseMap, setSelectedBaseMap] = useState(DEFAULT_BASE_MAP_KEY);
   const [activePanel, setActivePanel] = useState<string | null>(null);
   const [showTitles, setShowTitles] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -203,7 +204,7 @@ export default function AdminOpenLayersMap() {
       target: mapRef.current,
       mouseTargetId,
       baseMaps,
-      defaultBaseMapKey: "satellite",
+      defaultBaseMapKey: DEFAULT_BASE_MAP_KEY,
       center: INDIA_CENTER,
       zoom: INITIAL_ZOOM,
       minZoom: 5,

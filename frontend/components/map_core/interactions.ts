@@ -26,13 +26,16 @@ export function createDoubleClickSelectInteraction(
 export function createHoverSelectInteraction(
   onHover: SelectHandler,
   filter?: LayerFilter,
+  style?: Style,
 ) {
   const interaction = new Select({
     condition: pointerMove,
-    style: new Style({
-      stroke: new Stroke({ color: "#ffaa00", width: 2 }),
-      fill: new Fill({ color: "transparent" }),
-    }),
+    style:
+      style ??
+      new Style({
+        stroke: new Stroke({ color: "#ff0000", width: 2 }),
+        fill: new Fill({ color: "transparent" }),
+      }),
     ...(filter ? { filter } : {}),
   });
 
