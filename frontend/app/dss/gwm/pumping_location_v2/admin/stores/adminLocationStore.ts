@@ -18,6 +18,9 @@ import {
 import { useAdminCategoryStore } from "./adminCategoryStore";
 import { useAdminMapStore } from "./adminMapStore";
 
+const NO_PUMPING_SCORE_MESSAGE =
+  "No pumping score could be generated for the selected well points. Please choose points inside or closer to the generated analysis area.";
+
 export interface AdminSelectionsData {
   villages: villages[];
 }
@@ -360,8 +363,19 @@ async function setAdminValidateTable(
       village_layer: resultLayer,
     });
 
+    const scoredCount = Math.min(table.length, normalizedWellPoints.length);
+
+    if (scoredCount === 0) {
+      useAdminCategoryStore.getState().setTableData([]);
+      set({ error: NO_PUMPING_SCORE_MESSAGE });
+      return;
+    }
+
     useAdminCategoryStore.getState().setTableData(table);
-    set({ wellPoints: normalizedWellPoints });
+    set({
+      wellPoints: normalizedWellPoints,
+      error: null,
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to validate well points";

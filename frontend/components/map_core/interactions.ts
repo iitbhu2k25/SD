@@ -33,8 +33,9 @@ export function createHoverSelectInteraction(
     style:
       style ??
       new Style({
-        stroke: new Stroke({ color: "#ff0000", width: 2 }),
-        fill: new Fill({ color: "transparent" }),
+        stroke: new Stroke({ color: "#f59e0b", width: 3 }),
+        fill: new Fill({ color: "rgba(245, 158, 11, 0.14)" }),
+        zIndex: 999,
       }),
     ...(filter ? { filter } : {}),
   });

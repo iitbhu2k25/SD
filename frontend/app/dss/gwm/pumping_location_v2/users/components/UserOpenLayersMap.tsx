@@ -4,7 +4,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Map from "ol/Map";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
-import { fromLonLat } from "ol/proj";
+import { fromLonLat, toLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
@@ -128,6 +128,21 @@ function normalizeWellPoint(row: CsvRow): CsvRow | null {
   };
 }
 
+const WELL_DIALOG_WIDTH = 280;
+const WELL_DIALOG_HEIGHT = 260;
+
+function getWellDialogPosition(pixel: number[], container: HTMLDivElement | null) {
+  const containerWidth = container?.clientWidth ?? 0;
+  const containerHeight = container?.clientHeight ?? 0;
+  const rawX = pixel[0] + 18;
+  const rawY = pixel[1] - 36;
+
+  return {
+    x: Math.max(12, Math.min(rawX, Math.max(12, containerWidth - WELL_DIALOG_WIDTH - 12))),
+    y: Math.max(12, Math.min(rawY, Math.max(12, containerHeight - WELL_DIALOG_HEIGHT - 12))),
+  };
+}
+
 export default function UserOpenLayersMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +158,8 @@ export default function UserOpenLayersMap() {
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
+  const manualWellCounterRef = useRef(0);
+  const isAddingWellPointRef = useRef(false);
 
   const [selectedBaseMap, setSelectedBaseMap] = useState(DEFAULT_BASE_MAP_KEY);
   const [activePanel, setActivePanel] = useState<string | null>(null);
@@ -157,6 +174,13 @@ export default function UserOpenLayersMap() {
   const [showDrainLayer, setShowDrainLayer] = useState(true);
   const [showCatchmentLayer, setShowCatchmentLayer] = useState(true);
   const [showWellPointsLayer, setShowWellPointsLayer] = useState(true);
+  const [isAddingWellPoint, setIsAddingWellPoint] = useState(false);
+  const [pendingWellCoordinate, setPendingWellCoordinate] = useState<{
+    lon: number;
+    lat: number;
+  } | null>(null);
+  const [wellDialogPosition, setWellDialogPosition] = useState<{ x: number; y: number } | null>(null);
+  const [wellName, setWellName] = useState("");
   const mapInstanceId = useId();
   const mouseTargetId = `mouse-position-${mapInstanceId.replace(/:/g, "")}`;
   const [featureCounts, setFeatureCounts] = useState({
@@ -175,6 +199,7 @@ export default function UserOpenLayersMap() {
   const displayRaster = useUserRiverStore((state) => state.displayRaster);
   const selectionsLocked = useUserRiverStore((state) => state.selectionsLocked);
   const wellPoints = useUserRiverStore((state) => state.wellPoints);
+  const setWellPoints = useUserRiverStore((state) => state.setWellPoints);
   const setSelectedRiver = useUserRiverStore((state) => state.setSelectedRiver);
   const setSelectedStretches = useUserRiverStore((state) => state.setSelectedStretches);
   const setSelectedDrains = useUserRiverStore((state) => state.setSelectedDrains);
@@ -215,6 +240,10 @@ export default function UserOpenLayersMap() {
   );
 
   useEffect(() => {
+    isAddingWellPointRef.current = isAddingWellPoint;
+  }, [isAddingWellPoint]);
+
+  useEffect(() => {
     if (!mapRef.current) {
       return;
     }
@@ -233,6 +262,10 @@ export default function UserOpenLayersMap() {
 
     const selectInteraction = createDoubleClickSelectInteraction(
       (event, interaction) => {
+        if (isAddingWellPointRef.current) {
+          return;
+        }
+
         const feature = event.selected[0];
         if (!feature) {
           return;
@@ -260,6 +293,9 @@ export default function UserOpenLayersMap() {
 
     const hoverInteraction = createHoverSelectInteraction(
       (event) => {
+        if (isAddingWellPointRef.current) {
+          return;
+        }
         setHoveredFeature(event.selected[0] ?? null);
       },
       (_feature, layer) => layer !== boundaryLayerRef.current && layer !== primaryLayerRef.current,
@@ -267,6 +303,10 @@ export default function UserOpenLayersMap() {
 
     const cleanupMouseTracking = attachPointerMoveTracker(map, setMousePosition);
     const handleHoverClearOnMove = (event: any) => {
+      if (isAddingWellPointRef.current) {
+        return;
+      }
+
       const featureAtPixel = map.forEachFeatureAtPixel(
         event.pixel,
         (feature, layer) =>
@@ -298,6 +338,28 @@ export default function UserOpenLayersMap() {
   }, [mouseTargetId, setLoading, setSelectedCatchments, setSelectedDrains, setSelectedRiver, setSelectedStretches]);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) {
+      return;
+    }
+
+    const handleMapClickForWell = (event: any) => {
+      if (!isAddingWellPointRef.current) {
+        return;
+      }
+
+      const [lon, lat] = toLonLat(event.coordinate);
+      setPendingWellCoordinate({ lon, lat });
+      setWellDialogPosition(getWellDialogPosition(event.pixel, containerRef.current));
+    };
+
+    map.on("singleclick", handleMapClickForWell);
+    return () => {
+      map.un("singleclick", handleMapClickForWell);
+    };
+  }, []);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) {
       return;
@@ -313,11 +375,14 @@ export default function UserOpenLayersMap() {
   }, []);
 
   useEffect(() => {
-    if (!selectInteractionRef.current) {
+    if (!selectInteractionRef.current || !hoverInteractionRef.current || !mapRef.current) {
       return;
     }
-    selectInteractionRef.current.setActive(!selectionsLocked);
-  }, [selectionsLocked]);
+    const selectable = !selectionsLocked && !isAddingWellPoint;
+    selectInteractionRef.current.setActive(selectable);
+    hoverInteractionRef.current.setActive(!isAddingWellPoint);
+    mapRef.current.style.cursor = isAddingWellPoint ? "crosshair" : "default";
+  }, [isAddingWellPoint, selectionsLocked]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -615,6 +680,44 @@ export default function UserOpenLayersMap() {
       zoom: INITIAL_ZOOM,
       duration: 300,
     });
+  };
+
+  const openAddWellMode = () => {
+    setIsAddingWellPoint(true);
+    setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
+    setWellName("");
+    setShowWellPointsLayer(true);
+    setActivePanel(null);
+  };
+
+  const cancelAddWell = () => {
+    setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
+    setWellName("");
+    setIsAddingWellPoint(false);
+  };
+
+  const confirmAddWell = () => {
+    if (!pendingWellCoordinate) {
+      return;
+    }
+
+    manualWellCounterRef.current += 1;
+    const generatedId = `M${manualWellCounterRef.current}`;
+    const pointName = wellName.trim();
+    const newPoint: CsvRow = {
+      Well_id: generatedId,
+      Name: pointName || generatedId,
+      Longitude: pendingWellCoordinate.lon.toString(),
+      Latitude: pendingWellCoordinate.lat.toString(),
+      Distance: "N/A",
+    };
+
+    setWellPoints([...normalizedWellPoints, newPoint]);
+    setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
+    setWellName("");
   };
 
   const changeBaseMap = (baseMapKey: string) => {
@@ -926,6 +1029,19 @@ export default function UserOpenLayersMap() {
               disabled={!selectedradioLayer}
             />
           </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white/70 px-3 py-2.5 text-sm text-gray-700">
+            <div>
+              <div className="font-medium text-gray-800">Add Well Point</div>
+              <div className="text-xs text-gray-500">Click map to pick location</div>
+            </div>
+            <button
+              onClick={openAddWellMode}
+              className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition-all duration-200 hover:bg-orange-100"
+            >
+              Add Well
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -965,6 +1081,60 @@ export default function UserOpenLayersMap() {
       />
 
       <MapCoordinatesOverlay targetId={mouseTargetId} />
+
+      {isAddingWellPoint && pendingWellCoordinate && wellDialogPosition && (
+        <div
+          className="absolute z-30 w-[280px] rounded-xl border border-orange-200 bg-white/95 shadow-xl"
+          style={{ left: wellDialogPosition.x, top: wellDialogPosition.y }}
+        >
+          <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50 px-3 py-2">
+            <h4 className="text-sm font-semibold text-orange-800">Add Well Point</h4>
+            <button
+              onClick={cancelAddWell}
+              className="rounded-full p-1 text-orange-700 transition-colors duration-150 hover:bg-orange-100"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-2 p-3 text-xs text-slate-700">
+            <p>
+              {pendingWellCoordinate
+                ? "Coordinate selected. Add an optional name and confirm."
+                : "Click anywhere on map to select well location."}
+            </p>
+            {pendingWellCoordinate && (
+              <div className="rounded-md border border-stone-200 bg-stone-50 p-2 font-mono">
+                <div>Lat: {pendingWellCoordinate.lat.toFixed(6)}</div>
+                <div>Lon: {pendingWellCoordinate.lon.toFixed(6)}</div>
+              </div>
+            )}
+            <input
+              type="text"
+              value={wellName}
+              onChange={(event) => setWellName(event.target.value)}
+              placeholder="Well name (optional)"
+              className="w-full rounded-md border border-stone-200 px-2 py-1.5 text-xs outline-none focus:border-orange-300"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={cancelAddWell}
+                className="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 font-semibold text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAddWell}
+                disabled={!pendingWellCoordinate}
+                className={`rounded-md px-2.5 py-1.5 font-semibold text-white ${
+                  pendingWellCoordinate ? "bg-orange-600 hover:bg-orange-500" : "bg-stone-300"
+                }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {rasterLoading && (
         <div className="absolute inset-x-0 top-0 z-30 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">

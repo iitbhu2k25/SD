@@ -11,6 +11,7 @@ export function useUserViewModel() {
   const displayRaster = useUserRiverStore((state) => state.displayRaster);
   const selectedCatchments = useUserRiverStore((state) => state.selectedCatchments);
   const riverLoading = useUserRiverStore((state) => state.isLoading);
+  const riverError = useUserRiverStore((state) => state.error);
 
   const selectedCondition = useUserCategoryStore((state) => state.selectedCondition);
   const selectedConstraint = useUserCategoryStore((state) => state.selectedConstraint);
@@ -53,6 +54,7 @@ export function useUserViewModel() {
     selectedCatchments,
     tableData,
     riverLoading,
+    riverError,
     selectedCondition,
     selectedConstraint,
     pumpingProcess,

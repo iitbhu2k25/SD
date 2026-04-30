@@ -19,6 +19,9 @@ import {
 import { useUserCategoryStore } from "./userCategoryStore";
 import { useUserMapStore } from "./userMapStore";
 
+const NO_PUMPING_SCORE_MESSAGE =
+  "No pumping score could be generated for the selected well points. Please choose points inside or closer to the generated analysis area.";
+
 export interface UserSelectionsData {
   rivers: River[];
   stretches: Stretch[];
@@ -360,7 +363,7 @@ async function setUserValidateTable(
     return;
   }
 
-  const { wellPoints, displayRaster } = get();
+  const { wellPoints, displayRaster, resultLayer } = get();
   const pumpingRaster = displayRaster.find((item) => item.file_name === "Pumping_location");
 
   if (!pumpingRaster || wellPoints.length === 0) {
@@ -374,9 +377,22 @@ async function setUserValidateTable(
     const { table, wellPoints: normalizedWellPoints } = await runUserPumpingFindScore({
       location: wellPoints,
       raster_name: pumpingRaster.layer_name,
+      village_layer: resultLayer,
     });
+
+    const scoredCount = Math.min(table.length, normalizedWellPoints.length);
+
+    if (scoredCount === 0) {
+      useUserCategoryStore.getState().setTableData([]);
+      set({ error: NO_PUMPING_SCORE_MESSAGE });
+      return;
+    }
+
     useUserCategoryStore.getState().setTableData(table);
-    set({ wellPoints: normalizedWellPoints });
+    set({
+      wellPoints: normalizedWellPoints,
+      error: null,
+    });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to validate well points";

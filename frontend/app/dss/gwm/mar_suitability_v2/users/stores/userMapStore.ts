@@ -2,6 +2,7 @@ import { create } from "zustand";
 import {
   ClipRasters,
   DRAIN_LAYER_NAMES,
+  MarValidationItem,
 } from "@/interface/raster_context";
 import { runUserMarAnalysis, UserPriorityAnalysisPayload } from "../../services/marSuitabilityApi";
 import { useUserCategoryStore } from "./userCategoryStore";
@@ -45,6 +46,7 @@ interface UserMapState {
   
   vectorInteractionEnabled: boolean;
   pinCoordinate: Coordinates | null;
+  subsurfaceValidation: MarValidationItem[];
   
   setPrimaryLayer: (layer: string) => void;
   setRiverLayer: (layer: string | null) => void;
@@ -66,6 +68,25 @@ interface UserMapState {
   
   setVectorInteractionEnabled: (enabled: boolean) => void;
   setPinCoordinate: (coord: Coordinates | null) => void;
+  setSubsurfaceValidation: (validation: MarValidationItem[]) => void;
+}
+
+function getValidationTitle(item: MarValidationItem): string {
+  const key = Object.keys(item).find(
+    (entry) => entry !== "reason" && entry !== "color_code",
+  );
+  return key ?? "Validation";
+}
+
+function normalizeValidationItems(items: MarValidationItem[]): MarValidationItem[] {
+  if (items.length <= 1) {
+    return items;
+  }
+  const uniqueByTitle = new Map<string, MarValidationItem>();
+  for (const item of items) {
+    uniqueByTitle.set(getValidationTitle(item), item);
+  }
+  return Array.from(uniqueByTitle.values());
 }
 
 export const useUserMapStore = create<UserMapState>((set) => ({
@@ -96,6 +117,7 @@ export const useUserMapStore = create<UserMapState>((set) => ({
   
   vectorInteractionEnabled: false,
   pinCoordinate: null,
+  subsurfaceValidation: [],
   
   setPrimaryLayer: (primaryLayer) => set({ primaryLayer }),
   setRiverLayer: (riverLayer) => set({ riverLayer }),
@@ -273,9 +295,12 @@ export const useUserMapStore = create<UserMapState>((set) => ({
       rasterLoading: false,
       marOperation: false,
       pinCoordinate: null,
+      subsurfaceValidation: [],
     });
   },
   
   setVectorInteractionEnabled: (enabled) => set({ vectorInteractionEnabled: enabled }),
   setPinCoordinate: (coord) => set({ pinCoordinate: coord }),
+  setSubsurfaceValidation: (validation) =>
+    set({ subsurfaceValidation: normalizeValidationItems(validation) }),
 }));

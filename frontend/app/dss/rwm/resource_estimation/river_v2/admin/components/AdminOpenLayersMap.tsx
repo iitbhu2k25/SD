@@ -32,7 +32,6 @@ import { Circle, Fill, Stroke, Style } from "ol/style";
 const ADMIN_STATE_COLOR = "#2563eb";
 const ADMIN_DISTRICT_COLOR = "#7c2d12";
 const ADMIN_SUBDISTRICT_COLOR = "#059669";
-const ADMIN_HOVER_COLOR = "#f59e0b";
 const BACKEND_TO_CHART_ATTRIBUTE = Object.fromEntries(
   Object.entries(CHART_TO_BACKEND_ATTRIBUTE).map(([frontend, backend]) => [
     backend,
@@ -122,18 +121,9 @@ export default function AdminOpenLayersMap() {
     });
     baseLayerRef.current = baseLayer;
 
-    // Hover Interaction mapping legacy attribute displays
-    const hoverInteraction = createHoverSelectInteraction(
-      (event) => {
-        setHoveredFeature(event.selected[0] ?? null);
-      },
-      undefined,
-      new Style({
-        stroke: new Stroke({ color: ADMIN_HOVER_COLOR, width: 3 }),
-        fill: new Fill({ color: "rgba(245, 158, 11, 0.14)" }),
-        zIndex: 999,
-      }),
-    );
+    const hoverInteraction = createHoverSelectInteraction((event) => {
+      setHoveredFeature(event.selected[0] ?? null);
+    });
 
     const cleanupMouseTracking = attachPointerMoveTracker(map, setMousePosition);
     map.addInteraction(hoverInteraction);

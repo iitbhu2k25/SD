@@ -76,6 +76,7 @@ export interface AdminPumpingFindScorePayload {
 export interface UserPumpingFindScorePayload {
   location: CsvRow[];
   raster_name: string;
+  village_layer: string | null;
 }
 
 function normalizeDisplayRasterPayload(message: DisplayRasterApiMessage | null | undefined): DisplayRasterResult {

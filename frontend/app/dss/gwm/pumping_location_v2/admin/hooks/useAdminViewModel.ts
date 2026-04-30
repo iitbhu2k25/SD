@@ -17,6 +17,7 @@ export function useAdminViewModel() {
   const displayRaster = useAdminLocationStore((state) => state.displayRaster);
   const selectedVillages = useAdminLocationStore((state) => state.selectedVillages);
   const locationLoading = useAdminLocationStore((state) => state.isLoading);
+  const locationError = useAdminLocationStore((state) => state.error);
 
   const runAnalysis = useAdminMapStore((state) => state.runAnalysis);
   const loading = useAdminMapStore((state) => state.loading);
@@ -59,6 +60,7 @@ export function useAdminViewModel() {
     displayRaster,
     selectedVillages,
     locationLoading,
+    locationError,
     loading,
     isMapLoading,
     stpOperation,

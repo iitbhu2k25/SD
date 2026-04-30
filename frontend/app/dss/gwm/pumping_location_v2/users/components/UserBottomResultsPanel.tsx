@@ -97,6 +97,7 @@ interface UserBottomResultsPanelProps {
   isOpen: boolean;
   height: string;
   tableData: Gwpl_Table[];
+  validationMessage?: string | null;
   panelSettings: BottomPanelSettings;
   isMobile?: boolean;
   onToggle: () => void;
@@ -106,13 +107,16 @@ export default function UserBottomResultsPanel({
   isOpen,
   height,
   tableData,
+  validationMessage = null,
   panelSettings,
   isMobile = false,
   onToggle,
 }: UserBottomResultsPanelProps) {
   const isDark = useUiModeService((state) => state.isDark);
   const isCompactHeader = !isOpen;
-  if (tableData.length === 0) {
+  const hasTableData = tableData.length > 0;
+
+  if (!hasTableData && !validationMessage) {
     return null;
   }
 
@@ -153,21 +157,23 @@ export default function UserBottomResultsPanel({
                   isDark ? "text-slate-500" : "text-slate-500"
                 }`}
               >
-                {tableData.length} rows
+                {hasTableData ? `${tableData.length} rows` : "Validation message"}
               </p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={() => downloadPumpingCsv(tableData, "GW_Pumping_drain.csv")}
-              className={`inline-flex cursor-pointer items-center justify-center gap-1 rounded-full bg-blue-600 font-semibold text-white shadow-sm transition hover:bg-blue-500 ${
-                isCompactHeader
-                  ? "h-7 px-2 text-[10px] sm:h-8 sm:px-2.5 sm:text-[11px]"
-                  : "h-8 px-2.5 text-[11px] sm:px-3 sm:text-xs"
-              }`}
-            >
-              CSV
-            </button>
+            {hasTableData && (
+              <button
+                onClick={() => downloadPumpingCsv(tableData, "GW_Pumping_drain.csv")}
+                className={`inline-flex cursor-pointer items-center justify-center gap-1 rounded-full bg-blue-600 font-semibold text-white shadow-sm transition hover:bg-blue-500 ${
+                  isCompactHeader
+                    ? "h-7 px-2 text-[10px] sm:h-8 sm:px-2.5 sm:text-[11px]"
+                    : "h-8 px-2.5 text-[11px] sm:px-3 sm:text-xs"
+                }`}
+              >
+                CSV
+              </button>
+            )}
             <button
               onClick={onToggle}
               className={`inline-flex items-center gap-1.5 rounded-full border font-semibold shadow-sm transition ${
@@ -196,21 +202,34 @@ export default function UserBottomResultsPanel({
 
         {isOpen && (
           <div className="min-h-0 flex-1 w-full space-y-2.5 overflow-hidden p-2.5 sm:space-y-3 sm:p-3">
-            <div
-              className={`h-full min-h-0 w-full overflow-auto rounded-xl border p-1.5 sm:p-2 ${
-                isDark ? "border-slate-700 bg-slate-800/60" : "border-stone-200 bg-white/78"
-              }`}
-            >
-              <DataTable
-                columns={pumpingVillageColumns}
-                data={tableData}
-                customStyles={isDark ? darkDataTableStyles : lightDataTableStyles}
-                pagination
-                responsive
-                paginationPerPage={5}
-                paginationRowsPerPageOptions={[5, 10]}
-              />
-            </div>
+            {validationMessage && (
+              <div
+                className={`rounded-xl border px-3 py-2 text-xs font-medium sm:px-4 sm:py-3 sm:text-sm ${
+                  isDark
+                    ? "border-rose-900/60 bg-rose-950/30 text-rose-200"
+                    : "border-rose-200 bg-rose-50 text-rose-700"
+                }`}
+              >
+                {validationMessage}
+              </div>
+            )}
+            {hasTableData && (
+              <div
+                className={`h-full min-h-0 w-full overflow-auto rounded-xl border p-1.5 sm:p-2 ${
+                  isDark ? "border-slate-700 bg-slate-800/60" : "border-stone-200 bg-white/78"
+                }`}
+              >
+                <DataTable
+                  columns={pumpingVillageColumns}
+                  data={tableData}
+                  customStyles={isDark ? darkDataTableStyles : lightDataTableStyles}
+                  pagination
+                  responsive
+                  paginationPerPage={5}
+                  paginationRowsPerPageOptions={[5, 10]}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

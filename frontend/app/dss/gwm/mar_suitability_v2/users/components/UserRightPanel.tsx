@@ -4,8 +4,10 @@ import { useCallback, useRef, useState } from "react";
 import type { RightPanelSettings } from "../../config/panels.config";
 import UserCategorySlider from "./UserCategorySlider";
 import { useUiModeService } from "../../services/uiModeService";
+import AnalysisList from "../../components/AnalysisItem";
 import PriorityRiskSummary from "../../components/PriorityRiskSummary";
 import { useUserCategoryStore } from "../stores/userCategoryStore";
+import { useUserMapStore } from "../stores/userMapStore";
 
 interface UserRightPanelProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ export default function UserRightPanel({
   const [isCategorySectionMinimized, setIsCategorySectionMinimized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDark = useUiModeService((s) => s.isDark);
+  const subsurfaceValidation = useUserMapStore((state) => state.subsurfaceValidation);
   const villageRiskCounts = useUserCategoryStore((state) => state.villageRiskCounts);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -216,6 +219,25 @@ export default function UserRightPanel({
 
                 <PriorityRiskSummary counts={villageRiskCounts} isDark={isDark} />
               </div>
+            )}
+
+            {subsurfaceValidation.length > 0 && (
+              <section
+                className={`rounded-2xl border p-3 shadow-sm sm:p-4 ${
+                  isDark
+                    ? "border-[#1e3a5f]/50 bg-[#0d1629]/80"
+                    : "border-stone-200 bg-white/72"
+                }`}
+              >
+                <h4
+                  className={`mb-3 border-l-2 border-l-teal-400 pl-2 text-xs font-semibold sm:text-sm ${
+                    isDark ? "text-slate-100" : "text-slate-900"
+                  }`}
+                >
+                  Subsurface Validation
+                </h4>
+                <AnalysisList data={subsurfaceValidation} />
+              </section>
             )}
 
             {!showCategories && (

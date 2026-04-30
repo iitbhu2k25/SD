@@ -2,6 +2,8 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import Map from "ol/Map";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
 import { fromLonLat, toLonLat } from "ol/proj";
 import Select from "ol/interaction/Select";
 import TileLayer from "ol/layer/Tile";
@@ -40,14 +42,31 @@ import {
 } from "@/components/map_core/interactions";
 import BaseMaps from "@/components/dss_common/BaseMaps";
 import MapCoordinatesOverlay from "@/components/dss_common/MapCoordinatesOverlay";
-import MapHeaderControls from "@/components/dss_common/MapHeaderControls";
 import MapLegendOverlay from "@/components/dss_common/MapLegendOverlay";
 import MapRasterSelector from "@/components/dss_common/MapRasterSelector";
 import CloseIcon from "@/components/dss_common/CloseIcon";
+import type { MarLayerInfo } from "@/interface/raster_context";
+import SubsurfaceBorehole2D from "../../components/layerDetails";
+import { fetchMarSubsurfaceDetails } from "../../services/marSuitabilityApi";
+import MarSubsurfaceMapControls from "../../components/MarSubsurfaceMapControls";
 import { useUserRiverStore } from "../stores/userRiverStore";
 import { useUserMapStore } from "../stores/userMapStore";
 
 const DEFAULT_BASE_MAP_KEY = "terrain";
+const BOREHOLE_CARD_WIDTH = 280;
+const BOREHOLE_CARD_HEIGHT = 360;
+
+function getBoreholeCardPosition(pixel: number[], container: HTMLDivElement | null) {
+  const containerWidth = container?.clientWidth ?? 0;
+  const containerHeight = container?.clientHeight ?? 0;
+  const rawX = pixel[0] + 24;
+  const rawY = pixel[1] - BOREHOLE_CARD_HEIGHT / 2;
+
+  return {
+    x: Math.max(12, Math.min(rawX, Math.max(12, containerWidth - BOREHOLE_CARD_WIDTH - 12))),
+    y: Math.max(12, Math.min(rawY, Math.max(12, containerHeight - BOREHOLE_CARD_HEIGHT - 12))),
+  };
+}
 
 function createVectorStyle(layerType: string, showLabels: boolean) {
   return (feature: any, resolution: number) => {
@@ -126,6 +145,7 @@ export default function UserOpenLayersMap() {
   const stretchLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const pinLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const selectInteractionRef = useRef<Select | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
   const rasterLayersRef = useRef<Record<string, any>>({});
@@ -138,6 +158,9 @@ export default function UserOpenLayersMap() {
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [boreholeData, setBoreholeData] = useState<MarLayerInfo[] | null>(null);
+  const [boreholePosition, setBoreholePosition] = useState<{ x: number; y: number } | null>(null);
+  const [isLoadingBorehole, setIsLoadingBorehole] = useState(false);
   const [showRiverLayer, setShowRiverLayer] = useState(true);
   const [showStretchLayer, setShowStretchLayer] = useState(true);
   const [showDrainLayer, setShowDrainLayer] = useState(true);
@@ -201,8 +224,10 @@ export default function UserOpenLayersMap() {
     setLayerOpacity,
     handleLayerSelection,
     vectorInteractionEnabled,
+    pinCoordinate,
     setVectorInteractionEnabled,
     setPinCoordinate,
+    setSubsurfaceValidation,
   } = useUserMapStore();
 
   useEffect(() => {
@@ -221,18 +246,6 @@ export default function UserOpenLayersMap() {
       maxZoom: 18,
     });
     baseLayerRef.current = baseLayer;
-
-    // Subsurface Pin Selection Listener
-    map.on("singleclick", function (evt) {
-      const isVectorEnabled = useUserMapStore.getState().vectorInteractionEnabled;
-      if (isVectorEnabled) {
-        const coordinate = toLonLat(evt.coordinate);
-        useUserMapStore.getState().setPinCoordinate({
-          lon: coordinate[0],
-          lat: coordinate[1],
-        });
-      }
-    });
 
     const selectInteraction = createDoubleClickSelectInteraction(
       (event, interaction) => {
@@ -302,6 +315,76 @@ export default function UserOpenLayersMap() {
   }, [mouseTargetId, setLoading, setSelectedCatchments, setSelectedDrains, setSelectedRiver, setSelectedStretches]);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const handleMapClick = async (event: any) => {
+      const {
+        vectorInteractionEnabled: isAnalysisMode,
+        setPinCoordinate: setStorePinCoordinate,
+        setSubsurfaceValidation: setStoreValidation,
+      } = useUserMapStore.getState();
+
+      if (!isAnalysisMode) {
+        setStorePinCoordinate(null);
+        setStoreValidation([]);
+        setBoreholeData(null);
+        setBoreholePosition(null);
+        setIsLoadingBorehole(false);
+        return;
+      }
+
+      const [lon, lat] = toLonLat(event.coordinate);
+      setStorePinCoordinate({ lon, lat });
+      setBoreholePosition(getBoreholeCardPosition(event.pixel, containerRef.current));
+      setBoreholeData(null);
+      setError(null);
+      setIsLoadingBorehole(true);
+
+      try {
+        const response = await fetchMarSubsurfaceDetails(lat, lon);
+        if (!isMounted) {
+          return;
+        }
+
+        if (response.layers.length === 0) {
+          setError("No subsurface data found for the selected location.");
+          setBoreholeData(null);
+          setStoreValidation([]);
+          return;
+        }
+
+        setBoreholeData(response.layers);
+        setStoreValidation(response.validation ?? []);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : "Failed to load subsurface details.";
+        setError(message);
+        setBoreholeData(null);
+        setStoreValidation([]);
+      } finally {
+        if (isMounted) {
+          setIsLoadingBorehole(false);
+        }
+      }
+    };
+
+    map.on("singleclick", handleMapClick);
+
+    return () => {
+      isMounted = false;
+      map.un("singleclick", handleMapClick);
+    };
+  }, [setError]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) {
       return;
@@ -325,6 +408,51 @@ export default function UserOpenLayersMap() {
     }
     selectInteractionRef.current.setActive(!selectionsLocked && !vectorInteractionEnabled);
   }, [selectionsLocked, vectorInteractionEnabled]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) {
+      return;
+    }
+
+    if (pinLayerRef.current) {
+      map.removeLayer(pinLayerRef.current);
+      pinLayerRef.current = null;
+    }
+
+    if (!pinCoordinate) {
+      return;
+    }
+
+    const pinFeature = new Feature({
+      geometry: new Point(fromLonLat([pinCoordinate.lon, pinCoordinate.lat])),
+      name: "Subsurface analysis point",
+    });
+
+    const layer = new VectorLayer({
+      source: new VectorSource({
+        features: [pinFeature],
+      }),
+      style: new Style({
+        image: new Circle({
+          radius: 8,
+          fill: new Fill({ color: "#ef4444" }),
+          stroke: new Stroke({ color: "#ffffff", width: 3 }),
+        }),
+      }),
+      zIndex: 1000,
+    });
+
+    map.addLayer(layer);
+    pinLayerRef.current = layer;
+
+    return () => {
+      if (pinLayerRef.current) {
+        map.removeLayer(pinLayerRef.current);
+        pinLayerRef.current = null;
+      }
+    };
+  }, [pinCoordinate]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -668,7 +796,17 @@ export default function UserOpenLayersMap() {
                 </div>
               </div>
               <button
-                onClick={() => setVectorInteractionEnabled(!vectorInteractionEnabled)}
+                onClick={() => {
+                  const nextValue = !vectorInteractionEnabled;
+                  setVectorInteractionEnabled(nextValue);
+                  if (!nextValue) {
+                    setBoreholeData(null);
+                    setBoreholePosition(null);
+                    setPinCoordinate(null);
+                    setSubsurfaceValidation([]);
+                    setIsLoadingBorehole(false);
+                  }
+                }}
                 className={`relative h-5 w-10 rounded-full transition-all duration-300 ${
                   vectorInteractionEnabled ? "bg-amber-500" : "bg-gray-300"
                 }`}
@@ -924,11 +1062,25 @@ export default function UserOpenLayersMap() {
 
       <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
 
-      <MapHeaderControls
+      <MarSubsurfaceMapControls
         activePanel={activePanel}
         onTogglePanel={togglePanel}
         onToggleFullScreen={toggleFullScreen}
         isFullScreen={isFullScreen}
+        vectorInteractionEnabled={vectorInteractionEnabled}
+        hasPinnedPoint={Boolean(pinCoordinate)}
+        onToggleVectorInteraction={() => {
+          const nextValue = !vectorInteractionEnabled;
+          setVectorInteractionEnabled(nextValue);
+          if (!nextValue) {
+            setBoreholeData(null);
+            setBoreholePosition(null);
+            setPinCoordinate(null);
+            setSubsurfaceValidation([]);
+            setIsLoadingBorehole(false);
+          }
+        }}
+        showAnalysisToggle={Boolean(rasterLayerInfo)}
       />
 
       <MapRasterSelector
@@ -952,6 +1104,55 @@ export default function UserOpenLayersMap() {
       />
 
       <MapCoordinatesOverlay targetId={mouseTargetId} />
+
+      {vectorInteractionEnabled && boreholePosition && (
+        <div
+          className="absolute z-20 w-[280px] overflow-hidden rounded-xl border border-teal-200 bg-white/95 shadow-2xl backdrop-blur-md"
+          style={{ left: boreholePosition.x, top: boreholePosition.y }}
+        >
+          <div className="flex items-center justify-between border-b border-teal-100 bg-teal-50/80 px-3 py-2">
+            <div className="text-sm font-semibold text-teal-800">Subsurface Analysis</div>
+            <button
+              onClick={() => {
+                setIsLoadingBorehole(false);
+                setBoreholeData(null);
+                setBoreholePosition(null);
+                setPinCoordinate(null);
+                setSubsurfaceValidation([]);
+              }}
+              className="rounded-full p-1 text-teal-700 transition-colors duration-200 hover:bg-teal-100 hover:text-teal-900"
+              title="Close subsurface panel"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="p-3">
+            {isLoadingBorehole && (
+              <div className="flex items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-4 text-sm text-teal-700">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-teal-600 border-t-transparent" />
+                Loading subsurface details...
+              </div>
+            )}
+
+            {!isLoadingBorehole && boreholeData && boreholeData.length > 0 && (
+              <SubsurfaceBorehole2D data={boreholeData} width={240} height={250} depthStep={0.3} />
+            )}
+
+            {!isLoadingBorehole && (!boreholeData || boreholeData.length === 0) && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                No subsurface layers available for the selected point.
+              </div>
+            )}
+          </div>
+
+          {pinCoordinate && (
+            <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 text-[11px] font-mono text-gray-700">
+              Lat: {pinCoordinate.lat.toFixed(6)} | Lon: {pinCoordinate.lon.toFixed(6)}
+            </div>
+          )}
+        </div>
+      )}
 
       {rasterLoading && (
         <div className="absolute inset-x-0 top-0 z-30 bg-amber-500/90 px-4 py-2 text-center text-sm font-medium text-white">

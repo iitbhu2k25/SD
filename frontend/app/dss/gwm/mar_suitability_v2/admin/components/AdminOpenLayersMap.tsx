@@ -49,7 +49,7 @@ import CloseIcon from "@/components/dss_common/CloseIcon";
 import { MarLayerInfo } from "@/interface/raster_context";
 import SubsurfaceBorehole2D from "../../components/layerDetails";
 import { fetchMarSubsurfaceDetails } from "../../services/marSuitabilityApi";
-import AdminMapHeaderControls from "./AdminMapHeaderControls";
+import MarSubsurfaceMapControls from "../../components/MarSubsurfaceMapControls";
 import { useAdminLocationStore } from "../stores/adminLocationStore";
 import { useAdminMapStore } from "../stores/adminMapStore";
 
@@ -855,7 +855,7 @@ export default function AdminOpenLayersMap() {
 
       <HoverTooltip hoveredFeature={hoveredFeature} mousePosition={mousePosition} />
 
-      <AdminMapHeaderControls
+      <MarSubsurfaceMapControls
         activePanel={activePanel}
         onTogglePanel={togglePanel}
         onToggleFullScreen={toggleFullScreen}

@@ -106,7 +106,7 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
   handleLayerSelection: (selectedradioLayer) => set({ selectedradioLayer }),
 
   syncLayersWithRiverSystem: () => {
-    const { selectedRiver, selectedStretches, selectedDrains, selectedCatchments } =
+    const { selectedRiver, selectedStretches, selectedDrains, selectedCatchments, catchments } =
       useUserRiverStore.getState();
 
     const hasSelections = !!(
@@ -164,8 +164,14 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
               }
             : { filterField: null, filterValue: null };
 
+    const catchmentIds = new Set(catchments.map((catchment) => Number(catchment.id)));
+    const isFullGeneratedCatchmentLayerSelected =
+      catchmentIds.size > 0 &&
+      selectedCatchments.length === catchmentIds.size &&
+      selectedCatchments.every((catchmentId) => catchmentIds.has(Number(catchmentId)));
+
     const catchmentFilter =
-      selectedCatchments.length > 0
+      selectedCatchments.length > 0 && !isFullGeneratedCatchmentLayerSelected
         ? {
             filterField: "village_id",
             filterValue: selectedCatchments,

@@ -178,7 +178,9 @@ export default function GwmPumpingLocationV2Page() {
   const userCanShowRightPanel = userShowCategories;
   const activeTableData =
     selectedMode === "admin" ? adminViewModel.tableData : userViewModel.tableData;
-  const canShowBottomPanel = activeTableData.length > 0;
+  const activeValidationMessage =
+    selectedMode === "admin" ? adminViewModel.locationError : userViewModel.riverError;
+  const canShowBottomPanel = activeTableData.length > 0 || Boolean(activeValidationMessage);
 
   useEffect(() => {
     if (canShowBottomPanel) {
@@ -247,6 +249,7 @@ export default function GwmPumpingLocationV2Page() {
           isOpen={isBottomPanelOpen}
           height={bottomPanelHeight}
           tableData={activeTableData}
+          validationMessage={activeValidationMessage}
           panelSettings={panelSettings.bottom}
           isMobile={isMobile}
           onToggle={() => setIsBottomPanelOpen((open) => !open)}
@@ -256,6 +259,7 @@ export default function GwmPumpingLocationV2Page() {
           isOpen={isBottomPanelOpen}
           height={bottomPanelHeight}
           tableData={activeTableData}
+          validationMessage={activeValidationMessage}
           panelSettings={panelSettings.bottom}
           isMobile={isMobile}
           onToggle={() => setIsBottomPanelOpen((open) => !open)}

@@ -9,7 +9,6 @@ export const pumpingVillageColumns: TableColumn<Gwpl_Table>[] = Gwpl_columns.map
   return {
     ...rest,
     grow: 1,
-    minWidth: "130px",
   };
 });
 

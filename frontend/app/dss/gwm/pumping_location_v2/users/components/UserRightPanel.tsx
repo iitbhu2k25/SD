@@ -215,7 +215,7 @@ export default function UserRightPanel({
                 )}
               </section>
 
-              <PumpingRiskSummary counts={villageRiskCounts} isDark={isDark} />
+              {/* <PumpingRiskSummary counts={villageRiskCounts} isDark={isDark} /> */}
             </div>
           )}
         </div>

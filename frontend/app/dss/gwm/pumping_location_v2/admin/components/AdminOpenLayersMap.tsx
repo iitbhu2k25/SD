@@ -132,6 +132,21 @@ function normalizeWellPoint(row: CsvRow): CsvRow | null {
   };
 }
 
+const WELL_DIALOG_WIDTH = 280;
+const WELL_DIALOG_HEIGHT = 260;
+
+function getWellDialogPosition(pixel: number[], container: HTMLDivElement | null) {
+  const containerWidth = container?.clientWidth ?? 0;
+  const containerHeight = container?.clientHeight ?? 0;
+  const rawX = pixel[0] + 18;
+  const rawY = pixel[1] - 36;
+
+  return {
+    x: Math.max(12, Math.min(rawX, Math.max(12, containerWidth - WELL_DIALOG_WIDTH - 12))),
+    y: Math.max(12, Math.min(rawY, Math.max(12, containerHeight - WELL_DIALOG_HEIGHT - 12))),
+  };
+}
+
 export default function AdminOpenLayersMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +177,7 @@ export default function AdminOpenLayersMap() {
     lon: number;
     lat: number;
   } | null>(null);
+  const [wellDialogPosition, setWellDialogPosition] = useState<{ x: number; y: number } | null>(null);
   const [wellName, setWellName] = useState("");
   const mapInstanceId = useId();
   const mouseTargetId = `mouse-position-${mapInstanceId.replace(/:/g, "")}`;
@@ -300,6 +316,7 @@ export default function AdminOpenLayersMap() {
       }
       const [lon, lat] = toLonLat(event.coordinate);
       setPendingWellCoordinate({ lon, lat });
+      setWellDialogPosition(getWellDialogPosition(event.pixel, containerRef.current));
     };
 
     map.on("singleclick", handleMapClickForWell);
@@ -312,11 +329,11 @@ export default function AdminOpenLayersMap() {
     if (!selectInteractionRef.current || !hoverInteractionRef.current || !mapRef.current) {
       return;
     }
-    const selectable = !isAddingWellPoint;
+    const selectable = !selectionsLocked && !isAddingWellPoint;
     selectInteractionRef.current.setActive(selectable);
-    hoverInteractionRef.current.setActive(selectable);
+    hoverInteractionRef.current.setActive(!isAddingWellPoint);
     mapRef.current.style.cursor = isAddingWellPoint ? "crosshair" : "default";
-  }, [isAddingWellPoint]);
+  }, [isAddingWellPoint, selectionsLocked]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -338,6 +355,10 @@ export default function AdminOpenLayersMap() {
       primaryLayerRef.current.setVisible(showPrimaryLayer);
     }
   }, [showPrimaryLayer]);
+
+  useEffect(() => {
+    setShowPrimaryLayer(selectedState === null);
+  }, [selectedState, setShowPrimaryLayer]);
 
   useEffect(() => {
     if (secondaryLayerRef.current) {
@@ -601,6 +622,7 @@ export default function AdminOpenLayersMap() {
 
   const openAddWellMode = () => {
     setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
     setWellName("");
     setIsAddingWellPoint(true);
     setActivePanel(null);
@@ -608,6 +630,7 @@ export default function AdminOpenLayersMap() {
 
   const cancelAddWell = () => {
     setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
     setWellName("");
     setIsAddingWellPoint(false);
   };
@@ -631,6 +654,7 @@ export default function AdminOpenLayersMap() {
     const next = [...normalizedWellPoints, newPoint];
     setWellPoints(next);
     setPendingWellCoordinate(null);
+    setWellDialogPosition(null);
     setWellName("");
   };
 
@@ -968,8 +992,11 @@ export default function AdminOpenLayersMap() {
 
       <MapCoordinatesOverlay targetId={mouseTargetId} />
 
-      {isAddingWellPoint && (
-        <div className="absolute right-2 top-20 z-30 w-[280px] rounded-xl border border-orange-200 bg-white/95 shadow-xl">
+      {isAddingWellPoint && pendingWellCoordinate && wellDialogPosition && (
+        <div
+          className="absolute z-30 w-[280px] rounded-xl border border-orange-200 bg-white/95 shadow-xl"
+          style={{ left: wellDialogPosition.x, top: wellDialogPosition.y }}
+        >
           <div className="flex items-center justify-between border-b border-orange-100 bg-orange-50 px-3 py-2">
             <h4 className="text-sm font-semibold text-orange-800">Add Well Point</h4>
             <button

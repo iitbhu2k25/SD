@@ -1,12 +1,37 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Papa from "papaparse";
 import { CsvRow } from "@/interface/table";
 import { useUserRiverStore } from "../stores/userRiverStore";
 import { useUiModeService } from "../../services/uiModeService";
 
 const REQUIRED_HEADERS = ["Well_id", "Longitude", "Latitude"];
+
+function isSamePoint(a: CsvRow, b: CsvRow) {
+  return a.Well_id === b.Well_id;
+}
+
+function areWellPointListsEqual(a: CsvRow[], b: CsvRow[]) {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let index = 0; index < a.length; index += 1) {
+    const left = a[index];
+    const right = b[index];
+
+    if (
+      left.Well_id !== right.Well_id ||
+      left.Longitude !== right.Longitude ||
+      left.Latitude !== right.Latitude
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 export default function UserWellPointsInput() {
   const [csvData, setCsvData] = useState<CsvRow[]>([]);
@@ -20,10 +45,21 @@ export default function UserWellPointsInput() {
   const setValidateTable = useUserRiverStore((state) => state.setValidateTable);
   const isDark = useUiModeService((state) => state.isDark);
 
+  const manualPoints = useMemo(
+    () =>
+      wellPoints.filter(
+        (point) => !csvData.some((csvPoint) => isSamePoint(csvPoint, point)),
+      ),
+    [csvData, wellPoints],
+  );
+
   useEffect(() => {
     const selectedCsvPoints = csvData.filter((_, index) => selectedRows.has(index));
-    setWellPoints(selectedCsvPoints);
-  }, [csvData, selectedRows, setWellPoints]);
+    const merged = [...manualPoints, ...selectedCsvPoints];
+    if (!areWellPointListsEqual(wellPoints, merged)) {
+      setWellPoints(merged);
+    }
+  }, [csvData, manualPoints, selectedRows, setWellPoints, wellPoints]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,6 +99,10 @@ export default function UserWellPointsInput() {
       }
       return next;
     });
+  };
+
+  const removeManualPoint = (wellId: string) => {
+    setWellPoints(wellPoints.filter((point) => point.Well_id !== wellId));
   };
 
   return (
@@ -194,21 +234,38 @@ export default function UserWellPointsInput() {
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between">
-        <p
-          className={`text-xs font-semibold ${
-            isDark ? "text-slate-200" : "text-slate-700"
-          }`}
-        >
-          Active Well Points: {wellPoints.length}
-        </p>
-        {wellPoints.length > 0 && (
-          <button
-            onClick={() => void setValidateTable(true)}
-            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+      <div className="mt-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <p
+            className={`text-xs font-semibold ${
+              isDark ? "text-slate-200" : "text-slate-700"
+            }`}
           >
-            Validate
-          </button>
+            Active Well Points: {wellPoints.length}
+          </p>
+          {wellPoints.length > 0 && (
+            <button
+              onClick={() => void setValidateTable(true)}
+              className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
+            >
+              Validate
+            </button>
+          )}
+        </div>
+        {manualPoints.length > 0 && (
+          <div className="max-h-36 overflow-auto rounded-xl border border-stone-200 p-2 text-xs">
+            {manualPoints.map((point) => (
+              <div key={point.Well_id} className="mb-1 flex items-center justify-between gap-2">
+                <span className="truncate">{point.Well_id}</span>
+                <button
+                  className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700 hover:bg-rose-200"
+                  onClick={() => removeManualPoint(point.Well_id)}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </section>

@@ -1,6 +1,6 @@
 "use client";
 
-interface AdminMapHeaderControlsProps {
+interface MarSubsurfaceMapControlsProps {
   activePanel: string | null;
   onTogglePanel: (panel: string) => void;
   onToggleFullScreen: () => void;
@@ -24,7 +24,7 @@ const ANALYSIS_ON_ICON =
   "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z";
 const ANALYSIS_OFF_ICON = "M15 12a3 3 0 11-6 0 3 3 0 016 0z";
 
-export default function AdminMapHeaderControls({
+export default function MarSubsurfaceMapControls({
   activePanel,
   onTogglePanel,
   onToggleFullScreen,
@@ -33,7 +33,7 @@ export default function AdminMapHeaderControls({
   hasPinnedPoint,
   onToggleVectorInteraction,
   showAnalysisToggle = true,
-}: AdminMapHeaderControlsProps) {
+}: MarSubsurfaceMapControlsProps) {
   return (
     <div className="absolute left-1/2 top-3 z-10 flex w-[calc(100%-1rem)] max-w-max -translate-x-1/2 items-center justify-between gap-2 rounded-2xl bg-white/20 px-2 py-1.5 shadow-xl backdrop-blur-md sm:w-auto sm:gap-4 sm:px-3">
       <span className="hidden items-center font-bold text-gray-800 sm:flex">
