@@ -8,7 +8,6 @@ import { useLogout } from "@/app/authentication/components/logout";
 import { startCase } from "lodash";
 import AuthDialog from "@/app/authentication/components/AuthDialog";
 
-
 type BreadcrumbItem = {
   label: string;
   href: string;
@@ -18,57 +17,64 @@ type DropdownState = {
   [key: string]: boolean;
 };
 
-
 const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
   // Main Pages
   "/dss/about": [{ label: "About", href: "/dss/about" }],
   "/dss/dashboard": [{ label: "Dashboard", href: "/dss/dashboard" }],
-  "/UserManagement/UserProfile": [{ label: "Profile", href: "/UserManagement/UserProfile" }],
+  "/UserManagement/UserProfile": [
+    { label: "Profile", href: "/UserManagement/UserProfile" },
+  ],
 
   // STP Routes
   "/dss/basic": [
     { label: "STP", href: "#" },
-    { label: "Basic Module", href: "/dss/basic" }
+    { label: "Basic Module", href: "/dss/basic" },
   ],
   "/dss/stp/wwt/stp_priority": [
     { label: "STP", href: "#" },
-    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority" }
+    { label: "STP Priority", href: "/dss/stp/wwt/stp_priority" },
   ],
   "/dss/stp/wwt/stp_suitability": [
     { label: "STP", href: "#" },
-    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" }
+    { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" },
   ],
 
   // GWM Routes
   "/dss/gwm/pumping_location": [
     { label: "GWM", href: "#" },
     { label: "Groundwater Potential Assessment", href: "#" },
-    { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location" }
+    {
+      label: "Pumping Location Identification",
+      href: "/dss/gwm/pumping_location",
+    },
   ],
   "/dss/gwm/potential_zone": [
     { label: "GWM", href: "#" },
     { label: "Groundwater Potential Assessment", href: "#" },
-    { label: "GW Potential Zone", href: "/dss/gwm/potential_zone" }
+    { label: "GW Potential Zone", href: "/dss/gwm/potential_zone" },
   ],
   "/dss/gwm/resource_estimation/wqa": [
     { label: "GWM", href: "#" },
     { label: "Resource Estimation", href: "#" },
-    { label: "Water Quality Assessment", href: "/dss/gwm/resource_estimation/wqa" }
+    {
+      label: "Water Quality Assessment",
+      href: "/dss/gwm/resource_estimation/wqa",
+    },
   ],
   "/dss/gwm/MAR/GWA": [
     { label: "GWM", href: "#" },
     { label: "Managed Aquifer Recharge", href: "#" },
-    { label: "Need Assessment", href: "/dss/gwm/MAR/GWA" }
+    { label: "Need Assessment", href: "/dss/gwm/MAR/GWA" },
   ],
   "/dss/gwm/MAR/SWA": [
     { label: "GWM", href: "#" },
     { label: "Managed Aquifer Recharge", href: "#" },
-    { label: "Water Source Estimation", href: "/dss/gwm/MAR/SWA" }
+    { label: "Water Source Estimation", href: "/dss/gwm/MAR/SWA" },
   ],
   "/dss/gwm/mar_suitability": [
     { label: "GWM", href: "#" },
     { label: "Managed Aquifer Recharge", href: "#" },
-    { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability" }
+    { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability" },
   ],
 
   // RWM Routes
@@ -76,43 +82,43 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "RWM", href: "#" },
     { label: "Resource Estimation", href: "#" },
     { label: "Water Quality Assessment", href: "#" },
-    { label: "Ground Based Assessment", href: "/dss/river" }
+    { label: "Ground Based Assessment", href: "/dss/river" },
   ],
   "/dss/rwm/rainwater": [
     { label: "RWM", href: "#" },
-    { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" }
+    { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" },
   ],
 
   // Tools
   "/dss/watershed": [
     { label: "Tools", href: "#" },
-    { label: "Watershed", href: "/dss/watershed" }
+    { label: "Watershed", href: "/dss/watershed" },
   ],
   "/dss/Tools/vector_visual": [
     { label: "Tools", href: "#" },
-    { label: "Vector", href: "/dss/Tools/vector_visual" }
+    { label: "Vector", href: "/dss/Tools/vector_visual" },
   ],
   "/dss/Tools/raster_visual": [
     { label: "Tools", href: "#" },
-    { label: "Raster", href: "/dss/Tools/raster_visual" }
+    { label: "Raster", href: "/dss/Tools/raster_visual" },
   ],
   "/dss/Tools/model_water": [
     { label: "Tools", href: "#" },
-    { label: "Water", href: "/dss/Tools/model_water" }
+    { label: "Water", href: "/dss/Tools/model_water" },
   ],
   "/dss/seawage_infrastructure": [
     { label: "Tools", href: "#" },
-    { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" }
+    { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" },
   ],
   "/dss/extractdata": [
     { label: "Tools", href: "#" },
-    { label: "Extract Data", href: "/dss/extractdata" }
+    { label: "Extract Data", href: "/dss/extractdata" },
   ],
 
   // Activities
   "/dss/activities/gallery": [
     { label: "Activities", href: "#" },
-    { label: "Gallery", href: "/dss/activities/gallery" }
+    { label: "Gallery", href: "/dss/activities/gallery" },
   ],
 };
 
@@ -127,18 +133,16 @@ const Navbar = (): JSX.Element => {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const isLoggedIn = !!accessToken && !!user;
 
-
-
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
-    { label: "Home", href: "/" }
+    { label: "Home", href: "/" },
   ]);
   const pathname = usePathname();
-  const isHomePage = pathname === "/"
+  const isHomePage = pathname === "/";
 
   const navRef = useRef<HTMLElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  let user_name = useAuthStore((state) => state.user?.fullname) ?? 'User';
+  let user_name = useAuthStore((state) => state.user?.fullname) ?? "User";
   user_name = startCase(user_name);
   if (user_name.length > 8) {
     user_name = user_name.slice(0, 5) + "...";
@@ -149,11 +153,11 @@ const Navbar = (): JSX.Element => {
     if (staticBreadcrumbs[pathname]) {
       const mappedCrumbs = staticBreadcrumbs[pathname];
       setBreadcrumbs(mappedCrumbs);
-      sessionStorage.setItem('breadcrumbs', JSON.stringify(mappedCrumbs));
+      sessionStorage.setItem("breadcrumbs", JSON.stringify(mappedCrumbs));
       return;
     }
 
-    const storedBreadcrumbs = sessionStorage.getItem('breadcrumbs');
+    const storedBreadcrumbs = sessionStorage.getItem("breadcrumbs");
     if (storedBreadcrumbs) {
       try {
         const parsed = JSON.parse(storedBreadcrumbs);
@@ -168,7 +172,7 @@ const Navbar = (): JSX.Element => {
 
   const handleMenuClick = (path: BreadcrumbItem[]) => {
     setBreadcrumbs(path);
-    sessionStorage.setItem('breadcrumbs', JSON.stringify(path));
+    sessionStorage.setItem("breadcrumbs", JSON.stringify(path));
     setOpenDropdowns({});
     setIsMobileMenuOpen(false);
   };
@@ -220,7 +224,7 @@ const Navbar = (): JSX.Element => {
             acc[curr] = false;
             return acc;
           },
-          {}
+          {},
         );
         updatedDropdowns[key] = true;
         return updatedDropdowns;
@@ -272,10 +276,11 @@ const Navbar = (): JSX.Element => {
     <>
       <nav
         ref={navRef}
-        className={`${isSticky
+        className={`${
+          isSticky
             ? "bg-slate-900/98 shadow-2xl fixed top-0 left-0 w-full backdrop-blur-sm border-b border-slate-700/50"
             : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900"
-          } relative transition-all duration-300 z-[200]`}
+        } relative transition-all duration-300 z-[200]`}
       >
         <div className="container mx-auto px-4 lg:px-6">
           {/* Mobile menu button */}
@@ -299,11 +304,15 @@ const Navbar = (): JSX.Element => {
           {/* Navbar items */}
           <div className={`${isMobileMenuOpen ? "block" : "hidden"} lg:block`}>
             <ul className="flex flex-col lg:flex-row lg:justify-center lg:items-center space-y-1 lg:space-y-0 lg:space-x-0.5 xl:space-x-1 overflow-x-auto lg:overflow-visible mt-4 lg:mt-0">
-
               {/* Home */}
               <li className="relative group flex-shrink-0">
-                <Link href="/" className={navLinkClasses}
-                  onClick={() => handleMenuClick([{ label: "Home", href: "/" }])}>
+                <Link
+                  href="/"
+                  className={navLinkClasses}
+                  onClick={() =>
+                    handleMenuClick([{ label: "Home", href: "/" }])
+                  }
+                >
                   Home
                 </Link>
               </li>
@@ -318,7 +327,9 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   About
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.about ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.about ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 <ul
@@ -336,7 +347,7 @@ const Navbar = (): JSX.Element => {
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
-                          { label: "Objective", href: "/dss/about/objective" }
+                          { label: "Objective", href: "/dss/about/objective" },
                         ])
                       }
                     >
@@ -350,7 +361,10 @@ const Navbar = (): JSX.Element => {
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
-                          { label: "Vision and Mission", href: "/dss/about/vission" }
+                          {
+                            label: "Vision and Mission",
+                            href: "/dss/about/vission",
+                          },
                         ])
                       }
                     >
@@ -364,14 +378,17 @@ const Navbar = (): JSX.Element => {
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
-                          { label: "Core Values", href: "/dss/about/corevalue" }
+                          {
+                            label: "Core Values",
+                            href: "/dss/about/corevalue",
+                          },
                         ])
                       }
                     >
                       Core Values
                     </Link>
                   </li>
- 
+
                   <li>
                     <Link
                       href="/dss/about/team"
@@ -379,21 +396,21 @@ const Navbar = (): JSX.Element => {
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
-                          { label: "Team", href: "/dss/about/team" }
+                          { label: "Team", href: "/dss/about/team" },
                         ])
                       }
                     >
                       Team
                     </Link>
                   </li>
-                                   <li>
+                  <li>
                     <Link
                       href="/dss/about/message"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                       onClick={() =>
                         handleMenuClick([
                           { label: "About", href: "#" },
-                          { label: "Pi Message", href: "/dss/about/message" }
+                          { label: "Pi Message", href: "/dss/about/message" },
                         ])
                       }
                     >
@@ -405,8 +422,15 @@ const Navbar = (): JSX.Element => {
 
               {/* Dashboard */}
               <li className="relative group flex-shrink-0">
-                <Link href="/dss/dashboard" className={navLinkClasses}
-                  onClick={() => handleMenuClick([{ label: "Dashboard", href: "/dss/dashboard" }])}>
+                <Link
+                  href="/dss/dashboard"
+                  className={navLinkClasses}
+                  onClick={() =>
+                    handleMenuClick([
+                      { label: "Dashboard", href: "/dss/dashboard" },
+                    ])
+                  }
+                >
                   Dashboard
                 </Link>
               </li>
@@ -422,7 +446,9 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   STP
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.stp ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.stp ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 <ul
@@ -478,15 +504,18 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   GWM
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.gwm ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.gwm ? "rotate-180" : ""}`}
+                  />
                   <span className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 shadow-lg border border-slate-600 font-medium">
                     Ground Water Management
                     <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
                   </span>
                 </button>
                 <ul
-                  className={`${openDropdowns.gwm ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[420px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.gwm ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[420px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -502,28 +531,56 @@ const Navbar = (): JSX.Element => {
                     >
                       Groundwater Potential Assessment
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.gwPotential ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.gwPotential ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.gwPotential ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[320px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.gwPotential ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[320px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
-                      <li>
-                        <Link
-                          href="/dss/gwm/pumping_location_v2"
-                          className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "Pumping Location Identification", href: "/dss/gwm/pumping_location_v2" }])}>
-                          Pumping Location Identification
-                        </Link>
-                      </li>
                       <li>
                         <Link
                           href="/dss/gwm/potential_zone_v2"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Groundwater Potential Assessment", href: "#" }, { label: "GW Potential Zone", href: "/dss/gwm/potential_zone_v2" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              {
+                                label: "Groundwater Potential Assessment",
+                                href: "#",
+                              },
+                              {
+                                label: "GW Potential Zone",
+                                href: "/dss/gwm/potential_zone_v2",
+                              },
+                            ])
+                          }
+                        >
                           GW Potential Zone
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/dss/gwm/pumping_location_v2"
+                          className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              {
+                                label: "Groundwater Potential Assessment",
+                                href: "#",
+                              },
+                              {
+                                label: "Pumping Location Identification",
+                                href: "/dss/gwm/pumping_location_v2",
+                              },
+                            ])
+                          }
+                        >
+                          Pumping Location Identification
                         </Link>
                       </li>
                     </ul>
@@ -541,19 +598,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Resource Estimation
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.gwResource ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.gwResource ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.gwResource ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[340px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.gwResource ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[340px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/gwm/rsq"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Regional Scale Quantification", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Regional Scale Quantification",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Regional Scale Quantification
                         </Link>
                       </li>
@@ -561,7 +630,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/gwm/resource_estimation/wqa"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "/dss/gwm/resource_estimation/wqa" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Water Quality Assessment",
+                                href: "/dss/gwm/resource_estimation/wqa",
+                              },
+                            ])
+                          }
+                        >
                           Water Quality Assessment
                         </Link>
                       </li>
@@ -569,7 +648,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Identification Of Vulnerable zones", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Identification Of Vulnerable zones",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Identification Of Vulnerable zones
                         </Link>
                       </li>
@@ -588,19 +677,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Managed Aquifer Recharge
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.gwAquifer ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.gwAquifer ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.gwAquifer ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.gwAquifer ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/gwm/MAR/GWA"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Need Assessment", href: "/dss/gwm/MAR/GWA" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Managed Aquifer Recharge", href: "#" },
+                              {
+                                label: "Need Assessment",
+                                href: "/dss/gwm/MAR/GWA",
+                              },
+                            ])
+                          }
+                        >
                           Need Assessment
                         </Link>
                       </li>
@@ -608,7 +709,16 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/gwm/MAR/SWA"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Water Source Estimation", href: "/dss/gwm/MAR/SWA" }])}
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Managed Aquifer Recharge", href: "#" },
+                              {
+                                label: "Water Source Estimation",
+                                href: "/dss/gwm/MAR/SWA",
+                              },
+                            ])
+                          }
                         >
                           Water Source Estimation
                         </Link>
@@ -617,7 +727,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/gwm/mar_suitability_v2"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "MAR site Suitability", href: "/dss/gwm/mar_suitability_v2" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Managed Aquifer Recharge", href: "#" },
+                              {
+                                label: "MAR site Suitability",
+                                href: "/dss/gwm/mar_suitability_v2",
+                              },
+                            ])
+                          }
+                        >
                           MAR site Suitability
                         </Link>
                       </li>
@@ -625,7 +745,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "Managed Aquifer Recharge", href: "#" }, { label: "Differential Optimum Solution", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "Managed Aquifer Recharge", href: "#" },
+                              {
+                                label: "Differential Optimum Solution",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Differential Optimum Solution
                         </Link>
                       </li>
@@ -644,19 +774,31 @@ const Navbar = (): JSX.Element => {
                     >
                       River Aquifer Interaction
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.gwRiver ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.gwRiver ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.gwRiver ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.gwRiver ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "River Aquifer Interaction", href: "#" }, { label: "Baseflow Estimation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "River Aquifer Interaction", href: "#" },
+                              {
+                                label: "Baseflow Estimation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Baseflow Estimation
                         </Link>
                       </li>
@@ -664,7 +806,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "GWM", href: "#" }, { label: "River Aquifer Interaction", href: "#" }, { label: "Climate Change and Mitigation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "GWM", href: "#" },
+                              { label: "River Aquifer Interaction", href: "#" },
+                              {
+                                label: "Climate Change and Mitigation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Climate Change and Mitigation
                         </Link>
                       </li>
@@ -684,15 +836,18 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   RWM
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.rwm ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.rwm ? "rotate-180" : ""}`}
+                  />
                   <span className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 shadow-lg border border-slate-600 font-medium">
                     River Water Management
                     <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
                   </span>
                 </button>
                 <ul
-                  className={`${openDropdowns.rwm ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[420px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.rwm ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[420px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -708,19 +863,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Resource Estimation
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.rwEstimation ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.rwEstimation ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.rwEstimation ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[360px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.rwEstimation ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[360px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/rwm/resource_estimation/water"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Availability", href: "/dss/rwm/resource_estimation/water" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Water Availability",
+                                href: "/dss/rwm/resource_estimation/water",
+                              },
+                            ])
+                          }
+                        >
                           Water Availability
                         </Link>
                       </li>
@@ -728,49 +895,54 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Flow and Storage Estimation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Water Flow and Storage Estimation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Water Flow and Storage Estimation
                         </Link>
                       </li>
-                      <li
-                        className="relative group/submenu"
-                        onMouseEnter={() => toggleDropdown("wqa", true)}
-                        onMouseLeave={() => toggleDropdown("wqa", false)}
-                      >
-                        <div
-                          className="w-full text-left px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200 flex justify-between items-center cursor-pointer"
-                          onClick={(e) => toggleSubmenu(e, 'wqa')}
+                      <li>
+                        <Link
+                          href="/dss/rwm/resource_estimation/river"
+                          className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "River Water Quality Assessment",
+                                href: "/dss/rwm/resource_estimation/river",
+                              },
+                            ])
+                          }
                         >
-                          Water Quality Assessment
-                          <ChevronRight className={`w-4 h-4 ${openDropdowns.wqa ? 'rotate-90' : ''} lg:group-hover/submenu:rotate-0 transition-transform duration-200`} />
-                        </div>
-
-                        <ul className={`${openDropdowns.wqa ? 'block' : 'hidden'} lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[280px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}>
-
-                          <li>
-                            <Link href="/dss/rwm/resource_estimation/river"
-                              className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                              onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Ground Based Assessment", href: "/dss/river" }])}
-                            >
-                              Ground Based Assessment
-                            </Link>
-                          </li>
-
-                          {/* <li>
-                            <Link href="https://dssiitbhu.users.earthengine.app/view/water-budget" className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                              onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Water Quality Assessment", href: "#" }, { label: "Satellite Based Assessment", href: "/default" }])}
-                            >
-                              Satellite Based Assessment
-                            </Link>
-                          </li> */}
-                        </ul>
+                          River Water Quality Assessment
+                        </Link>
                       </li>
 
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Vulnerability Assessment", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Vulnerability Assessment",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Vulnerability Assessment
                         </Link>
                       </li>
@@ -778,7 +950,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Resource Estimation", href: "#" }, { label: "Contamination Risk Assessment", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Resource Estimation", href: "#" },
+                              {
+                                label: "Contamination Risk Assessment",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Contamination Risk Assessment
                         </Link>
                       </li>
@@ -797,19 +979,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Flood Forecasting and Management
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.rwFlood ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.rwFlood ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.rwFlood ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[340px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.rwFlood ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[340px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "Flood Simulation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Flood Forecasting", href: "#" },
+                              {
+                                label: "Flood Simulation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Flood Simulation
                         </Link>
                       </li>
@@ -817,7 +1011,14 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "River Routing", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Flood Forecasting", href: "#" },
+                              { label: "River Routing", href: "/dss/default" },
+                            ])
+                          }
+                        >
                           River Routing
                         </Link>
                       </li>
@@ -825,7 +1026,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Flood Forecasting", href: "#" }, { label: "Contamination Transport Modelling", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Flood Forecasting", href: "#" },
+                              {
+                                label: "Contamination Transport Modelling",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Contamination Transport Modelling
                         </Link>
                       </li>
@@ -844,19 +1055,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Water Bodies Management
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.rwWaterBodies ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.rwWaterBodies ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.rwWaterBodies ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.rwWaterBodies ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Storage and Forecasting", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Water Bodies Management", href: "#" },
+                              {
+                                label: "Storage and Forecasting",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Storage and Forecasting
                         </Link>
                       </li>
@@ -864,7 +1087,14 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Climate Change", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Water Bodies Management", href: "#" },
+                              { label: "Climate Change", href: "/dss/default" },
+                            ])
+                          }
+                        >
                           Climate Change
                         </Link>
                       </li>
@@ -872,7 +1102,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Reservoir Operation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Water Bodies Management", href: "#" },
+                              {
+                                label: "Reservoir Operation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Reservoir Operation
                         </Link>
                       </li>
@@ -880,7 +1120,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Water Bodies Management", href: "#" }, { label: "Water Quality and Monitoring", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Water Bodies Management", href: "#" },
+                              {
+                                label: "Water Quality and Monitoring",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Water Quality and Monitoring
                         </Link>
                       </li>
@@ -899,19 +1149,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Waste Water Treatment
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.rwWasteWater ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.rwWasteWater ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.rwWasteWater ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.rwWasteWater ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "Water Pollution and Inventory", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Waste Water Treatment", href: "#" },
+                              {
+                                label: "Water Pollution and Inventory",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Water Pollution and Inventory
                         </Link>
                       </li>
@@ -919,15 +1181,36 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Waste Water Treatment", href: "#" }, { label: "Treatment Technology", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "RWM", href: "#" },
+                              { label: "Waste Water Treatment", href: "#" },
+                              {
+                                label: "Treatment Technology",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Treatment Technology
                         </Link>
                       </li>
                     </ul>
                   </li>
                   <li>
-                    <Link href="/dss/rwm/rainwater" className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "RWM", href: "#" }, { label: "Rain Water Harvesting", href: "/dss/rwm/rainwater" }])}>
+                    <Link
+                      href="/dss/rwm/rainwater"
+                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "RWM", href: "#" },
+                          {
+                            label: "Rain Water Harvesting",
+                            href: "/dss/rwm/rainwater",
+                          },
+                        ])
+                      }
+                    >
                       Rain Water Harvesting
                     </Link>
                   </li>
@@ -945,15 +1228,18 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   WRM
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.wrm ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.wrm ? "rotate-180" : ""}`}
+                  />
                   <span className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 shadow-lg border border-slate-600 font-medium">
                     Water Resource Management
                     <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></span>
                   </span>
                 </button>
                 <ul
-                  className={`${openDropdowns.wrm ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[320px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.wrm ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[320px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -969,19 +1255,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Demand and Forecasting
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.wrmDemand ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.wrmDemand ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.wrmDemand ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.wrmDemand ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[300px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Demand and Forecasting", href: "#" }, { label: "Current Consumption Pattern", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "WRM", href: "#" },
+                              { label: "Demand and Forecasting", href: "#" },
+                              {
+                                label: "Current Consumption Pattern",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Current Consumption Pattern
                         </Link>
                       </li>
@@ -989,7 +1287,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Demand and Forecasting", href: "#" }, { label: "Future Demand Projection", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "WRM", href: "#" },
+                              { label: "Demand and Forecasting", href: "#" },
+                              {
+                                label: "Future Demand Projection",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Future Demand Projection
                         </Link>
                       </li>
@@ -1008,19 +1316,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Resource Allocation
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.wrmAllocation ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.wrmAllocation ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.wrmAllocation ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[220px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.wrmAllocation ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[220px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Resource Allocation", href: "#" }, { label: "Source Sustainability", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "WRM", href: "#" },
+                              { label: "Resource Allocation", href: "#" },
+                              {
+                                label: "Source Sustainability",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Source Sustainability
                         </Link>
                       </li>
@@ -1028,7 +1348,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "WRM", href: "#" }, { label: "Resource Allocation", href: "#" }, { label: "Source Demarcation", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "WRM", href: "#" },
+                              { label: "Resource Allocation", href: "#" },
+                              {
+                                label: "Source Demarcation",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Source Demarcation
                         </Link>
                       </li>
@@ -1049,11 +1379,14 @@ const Navbar = (): JSX.Element => {
                 >
                   <span className="hidden xl:inline">System Dynamics</span>
                   <span className="xl:hidden">System</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.shsd ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.shsd ? "rotate-180" : ""}`}
+                  />
                 </button>
                 <ul
-                  className={`${openDropdowns.shsd ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[280px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.shsd ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[280px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -1069,19 +1402,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Resource Management
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.shsdResource ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.shsdResource ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.shsdResource ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[380px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.shsdResource ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[380px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "Optimum and Sustainable Management", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "System Dynamics", href: "#" },
+                              { label: "Resource Management", href: "#" },
+                              {
+                                label: "Optimum and Sustainable Management",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Optimum and Sustainable Management
                         </Link>
                       </li>
@@ -1089,7 +1434,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "Sensitive Socio-Economic Factors", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "System Dynamics", href: "#" },
+                              { label: "Resource Management", href: "#" },
+                              {
+                                label: "Sensitive Socio-Economic Factors",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Sensitive Socio-Economic Factors
                         </Link>
                       </li>
@@ -1097,7 +1452,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Resource Management", href: "#" }, { label: "System Dynamics Modelling", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "System Dynamics", href: "#" },
+                              { label: "Resource Management", href: "#" },
+                              {
+                                label: "System Dynamics Modelling",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           System Dynamics Modelling
                         </Link>
                       </li>
@@ -1116,19 +1481,31 @@ const Navbar = (): JSX.Element => {
                     >
                       Impact Assessment
                       <ChevronRight
-                        className={`w-4 h-4 ${openDropdowns.shsdImpact ? "rotate-90" : ""
-                          } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                        className={`w-4 h-4 ${
+                          openDropdowns.shsdImpact ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
                       />
                     </div>
                     <ul
-                      className={`${openDropdowns.shsdImpact ? "block" : "hidden"
-                        } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[250px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                      className={`${
+                        openDropdowns.shsdImpact ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[250px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
                     >
                       <li>
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Impact Assessment", href: "#" }, { label: "Plant Solutions", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "System Dynamics", href: "#" },
+                              { label: "Impact Assessment", href: "#" },
+                              {
+                                label: "Plant Solutions",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Plant Solutions
                         </Link>
                       </li>
@@ -1136,7 +1513,17 @@ const Navbar = (): JSX.Element => {
                         <Link
                           href="/dss/default"
                           className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                          onClick={() => handleMenuClick([{ label: "System Dynamics", href: "#" }, { label: "Impact Assessment", href: "#" }, { label: "Optimization Framework", href: "/dss/default" }])}>
+                          onClick={() =>
+                            handleMenuClick([
+                              { label: "System Dynamics", href: "#" },
+                              { label: "Impact Assessment", href: "#" },
+                              {
+                                label: "Optimization Framework",
+                                href: "/dss/default",
+                              },
+                            ])
+                          }
+                        >
                           Optimization Framework
                         </Link>
                       </li>
@@ -1152,15 +1539,20 @@ const Navbar = (): JSX.Element => {
                 onMouseLeave={() => toggleDropdown("activities", false)}
               >
                 <button
-                  onClick={() => toggleDropdown("activities", !openDropdowns.activities)}
+                  onClick={() =>
+                    toggleDropdown("activities", !openDropdowns.activities)
+                  }
                   className={navLinkClasses}
                 >
                   Activities
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.activities ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.activities ? "rotate-180" : ""}`}
+                  />
                 </button>
                 <ul
-                  className={`${openDropdowns.activities ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[240px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.activities ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[240px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -1168,7 +1560,16 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/activities/training_workshop"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Training and Workshop", href: "/dss/activities/training_workshop" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Activities", href: "#" },
+                          {
+                            label: "Training and Workshop",
+                            href: "/dss/activities/training_workshop",
+                          },
+                        ])
+                      }
+                    >
                       Training and Workshop
                     </Link>
                   </li>
@@ -1176,7 +1577,16 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/activities/confrence"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Confrence", href: "/dss/activities/confrence" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Activities", href: "#" },
+                          {
+                            label: "Confrence",
+                            href: "/dss/activities/confrence",
+                          },
+                        ])
+                      }
+                    >
                       Conference
                     </Link>
                   </li>
@@ -1184,7 +1594,16 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/activities/exposure"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/activities/exposure" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Activities", href: "#" },
+                          {
+                            label: "Gallery",
+                            href: "/dss/activities/exposure",
+                          },
+                        ])
+                      }
+                    >
                       Exposure
                     </Link>
                   </li>
@@ -1192,7 +1611,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/activities/gallery"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Activities", href: "#" }, { label: "Gallery", href: "/dss/activities/gallery" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Activities", href: "#" },
+                          { label: "Gallery", href: "/dss/activities/gallery" },
+                        ])
+                      }
+                    >
                       Gallery
                     </Link>
                   </li>
@@ -1202,20 +1627,32 @@ const Navbar = (): JSX.Element => {
               {/* Report and Publication */}
               <li
                 className="relative group flex-shrink-0"
-                onMouseEnter={() => toggleDropdown("reportandpublication", true)}
-                onMouseLeave={() => toggleDropdown("reportandpublication", false)}
+                onMouseEnter={() =>
+                  toggleDropdown("reportandpublication", true)
+                }
+                onMouseLeave={() =>
+                  toggleDropdown("reportandpublication", false)
+                }
               >
                 <button
-                  onClick={() => toggleDropdown("reportandpublication", !openDropdowns.reportandpublication)}
+                  onClick={() =>
+                    toggleDropdown(
+                      "reportandpublication",
+                      !openDropdowns.reportandpublication,
+                    )
+                  }
                   className={navLinkClasses}
                 >
                   <span className="hidden xl:inline">Report & Publication</span>
                   <span className="xl:hidden">Reports</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.reportandpublication ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.reportandpublication ? "rotate-180" : ""}`}
+                  />
                 </button>
                 <ul
-                  className={`${openDropdowns.reportandpublication ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[200px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.reportandpublication ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[200px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -1223,7 +1660,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/default"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Report & Publication", href: "#" }, { label: "Newsletter", href: "/dss/default" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Report & Publication", href: "#" },
+                          { label: "Newsletter", href: "/dss/default" },
+                        ])
+                      }
+                    >
                       Newsletter
                     </Link>
                   </li>
@@ -1231,7 +1674,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/default"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Report & Publication", href: "#" }, { label: "Brochure", href: "/dss/default" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Report & Publication", href: "#" },
+                          { label: "Brochure", href: "/dss/default" },
+                        ])
+                      }
+                    >
                       Brochure
                     </Link>
                   </li>
@@ -1249,11 +1698,14 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   Tools
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.Tools ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.Tools ? "rotate-180" : ""}`}
+                  />
                 </button>
                 <ul
-                  className={`${openDropdowns.Tools ? "block" : "hidden"
-                    } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[200px] p-2 z-[200]
+                  className={`${
+                    openDropdowns.Tools ? "block" : "hidden"
+                  } lg:group-hover:block absolute left-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[200px] p-2 z-[200]
                     before:content-[''] before:absolute before:bottom-full before:left-6
                     before:border-8 before:border-transparent before:border-b-white`}
                 >
@@ -1261,7 +1713,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/vector_visual"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Vector", href: "/dss/Tools/vector_visual" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          { label: "Vector", href: "/dss/Tools/vector_visual" },
+                        ])
+                      }
+                    >
                       Vector
                     </Link>
                   </li>
@@ -1269,7 +1727,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/raster_visual"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Raster", href: "/dss/Tools/raster_visual" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          { label: "Raster", href: "/dss/Tools/raster_visual" },
+                        ])
+                      }
+                    >
                       Raster
                     </Link>
                   </li>
@@ -1277,7 +1741,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/watershed"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Watershed", href: "/dss/watershed" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          { label: "Watershed", href: "/dss/watershed" },
+                        ])
+                      }
+                    >
                       Watershed
                     </Link>
                   </li>
@@ -1285,7 +1755,13 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/model_water"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Water", href: "/dss/Tools/model_water" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          { label: "Water", href: "/dss/Tools/model_water" },
+                        ])
+                      }
+                    >
                       Water
                     </Link>
                   </li>
@@ -1293,7 +1769,16 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/seawage_infrastructure"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "seawage_infrastructure", href: "/dss/Tools/seawage_infrastructure" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          {
+                            label: "seawage_infrastructure",
+                            href: "/dss/Tools/seawage_infrastructure",
+                          },
+                        ])
+                      }
+                    >
                       Seawage Infra
                     </Link>
                   </li>
@@ -1301,14 +1786,18 @@ const Navbar = (): JSX.Element => {
                     <Link
                       href="/dss/Tools/extractdata"
                       className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() => handleMenuClick([{ label: "Tools", href: "#" }, { label: "Extract data", href: "/dss/extractdata" }])}>
+                      onClick={() =>
+                        handleMenuClick([
+                          { label: "Tools", href: "#" },
+                          { label: "Extract data", href: "/dss/extractdata" },
+                        ])
+                      }
+                    >
                       Extract Data
                     </Link>
                   </li>
                 </ul>
               </li>
-
-            
 
               {/* User */}
               <li
@@ -1327,14 +1816,19 @@ const Navbar = (): JSX.Element => {
                   className={navLinkClasses}
                 >
                   {isLoggedIn ? user_name : "Login"}
-                  {isLoggedIn && <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.user ? 'rotate-180' : ''}`} />}
+                  {isLoggedIn && (
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdowns.user ? "rotate-180" : ""}`}
+                    />
+                  )}
                 </button>
 
                 {/* Dropdown - Only shows when logged in */}
                 {isLoggedIn && (
                   <ul
-                    className={`${openDropdowns.user ? "block" : "hidden"
-                      } lg:group-hover:block absolute right-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[180px] p-2 z-[200]
+                    className={`${
+                      openDropdowns.user ? "block" : "hidden"
+                    } lg:group-hover:block absolute right-0 top-[calc(100%+8px)] bg-white shadow-2xl border border-slate-200 rounded-xl min-w-[180px] p-2 z-[200]
                       before:content-[''] before:absolute before:bottom-full before:right-6
                       before:border-8 before:border-transparent before:border-b-white`}
                   >
@@ -1344,7 +1838,10 @@ const Navbar = (): JSX.Element => {
                         className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
                         onClick={() =>
                           handleMenuClick([
-                            { label: "Profile", href: "/UserManagement/UserProfile" },
+                            {
+                              label: "Profile",
+                              href: "/UserManagement/UserProfile",
+                            },
                           ])
                         }
                       >
