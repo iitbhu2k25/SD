@@ -38,6 +38,13 @@ export const rwmRiverPanelSettings: PanelSettings = {
   },
 };
 
+export const GENERAL_RIGHT_PANEL_CONFIG: RightPanelSettings = {
+  ...rwmRiverPanelSettings.right,
+  widthOpen: "40%",
+  minWidthPercent: 30,
+  maxWidthPercent: 50,
+};
+
 // Backward-compatible aliases to avoid breaking imports during migration.
 export type PanelConfig = PanelSizeSettings;
 export type ModulePanelsConfig = PanelSettings;

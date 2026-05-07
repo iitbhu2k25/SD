@@ -23,7 +23,6 @@ import MapCoordinatesOverlay from "@/components/dss_common/MapCoordinatesOverlay
 import MapLegendOverlay from "@/components/dss_common/MapLegendOverlay";
 import { useDrainViewModel } from "../hooks/useDrainViewModel";
 import { useUiModeStore } from "../../services/uiModeService";
-import { fetchAdminIndiaBoundary } from "../../services/rwmRiverApi";
 import MapRasterParameterSelector from "../../components/MapRasterParameterSelector";
 import {
   CHART_TO_BACKEND_ATTRIBUTE,
@@ -36,9 +35,33 @@ import TileWMS from "ol/source/TileWMS";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import { Circle, Fill, Stroke, Style } from "ol/style";
+import { fromLonLat } from "ol/proj";
 
-const ADMIN_PRIMARY_COLOR = "#2563eb";
 const ADMIN_SELECTION_COLOR = "#7c2d12";
+const RIVER_STRETCH_COLOR = "#0ea5e9";
+const INITIAL_BUFFER_COLOR = "rgba(139, 92, 246, 0.7)";
+const getPointCategoryColor = (feature: any) => {
+  const location = String(feature.get("Location") || "");
+  if (/drain/i.test(location)) return "#f472b6";
+  if (/upstream|\bus\b/i.test(location)) return "#3b82f6";
+  if (/downstream|\bds\b/i.test(location)) return "#84cc16";
+  return "#666666";
+};
+
+const getPointCategory = (location: string) => {
+  if (/drain/i.test(location)) return "Drain";
+  if (/upstream|\bus\b/i.test(location)) return "US";
+  if (/downstream|\bds\b/i.test(location)) return "DS";
+  return "";
+};
+
+const cleanSamplingName = (value: string) =>
+  value
+    .replace(/\s*\((US|DS|Drain)\)\s*$/i, "")
+    .replace(/\s*Drain\s*\((US|DS)\)\s*$/i, "")
+    .replace(/\s*(Drain|Upstream|Downstream)\s*$/i, "")
+    .trim();
+
 const BACKEND_TO_CHART_ATTRIBUTE = Object.fromEntries(
   Object.entries(CHART_TO_BACKEND_ATTRIBUTE).map(([frontend, backend]) => [
     backend,
@@ -51,17 +74,30 @@ const readNamedFeatures = (geoJson: any) => {
     featureProjection: "EPSG:3857",
   });
   features.forEach((feature) => {
+    const location = String(feature.get("Location") || "");
+    const pointCategory = getPointCategory(location);
+    const samplingName = cleanSamplingName(
+      String(
+        feature.get("NormalizedSampling") ||
+          feature.get("Sampling") ||
+          feature.get("name") ||
+          "",
+      ),
+    );
     const displayName =
-      feature.get("name") ||
-      feature.get("Name") ||
-      feature.get("NAME") ||
-      feature.get("NormalizedSampling") ||
-      feature.get("Sampling") ||
-      feature.get("Stretch_Name") ||
-      feature.get("Stretch_Na") ||
-      feature.get("River_Name") ||
-      feature.get("Basin_Name") ||
-      feature.get("Location");
+      samplingName && pointCategory
+        ? `${samplingName} - ${pointCategory}`
+        : samplingName ||
+          feature.get("name") ||
+          feature.get("Name") ||
+          feature.get("NAME") ||
+          feature.get("NormalizedSampling") ||
+          feature.get("Sampling") ||
+          feature.get("Stretch_Name") ||
+          feature.get("Stretch_Na") ||
+          feature.get("River_Name") ||
+          feature.get("Basin_Name") ||
+          feature.get("Location");
     if (displayName) feature.set("name", displayName, true);
   });
   return features;
@@ -73,7 +109,6 @@ export default function DrainOpenLayersMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
-  const indiaLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const basinLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const riverLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const stretchLinesLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -86,7 +121,6 @@ export default function DrainOpenLayersMap() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [hoveredFeature, setHoveredFeature] = useState<any>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [indiaBoundaryData, setIndiaBoundaryData] = useState<any>(null);
 
   const { location, map: mapStore } = useDrainViewModel();
   const {
@@ -98,8 +132,11 @@ export default function DrainOpenLayersMap() {
     selectedYear,
     areaConfirmed,
   } = location;
-  const { basinData, riverData } = mapStore;
+  const { basinData, riverData, riverBufferData } = mapStore;
   const isDark = useUiModeStore((s) => s.isDark);
+  const activeBufferData =
+    stretchBufferData?.features?.length ? stretchBufferData : riverBufferData;
+  const isSelectedStretchBuffer = Boolean(stretchBufferData?.features?.length);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -131,38 +168,12 @@ export default function DrainOpenLayersMap() {
   }, [mouseTargetId]);
 
   useEffect(() => {
-    fetchAdminIndiaBoundary()
-      .then(setIndiaBoundaryData)
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !containerRef.current) return;
     const ro = new ResizeObserver(() => map.updateSize());
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
-
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    if (indiaLayerRef.current) {
-      map.removeLayer(indiaLayerRef.current);
-      indiaLayerRef.current = null;
-    }
-    if (!indiaBoundaryData?.features?.length) return;
-    const source = new VectorSource({ features: readNamedFeatures(indiaBoundaryData) });
-    const layer = new VectorLayer({
-      source,
-      style: new Style({
-        stroke: new Stroke({ color: ADMIN_PRIMARY_COLOR, width: 1.75 }),
-      }),
-      zIndex: 1,
-    });
-    map.addLayer(layer);
-    indiaLayerRef.current = layer;
-  }, [indiaBoundaryData]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -183,6 +194,10 @@ export default function DrainOpenLayersMap() {
     });
     map.addLayer(layer);
     basinLayerRef.current = layer;
+    const extent = source.getExtent();
+    if (extent) {
+      map.getView().fit(extent, { padding: [60, 60, 60, 60], duration: 800 });
+    }
   }, [basinData, mapStore.showBasin]);
 
   useEffect(() => {
@@ -212,19 +227,26 @@ export default function DrainOpenLayersMap() {
       map.removeLayer(stretchBufferLayerRef.current);
       stretchBufferLayerRef.current = null;
     }
-    if (!stretchBufferData?.features?.length || !mapStore.showStretchBuffer) return;
-    const source = new VectorSource({ features: readNamedFeatures(stretchBufferData) });
+    if (!activeBufferData?.features?.length || !mapStore.showStretchBuffer) return;
+    const source = new VectorSource({ features: readNamedFeatures(activeBufferData) });
     const layer = new VectorLayer({
       source,
       style: new Style({
-        stroke: new Stroke({ color: ADMIN_SELECTION_COLOR, width: 2 }),
-        fill: new Fill({ color: "rgba(124, 45, 18, 0.12)" }),
+        stroke: new Stroke({
+          color: isSelectedStretchBuffer ? ADMIN_SELECTION_COLOR : INITIAL_BUFFER_COLOR,
+          width: isSelectedStretchBuffer ? 2 : 1.5,
+        }),
+        fill: new Fill({
+          color: isSelectedStretchBuffer
+            ? "rgba(124, 45, 18, 0.12)"
+            : "rgba(15, 118, 110, 0.08)",
+        }),
       }),
       zIndex: 4,
     });
     map.addLayer(layer);
     stretchBufferLayerRef.current = layer;
-  }, [stretchBufferData, mapStore.showStretchBuffer]);
+  }, [activeBufferData, isSelectedStretchBuffer, mapStore.showStretchBuffer]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -238,7 +260,12 @@ export default function DrainOpenLayersMap() {
     const layer = new VectorLayer({
       source,
       style: new Style({
-        stroke: new Stroke({ color: ADMIN_SELECTION_COLOR, width: 4 }),
+        stroke: new Stroke({
+          color: RIVER_STRETCH_COLOR,
+          width: 4,
+          lineDash: [2, 8],
+          lineCap: "round",
+        }),
       }),
       zIndex: 7,
     });
@@ -262,16 +289,11 @@ export default function DrainOpenLayersMap() {
     const layer = new VectorLayer({
       source,
       style: (feature) => {
-        const wqiClass = feature.get("WQI_Class");
-        let color = "#3b82f6";
-        if (wqiClass === "Excellent") color = "#22c55e";
-        if (wqiClass === "Good") color = "#84cc16";
-        if (wqiClass === "Poor") color = "#f97316";
-        if (wqiClass === "Very Poor") color = "#ef4444";
+        const color = getPointCategoryColor(feature);
 
         return new Style({
           image: new Circle({
-            radius: 7,
+            radius: 10,
             fill: new Fill({ color }),
             stroke: new Stroke({ color: "#fff", width: 2 }),
           }),
@@ -349,24 +371,58 @@ export default function DrainOpenLayersMap() {
     selectedYear !== "" &&
     Boolean(waterQualityData?.features?.length);
 
+  const rasterSelectionKey = [
+    areaConfirmed ? "confirmed" : "editing",
+    selectedStretches.join(","),
+    selectedSeason,
+    selectedYear,
+  ].join("|");
+  const previousRasterSelectionKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previousRasterSelectionKeyRef.current === null) {
+      previousRasterSelectionKeyRef.current = rasterSelectionKey;
+      return;
+    }
+    if (previousRasterSelectionKeyRef.current !== rasterSelectionKey) {
+      mapStore.clearInterpolation();
+      previousRasterSelectionKeyRef.current = rasterSelectionKey;
+    }
+  }, [mapStore, rasterSelectionKey]);
+
   const handleRasterAttributeChange = async (attributeKey: string) => {
     if (!canGenerateRaster || mapStore.isMapLayersLoading) return;
 
-    const backendAttribute =
-      CHART_TO_BACKEND_ATTRIBUTE[attributeKey] || attributeKey;
+    const parameterLabel =
+      WQ_PARAMETERS.find((param) => param.key === attributeKey)?.label || attributeKey;
+
+    if (mapStore.generatedRasterLayers[attributeKey]) {
+      mapStore.setActiveRasterAttribute(attributeKey);
+      return;
+    }
+
+    if (Object.keys(mapStore.generatedRasterLayers).length > 0) {
+      toast.error(`${parameterLabel} raster is unavailable for this selection.`);
+      mapStore.setActiveRasterAttribute(attributeKey);
+      return;
+    }
 
     try {
-      await mapStore.runInterpolation({
-        attribute: backendAttribute,
+      const layers = await mapStore.runBatchInterpolation({
         season: selectedSeason,
         stretchIds: selectedStretches,
         pointsData: waterQualityData,
       });
-      toast.success(
-        `${WQ_PARAMETERS.find((param) => param.key === attributeKey)?.label || attributeKey} raster generated.`,
-      );
+
+      if (!layers[attributeKey]) {
+        toast.error(`${parameterLabel} raster is unavailable for this selection.`);
+        return;
+      }
+
+      mapStore.setActiveRasterAttribute(attributeKey);
+      toast.success("Raster layers generated.");
     } catch (error: any) {
-      toast.error(error?.message || "Failed to generate raster.");
+      toast.error(error?.message || "Failed to generate raster layers.");
     }
   };
 
@@ -388,13 +444,21 @@ export default function DrainOpenLayersMap() {
     },
     {
       label: "Stretch Lines",
-      swatch: <div className="h-1 w-4 bg-[#7c2d12]" />,
+      swatch: <div className="h-1 w-4 bg-[#1e3a8a]" />,
       visible: mapStore.showStretchLines,
       onToggle: () => mapStore.setShowStretchLines(!mapStore.showStretchLines),
     },
     {
-      label: "Stretch Buffer",
-      swatch: <div className="h-4 w-4 border border-[#7c2d12] bg-[#7c2d12]/15" />,
+      label: isSelectedStretchBuffer ? "Stretch Buffer" : "River Buffer",
+      swatch: (
+        <div
+          className={`h-4 w-4 border ${
+            isSelectedStretchBuffer
+              ? "border-[#7c2d12] bg-[#7c2d12]/15"
+              : "border-teal-700 bg-teal-100/70"
+          }`}
+        />
+      ),
       visible: mapStore.showStretchBuffer,
       onToggle: () => mapStore.setShowStretchBuffer(!mapStore.showStretchBuffer),
     },
@@ -411,6 +475,224 @@ export default function DrainOpenLayersMap() {
       onToggle: () => mapStore.setShowRiver(!mapStore.showRiver),
     },
   ];
+
+  const changeBaseMap = (baseMapKey: string) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const didReplace = replaceBaseLayer({
+      map,
+      baseLayerRef,
+      baseMapKey,
+      baseMaps,
+    });
+    if (didReplace) setSelectedBaseMap(baseMapKey);
+  };
+
+  const fitLayer = (layer: VectorLayer<VectorSource> | null, maxZoom = 13) => {
+    const map = mapInstanceRef.current;
+    const source = layer?.getSource();
+    if (!map || !source) return false;
+    const extent = source.getExtent();
+    if (!extent || !extent.every((coord) => Number.isFinite(coord))) return false;
+    map.getView().fit(extent, {
+      padding: [60, 60, 60, 60],
+      duration: 600,
+      maxZoom,
+    });
+    return true;
+  };
+
+  const goToHomeView = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (fitLayer(pointsLayerRef.current, 14)) return;
+    if (fitLayer(stretchLinesLayerRef.current, 13.5)) return;
+    if (fitLayer(stretchBufferLayerRef.current, 13)) return;
+    if (fitLayer(riverLayerRef.current, 12)) return;
+    if (fitLayer(basinLayerRef.current, 9.5)) return;
+    map.getView().animate({
+      center: fromLonLat([INDIA_CENTER.lon, INDIA_CENTER.lat]),
+      zoom: INITIAL_ZOOM,
+      duration: 400,
+    });
+  };
+
+  const renderLayerPanel = () => (
+    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
+      <div className={`rounded-xl border p-3 shadow-2xl backdrop-blur-md ${
+        isDark ? "border-[#1e3a5f]/70 bg-[#080e1c]/95 text-slate-100" : "border-white/50 bg-white/20 text-slate-800"
+      }`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold">Map Layers</h3>
+          <button
+            type="button"
+            onClick={() => setActivePanel(null)}
+            className={`rounded-full p-1 transition ${
+              isDark ? "bg-slate-800 hover:bg-red-950/60 hover:text-red-300" : "bg-slate-300 text-white hover:bg-red-100 hover:text-red-600"
+            }`}
+          >
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {layerItems.map((item) => (
+            <div
+              key={item.label}
+              className={`rounded-xl border p-3 ${
+                item.visible
+                  ? isDark
+                    ? "border-cyan-500/25 bg-cyan-500/10"
+                    : "border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100"
+                  : isDark
+                    ? "border-slate-700 bg-slate-900/60"
+                    : "border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center">
+                  <div className="mr-3 shrink-0">{item.swatch}</div>
+                  <div className="min-w-0">
+                    <div className={`truncate text-sm font-semibold ${item.disabled ? "opacity-50" : ""}`}>
+                      {item.label}
+                    </div>
+                    <div className="text-xs opacity-60">
+                      {item.disabled ? "Unavailable" : item.visible ? "Visible" : "Hidden"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={item.disabled}
+                  onClick={item.onToggle}
+                  className={`relative h-5 w-10 shrink-0 rounded-full transition-all duration-300 ${
+                    item.disabled
+                      ? "cursor-not-allowed bg-gray-300 opacity-50"
+                      : item.visible
+                        ? "bg-blue-500"
+                        : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${
+                      item.visible ? "translate-x-5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderToolsPanel = () => (
+    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
+      <div className={`rounded-xl border p-3 shadow-2xl backdrop-blur-md ${
+        isDark ? "border-[#1e3a5f]/70 bg-[#080e1c]/95 text-slate-100" : "border-white/50 bg-white/20 text-slate-800"
+      }`}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold">Map Tools</h3>
+          <button
+            type="button"
+            onClick={() => setActivePanel(null)}
+            className={`rounded-full p-1 transition ${
+              isDark ? "bg-slate-800 hover:bg-red-950/60 hover:text-red-300" : "bg-slate-300 text-white hover:bg-red-100 hover:text-red-600"
+            }`}
+          >
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm ${
+            isDark ? "border-slate-700 bg-slate-900/70" : "border-gray-200 bg-white/70"
+          }`}>
+            <div>
+              <div className="font-medium">Home View</div>
+              <div className="text-xs opacity-60">Zoom to current map data</div>
+            </div>
+            <button
+              type="button"
+              onClick={goToHomeView}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                isDark ? "border-slate-600 bg-slate-800 hover:bg-slate-700" : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+              }`}
+            >
+              Reset
+            </button>
+          </div>
+
+          <div className={`rounded-xl border px-3 py-3 text-sm ${
+            isDark ? "border-slate-700 bg-slate-900/70" : "border-gray-200 bg-white/70"
+          }`}>
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <div>
+                <div className="font-medium">Raster Opacity</div>
+                <div className="text-xs opacity-60">
+                  {mapStore.activeRasterLayer ? mapStore.activeRasterLayer : "Generate a raster first"}
+                </div>
+              </div>
+              <span className={`rounded-md px-2 py-1 text-xs font-semibold ${
+                isDark ? "bg-slate-800" : "bg-gray-100"
+              }`}>
+                {Math.round(mapStore.opacity)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={mapStore.opacity}
+              onChange={(event) => mapStore.setOpacity(Number(event.target.value))}
+              className="w-full"
+              disabled={!mapStore.activeRasterLayer}
+            />
+          </div>
+
+          <div className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm ${
+            isDark ? "border-slate-700 bg-slate-900/70" : "border-gray-200 bg-white/70"
+          }`}>
+            <div>
+              <div className="font-medium">Legend</div>
+              <div className="text-xs opacity-60">Show raster legend</div>
+            </div>
+            <button
+              type="button"
+              disabled={!mapStore.activeRasterLayer}
+              onClick={() => mapStore.setShowLegend(!mapStore.showLegend)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                !mapStore.activeRasterLayer
+                  ? "cursor-not-allowed opacity-50"
+                  : isDark
+                    ? "border-slate-600 bg-slate-800 hover:bg-slate-700"
+                    : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+              }`}
+            >
+              {mapStore.showLegend ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            disabled={!mapStore.activeRasterLayer}
+            onClick={mapStore.clearInterpolation}
+            className={`w-full rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+              mapStore.activeRasterLayer
+                ? isDark
+                  ? "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                  : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                : "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
+            }`}
+          >
+            Clear Raster
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-slate-100" ref={containerRef}>
@@ -437,109 +719,13 @@ export default function DrainOpenLayersMap() {
         <BaseMaps
           baseMaps={baseMaps}
           selectedBaseMap={selectedBaseMap}
-          onChangeBaseMap={(b) => {
-            replaceBaseLayer({
-              map: mapInstanceRef.current!,
-              baseLayerRef,
-              baseMapKey: b,
-              baseMaps,
-            });
-            setSelectedBaseMap(b);
-          }}
+          onChangeBaseMap={changeBaseMap}
           onClose={() => setActivePanel(null)}
         />
       )}
 
-      {activePanel === "layers" && (
-        <div
-          className={`absolute left-4 top-20 z-20 w-72 rounded-xl border shadow-xl ${
-            isDark
-              ? "border-[#1e3a5f]/70 bg-[#080e1c]/95 text-slate-100"
-              : "border-stone-200 bg-white/95 text-slate-800"
-          }`}
-        >
-          <div
-            className={`flex items-center justify-between border-b px-4 py-3 ${
-              isDark ? "border-[#1e3a5f]/60" : "border-stone-200"
-            }`}
-          >
-            <h3 className="text-sm font-semibold">Map Layers</h3>
-            <button
-              type="button"
-              onClick={() => setActivePanel(null)}
-              className={`rounded-full p-1 transition ${
-                isDark ? "hover:bg-[#12233f]" : "hover:bg-stone-100"
-              }`}
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="space-y-2 p-3">
-            {layerItems.map((item) => (
-              <div
-                key={item.label}
-                className={`flex items-center justify-between rounded-lg px-2 py-2 ${
-                  isDark ? "hover:bg-[#0f1d34]" : "hover:bg-stone-50"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {item.swatch}
-                  <span className={`text-sm ${item.disabled ? "opacity-50" : ""}`}>
-                    {item.label}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  disabled={item.disabled}
-                  onClick={item.onToggle}
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-                    item.disabled
-                      ? isDark
-                        ? "cursor-not-allowed bg-slate-800/60 text-slate-500"
-                        : "cursor-not-allowed bg-stone-200/80 text-stone-400"
-                      : item.visible
-                        ? isDark
-                          ? "bg-cyan-500/15 text-cyan-300"
-                          : "bg-blue-100 text-blue-700"
-                        : isDark
-                          ? "bg-slate-700/50 text-slate-300"
-                          : "bg-stone-200 text-stone-600"
-                  }`}
-                >
-                  {item.visible ? "Visible" : "Hidden"}
-                </button>
-              </div>
-            ))}
-
-            {mapStore.activeRasterLayer && (
-              <div
-                className={`mt-3 rounded-lg border p-3 ${
-                  isDark
-                    ? "border-[#1e3a5f]/60 bg-[#0b1527]"
-                    : "border-stone-200 bg-stone-50/80"
-                }`}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">Interpolation Opacity</span>
-                  <span className="text-xs font-semibold">
-                    {Math.round(mapStore.opacity)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={mapStore.opacity}
-                  onChange={(event) => mapStore.setOpacity(Number(event.target.value))}
-                  className="w-full"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {activePanel === "layers" && renderLayerPanel()}
+      {activePanel === "tools" && renderToolsPanel()}
 
       <MapLegendOverlay
         legendUrl={legendUrl}
@@ -547,7 +733,7 @@ export default function DrainOpenLayersMap() {
         hasActiveRaster={Boolean(mapStore.activeRasterLayer && mapStore.showInterpolation)}
         onShowLegend={() => mapStore.setShowLegend(true)}
         onHideLegend={() => mapStore.setShowLegend(false)}
-        title="Interpolation Legend"
+        title="Legend"
       />
 
       <MapCoordinatesOverlay targetId={mouseTargetId} />

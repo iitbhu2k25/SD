@@ -92,70 +92,62 @@ export default function ChartStickyHeader({
     : [];
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/30 p-5 shadow-md">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className={`inline-flex min-h-10 self-end items-center gap-3 rounded-full border border-slate-200/80 bg-gradient-to-r ${wqiAccent.bg} px-4 py-2 shadow-sm`}>
-          <span className="text-[11px] font-bold uppercase text-slate-500">Mean WQI</span>
-          <span className="text-xl font-extrabold leading-none" style={{ color: wqiAccent.accent }}>
-            {wqiMean || "N/A"}
-          </span>
-          <span
-            className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-            style={{ backgroundColor: `${wqiAccent.accent}1A`, color: wqiAccent.accent }}
-          >
-            {wqiInfo.label}
-          </span>
-        </div>
+    <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/30 p-4 shadow-md">
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
-          <div className="min-w-[260px] flex-1">
-            <SingleSelect
-              items={attributes.map((attr) => ({
-                id: attr,
-                name: attributeLabels[attr],
-              }))}
-              selectedValue={selectedAttribute}
-              onValueChange={(value) => {
-                if (value !== null) onAttributeChange(String(value));
-              }}
-              label="Parameter"
-              placeholder="Select parameter"
-            />
-          </div>
-
-        </div>
+      {/* WQI badge — full width, compact */}
+      <div className={`mb-3 flex items-center gap-3 rounded-full border border-slate-200/80 bg-gradient-to-r ${wqiAccent.bg} px-4 py-2 shadow-sm`}>
+        <span className="text-[11px] font-bold uppercase text-slate-500">Mean WQI</span>
+        <span className="text-lg font-extrabold leading-none" style={{ color: wqiAccent.accent }}>
+          {wqiMean || "N/A"}
+        </span>
+        <span
+          className="ml-auto inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+          style={{ backgroundColor: `${wqiAccent.accent}1A`, color: wqiAccent.accent }}
+        >
+          {wqiInfo.label}
+        </span>
       </div>
 
+      {/* Parameter selector — full width */}
+      <SingleSelect
+        items={attributes.map((attr) => ({
+          id: attr,
+          name: attributeLabels[attr],
+        }))}
+        selectedValue={selectedAttribute}
+        onValueChange={(value) => {
+          if (value !== null) onAttributeChange(String(value));
+        }}
+        label="Chart Parameter"
+        placeholder="Select parameter"
+      />
+
+      {/* Stat cards — 2×2 grid so labels never clip */}
       {stats && (
-        <div className="mt-4 rounded-xl border border-slate-200/70 bg-white/80 p-2.5 shadow-sm">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
-            <div className="relative overflow-hidden rounded-xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-blue-50/40 px-4 py-3 shadow-sm lg:min-w-[180px]">
-              <div className="absolute bottom-0 left-0 top-0 w-1 rounded-l-xl bg-blue-500" />
-              <div className="flex h-full items-center gap-2 pl-1">
-                <div className="h-2 w-2 rounded-full bg-blue-500" />
-                <p className="text-sm font-bold text-slate-700">
-                  {attributeLabels[selectedAttribute]} Statistics
-                </p>
-              </div>
-            </div>
-            <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4">
-              {statCards.map((card) => (
+        <div className="mt-3 rounded-xl border border-slate-200/70 bg-white/80 p-2.5 shadow-sm">
+          <div className="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2">
+            <div className="h-2 w-2 rounded-full bg-blue-500" />
+            <p className="text-xs font-bold text-slate-600">
+              {attributeLabels[selectedAttribute]} Statistics
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 transition hover:shadow-md`}
+              >
                 <div
-                  key={card.label}
-                  className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${card.gradient} p-2.5 text-center transition hover:shadow-md`}
-                >
-                  <div
-                    className="absolute bottom-0 left-0 top-0 w-1 rounded-l-xl"
-                    style={{ backgroundColor: card.accent }}
-                  />
-                  <p className="mb-1 flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    <span className="inline-flex items-center justify-center">{card.icon}</span>
-                    {card.label}
-                  </p>
-                  <p className={`text-xl font-extrabold ${card.valueColor}`}>{card.value}</p>
-                </div>
-              ))}
-            </div>
+                  className="absolute bottom-0 left-0 top-0 w-1 rounded-l-xl"
+                  style={{ backgroundColor: card.accent }}
+                />
+                <p className="mb-1 flex items-center gap-1 pl-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="inline-flex items-center justify-center">{card.icon}</span>
+                  {card.label}
+                </p>
+                <p className={`pl-1 text-base font-extrabold ${card.valueColor}`}>{card.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}

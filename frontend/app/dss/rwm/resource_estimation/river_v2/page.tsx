@@ -7,7 +7,11 @@ import ModuleInfoModal from "@/components/dss_common/ModuleInfoModal";
 import PageLayout from "@/components/dss_common/PageLayout";
 import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
 import { type MapMode, getMapModeInfo } from "./config/mapModes";
-import { RIGHT_PANEL_CONFIG, rwmRiverPanelSettings } from "./config/panels.config";
+import {
+  GENERAL_RIGHT_PANEL_CONFIG,
+  RIGHT_PANEL_CONFIG,
+  rwmRiverPanelSettings,
+} from "./config/panels.config";
 
 import AdminLeftPanel from "./admin/components/AdminLeftPanel";
 import AdminRightPanel from "./admin/components/AdminRightPanel";
@@ -58,6 +62,11 @@ export default function RiverV2Page() {
   const handleModeChange = (mode: MapMode) => {
     setSelectedMode(mode);
     setIsLeftPanelOpen(true);
+    setRightPanelWidth(
+      mode === "all_india"
+        ? GENERAL_RIGHT_PANEL_CONFIG.widthOpen
+        : RIGHT_PANEL_CONFIG.widthOpen,
+    );
   };
 
   const railItems = [
@@ -161,7 +170,7 @@ export default function RiverV2Page() {
           width={rightPanelWidth}
           onClose={() => generalVM.ui.setRightPanelOpen(false)}
           onWidthChange={setRightPanelWidth}
-          panelSettings={{ ...RIGHT_PANEL_CONFIG, widthOpen: "40%" }}
+          panelSettings={GENERAL_RIGHT_PANEL_CONFIG}
           isMobile={isMobile}
         />
       );
@@ -207,7 +216,7 @@ export default function RiverV2Page() {
         open={showInfo}
         onClose={() => setShowInfo(false)}
         title="River Resource Estimation"
-        imageSrc="/Images/modules/image_22.png"
+        imageSrc="/Images/modules/river_resource_estimation.gif"
         imageAlt="River Module"
         points={[
           "Analyze water quality indices combining primary and secondary data.",

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { ClipRasters } from "@/interface/raster_context";
+import CloseIcon from "@/components/dss_common/CloseIcon";
 
 interface MapRasterSelectorProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export default function MapRasterSelector({
               className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[10px] text-slate-400 transition-colors duration-150 hover:border-red-200 hover:bg-red-50 hover:text-red-500 cursor-pointer"
               aria-label="Close layer selector"
             >
-              X
+              <CloseIcon className="h-3 w-3" />
             </button>
           </div>
 

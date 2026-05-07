@@ -39,6 +39,22 @@ interface DrainInterpolationRequest {
   pointsData: any;
 }
 
+interface AdminBatchInterpolationRequest {
+  subDistrictCodes: number[];
+  season: string;
+  attributes: Record<string, string>;
+  riverData: any;
+  riverBufferData: any;
+  pointsData: any;
+}
+
+interface DrainBatchInterpolationRequest {
+  stretchIds: string[];
+  season: string;
+  attributes: Record<string, string>;
+  pointsData: any;
+}
+
 interface WqiProfileRequest {
   layerName: string;
   riverBufferData: any;
@@ -214,6 +230,39 @@ export async function executeAdminInterpolation({
   return response.json();
 }
 
+export async function executeAdminBatchInterpolation({
+  subDistrictCodes,
+  season,
+  attributes,
+  riverData,
+  riverBufferData,
+  pointsData,
+}: AdminBatchInterpolationRequest): Promise<any> {
+  const response = await fetch(
+    `${DJANGO_URL}/rwm/interpolate/batch/subdistbased/${season}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Sub_District_Code: subDistrictCodes,
+        attributes,
+        river_data: riverData,
+        river_buffer_data: riverBufferData,
+        points_data: pointsData,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Batch interpolation failed (${response.status}): ${errorText || "Unknown error"}`,
+    );
+  }
+
+  return response.json();
+}
+
 export async function downloadRasterLayer(
   layerName: string,
   format: "png" | "tiff",
@@ -323,13 +372,19 @@ export async function fetchDrainStretches(): Promise<Stretch[]> {
 }
 
 export async function fetchDrainBasins(): Promise<any> {
-  const response = await fetch(`${DJANGO_URL}/basin`);
+  const response = await fetch(`/fastapi/basic/basin`);
   if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
   return response.json();
 }
 
 export async function fetchDrainRivers(): Promise<any> {
   const response = await fetch(`${DJANGO_URL}/rwm/river`);
+  if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+  return response.json();
+}
+
+export async function fetchDrainRiverBuffer(): Promise<any> {
+  const response = await fetch(`${DJANGO_URL}/rwm/river_100m_buffer/stretchbased`);
   if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
   return response.json();
 }
@@ -393,51 +448,32 @@ export async function executeDrainInterpolation({
   return response.json();
 }
 
-// ------------------------------------------------------------------
-// General Endpoints
-// ------------------------------------------------------------------
+export async function executeDrainBatchInterpolation({
+  stretchIds,
+  season,
+  attributes,
+  pointsData,
+}: DrainBatchInterpolationRequest): Promise<any> {
+  const response = await fetch(
+    `${DJANGO_URL}/rwm/interpolate/batch/stretchbased/${season}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Stretch_ID: stretchIds,
+        attributes,
+        points_data: pointsData,
+      }),
+    },
+  );
 
-export async function uploadGeneralShapefile(file: File): Promise<any> {
-  const formData = new FormData();
-  formData.append("file", file);
-  
-  const response = await fetch(`${BACKEND_URL}/django/rwm/general/upload`, {
-    method: "POST",
-    body: formData,
-  });
   if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `Upload failed: ${response.status}`);
+    const errorText = await response.text();
+    throw new Error(
+      `Batch interpolation failed (${response.status}): ${errorText || "Unknown error"}`,
+    );
   }
+
   return response.json();
 }
 
-export async function uploadGeneralCsv(file: File, layerName: string, workspace: string): Promise<any> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("layer_name", layerName);
-  formData.append("workspace", workspace);
-
-  const response = await fetch(`${BACKEND_URL}/django/rwm/general/upload-csv`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `CSV Upload failed: ${response.status}`);
-  }
-  return response.json();
-}
-
-export async function executeGeneralInterpolation(payload: any): Promise<any> {
-  const response = await fetch(`${BACKEND_URL}/django/rwm/general/interpolate-wqi`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.error || `Interpolation failed: ${response.status}`);
-  }
-  return response.json();
-}

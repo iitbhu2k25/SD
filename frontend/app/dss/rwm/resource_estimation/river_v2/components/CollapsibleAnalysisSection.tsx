@@ -57,7 +57,7 @@ export default function CollapsibleAnalysisSection({
         <button
           type="button"
           onClick={() => setIsMinimized((current) => !current)}
-          className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition sm:gap-2 sm:px-3 sm:text-xs ${
+          className={`inline-flex cursor-pointer items-center justify-center rounded-full border p-1.5 shadow-sm transition ${
             isMinimized
               ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
               : "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100"
@@ -66,7 +66,7 @@ export default function CollapsibleAnalysisSection({
           aria-label={isMinimized ? `Expand ${title}` : `Minimize ${title}`}
         >
           <svg
-            className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5"
+            className="h-3.5 w-3.5 shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -74,11 +74,10 @@ export default function CollapsibleAnalysisSection({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
+              strokeWidth={2.5}
               d={isMinimized ? "M5 10l7 7 7-7" : "M19 14l-7-7-7 7"}
             />
           </svg>
-          <span>{isMinimized ? "Expand" : "Minimize"}</span>
         </button>
       </div>
 

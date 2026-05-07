@@ -21,6 +21,7 @@ export function useAdminViewModel() {
   const handleConfirmArea = async () => {
     const success = await locStore.handleAreaConfirm();
     if (success) {
+      mapStore.clearInterpolation();
       uiStore.setRightPanelOpen(true);
       uiStore.showToast("Analysis complete.", "success");
     } else {
@@ -37,11 +38,13 @@ export function useAdminViewModel() {
 
   const handleStateSelection = async (stateId: number) => {
     uiStore.setRightPanelOpen(false);
+    mapStore.clearInterpolation();
     await locStore.handleStateChange(stateId);
   };
 
   const handleDistrictSelection = async (districtIds: number[]) => {
     uiStore.setRightPanelOpen(false);
+    mapStore.clearInterpolation();
     await locStore.setSelectedDistricts(districtIds);
   };
 

@@ -195,35 +195,42 @@ export default function AdminRightPanel({
         )}
 
         <div className="flex h-full max-w-full flex-col" style={{ width: "100%" }}>
-          <div className="flex-1 space-y-3 overflow-y-auto p-2.5 sm:space-y-4 sm:p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className={`font-semibold ${isDark ? "text-cyan-400" : "text-blue-600"}`}>
+
+          {/* Panel header — sits outside the scroll area so it stays pinned */}
+          <div className={`flex shrink-0 items-center justify-between border-b px-3 py-2.5 sm:px-4 sm:py-3 ${
+            isDark
+              ? "border-[#1e3a5f]/60 bg-[#050911]"
+              : "border-stone-200/80 bg-[#f5f1ea]"
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+                isDark ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"
+              }`}>A</span>
+              <h3 className={`text-sm font-semibold tracking-tight ${
+                isDark ? "text-slate-100" : "text-slate-800"
+              }`}>
                 River Analysis
               </h3>
-              <button
-                onClick={onClose}
-                className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
-                  isDark
-                    ? "border-[#1e3a5f] bg-[#0a1628] text-cyan-400/60 hover:text-cyan-300"
-                    : "border-stone-200 bg-white shadow-sm text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                Close
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M6 18L18 6M6 6l12 12"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                isDark ? "bg-blue-500/15 text-blue-400" : "bg-blue-100 text-blue-600"
+              }`}>Admin</span>
             </div>
+            <button
+              onClick={onClose}
+              title="Close panel"
+              className={`inline-flex h-7 w-7 items-center justify-center rounded-full transition ${
+                isDark
+                  ? "text-slate-500 hover:bg-[#12233f] hover:text-slate-200"
+                  : "text-slate-400 hover:bg-stone-200 hover:text-slate-700"
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M6 18L18 6M6 6l12 12" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-3 overflow-y-auto p-2.5 sm:space-y-4 sm:p-4">
 
             {!areaConfirmed ? (
               <section

@@ -4,13 +4,11 @@ import { useState } from "react";
 import GeneralLeftPanel from "./components/GeneralLeftPanel";
 import GeneralRightPanel from "./components/GeneralRightPanel";
 import GeneralOpenLayersMap from "./components/GeneralOpenLayersMap";
-import { RIGHT_PANEL_CONFIG } from "../config/panels.config";
+import { GENERAL_RIGHT_PANEL_CONFIG } from "../config/panels.config";
 import { useGeneralUiStore } from "./stores/generalUiStore";
 
 export default function GeneralPage() {
-  // General mode has an extended default width for its larger WQI tables
-  const generalRightPanelConfig = { ...RIGHT_PANEL_CONFIG, defaultWidth: "40%" };
-  const [rightPanelWidth, setRightPanelWidth] = useState(generalRightPanelConfig.defaultWidth);
+  const [rightPanelWidth, setRightPanelWidth] = useState(GENERAL_RIGHT_PANEL_CONFIG.widthOpen);
 
   const isRightPanelOpen = useGeneralUiStore((s) => s.isRightPanelOpen);
   const setRightPanelOpen = useGeneralUiStore((s) => s.setRightPanelOpen);
@@ -33,7 +31,7 @@ export default function GeneralPage() {
             width={rightPanelWidth}
             onClose={() => setRightPanelOpen(false)}
             onWidthChange={setRightPanelWidth}
-            panelSettings={generalRightPanelConfig}
+            panelSettings={GENERAL_RIGHT_PANEL_CONFIG}
           />
         </div>
       </div>

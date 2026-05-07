@@ -1,100 +1,163 @@
 import { create } from "zustand";
-
-export interface UploadedCsvResult {
-  fileLabel: string;
-  summary: {
-    min: number;
-    max: number;
-    mean: number;
-    countByClass: Record<string, number>;
-  };
-  validPoints: number;
-  rejectedPoints: number;
-  missingParameters: string[];
-  givenParameters: string[];
-  wqiRaster: {
-    layerName: string;
-    workspace: string;
-    parameterLayers?: Record<string, string>;
-    rowProfileData?: any[];
-  } | null;
-  geojson?: any;
-}
-
-export interface LayerInfo {
-  layerName: string;
-  wmsUrl: string;
-  wfsUrl: string;
-  geometryType: string;
-  bufferCreated: boolean;
-  featureCount: number;
-  bbox: [number, number, number, number] | null;
-}
+import type {
+  GeneralCsvEntryState,
+  GeneralCsvUploadResult,
+  GeneralLayerInfo,
+  GeneralUploadStatus,
+} from "../types";
 
 interface GeneralUploadState {
-  // Shapefile states
-  layerInfo: LayerInfo | null;
-  
-  // CSV Multi-upload Array
-  csvResults: UploadedCsvResult[];
+  layerInfo: GeneralLayerInfo | null;
+  csvEntries: GeneralCsvEntryState[];
+  csvResults: GeneralCsvUploadResult[];
   activeCsvLabel: string | null;
-  
-  // Filtering & Display State (for the WQI Summary table and map)
   selectedWqiClass: string | null;
-  activeParameter: "WQI" | string;
-  
-  // Actions
-  setLayerInfo: (info: LayerInfo | null) => void;
-  setCsvResults: (results: UploadedCsvResult[]) => void;
-  addCsvResult: (result: UploadedCsvResult) => void;
+  activeParameter: string;
+  shapefileStatus: GeneralUploadStatus;
+  csvBatchStatus: GeneralUploadStatus;
+  statusMessage: string | null;
+  errorMessage: string | null;
+
+  setLayerInfo: (info: GeneralLayerInfo | null) => void;
+  setCsvEntries: (entries: GeneralCsvEntryState[]) => void;
+  upsertCsvEntry: (entry: GeneralCsvEntryState) => void;
+  setCsvEntryStatus: (
+    id: string,
+    status: GeneralUploadStatus,
+    error?: string | null,
+  ) => void;
+  setCsvResults: (results: GeneralCsvUploadResult[]) => void;
+  upsertCsvResult: (result: GeneralCsvUploadResult) => void;
   setActiveCsvLabel: (label: string | null) => void;
   setSelectedWqiClass: (wqiClass: string | null) => void;
   setActiveParameter: (param: string) => void;
+  setShapefileStatus: (
+    status: GeneralUploadStatus,
+    message?: string | null,
+    error?: string | null,
+  ) => void;
+  setCsvBatchStatus: (
+    status: GeneralUploadStatus,
+    message?: string | null,
+    error?: string | null,
+  ) => void;
+  resetCsvWorkflow: () => void;
   resetAll: () => void;
 }
 
-export const useGeneralUploadStore = create<GeneralUploadState>((set, get) => ({
+export const useGeneralUploadStore = create<GeneralUploadState>((set) => ({
   layerInfo: null,
+  csvEntries: [],
   csvResults: [],
   activeCsvLabel: null,
   selectedWqiClass: null,
   activeParameter: "WQI",
+  shapefileStatus: "idle",
+  csvBatchStatus: "idle",
+  statusMessage: null,
+  errorMessage: null,
 
-  setLayerInfo: (info) => {
-    set({ layerInfo: info });
-    // Keep csv results if it's an additive workflow, but usually changing shapefile invalidates points.
-    // Following old logic: changing shapefile means clearing old points.
-    if (!info) {
-      set({ csvResults: [], activeCsvLabel: null, activeParameter: "WQI", selectedWqiClass: null });
-    }
-  },
+  setLayerInfo: (info) =>
+    set({
+      layerInfo: info,
+      csvEntries: info ? [] : [],
+      csvResults: info ? [] : [],
+      activeCsvLabel: null,
+      selectedWqiClass: null,
+      activeParameter: "WQI",
+      errorMessage: null,
+    }),
 
-  setCsvResults: (results) => set({ csvResults: results }),
+  setCsvEntries: (entries) => set({ csvEntries: entries }),
 
-  addCsvResult: (result) => set((state) => {
-    const existingIndex = state.csvResults.findIndex(r => r.fileLabel === result.fileLabel);
-    let newResults;
-    if (existingIndex >= 0) {
-      newResults = [...state.csvResults];
-      newResults[existingIndex] = result;
-    } else {
-      newResults = [...state.csvResults, result];
-    }
-    return { 
-      csvResults: newResults,
-      activeCsvLabel: result.fileLabel // Auto-switch to newest
-    };
-  }),
+  upsertCsvEntry: (entry) =>
+    set((state) => {
+      const existingIndex = state.csvEntries.findIndex((item) => item.id === entry.id);
+      if (existingIndex < 0) {
+        return { csvEntries: [...state.csvEntries, entry] };
+      }
+      const csvEntries = [...state.csvEntries];
+      csvEntries[existingIndex] = entry;
+      return { csvEntries };
+    }),
 
-  setActiveCsvLabel: (label) => set({ activeCsvLabel: label, selectedWqiClass: null }),
+  setCsvEntryStatus: (id, status, error = null) =>
+    set((state) => ({
+      csvEntries: state.csvEntries.map((entry) =>
+        entry.id === id ? { ...entry, status, error } : entry,
+      ),
+    })),
+
+  setCsvResults: (results) =>
+    set((state) => {
+      const activeCsvLabel =
+        state.activeCsvLabel && results.some((result) => result.fileLabel === state.activeCsvLabel)
+          ? state.activeCsvLabel
+          : results[0]?.fileLabel || null;
+      return {
+        csvResults: results,
+        activeCsvLabel,
+        selectedWqiClass: null,
+        activeParameter: "WQI",
+      };
+    }),
+
+  upsertCsvResult: (result) =>
+    set((state) => {
+      const existingIndex = state.csvResults.findIndex(
+        (item) => item.fileLabel === result.fileLabel,
+      );
+      const csvResults = [...state.csvResults];
+      if (existingIndex >= 0) {
+        csvResults[existingIndex] = result;
+      } else {
+        csvResults.push(result);
+      }
+      return {
+        csvResults,
+        activeCsvLabel: result.fileLabel,
+        selectedWqiClass: null,
+        activeParameter: "WQI",
+      };
+    }),
+
+  setActiveCsvLabel: (label) =>
+    set({ activeCsvLabel: label, selectedWqiClass: null, activeParameter: "WQI" }),
+
   setSelectedWqiClass: (wqiClass) => set({ selectedWqiClass: wqiClass }),
+
   setActiveParameter: (param) => set({ activeParameter: param }),
 
-  resetAll: () => set({
-    layerInfo: null,
-    csvResults: [],
-    activeCsvLabel: null,
-    selectedWqiClass: null,
-    activeParameter: "WQI",
-  })
+  setShapefileStatus: (status, message = null, error = null) =>
+    set({ shapefileStatus: status, statusMessage: message, errorMessage: error }),
+
+  setCsvBatchStatus: (status, message = null, error = null) =>
+    set({ csvBatchStatus: status, statusMessage: message, errorMessage: error }),
+
+  resetCsvWorkflow: () =>
+    set({
+      csvEntries: [],
+      csvResults: [],
+      activeCsvLabel: null,
+      selectedWqiClass: null,
+      activeParameter: "WQI",
+      csvBatchStatus: "idle",
+      statusMessage: null,
+      errorMessage: null,
+    }),
+
+  resetAll: () =>
+    set({
+      layerInfo: null,
+      csvEntries: [],
+      csvResults: [],
+      activeCsvLabel: null,
+      selectedWqiClass: null,
+      activeParameter: "WQI",
+      shapefileStatus: "idle",
+      csvBatchStatus: "idle",
+      statusMessage: null,
+      errorMessage: null,
+    }),
 }));
+

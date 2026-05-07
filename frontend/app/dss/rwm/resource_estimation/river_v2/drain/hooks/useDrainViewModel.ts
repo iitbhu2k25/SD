@@ -23,6 +23,7 @@ export function useDrainViewModel() {
   const handleConfirmArea = async () => {
     const success = await locStore.handleAreaConfirm();
     if (success) {
+      mapStore.clearInterpolation();
       uiStore.setRightPanelOpen(true);
       uiStore.showToast("River trace and analysis complete.", "success");
     } else {
@@ -39,6 +40,7 @@ export function useDrainViewModel() {
 
   const handleStretchSelection = (stretchIds: string[]) => {
     uiStore.setRightPanelOpen(false);
+    mapStore.clearInterpolation();
     locStore.setSelectedStretches(stretchIds);
   };
 
