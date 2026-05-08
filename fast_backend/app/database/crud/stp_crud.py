@@ -14,7 +14,7 @@ class STP_priority_crud(CrudBase):
         return (
             query.first().file_path
         )
-    def get_raster_category(self,all_data:bool=False):
+    def get_raster_category(self,all_data:bool=True):
         query=self.db.query(self.Model).filter()
         return self._pagination(query,all_data)
 

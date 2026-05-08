@@ -1,7 +1,7 @@
 import Map from "ol/Map";
 import Select from "ol/interaction/Select";
 import { doubleClick, pointerMove } from "ol/events/condition";
-import { Fill, Stroke, Style } from "ol/style";
+import { Circle, Fill, Stroke, Style } from "ol/style";
 
 type SelectHandler = (event: any, interaction: Select) => void;
 type LayerFilter = (feature: any, layer: any) => boolean;
@@ -26,13 +26,43 @@ export function createDoubleClickSelectInteraction(
 export function createHoverSelectInteraction(
   onHover: SelectHandler,
   filter?: LayerFilter,
+  style?: any,
 ) {
   const interaction = new Select({
     condition: pointerMove,
-    style: new Style({
-      stroke: new Stroke({ color: "#ffaa00", width: 2 }),
-      fill: new Fill({ color: "transparent" }),
-    }),
+    style:
+      style ??
+      ((feature: any) => {
+        const geometryType = feature.getGeometry()?.getType();
+
+        if (geometryType === "Point" || geometryType === "MultiPoint") {
+          const location = String(feature.get("Location") || "");
+          const wqiClass = feature.get("WQI_Class");
+          let color = "#3b82f6";
+          if (location.includes("Drain")) color = "#f472b6";
+          else if (location.includes("Upstream")) color = "#3b82f6";
+          else if (location.includes("Downstream")) color = "#84cc16";
+          else if (wqiClass === "Excellent") color = "#22c55e";
+          else if (wqiClass === "Good") color = "#84cc16";
+          else if (wqiClass === "Poor") color = "#f97316";
+          else if (wqiClass === "Very Poor") color = "#ef4444";
+
+          return new Style({
+            image: new Circle({
+              radius: 13,
+              fill: new Fill({ color }),
+              stroke: new Stroke({ color: "#ffffff", width: 3 }),
+            }),
+            zIndex: 999,
+          });
+        }
+
+        return new Style({
+          stroke: new Stroke({ color: "#f59e0b", width: 3 }),
+          fill: new Fill({ color: "transparent" }),
+          zIndex: 999,
+        });
+      }),
     ...(filter ? { filter } : {}),
   });
 

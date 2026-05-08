@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List, Tuple
 import geopandas as gpd
 import rasterio
@@ -6,9 +7,7 @@ from rasterio.enums import Resampling
 from rasterio.warp import  reproject
 from rasterio.transform import from_origin
 from rasterio.mask import mask
-from rasterio.features import shapes
-from shapely.geometry import mapping,shape
-from rasterio.plot import show
+from shapely.geometry import mapping
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from app.api.service.geoserver_svc.geoserver import Geoserver
@@ -19,7 +18,7 @@ import uuid
 from app.database.config.dependency import db_dependency
 from pathlib import Path
 from app.api.service.river_water_management.spt_service import Stp_service
-from app.database.crud.stp_crud import STP_suitability_crud
+from app.database.crud.stp_crud import STP_priority_crud, STP_suitability_crud
 from app.conf.settings import Settings
 import zipfile
 import tempfile
@@ -33,16 +32,11 @@ from sqlalchemy.orm import Session
 from rasterio.features import rasterize
 import pandas as pd
 from rasterstats import zonal_stats
-from app.api.schema.stp_schema import STP_suitability_Area, STPCatchmentOutput, STPCategory, STPsuitabilityInput
+from app.api.schema.stp_schema import  STPCatchmentOutput, STPCategory, STPsuitabilityInput
 from scipy.ndimage import label
-from app.database.crud.stp_crud import Stp_area_crud
 from app.utils.name import Unique_name
 from shapely.ops import unary_union
 from app.conf.redis.redis_async_manager import async_redis_manager
-from app.api.exception.exceptions import CustomException
-import networkx as nx
-from pyproj import Transformer
-from shapely.geometry import shape, LineString, Point
 
 geo=Geoserver()
 
@@ -54,6 +48,7 @@ class VectorProcess(GeoConfig):
         self.catchment = self._force_to_epsg(self.cachement_shapefile)
         self.drain_cachement= self._force_to_epsg(self.drain_cachement_shapefile)
         self.town=self._force_to_epsg(self.town_shapefile)
+        self.TEMP_DIR = Settings().TEMP_DIR
         
     def _force_to_epsg(self, gdf: str, epsg: str = "EPSG:32644") -> gpd.GeoDataFrame:
         gdf=gpd.read_file(gdf)
@@ -118,6 +113,21 @@ class VectorProcess(GeoConfig):
             
     def get_basin(self):
         return self.basin
+    async def _temporory_vector(self,vector_temp_file:gpd.GeoDataFrame):
+        random_name = f"{uuid.uuid4().hex}"
+        unique_village_zip = f"catchment_{random_name}.zip"
+        output_zip_path = self.TEMP_DIR+"/"+ unique_village_zip
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_shp = Path(temp_dir) / f"catchment_{random_name}.shp"
+            vector_temp_file.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
+            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
+                for file in temp_shp.parent.glob(f"catchment_{random_name}.*"):
+                    zipf.write(file, file.name)
+
+        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+        await geo.upload_vector("vector_work",str(output_zip_path),name_only)
+        return name_only
+    
 
 class RasterProcess(VectorProcess):    
     def __init__(self, config: GeoConfig = GeoConfig()):
@@ -220,9 +230,9 @@ class RasterProcess(VectorProcess):
         
         return weighted_sum
     
-    def apply_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
+    def apply_stp_constraint(self, weighted_sum: np.ndarray, constraint_path: str = None, 
                         output_name: str = "constrained_overlay.tif") -> str:
-        constraint_path = constraint_path or self.config.constraint_raster_path
+        constraint_path = self.config.constraint_raster_path if constraint_path is None else constraint_path
         constraint_aligned = np.zeros_like(weighted_sum, dtype=np.float32)
         
         with rasterio.open(constraint_path) as src:
@@ -242,9 +252,7 @@ class RasterProcess(VectorProcess):
         output_path = os.path.join(self.config.output_path, output_name)
         with rasterio.open(output_path, 'w', **self.reference_profile) as dst:
             dst.write(final_priority, 1)
-        
-       
-        return output_path, final_priority
+        return output_path
     
     def apply_constraints_new(self, weighted_sum: np.ndarray, constraint_paths: List[str] = None,
                         output_name: str = "constrained_overlay.tif") -> str:
@@ -620,36 +628,9 @@ class RasterProcess(VectorProcess):
         self,
         raster_path: str,          
         priority_raster: str,    
-        clip: list = None,
-        place: str = None,
-        logic: str = None
+        villages_vector: gpd.GeoDataFrame,
     ):
-        if logic is None:
-            return None
-        villages_path = os.path.join(
-            self.config.base_dir,
-            'media', 'Rajat_data', 'shape_stp',
-            'villages', 'STP_Village.shp'
-        )
-
-        villages_vector = gpd.read_file(villages_path)
-
-        if villages_vector.crs is None:
-            villages_vector.set_crs("EPSG:32644", inplace=True, allow_override=True)
-
-        villages_vector = villages_vector.to_crs("EPSG:32644")
-
-
-        if logic == "priority":
-            if place == "Drain":
-                villages_vector = villages_vector[villages_vector['ID'].isin(clip)]
-            else:
-                villages_vector = villages_vector[villages_vector['subdis_cod'].isin(clip)]
-        else:
-            if place == "Admin":
-                villages_vector = villages_vector[villages_vector['ID'].isin(clip)]
-
-
+    
         with rasterio.open(raster_path) as src:
             raster = src.read(1, masked=True)
             affine = src.transform
@@ -733,38 +714,23 @@ class STPPriorityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-        self.vectorProcess=VectorProcess()
+        self.BASE_DIR=Settings().BASE_DIR
+        self.TEMP_DIR=Settings().TEMP_DIR+"/STP_Priority"
+        os.makedirs(self.TEMP_DIR, exist_ok=True)
     
     async def cachement_villages(self,drain_no:List[int]):        
-        catchment_villages=self.vectorProcess.catchment
-        villages=self.vectorProcess.village
+        catchment_villages=self.processor.catchment
+        villages=self.processor.village
         catchment_polygon = catchment_villages[catchment_villages["Drain_No"].isin(drain_no)].geometry.union_all()
         villages_intersect = villages[villages.intersects(catchment_polygon)]
         villages_intersect = villages_intersect[villages_intersect.geometry.is_valid]
         villages_intersect['geometry'] = villages_intersect.geometry.buffer(0)
-        
-        if 'FID' in villages_intersect.columns:
-            villages_intersect = villages_intersect.drop(columns=['FID'])
-        if 'fid' in villages_intersect.columns:
-            villages_intersect = villages_intersect.drop(columns=['fid'])
-        if 'ID' in villages_intersect.columns:
-            villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
-            
-        random_name=Unique_name.unique_name("catchment")
-        unique_village_zip = f"{random_name}.zip"
-        output_zip_path = self.config.output_path / unique_village_zip
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_shp = Path(temp_dir) /  f"{random_name}.shp"
-            villages_intersect.to_file(temp_shp, driver='ESRI Shapefile', engine='fiona')
-
-            with zipfile.ZipFile(output_zip_path, 'w') as zipf:
-                for file in temp_shp.parent.glob(f"{random_name}.*"):
-                    zipf.write(file, file.name)
-
-        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-        await geo.upload_vector("vector_work",str(output_zip_path),name_only)
-       
+        villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
+        temp_vill_name=Unique_name.unique_name("catch_vill")
+        village_temp_path=os.path.join(self.TEMP_DIR,temp_vill_name+".shp")
+        villages_intersect.to_file(village_temp_path, driver='ESRI Shapefile', engine='fiona')
+        vector_name=await self.processor._temporory_vector(vector_temp_file=villages_intersect)
+        await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
         data = [
             {
                 "id": village_id,  # Now using village_id instead of ID
@@ -773,19 +739,15 @@ class STPPriorityMapper:
             }
             for _, (village_id, name, geom) in enumerate(zip(villages_intersect["village_id"], villages_intersect["Name"], villages_intersect.geometry))
         ]
-        return STPCatchmentOutput(catchments=data,layer_name=name_only)
+        return STPCatchmentOutput(catchments=data,layer_name=vector_name)
     
-    def _raster_polyon_color(self,raster_path:str,clip:List[int]=None,place:str=None  ):
+    def _raster_polyon_color(self,raster_path:str,villages_vector:gpd.GeoDataFrame):
         with rasterio.open(raster_path) as src:
             raster_data = src.read(1)
             raster_meta = src.meta.copy()
             raster_transform = src.transform
             raster_crs = "EPSG:32644"
             raster_nodata = src.nodata
-        if place == "Drain":
-            villages_vector= self.vectorProcess.get_village(clip)
-        else:
-            villages_vector= self.vectorProcess.get_sub_village(clip)
         stats = zonal_stats(villages_vector, raster_path, stats=["mean"], nodata=raster_nodata)
         villages_vector["mean_val"] = [item['mean'] for item in stats]
         shapes = ((geom, value) for geom, value in zip(villages_vector.geometry, villages_vector["mean_val"]))
@@ -801,22 +763,85 @@ class STPPriorityMapper:
             "dtype": "float32",
             "nodata": raster_nodata
         })
-        output_name=Unique_name.unique_name_with_ext("STP_Priority","tif")
+        output_name=Unique_name.unique_name_with_ext("STP_Priority_final","tif")
         output_path = os.path.join(self.config.output_path, output_name)
         with rasterio.open(output_path, "w", **raster_meta) as dest:
             dest.write(out_array,1)
         return output_path
     
-    async def visual_priority_map(self,db:db_dependency,clip:List[int]=None,place:str=None) -> str:
-        raster_path=Stp_service.get_priority_visual(db)
+    
+    async def _get_priority_vill(self,place:str,clip:list,layer_name:str)->Tuple[gpd.GeoDataFrame,str]:
+        villages_vector=None
+        if place == 'Drain':
+            village_vector=await async_redis_manager.get(layer_name)
+            village_vector=gpd.read_file(village_vector)
+            villages_vector=village_vector[village_vector['village_id'].isin(clip)]
+        else:
+            villages_vector=self.processor.get_sub_village(clip)
+        temp_vill_name=Unique_name.unique_name("priority_vill")
+        pri_vill=os.path.join(self.TEMP_DIR,temp_vill_name)
+        os.makedirs(pri_vill, exist_ok=True)
+        village_temp_path=os.path.join(pri_vill,temp_vill_name+".shp")
+        villages_vector.to_file(str(village_temp_path),driver="ESRI Shapefile")
+        vector_name=await self.processor._temporory_vector(vector_temp_file=villages_vector)
+        await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
+        return villages_vector,vector_name
+    
+    def _cliping_raster(self,raster_path:str,final_name:str,clip:gpd.GeoDataFrame):
+        with rasterio.open(raster_path) as src:
+            out_image, out_transform = mask(dataset=src, shapes=clip.geometry, crop=True)
+            out_meta = src.meta.copy()
+        out_meta.update({
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform
+        })
+        output_path = os.path.join(self.config.output_path, final_name)
+        with rasterio.open(output_path, "w", **out_meta) as dest:
+            dest.write(out_image)
+        return output_path
+    
+    def _get_operations_raster(self,db:db_dependency,payload:List):
+        all_priority_raster=STP_priority_crud(db).get_raster_category(all_data=True)
+        payload_dict = {r.id: r.weight for r in payload.data}
+        condition_raster = [
+            [os.path.join(self.BASE_DIR, raster.file_path), payload_dict[raster.id],raster.layer_name]
+            for raster in all_priority_raster
+            if raster.id in payload_dict
+        ]
+        return condition_raster
+    
+    def _get_raster_with_weight(self,db:db_dependency,payload:List):
+        condition_raster=self._get_operations_raster(db,payload)
+        raster_path=[]
+        raster_weights=[]
+        for i in condition_raster:
+            raster_path.append(i[0])
+            raster_weights.append(i[1])
+        return raster_path,raster_weights
+    
+    def _get_overlay_raster(self,raster_path:List =None,raster_weights:List=None):
+        self.processor.align_rasters(raster_path)
+        overlay_name=Unique_name.unique_name_with_ext("overlay","tif")
+        weighted_sum = self.processor.create_weighted_overlay(
+                raster_weights, overlay_name
+            )
+        apply_stp_constraint_path = self.processor.apply_stp_constraint(weighted_sum, output_name="constrained_overlay.tif")
+        final_name = Unique_name.unique_name_with_ext("stp_overlay_clip","tif")
+        return self.processor.clip_to_basin(apply_stp_constraint_path,shapefile_path=self.config.basin_shapefile , output_name=final_name)
+    
+    async def visual_priority_map(self,db:db_dependency,clip:List[int]=None,place:str=None,layer_name:str=None) -> str:
+        raster_path=Stp_service.get_priority_visual(db,all_data=True)
         raster_path = [{"file_name": i.file_name,
                         "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
                         "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
                         } for i in raster_path]
         response=[]
+        village_vector,geo_vector_layer=await self._get_priority_vill(place,clip,layer_name)
         for i in raster_path:
             final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
-            final_path=self.processor.clip_to_user_villages(i['path'],final_name,clip=clip,place=place)
+            final_path=self._cliping_raster(i['path'],final_name,village_vector)
             unique_store_name =Unique_name.unique_name(self.config.raster_store)
             _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
             await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
@@ -825,29 +850,21 @@ class STPPriorityMapper:
                 "layer_name": layer_name,
                 "file_name":i["file_name"],
             })
-        return response
+        return {
+            "raster_layer":response,
+            "vector_layer":geo_vector_layer
+        }
     
-    async def create_priority_map(self, db:db_dependency, payload:STPCategory) -> str:
-        raster_paths,raster_weights=Stp_service.get_raster(db,payload)
-        if len(raster_paths) != len(raster_weights):
-            raise ValueError(f"Number of rasters ({len(raster_paths)}) must match number of weights ({len(raster_weights)})")
-        self.processor.align_rasters(raster_paths)
-        weighted_sum = self.processor.create_weighted_overlay(
-            raster_weights
-        )
-        output_name=Unique_name.unique_name_with_ext("constrained_STP_Priority","tif")
-        constrained_path, _ = self.processor.apply_constraint(
-            weighted_sum, output_name=output_name
-        )
-        final_name = Unique_name.unique_name_with_ext("STP_Priority","tif")
-        final_path = self.processor.clip_to_basin(
-            raster_path=constrained_path,
-            shapefile_path=self.config.basin_shapefile , output_name=final_name
-        )
+    async def create_priority_map(self, db:db_dependency, payload:STPCategory,reverse:bool=False) -> str:
+        raster_paths,raster_weights=self._get_raster_with_weight(db,payload)
+        final_path=self._get_overlay_raster(raster_paths,raster_weights)
+        final_name = Unique_name.unique_name_with_ext('STP_priority','tif') 
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=True)
-        final_path=self.processor.clip_to_user_villages(final_path,final_name,clip=payload.clip,place=payload.place)
-        final_path1=self._raster_polyon_color(raster_path=final_path,clip=payload.clip,place=payload.place)
-        csv_details=self.processor.clip_details(raster_path=final_path,priority_raster=final_path1,clip=payload.clip,place=payload.place,logic="priority")
+        village_vector=await async_redis_manager.get(payload.village_layer)
+        village_vector=gpd.read_file(village_vector)
+        final_path=self._cliping_raster(final_path,final_name,village_vector)
+        final_path1=self._raster_polyon_color(raster_path=final_path,villages_vector=village_vector)
+        csv_details=self.processor.clip_details(raster_path=final_path,priority_raster=final_path1,villages_vector=village_vector)
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path1)
         await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
@@ -862,25 +879,22 @@ class STPsuitabilityMapper:
     def __init__(self, config: GeoConfig = None):
         self.config = config or GeoConfig()
         self.processor = RasterProcess(self.config)
-        self.vector_process=VectorProcess()
         self.BASE_DIR=Settings().BASE_DIR
         self.TEMP_DIR=Settings().TEMP_DIR+"/STP_suitability"
         os.makedirs(self.TEMP_DIR, exist_ok=True)
     
     async def cachement_villages(self,db:Session,drain_no:List[int]):
-        vector_process=VectorProcess()
-        catchment_buffer = vector_process.get_drain_buffer(clip=drain_no).iloc[0].geometry
-        villages_sindex = vector_process.village.sindex
+        catchment_buffer = self.processor.get_drain_buffer(clip=drain_no).iloc[0].geometry
+        villages_sindex = self.processor.village.sindex
         possible_matches_idx = list(villages_sindex.query(catchment_buffer, predicate="intersects"))
-        villages = vector_process.village.iloc[possible_matches_idx]
+        villages = self.processor.village.iloc[possible_matches_idx]
         villages_intersect = villages[villages.geometry.intersects(catchment_buffer)].copy()
         villages_intersect = villages_intersect[villages_intersect.geometry.is_valid].copy()
         villages_intersect = villages_intersect.set_geometry(
             villages_intersect.geometry.buffer(0)
         )
         villages_intersect["geometry"] = villages_intersect.geometry.buffer(0)
-        if 'ID' in villages_intersect.columns:
-            villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
+        villages_intersect = villages_intersect.rename(columns={'ID': 'village_id'})
         
         temp_vill_name=Unique_name.unique_name("catch_vill")
         village_temp_path=os.path.join(self.TEMP_DIR,temp_vill_name+".shp")
@@ -1008,7 +1022,7 @@ class STPsuitabilityMapper:
         return output_path
     
     def _town_to_villages(self,clip:List):
-        selected_villages =self.vector_process.get_town_village(clip)
+        selected_villages =self.processor.get_town_village(clip)
         vector_name=self._temporory_vector(vector_temp_file=selected_villages)
         return selected_villages['ID'].tolist(),vector_name
     
@@ -1018,7 +1032,7 @@ class STPsuitabilityMapper:
             village_vector=await async_redis_manager.get(layer_name)
             village_vector=gpd.read_file(village_vector)
             return village_vector,layer_name
-        villages_vector=self.vector_process.get_town_village(clip)
+        villages_vector=self.processor.get_town_village(clip)
         temp_vill_name=Unique_name.unique_name("suit_vill")
         village_temp_path=os.path.join(self.TEMP_DIR,temp_vill_name+".shp")
         villages_vector.to_file(str(village_temp_path),driver="ESRI Shapefile")
@@ -1074,11 +1088,11 @@ class STPsuitabilityMapper:
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         _,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext('STP_suitability','tif') 
+        sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
         village_vector=await async_redis_manager.get(payload.village_layer)
         village_vector=gpd.read_file(village_vector)
         final_path=self._cliping_raster(final_path,final_name,village_vector)
-        sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
-        csv_details=await self._suitability_clip_details(final_path,village_vector)
+        csv_details=self.processor.clip_details(raster_path=final_path,priority_raster=final_path,villages_vector=village_vector)
         unique_store_name =Unique_name.unique_name(self.config.raster_store)
         _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
         await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=sld_path, sld_name=layer_name)
@@ -1090,26 +1104,26 @@ class STPsuitabilityMapper:
             }
 
     async def visual_sutabilty_map(self,db:db_dependency,clip:List[int]=None,place:str=None,layer_name:str=None) -> str:
-            raster_path=Stp_service.get_suitability_visual(db,all_data=True)
-            raster_path = [{"file_name": i.file_name,
-                            "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
-                            "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
-                           } for i in raster_path]
-            response=[]
-            village_vector,geo_vector_layer=await self._get_suitability_vill(place,clip,layer_name)
-            for i in raster_path:
-                final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
-                final_path=self._cliping_raster(i['path'],final_name,village_vector)
-                unique_store_name =Unique_name.unique_name(self.config.raster_store)
-                _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
-                await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
-                response.append({
-                    "workspace": self.config.raster_workspace,
-                    "layer_name": layer_name,
-                    "file_name":i["file_name"],
-                })
-            return {
-                "raster_layer":response,
-                "vector_layer":geo_vector_layer
-            }
+        raster_path=Stp_service.get_suitability_visual(db,all_data=True)
+        raster_path = [{"file_name": i.file_name,
+                        "path": os.path.abspath(Settings().BASE_DIR+"/"+i.file_path),
+                        "sld_path": os.path.abspath(Settings().BASE_DIR+"/"+i.sld_path,)                                            
+                        } for i in raster_path]
+        response=[]
+        village_vector,geo_vector_layer=await self._get_suitability_vill(place,clip,layer_name)
+        for i in raster_path:
+            final_name=Unique_name.unique_name_with_ext(i['file_name'],"tif")
+            final_path=self._cliping_raster(i['path'],final_name,village_vector)
+            unique_store_name =Unique_name.unique_name(self.config.raster_store)
+            _,layer_name=await geo.upload_raster(workspace_name=self.config.raster_workspace, store_name=unique_store_name, raster_path=final_path)
+            await geo.apply_sld_to_layer(workspace_name=self.config.raster_workspace, layer_name = layer_name,sld_content=i['sld_path'], sld_name=layer_name)   
+            response.append({
+                "workspace": self.config.raster_workspace,
+                "layer_name": layer_name,
+                "file_name":i["file_name"],
+            })
+        return {
+            "raster_layer":response,
+            "vector_layer":geo_vector_layer
+        }
      

@@ -23,6 +23,7 @@ import {
 import { useMap } from "@/contexts/stp/stp_suitability/users/DrainMapContext";
 import { useCategory } from "@/contexts/stp/stp_suitability/admin/CategoryContext";
 import { useRiverSystem } from "@/contexts/stp/stp_suitability/users/DrainContext";
+import { useSTPArea } from "@/contexts/stp/stp_suitability/STPAreaContext";
 import "ol/ol.css";
 import { baseMaps, GISCompass, HoverTooltip } from "@/components/MapComponents";
 import { createWFSVectorSource } from "@/components/utils/geoserver_url";
@@ -40,6 +41,8 @@ const Maping: React.FC = () => {
   const drainLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const catchmentLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const resultLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const clusterLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
+  const clusterPathLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseLayerRef = useRef<TileLayer<any> | null>(null);
   const layersRef = useRef<{ [key: string]: any }>({});
   const selectInteractionRef = useRef<Select | null>(null);
@@ -55,6 +58,8 @@ const Maping: React.FC = () => {
     drain: 0,
     catchment: 0,
     result: 0,
+    cluster: 0,
+    clusterPath: 0,
   });
   const [layerVisibility, setLayerVisibility] = useState({
     river: true,
@@ -63,6 +68,8 @@ const Maping: React.FC = () => {
     catchment: true,
     result: true,
   });
+  const [showClusterLayer, setShowClusterLayer] = useState(true);
+  const [showClusterPath, setShowClusterPath] = useState(true);
   const [layerOpacity, setLayerOpacity] = useState(70);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [legendUrl, setLegendUrl] = useState<string | null>(null);
@@ -76,6 +83,8 @@ const Maping: React.FC = () => {
 
 
   // Context hooks
+  const { stpAreaResult } = useSTPArea();
+
   const {
     selectedDrains,
     displayRaster,
@@ -492,6 +501,67 @@ const Maping: React.FC = () => {
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
+    if (clusterLayerRef.current) {
+      mapInstanceRef.current.removeLayer(clusterLayerRef.current);
+      clusterLayerRef.current = null;
+      setFeatureCounts(prev => ({ ...prev, cluster: 0 }));
+    }
+    if (clusterPathLayerRef.current) {
+      mapInstanceRef.current.removeLayer(clusterPathLayerRef.current);
+      clusterPathLayerRef.current = null;
+      setFeatureCounts(prev => ({ ...prev, clusterPath: 0 }));
+    }
+
+    if (!stpAreaResult) return;
+
+    const addClusterLayer = (
+      layerName: string | null,
+      ref: React.RefObject<VectorLayer<VectorSource> | null>,
+      color: string,
+      zIndex: number,
+      countKey: 'cluster' | 'clusterPath',
+      visible: boolean,
+    ) => {
+      if (!layerName || !mapInstanceRef.current) return;
+      const wfsUrl = `${process.env.NEXT_PUBLIC_GEOSERVER_URL}/wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=${defaultWorkspace}:${layerName}&outputFormat=application/json&srsname=EPSG:3857`;
+      const source = new VectorSource({ format: new GeoJSON(), url: wfsUrl });
+      const layer = new VectorLayer({
+        source,
+        zIndex,
+        visible,
+        style: (feature: any) => {
+          const geomType = feature.getGeometry().getType();
+          if (geomType.includes('Polygon')) {
+            return new Style({ stroke: new Stroke({ color, width: 2 }), fill: new Fill({ color: `${color}33` }) });
+          }
+          if (geomType.includes('LineString')) {
+            return new Style({ stroke: new Stroke({ color, width: 2 }) });
+          }
+          return new Style({ image: new Circle({ radius: 6, fill: new Fill({ color }), stroke: new Stroke({ color: '#fff', width: 2 }) }) });
+        },
+      });
+      source.on('featuresloadend', (event: any) => {
+        const count = event.features ? event.features.length : 0;
+        setFeatureCounts(prev => ({ ...prev, [countKey]: count }));
+        if (count > 0) {
+          const extent = source.getExtent();
+          if (extent && extent.every((v: number) => isFinite(v))) {
+            mapInstanceRef.current?.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000, maxZoom: 16 });
+          }
+        }
+      });
+      source.on('featuresloaderror', () => setError(`Failed to load ${countKey} layer`));
+      mapInstanceRef.current.addLayer(layer);
+      ref.current = layer;
+    };
+
+    addClusterLayer(stpAreaResult.cluster_layer, clusterLayerRef, '#3b3b3b', 12, 'cluster', showClusterLayer);
+    addClusterLayer(stpAreaResult.suitable_path, clusterPathLayerRef, '#3e006b', 13, 'clusterPath', showClusterPath);
+  }, [stpAreaResult, defaultWorkspace]);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
     const map = mapInstanceRef.current;
 
 
@@ -826,29 +896,9 @@ const Maping: React.FC = () => {
                 </div>
               )}
 
-              {/* Result Layer */}
-              {(
-                <div className={`p-4 rounded-xl border ${layerVisibility.result ? "bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200" : "bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200"}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 rounded-full mr-3 ${layerVisibility.result ? "bg-purple-500" : "bg-gray-400"}`}></div>
-                      <span className={`font-semibold ${layerVisibility.result ? "text-purple-800" : "text-gray-600"}`}>
-                        Result Layer
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3">
+              
 
-                      <button
-                        onClick={() => toggleLayerVisibility('result')}
-                        className={`w-12 h-6 rounded-full ${layerVisibility.result ? "bg-purple-500" : "bg-gray-300"} relative transition-all duration-300`}
-                        title={layerVisibility.result ? "Hide result layer" : "Show result layer"}
-                      >
-                        <span className={`block w-5 h-5 mt-0.5 mx-0.5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${layerVisibility.result ? "translate-x-6" : ""}`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              
 
               {/* Raster Layer */}
               {rasterLayerInfo && (

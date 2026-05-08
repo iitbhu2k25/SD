@@ -1,133 +1,384 @@
 "use client";
-import {DRAIN_LAYER_NAMES} from "@/interface/raster_context"
-import React, { useState } from "react";
 
-// Types
-type ViewType = "admin" | "user";
+import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import WholeLoading from "@/components/app_layout/newLoading";
+import ModuleInfoModal from "@/components/dss_common/ModuleInfoModal";
+import PageLayout from "@/components/dss_common/PageLayout";
+import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
+import { MapMode, getMapModeInfo } from "./config/mapModes";
+import { stpPriorityPanelSettings } from "./config/panels.config";
+import UserDataInit from "./users/components/UserDataInit";
+import UserLeftPanel from "./users/components/UserLeftPanel";
+import UserRightPanel from "./users/components/UserRightPanel";
+import UserBottomResultsPanel from "./users/components/UserBottomResultsPanel";
+import AdminDataInit from "./admin/components/AdminDataInit";
+import AdminLeftPanel from "./admin/components/AdminLeftPanel";
+import AdminRightPanel from "./admin/components/AdminRightPanel";
+import AdminBottomResultsPanel from "./admin/components/AdminBottomResultsPanel";
+import { useAdminViewModel } from "./admin/hooks/useAdminViewModel";
+import { useUserViewModel } from "./users/hooks/useUserViewModel";
+import { useUiModeService } from "./services/uiModeService";
 
-interface ModernSwitchProps {
-  leftLabel: string;
-  rightLabel: string;
-  value: ViewType;
-  onChange: (value: ViewType) => void;
-}
+const AdminMapView = dynamic(() => import("./admin/components/AdminOpenLayersMap"), {
+  ssr: false,
+});
 
-import PriorityAdmin from "./admin/page";
-import PriorityDrain from "./users/page";
+const UserMapView = dynamic(() => import("./users/components/UserOpenLayersMap"), {
+  ssr: false,
+});
 
+const AdminIcon = () => (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+    <path
+      fillRule="evenodd"
+      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
 
+const DrainIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+    />
+  </svg>
+);
 
-const ModernSwitch: React.FC<ModernSwitchProps> = ({
-  leftLabel,
-  rightLabel,
-  value,
-  onChange,
-}) => {
-  DRAIN_LAYER_NAMES.CATCHMENT=null
-  const handleToggle = (): void => {
-    onChange(value === "admin" ? "user" : "admin");
-  };
+const MoonIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+  </svg>
+);
 
-  return (
-    <div className="flex items-center space-x-4">
-      <span
-        className={`text-xl font-medium transition-colors ${
-          value === "admin" ? "text-blue-600" : "text-gray-500"
-        }`}
-      >
-        {leftLabel}
-      </span>
+const SunIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+  </svg>
+);
 
-      <div
-        className="relative w-20 h-10 bg-gray-200 rounded-full cursor-pointer transition-all duration-300 hover:bg-gray-300"
-        onClick={handleToggle}
-        role="switch"
-        aria-checked={value === "user"}
-        tabIndex={0}
-        onKeyDown={(e: React.KeyboardEvent) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleToggle();
-          }
-        }}
-      >
-        <div
-          className={`absolute top-1 left-1 w-8 h-8  rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${
-            value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
-          }`}
-        >
-          <div className="flex items-center justify-center w-full h-full">
-            {value === "admin" ? (
-              <svg
-                className="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <span
-        className={`text-xl font-medium transition-colors ${
-          value === "user" ? "text-green-600" : "text-gray-500"
-        }`}
-      >
-        {rightLabel}
-      </span>
-    </div>
+export default function StpPriorityV2Page() {
+  const panelSettings = stpPriorityPanelSettings;
+  const [selectedMode, setSelectedMode] = useState<MapMode>("admin");
+  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
+  const [showInfo, setShowInfo] = useState<boolean>(false);
+  const activeModeInfo = getMapModeInfo(selectedMode);
+  const isDark = useUiModeService((s) => s.isDark);
+  const toggleTheme = useUiModeService((s) => s.toggleTheme);
+  const [rightPanelWidth, setRightPanelWidth] = useState<string>(panelSettings.right.widthOpen);
+  const [bottomPanelHeight, setBottomPanelHeight] = useState<string>(
+    panelSettings.bottom.heightOpen
   );
-};
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState<boolean>(
+    panelSettings.bottom.defaultOpen
+  );
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
-const PriorityPage: React.FC = () => {
-  const [activeView, setActiveView] = useState<ViewType>("admin");
+  const adminViewModel = useAdminViewModel();
+  const userViewModel = useUserViewModel();
 
-  const handleViewChange = (newView: ViewType): void => {
-    setActiveView(newView);
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      setIsPanelOpen(panelSettings.left.defaultOpen);
+    }
+  }, [panelSettings.left.defaultOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const isDesktop = mq.matches;
+    setIsMobile(!isDesktop);
+    setRightPanelWidth(
+      isDesktop ? panelSettings.right.widthOpen : panelSettings.right.mobileWidthOpen
+    );
+    setBottomPanelHeight(
+      isDesktop
+        ? panelSettings.bottom.heightOpen
+        : panelSettings.bottom.mobileHeightOpen
+    );
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(!e.matches);
+      setRightPanelWidth(
+        e.matches ? panelSettings.right.widthOpen : panelSettings.right.mobileWidthOpen
+      );
+      setBottomPanelHeight(
+        e.matches
+          ? panelSettings.bottom.heightOpen
+          : panelSettings.bottom.mobileHeightOpen
+      );
+    };
+
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, [
+    panelSettings.bottom.heightOpen,
+    panelSettings.bottom.mobileHeightOpen,
+    panelSettings.right.mobileWidthOpen,
+    panelSettings.right.widthOpen,
+  ]);
+
+  useEffect(() => {
+    if (selectedMode === "admin") {
+      adminViewModel.setRightPanelOpen(adminViewModel.selectionsLocked);
+    }
+  }, [
+    adminViewModel.selectionsLocked,
+    adminViewModel.setRightPanelOpen,
+    selectedMode,
+  ]);
+
+  useEffect(() => {
+    if (selectedMode === "user") {
+      userViewModel.setRightPanelOpen(userViewModel.selectionsLocked);
+    }
+  }, [
+    selectedMode,
+    userViewModel.selectionsLocked,
+    userViewModel.setRightPanelOpen,
+  ]);
+
+  const handleModeChange = (mode: MapMode): void => {
+    setSelectedMode(mode);
+    setIsPanelOpen(true);
   };
 
-  return (
-    <div className=" flex flex-col">
-      <header className=" grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
-        <div className="container mx-auto px-4">
-          <h1 className="text-5xl font-bold">STP Site Priority</h1>
-        </div>
-        <div className="flex justify-center w-full items-center font-medium ">
-          <ModernSwitch
-            leftLabel="Admin"
-            rightLabel="Drain"
-            value={activeView}  
-            onChange={handleViewChange}
+  const railItems = [
+    {
+      id: "admin",
+      icon: <AdminIcon />,
+      label: "Admin",
+      tooltip: "Admin Mode",
+      onClick: () => handleModeChange("admin"),
+      isActive: selectedMode === "admin",
+      activeClassName: isDark
+        ? "bg-blue-700 text-white shadow-lg shadow-blue-900"
+        : "bg-blue-600 text-white shadow-lg shadow-blue-200",
+    },
+    {
+      id: "drain",
+      icon: <DrainIcon />,
+      label: "Drain",
+      tooltip: "Drain Mode",
+      onClick: () => handleModeChange("user"),
+      isActive: selectedMode === "user",
+      activeClassName: isDark
+        ? "bg-emerald-700 text-white shadow-lg shadow-emerald-900"
+        : "bg-emerald-600 text-white shadow-lg shadow-emerald-200",
+    },
+    {
+      id: "theme",
+      icon: isDark ? <SunIcon /> : <MoonIcon />,
+      label: isDark ? "Light" : "Dark",
+      tooltip: isDark ? "Switch to Light Mode" : "Switch to Dark Mode",
+      onClick: toggleTheme,
+      isActive: isDark,
+      activeClassName: "bg-slate-700 text-cyan-400 shadow-lg",
+    },
+  ];
+
+  const adminShowCategories = adminViewModel.selectionsLocked;
+  const adminCanShowRightPanel = adminShowCategories;
+  const userShowCategories = userViewModel.selectionsLocked;
+  const userCanShowRightPanel = userShowCategories;
+  const activeTableData =
+    selectedMode === "admin" ? adminViewModel.tableData : userViewModel.tableData;
+  const activeIsPdfGenerating =
+    selectedMode === "admin"
+      ? adminViewModel.isPdfGenerating
+      : userViewModel.isPdfGenerating;
+  const activeHandleReport =
+    selectedMode === "admin"
+      ? adminViewModel.handleReport
+      : userViewModel.handleReport;
+  const canShowBottomPanel = activeTableData.length > 0;
+
+  useEffect(() => {
+    if (canShowBottomPanel) {
+      setIsBottomPanelOpen(true);
+    }
+  }, [canShowBottomPanel, selectedMode]);
+
+  const leftPanelContent =
+    selectedMode === "admin" ? <AdminLeftPanel /> : <UserLeftPanel />;
+
+  const mapContent = selectedMode === "admin" ? <AdminMapView /> : <UserMapView />;
+
+  const rightPanelContent =
+    selectedMode === "admin"
+      ? adminCanShowRightPanel ? (
+          <AdminRightPanel
+            isOpen={adminViewModel.isRightPanelOpen}
+            width={rightPanelWidth}
+            showCategories={adminShowCategories}
+            categoriesEditable={adminViewModel.categoriesEditable}
+            stpProcess={adminViewModel.stpProcess}
+            toggleCategoriesEditable={adminViewModel.toggleCategoriesEditable}
+            onClose={() => adminViewModel.setRightPanelOpen(false)}
+            handleSubmit={adminViewModel.handleSubmit}
+            onWidthChange={setRightPanelWidth}
+            panelSettings={panelSettings.right}
+            isMobile={isMobile}
+            showPdfStatus={adminViewModel.showPdfStatus}
+            taskId={adminViewModel.taskId}
+            onPdfComplete={adminViewModel.completePdfGeneration}
+            onPdfFailure={adminViewModel.failPdfGeneration}
           />
-        </div>
-      </header>
+        ) : null
+      : userCanShowRightPanel ? (
+          <UserRightPanel
+            isOpen={userViewModel.isRightPanelOpen}
+            width={rightPanelWidth}
+            showCategories={userShowCategories}
+            categoriesEditable={userViewModel.categoriesEditable}
+            stpProcess={userViewModel.stpProcess}
+            toggleCategoriesEditable={userViewModel.toggleCategoriesEditable}
+            onClose={() => userViewModel.setRightPanelOpen(false)}
+            handleSubmit={userViewModel.handleSubmit}
+            onWidthChange={setRightPanelWidth}
+            panelSettings={panelSettings.right}
+            isMobile={isMobile}
+            showPdfStatus={userViewModel.showPdfStatus}
+            taskId={userViewModel.taskId}
+            onPdfComplete={userViewModel.completePdfGeneration}
+            onPdfFailure={userViewModel.failPdfGeneration}
+          />
+        ) : null;
 
-      <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <PriorityAdmin />}
-        {activeView === "user" && <PriorityDrain />}
-      </div>
-    </div>
+  const rightPanelToggle =
+    selectedMode === "admin"
+      ? adminCanShowRightPanel ? (
+          <RightPanelToggle
+            isOpen={adminViewModel.isRightPanelOpen}
+            openOffset={rightPanelWidth}
+            onToggle={adminViewModel.toggleRightPanel}
+            isDark={isDark}
+          />
+        ) : null
+      : userCanShowRightPanel ? (
+          <RightPanelToggle
+            isOpen={userViewModel.isRightPanelOpen}
+            openOffset={rightPanelWidth}
+            onToggle={userViewModel.toggleRightPanel}
+            isDark={isDark}
+          />
+        ) : null;
+
+  const bottomPanelContent = canShowBottomPanel
+    ? selectedMode === "admin" ? (
+        <AdminBottomResultsPanel
+          isOpen={isBottomPanelOpen}
+          height={bottomPanelHeight}
+          tableData={activeTableData}
+          panelSettings={panelSettings.bottom}
+          isMobile={isMobile}
+          isPdfGenerating={activeIsPdfGenerating}
+          onToggle={() => setIsBottomPanelOpen((open) => !open)}
+          onReport={activeHandleReport}
+        />
+      ) : (
+        <UserBottomResultsPanel
+          isOpen={isBottomPanelOpen}
+          height={bottomPanelHeight}
+          tableData={activeTableData}
+          panelSettings={panelSettings.bottom}
+          isMobile={isMobile}
+          isPdfGenerating={activeIsPdfGenerating}
+          onToggle={() => setIsBottomPanelOpen((open) => !open)}
+          onReport={activeHandleReport}
+        />
+      )
+    : null;
+
+  const loadingVisible =
+    selectedMode === "admin"
+      ? adminViewModel.loading ||
+        adminViewModel.isMapLoading ||
+        adminViewModel.stpOperation ||
+        adminViewModel.reportLoading ||
+        adminViewModel.locationLoading ||
+        adminViewModel.categoryLoading
+      : userViewModel.loading ||
+        userViewModel.isMapLoading ||
+        userViewModel.stpOperation ||
+        userViewModel.reportLoading ||
+        userViewModel.riverLoading ||
+        userViewModel.categoryLoading;
+
+  const isActiveStpOperation =
+    selectedMode === "admin"
+      ? adminViewModel.stpOperation
+      : userViewModel.stpOperation;
+  const isActiveReportLoading =
+    selectedMode === "admin"
+      ? adminViewModel.reportLoading
+      : userViewModel.reportLoading;
+
+  const pageLayout = (
+    <>
+      <WholeLoading
+        visible={loadingVisible}
+        title={
+          isActiveStpOperation
+            ? "Analyzing STP priorities"
+            : isActiveReportLoading
+              ? "Generating report for STP priorities"
+              : "Loading Resources"
+        }
+        message={
+          isActiveStpOperation
+            ? "Analyzing site priorities and generating results..."
+            : isActiveReportLoading
+              ? "Generating report, please wait..."
+              : "Fetching map data and initializing components..."
+        }
+      />
+      <PageLayout
+        title="STP Priority"
+        badge={activeModeInfo.label}
+        badgeClassName={activeModeInfo.badgeClassName}
+        onTitleInfoClick={() => setShowInfo(true)}
+        titleInfoTooltip="Module info"
+        config={panelSettings}
+        railItems={railItems}
+        leftPanel={leftPanelContent}
+        mapContent={mapContent}
+        rightPanel={rightPanelContent}
+        rightPanelToggle={rightPanelToggle}
+        bottomPanel={bottomPanelContent}
+        isBottomOpen={canShowBottomPanel && isBottomPanelOpen}
+        bottomPanelOpenHeight={bottomPanelHeight}
+        bottomPanelClosedHeight={panelSettings.bottom.heightClosed}
+        isLeftOpen={isPanelOpen}
+        isMobile={isMobile}
+        onToggleLeft={() => setIsPanelOpen((open) => !open)}
+        isDark={isDark}
+      />
+      <ModuleInfoModal
+        open={showInfo}
+        onClose={() => setShowInfo(false)}
+        title="STP Priority System"
+        imageSrc="/Images/modules/image_25.png"
+        imageAlt="STP Priority Information"
+        points={[
+          "STP Priority module is intended to identify the sewage priority risk hot-spot areas.",
+          "Several GIS-based layers related to sewerage, demography, land-use, and groundwater are used to identify sewage priority risk areas.",
+          "Final output related to the sewage risk can be generated in PDF format.",
+        ]}
+        learnMoreHref="/dss/home/home_grid/home_card/basic_module"
+        learnMoreLabel="Learn more about STP Priority"
+      />
+    </>
   );
-};
 
-export default PriorityPage;
+  if (selectedMode === "admin") {
+    return <AdminDataInit>{pageLayout}</AdminDataInit>;
+  }
+
+  return <UserDataInit>{pageLayout}</UserDataInit>;
+}

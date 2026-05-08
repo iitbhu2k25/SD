@@ -1,4 +1,4 @@
-from pydantic import BaseModel,Field
+from pydantic import BaseModel,Field,model_validator
 from typing import Annotated,List,Optional,Text, Tuple
 
 
@@ -33,13 +33,16 @@ class Sub_district_request(BaseModel):
 
 
 
-class STPPriorityVisualOutput(BaseModel):
+class RasterVisualOutput(BaseModel):
     workspace:str
     layer_name:str
     file_name:str
     
+class STPPriorityVisualOutput(BaseModel):
+    raster_layer:Annotated[List[RasterVisualOutput],None]
+    vector_layer:str
 class STPSuitabilityVisualOutput(BaseModel):
-    raster_layer:Annotated[List[STPPriorityVisualOutput],None]
+    raster_layer:Annotated[List[RasterVisualOutput],None]
     vector_layer:str
     
 class STPRasterInputt(BaseModel):
@@ -73,9 +76,7 @@ class Raster_operation_input(BaseModel):
 class GWPL_Table_input(BaseModel):
     location:list
     raster_name:str
-    village_list:list
-    class Config:
-        from_attributes = True
+    village_layer:str
 
 class GWPL_Table_output(BaseModel):
     well_id: str = Field(..., alias="Well_id")
@@ -110,8 +111,7 @@ class STPCategory(BaseModel):
     clip: List[int] = None
     all_data: bool = True
     place: str = None
-    class Config:
-        from_attributes = True
+    village_layer: str = None
 
 
 class STPPriorityOutput(BaseModel):
@@ -172,7 +172,7 @@ class cachement_village(BaseModel):
     area:float
 
 class STPCatchmentOutput(BaseModel):
-    layer_name:str
+    layer_name:str=None
     catchments:list=None
 
 

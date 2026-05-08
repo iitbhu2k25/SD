@@ -24,10 +24,10 @@ export default function NotFound() {
     <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center px-6">
 
       {/* Gradient Background */}
-      <div className="absolute inset-0 -z-20 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 dark:from-gray-900 dark:via-gray-800 dark:to-black" />
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 dark:from-gray-900 dark:via-gray-800 dark:to-black" />
 
       {/* Particle Layer */}
-      <div className="absolute inset-0 -z-10">
+      <div className="absolute inset-0">
         {particles.map((p, i) => (
           <motion.div
             key={i}
@@ -54,7 +54,7 @@ export default function NotFound() {
         initial={{ rotateY: -20, opacity: 0, scale: 0.9 }}
         animate={{ rotateY: 0, opacity: 1, scale: 1 }}
         transition={{ duration: 0.8 }}
-        className="relative backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-12 text-center max-w-xl w-full"
+        className="relative z-10 backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-2xl p-12 text-center max-w-xl w-full"
         style={{ transformStyle: "preserve-3d" }}
       >
         <motion.h1

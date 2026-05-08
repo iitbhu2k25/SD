@@ -7,7 +7,7 @@ import React, {
   ReactNode,
   useMemo,
 } from "react";
-import { DRAIN_LAYER_NAMES, Stp_suit_catchment, suitability_visual } from "@/interface/raster_context";
+import { DRAIN_LAYER_NAMES, Stp_suit_catchment, raster_visual_resp } from "@/interface/raster_context";
 import { DataRow } from "@/interface/table";
 import { api } from "@/services/api";
 
@@ -292,7 +292,7 @@ export const RiverSystemProvider: React.FC<RiverSystemProviderProps> = ({
               place: "Drain",
             },
           });
-          const data = (await response.message) as suitability_visual;
+          const data = (await response.message) as raster_visual_resp;
           setDisplayRaster(data.raster_layer);
           setResultLayer(data.vector_layer);
         } catch (error) {

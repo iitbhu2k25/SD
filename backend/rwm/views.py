@@ -4782,6 +4782,184 @@ def optimized_idw_interpolation(request, attribute, data_type, season):
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
+RIVER_WQ_RASTER_ATTRIBUTES = {
+    "ph": "pH",
+    "tds": "TDS_mg_L_",
+    "ec": "EC__S_cm_",
+    "temperature": "Temperatur",
+    "turbidity": "Turbidity_",
+    "dissolvedOxygen": "DO_mg_L_",
+    "orp": "ORP",
+    "tss": "TSS_mg_L_",
+    "cod": "COD_mg_L_",
+    "bod": "BOD_mg_L_",
+    "ts": "TS_mg_L_",
+    "chloride": "Chloride_m",
+    "nitrate": "Nitrate_mg",
+    "hardness": "Hardness_m",
+    "faecalColiform": "Faecal_Col",
+    "totalColiform": "Total_Coli",
+    "wqi": "WQI",
+}
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def batch_idw_interpolation(request, data_type, season):
+    """
+    Generate all requested river interpolation rasters in one frontend call.
+    This keeps the old single-attribute endpoint available while allowing the
+    map selector to switch already-published GeoServer layers locally.
+    """
+    try:
+        data = json.loads(request.body)
+        attributes = data.get("attributes") or RIVER_WQ_RASTER_ATTRIBUTES
+        unique_id = str(uuid.uuid4())[:8]
+
+        if not isinstance(attributes, dict) or not attributes:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "No interpolation attributes were provided",
+                },
+                status=400,
+            )
+
+        if data_type == "stretchbased":
+            stretch_ids = data.get("Stretch_ID", [])
+            points_data = data.get("points_data")
+
+            if not stretch_ids:
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": "No Stretch_IDs provided for stretch-based analysis",
+                    },
+                    status=400,
+                )
+
+            if not points_data:
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": "No water quality points data provided",
+                    },
+                    status=400,
+                )
+
+            river_data = get_stretch_lines_service(stretch_ids)
+            if not river_data:
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": "Failed to fetch stretch line geometries",
+                    },
+                    status=500,
+                )
+
+            river_buffer_data = get_river_buffer_service(stretch_ids)
+            if not river_buffer_data:
+                return JsonResponse(
+                    {"status": "error", "message": "Failed to fetch river buffer data"},
+                    status=500,
+                )
+        else:
+            river_data = data.get("river_data")
+            river_buffer_data = data.get("river_buffer_data")
+            points_data = data.get("points_data")
+
+            if not river_data:
+                return JsonResponse(
+                    {"status": "error", "message": "No river data provided"}, status=400
+                )
+
+            if not river_buffer_data:
+                return JsonResponse(
+                    {"status": "error", "message": "No river buffer data provided"},
+                    status=400,
+                )
+
+            if not points_data:
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": "No water quality points data provided",
+                    },
+                    status=400,
+                )
+
+        layers = {}
+        statistics = {}
+        color_stops = {}
+        individual_layers = {}
+        failed = {}
+
+        for frontend_key, backend_attribute in attributes.items():
+            if not backend_attribute:
+                continue
+
+            try:
+                result = perform_interpolation(
+                    river_data=river_data,
+                    river_buffer_data=river_buffer_data,
+                    points_data=points_data,
+                    attribute=backend_attribute,
+                    season=season,
+                    data_type=data_type,
+                    resolution=30,
+                    power=2,
+                    unique_id=f"{unique_id}_{frontend_key}",
+                )
+
+                if result.get("status") != "success" or not result.get("primary_layer"):
+                    failed[frontend_key] = result.get(
+                        "message", f"Interpolation failed for {backend_attribute}"
+                    )
+                    continue
+
+                layers[frontend_key] = result.get("primary_layer")
+                statistics[frontend_key] = result.get("statistics", {})
+                color_stops[frontend_key] = result.get("color_stops", [])
+                individual_layers[frontend_key] = result.get("individual_layers", [])
+            except Exception as e:
+                failed[frontend_key] = str(e)
+
+        if not layers:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "No interpolation layers were generated",
+                    "failed": failed,
+                },
+                status=400,
+            )
+
+        primary_attribute = "wqi" if "wqi" in layers else next(iter(layers.keys()))
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "message": "Batch interpolation completed successfully",
+                "primary_attribute": primary_attribute,
+                "primary_layer": layers[primary_attribute],
+                "layers": layers,
+                "attributes": attributes,
+                "statistics": statistics,
+                "color_stops": color_stops,
+                "individual_layers": individual_layers,
+                "failed": failed,
+                "data_type": data_type,
+                "season": season,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
 # ==========================================
 # SERVICE LAYER - Pure Business Logic Functions
 # ==========================================

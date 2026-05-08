@@ -14,7 +14,7 @@ import {
   SubDistrict,
   Towns,
   ClipRasters,
-  suitability_visual,
+  raster_visual_resp,
 } from "@/interface/raster_context";
 
 export interface SelectionsData {
@@ -290,7 +290,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
               },
             }
           );
-          const data = (await response.message) as suitability_visual;
+          const data = (await response.message) as raster_visual_resp;
           setDisplayRaster(data.raster_layer);
           setResultLayer(data.vector_layer);
         } catch (error) {

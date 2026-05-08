@@ -10,6 +10,7 @@ urlpatterns = [
     # path('shapefile_filtered/<str:data_type>/', views.shapefile_data_filtered, name='shapefile_data_filtered_typed'),
     path('river_100m_buffer/<str:data_type>', views.River_100m_buffer, name='river_100m_buffer'),
     path('river', views.River, name='river'),
+    path('interpolate/batch/<str:data_type>/<str:season>', views.batch_idw_interpolation, name='batch_idw_interpolation'),
     path('interpolate/<str:attribute>/<str:data_type>/<str:season>', views.optimized_idw_interpolation, name='idw_interpolation'),
     path('clipped_subdist', views.clipped_subdistrict, name='clipped_subdistrict'),
     path('subdistricts', views.get_subdistricts, name='subdistricts'),

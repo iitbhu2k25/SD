@@ -27,7 +27,7 @@ export interface ClipRasters{
   workspace?:string;
 }
 
-export interface suitability_visual{
+export interface raster_visual_resp{
   raster_layer:ClipRasters[]
   vector_layer:string
 }
@@ -47,7 +47,9 @@ export interface gwpl_Output{
 export interface stp_sutability_Output{
   workspace:string,                  
   layer_name:string,
-  csv_details:DataRow[]
+  csv_details:DataRow[],
+  vector_name?: string | null,
+  clip_villages?: number[],
 }
 
 export interface  Stp_suit_catchment{
