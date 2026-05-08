@@ -102,10 +102,7 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "Tools", href: "#" },
     { label: "Raster", href: "/dss/Tools/raster_visual" },
   ],
-  "/dss/Tools/model_water": [
-    { label: "Tools", href: "#" },
-    { label: "Water", href: "/dss/Tools/model_water" },
-  ],
+ 
   "/dss/seawage_infrastructure": [
     { label: "Tools", href: "#" },
     { label: "seawage_infrastructure", href: "/dss/seawage_infrastructure" },
@@ -1751,20 +1748,7 @@ const Navbar = (): JSX.Element => {
                       Watershed
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/dss/Tools/model_water"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
-                      onClick={() =>
-                        handleMenuClick([
-                          { label: "Tools", href: "#" },
-                          { label: "Water", href: "/dss/Tools/model_water" },
-                        ])
-                      }
-                    >
-                      Water
-                    </Link>
-                  </li>
+              
                   <li>
                     <Link
                       href="/dss/Tools/seawage_infrastructure"
