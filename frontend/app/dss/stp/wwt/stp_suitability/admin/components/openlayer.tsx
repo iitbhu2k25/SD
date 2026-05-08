@@ -378,7 +378,7 @@ const Mapping: React.FC = () => {
             });
           }
           if (type.includes('LineString')) {
-            return new Style({ stroke: new Stroke({ color, width: 3 }) });
+            return new Style({ stroke: new Stroke({ color, width: 2 }) });
           }
           return new Style({
             image: new Circle({ radius: 6, fill: new Fill({ color }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
@@ -403,8 +403,8 @@ const Mapping: React.FC = () => {
       ref.current = layer;
     };
 
-    addLayer(stpAreaResult.cluster_layer, clusterLayerRef, '#f97316', 11, 'cluster', showClusterLayer);
-    addLayer(stpAreaResult.suitable_path, clusterPathLayerRef, '#22c55e', 12, 'clusterPath', showClusterPath);
+    addLayer(stpAreaResult.cluster_layer, clusterLayerRef, '#3b3b3b', 11, 'cluster', showClusterLayer);
+    addLayer(stpAreaResult.suitable_path, clusterPathLayerRef, '#3e006b', 11,'clusterPath', showClusterPath);
   }, [stpAreaResult, defaultWorkspace]);
 
   // Handle raster layer

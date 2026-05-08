@@ -1,12 +1,12 @@
 import { ReactNode } from "react";
 import "./globals.css";
-
+import "react-toastify/dist/ReactToastify.css";
 import Header from "@/components/app_layout/Header";
 import Footer from "@/components/app_layout/Footer";
 import Navbar from "@/components/app_layout/Navbar";
 import ClientWrapper from "@/components/ClientWrapper";
 
-import "react-toastify/dist/ReactToastify.css";
+
 
 interface RootLayoutProps {
   children: ReactNode;
