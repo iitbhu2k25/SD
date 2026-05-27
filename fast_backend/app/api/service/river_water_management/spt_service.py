@@ -68,6 +68,9 @@ class Stp_location:
     
     def get_drain_all(db:Session):
         return Stp_drain_crud(db).get_drains_all()
+
+    def get_drains_in_bbox(db:Session, min_lon:float, min_lat:float, max_lon:float, max_lat:float):
+        return Stp_drain_crud(db).get_drains_in_bbox(min_lon, min_lat, max_lon, max_lat)
     
     def get_drain_new(db:Session,stretch_id:list=None):
         return Stp_drain_new_crud(db).get_drains(stretch_id)

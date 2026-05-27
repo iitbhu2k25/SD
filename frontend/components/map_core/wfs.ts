@@ -9,9 +9,10 @@ interface WfsUrlOptions {
   layerName: string;
   srsName?: string;
   cqlFilter?: string | null;
+  bbox?: [number, number, number, number] | null;
 }
 
-interface WfsSourceOptions extends WfsUrlOptions {}
+type WfsSourceOptions = WfsUrlOptions;
 
 export function buildInClauseFilter(
   filterField: string | null | undefined,
@@ -37,6 +38,7 @@ export function buildWfsGetFeatureUrl(options: WfsUrlOptions): string {
     layerName,
     srsName = "EPSG:3857",
     cqlFilter,
+    bbox,
   } = options;
 
   const params = new URLSearchParams({
@@ -50,6 +52,11 @@ export function buildWfsGetFeatureUrl(options: WfsUrlOptions): string {
 
   if (cqlFilter) {
     params.set("CQL_FILTER", cqlFilter);
+  }
+
+  if (bbox) {
+    // Native WFS BBOX param — no geometry column name required
+    params.set("BBOX", `${bbox[1]},${bbox[0]},${bbox[3]},${bbox[2]},EPSG:4326`);
   }
 
   return `${geoServerUrl}/wfs?${params.toString()}`;

@@ -85,7 +85,10 @@ export const baseMaps: Record<string, BaseMapDefinition> = {
 export const HoverTooltip = ({ hoveredFeature, mousePosition }: { hoveredFeature: any; mousePosition: { x: number; y: number } }) => {
   if (!hoveredFeature) return null;
 
-  const featureName = hoveredFeature.get("name") || hoveredFeature.get("Name") || hoveredFeature.get("NAME") || hoveredFeature.get("area_ha");
+  const drainNo = hoveredFeature.get("Drain_No");
+  const featureName = drainNo != null
+    ? `Drain ${drainNo}`
+    : hoveredFeature.get("name") || hoveredFeature.get("Name") || hoveredFeature.get("NAME") || hoveredFeature.get("area_ha");
   
   return (
     <div 

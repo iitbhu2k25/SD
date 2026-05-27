@@ -10,9 +10,19 @@ export interface RightPanelSettings extends PanelSizeSettings {
   maxWidthPercent: number;
 }
 
+export interface BottomPanelSettings extends PanelSizeSettings {
+  heightOpen: string;
+  mobileHeightOpen: string;
+  heightClosed: string;
+  defaultOpen: boolean;
+  minHeightPercent: number;
+  maxHeightPercent: number;
+}
+
 export interface PanelSettings {
   left: PanelSizeSettings;
   right: RightPanelSettings;
+  bottom: BottomPanelSettings;
 }
 
 export const stpSuitabilityPanelSettings: PanelSettings = {
@@ -23,11 +33,22 @@ export const stpSuitabilityPanelSettings: PanelSettings = {
     defaultOpen: true,
   },
   right: {
-    widthOpen: "38%",
+    widthOpen: "25%",
     mobileWidthOpen: "min(24rem, calc(100vw - 4rem))",
     widthClosed: "0px",
-    defaultOpen: true,
+    defaultOpen: false,
     minWidthPercent: 25,
     maxWidthPercent: 45,
+  },
+  bottom: {
+    widthOpen: "0px",
+    mobileWidthOpen: "0px",
+    widthClosed: "0px",
+    heightOpen: "38%",
+    mobileHeightOpen: "min(20rem, 46vh)",
+    heightClosed: "3rem",
+    defaultOpen: false,
+    minHeightPercent: 22,
+    maxHeightPercent: 55,
   },
 };

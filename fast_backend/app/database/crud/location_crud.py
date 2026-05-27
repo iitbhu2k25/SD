@@ -109,6 +109,15 @@ class Stp_drain_crud(CrudBase):
         query=self.db.query(self.Model).order_by(sq.asc(self.Model.Drain_No))
         return self._pagination(query,all_data)
 
+    def get_drains_in_bbox(self, min_lon: float, min_lat: float, max_lon: float, max_lat: float, all_data: bool = True):
+        query = self.db.query(self.Model).filter(
+            self.Model.longitude >= min_lon,
+            self.Model.longitude <= max_lon,
+            self.Model.latitude >= min_lat,
+            self.Model.latitude <= max_lat,
+        ).order_by(sq.asc(self.Model.Drain_No))
+        return self._pagination(query, all_data)
+
 class Stp_drain_new_crud(CrudBase):
     def __init__(self,db:Session,Model=STP_Drain_suitability):
         super().__init__(db,Model)

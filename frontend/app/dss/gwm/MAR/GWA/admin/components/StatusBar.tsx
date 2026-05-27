@@ -28,7 +28,7 @@ export function StatusBar({
   const isStepEnabled = (stepId: number) => {
     if (stepId === 4) return enableGroundwaterDepth;
     if (stepId === 5) return enableTimeseriesAnalysis;
-    return true; // Steps 1, 2, and 3 are always enabled
+    return true;
   };
 
   const getStepStatus = (step: { id: number }) => {
@@ -95,7 +95,7 @@ export function StatusBar({
         </div>
 
         {/* Core vs Optional Steps Legend */}
-        <div className="flex justify-center space-x-8 text-xs text-gray-600 ">
+        <div className="flex justify-center space-x-8 text-xs text-gray-600">
           <div className="flex items-center space-x-1">
             <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
             <span>Core Steps (1-3)</span>

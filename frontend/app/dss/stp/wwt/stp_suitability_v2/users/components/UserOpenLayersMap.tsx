@@ -3,12 +3,13 @@
 import { useMemo } from "react";
 import OpenLayersWorkspace, {
   type WorkspaceLayerConfig,
-} from "../../shared/map/OpenLayersWorkspace";
+} from "../../components/OpenLayersWorkspace";
 import { useUserMapStore } from "../stores/userMapStore";
 import { useUserRiverStore } from "../stores/userRiverStore";
 
 export default function UserOpenLayersMap() {
   const displayRaster = useUserRiverStore((state) => state.displayRaster);
+  const selectionVectorLayer = useUserRiverStore((state) => state.selectionVectorLayer);
   const primaryLayer = useUserMapStore((state) => state.primaryLayer);
   const boundaryLayer = useUserMapStore((state) => state.boundaryLayer);
   const riverLayer = useUserMapStore((state) => state.riverLayer);
@@ -16,17 +17,22 @@ export default function UserOpenLayersMap() {
   const drainLayer = useUserMapStore((state) => state.drainLayer);
   const catchmentLayer = useUserMapStore((state) => state.catchmentLayer);
   const resultVectorLayer = useUserMapStore((state) => state.resultVectorLayer);
+  const resultPathVectorLayer = useUserMapStore((state) => state.resultPathVectorLayer);
   const riverFilter = useUserMapStore((state) => state.riverFilter);
   const stretchFilter = useUserMapStore((state) => state.stretchFilter);
   const drainFilter = useUserMapStore((state) => state.drainFilter);
   const catchmentFilter = useUserMapStore((state) => state.catchmentFilter);
   const selectedRadioLayer = useUserMapStore((state) => state.selectedRadioLayer);
   const rasterLayerInfo = useUserMapStore((state) => state.rasterLayerInfo);
+  const layerOpacity = useUserMapStore((state) => state.layerOpacity);
+  const showLegend = useUserMapStore((state) => state.showLegend);
   const handleLayerSelection = useUserMapStore((state) => state.handleLayerSelection);
   const setRasterLayerInfo = useUserMapStore((state) => state.setRasterLayerInfo);
+  const setLayerOpacity = useUserMapStore((state) => state.setLayerOpacity);
+  const setShowLegend = useUserMapStore((state) => state.setShowLegend);
 
   const activeFitTarget = useMemo(() => {
-    if (resultVectorLayer) {
+    if (resultVectorLayer || resultPathVectorLayer) {
       return "result";
     }
     if (catchmentLayer && catchmentFilter.filterValue && catchmentFilter.filterValue.length > 0) {
@@ -47,6 +53,7 @@ export default function UserOpenLayersMap() {
     catchmentLayer,
     drainFilter.filterValue,
     drainLayer,
+    resultPathVectorLayer,
     resultVectorLayer,
     riverFilter.filterValue,
     riverLayer,
@@ -128,15 +135,42 @@ export default function UserOpenLayersMap() {
         fitOnLoad: activeFitTarget === "catchment",
       },
       {
+        id: "selectionResult",
+        label: "Confirmed Catchments",
+        layerName:
+          selectionVectorLayer && selectionVectorLayer !== catchmentLayer
+            ? selectionVectorLayer
+            : null,
+        color: "#0f766e",
+        fillColor: "rgba(15, 118, 110, 0.10)",
+        zIndex: 15,
+        visibleByDefault: true,
+        toggleable: true,
+        fitOnLoad:
+          Boolean(selectionVectorLayer && selectionVectorLayer !== catchmentLayer) &&
+          activeFitTarget === "catchment",
+      },
+      {
         id: "result",
-        label: "Result Layer",
+        label: "Treatment Cluster",
         layerName: resultVectorLayer,
         color: "#9333ea",
         fillColor: "rgba(147, 51, 234, 0.12)",
-        zIndex: 20,
+        zIndex: 40,
         visibleByDefault: true,
         toggleable: true,
         fitOnLoad: activeFitTarget === "result",
+      },
+      {
+        id: "resultPath",
+        label: "Suitable Path",
+        layerName: resultPathVectorLayer,
+        color: "#16a34a",
+        fillColor: "transparent",
+        zIndex: 41,
+        visibleByDefault: true,
+        toggleable: true,
+        fitOnLoad: activeFitTarget === "result" && !resultVectorLayer,
       },
     ],
     [
@@ -147,9 +181,11 @@ export default function UserOpenLayersMap() {
       drainFilter,
       drainLayer,
       primaryLayer,
+      resultPathVectorLayer,
       resultVectorLayer,
       riverFilter,
       riverLayer,
+      selectionVectorLayer,
       stretchFilter,
       stretchLayer,
     ],
@@ -161,8 +197,12 @@ export default function UserOpenLayersMap() {
       rasterLayers={displayRaster}
       selectedRasterName={selectedRadioLayer}
       rasterLayerInfo={rasterLayerInfo}
+      layerOpacity={layerOpacity}
+      showLegend={showLegend}
       onSelectRasterLayer={handleLayerSelection}
       onSetRasterLayerInfo={setRasterLayerInfo}
+      onSetLayerOpacity={setLayerOpacity}
+      onSetShowLegend={setShowLegend}
       layerConfigs={layerConfigs}
     />
   );

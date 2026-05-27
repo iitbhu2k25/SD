@@ -8,6 +8,7 @@ interface AdminMapStoreState {
   primaryLayer: string;
   secondaryLayer: string | null;
   resultVectorLayer: string | null;
+  resultPathVectorLayer: string | null;
   layerFilter: string | null;
   layerFilterValue: number[] | null;
   stpOperation: boolean;
@@ -26,6 +27,7 @@ interface AdminMapStoreActions {
   setPrimaryLayer: (layer: string) => void;
   setSecondaryLayer: (layer: string | null) => void;
   setResultVectorLayer: (layer: string | null) => void;
+  setResultPathVectorLayer: (layer: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setLayerOpacity: (opacity: number) => void;
@@ -87,6 +89,7 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
   primaryLayer: ADMIN_TOWN_LAYER_NAMES.INDIA,
   secondaryLayer: null,
   resultVectorLayer: null,
+  resultPathVectorLayer: null,
   layerFilter: null,
   layerFilterValue: null,
   stpOperation: false,
@@ -101,14 +104,23 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
   geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   setPrimaryLayer: (primaryLayer) => set({ primaryLayer }),
   setSecondaryLayer: (secondaryLayer) => set({ secondaryLayer }),
-  setResultVectorLayer: (resultVectorLayer) => set({ resultVectorLayer }),
+  setResultVectorLayer: (resultVectorLayer) =>
+    set((state) =>
+      state.resultVectorLayer === resultVectorLayer ? state : { resultVectorLayer },
+    ),
+  setResultPathVectorLayer: (resultPathVectorLayer) =>
+    set((state) =>
+      state.resultPathVectorLayer === resultPathVectorLayer
+        ? state
+        : { resultPathVectorLayer },
+    ),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setLayerOpacity: (layerOpacity) => set({ layerOpacity }),
   setSelectedRadioLayer: (selectedRadioLayer) => set({ selectedRadioLayer }),
   setRasterLayerInfo: (rasterLayerInfo) => set({ rasterLayerInfo }),
   setShowLegend: (showLegend) => set({ showLegend }),
-  handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer }),
+  handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer, showLegend: true }),
   syncLayersWithLocation: () => {
     set({
       primaryLayer: ADMIN_TOWN_LAYER_NAMES.INDIA,
@@ -119,10 +131,11 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
   runAnalysis: async () => {
     const { selectedCondition, selectedConstraint, setTableData, setShowTable } =
       useAdminCategoryStore.getState();
-    const { selectedTowns, displayRaster, selectedVillages } = useAdminLocationStore.getState();
+    const { selectedTowns, displayRaster, selectedVillages, selectionVectorLayer } =
+      useAdminLocationStore.getState();
     const selectedCategories = [...selectedCondition, ...selectedConstraint];
 
-    if (selectedCategories.length === 0 || selectedTowns.length === 0) {
+    if (selectedCategories.length === 0 || selectedTowns.length === 0 || !selectionVectorLayer) {
       return;
     }
 
@@ -136,6 +149,7 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
       const result = await runAdminSuitabilityAnalysis({
         data: selectedCategories,
         clip: selectedTowns,
+        village_layer: selectionVectorLayer,
       });
 
       const suitabilityRaster: ClipRasters = {
@@ -187,6 +201,7 @@ export const useAdminMapStore = create<AdminMapStore>((set) => ({
       rasterLayerInfo: null,
       selectedRadioLayer: null,
       resultVectorLayer: null,
+      resultPathVectorLayer: null,
       showLegend: false,
       error: null,
       stpOperation: false,

@@ -16,6 +16,12 @@ interface TreatmentSubmitValues {
   customLand: number;
 }
 
+interface TechnologyAreaSubmitValues {
+  landPerMld: number;
+  mldCapacity: number;
+  technologyName: string;
+}
+
 export function useUserViewModel() {
   const conditionCategories = useUserCategoryStore((state) => state.conditionCategories);
   const constraintCategories = useUserCategoryStore((state) => state.constraintCategories);
@@ -50,6 +56,9 @@ export function useUserViewModel() {
   const selectionsLocked = useUserRiverStore((state) => state.selectionsLocked);
   const displayRaster = useUserRiverStore((state) => state.displayRaster);
   const selectedCatchments = useUserRiverStore((state) => state.selectedCatchments);
+  const selectedDrains = useUserRiverStore((state) => state.selectedDrains);
+  const catchmentLayerName = useUserRiverStore((state) => state.catchmentLayerName);
+  const allDrains = useUserRiverStore((state) => state.allDrains);
   // Keep these selection labels in state for report payloads even when the UI summary card is hidden.
   const selectedRiverName = useUserRiverStore((state) => state.selectedRiverName);
   const selectedStretchNames = useUserRiverStore((state) => state.selectedStretchNames);
@@ -59,7 +68,9 @@ export function useUserViewModel() {
   const riverError = useUserRiverStore((state) => state.error);
 
   const runAnalysis = useUserMapStore((state) => state.runAnalysis);
+  const rasterLayerInfo = useUserMapStore((state) => state.rasterLayerInfo);
   const setResultVectorLayer = useUserMapStore((state) => state.setResultVectorLayer);
+  const setResultPathVectorLayer = useUserMapStore((state) => state.setResultPathVectorLayer);
   const loading = useUserMapStore((state) => state.loading);
   const isMapLoading = useUserMapStore((state) => state.isMapLoading);
   const stpOperation = useUserMapStore((state) => state.stpOperation);
@@ -84,8 +95,8 @@ export function useUserViewModel() {
   const setTreatmentLoading = useUserUiStore((state) => state.setTreatmentLoading);
 
   const handleSubmit = async () => {
-    if (selectedCatchments.length < 1) {
-      toast.error("Please select and confirm at least one catchment", {
+    if (!catchmentLayerName || selectedDrains.length < 1) {
+      toast.error("Please select and confirm at least one drain", {
         position: "top-center",
       });
       return;
@@ -122,26 +133,88 @@ export function useUserViewModel() {
       return;
     }
 
+    const treatmentLocations = allDrains
+      .filter((drain) => selectedDrains.includes(Number(drain.id)))
+      .filter((drain) => Number.isFinite(Number(drain.latitude)) && Number.isFinite(Number(drain.longitude)))
+      .map((drain) => [Number(drain.latitude), Number(drain.longitude)] as [number, number]);
+
+    if (treatmentLocations.length === 0) {
+      toast.error("Selected drains do not have coordinates for treatment cluster search");
+      return;
+    }
+
     setSelectedAreaOption(selectedTechnology.id);
     setTreatmentLoading(true);
 
     try {
-      const vectorLayer = await findSuitabilityAreaCluster({
-        TREATMENT_TECHNOLOGY: selectedTechnology.id,
-        MLD_CAPACITY: mldCapacity,
-        CUSTOM_LAND_PER_MLD: customLand,
+      const areaResult = await findSuitabilityAreaCluster({
+        treatment_technology: Number(selectedTechnology.tech_value),
+        mld_capacity: mldCapacity,
+        custom_land_per_mld: customLand,
         layer_name: suitabilityLayer,
+        location: treatmentLocations,
       });
 
-      if (!vectorLayer) {
+      if (!areaResult.cluster_layer && !areaResult.suitable_path) {
         toast.error("No treatment cluster found for the current configuration");
         return;
       }
 
-      setResultVectorLayer(vectorLayer);
+      setResultVectorLayer(areaResult.cluster_layer);
+      setResultPathVectorLayer(areaResult.suitable_path);
       toast.success("Treatment cluster located");
     } catch (_error) {
       toast.error("Failed to find treatment cluster");
+    } finally {
+      setTreatmentLoading(false);
+    }
+  };
+
+  const handleTechnologyAreaSubmit = async ({
+    landPerMld,
+    mldCapacity,
+    technologyName,
+  }: TechnologyAreaSubmitValues) => {
+    const suitabilityLayer =
+      rasterLayerInfo?.layer_name ??
+      displayRaster.find((option) => option.file_name === "STP_Suitability")?.layer_name;
+
+    if (!suitabilityLayer) {
+      toast.error("Run suitability analysis before finding treatment areas");
+      return;
+    }
+
+    const treatmentLocations = allDrains
+      .filter((drain) => selectedDrains.includes(Number(drain.id)))
+      .filter((drain) => Number.isFinite(Number(drain.latitude)) && Number.isFinite(Number(drain.longitude)))
+      .map((drain) => [Number(drain.latitude), Number(drain.longitude)] as [number, number]);
+
+    if (treatmentLocations.length === 0) {
+      toast.error("Selected drains do not have coordinates for treatment area analysis");
+      return;
+    }
+
+    setTreatmentLoading(true);
+
+    try {
+      const areaResult = await findSuitabilityAreaCluster({
+        treatment_technology: landPerMld,
+        mld_capacity: mldCapacity,
+        custom_land_per_mld: 2,
+        layer_name: suitabilityLayer,
+        location: treatmentLocations,
+      });
+
+      if (!areaResult.cluster_layer && !areaResult.suitable_path) {
+        toast.error("No treatment area layer found for the selected technology");
+        return;
+      }
+
+      setResultVectorLayer(areaResult.cluster_layer);
+      setResultPathVectorLayer(areaResult.suitable_path);
+      toast.success(`Area analysis completed for ${technologyName}`);
+    } catch (_error) {
+      toast.error("Failed to run treatment area analysis");
     } finally {
       setTreatmentLoading(false);
     }
@@ -210,6 +283,7 @@ export function useUserViewModel() {
     isRightPanelOpen,
     reportLoading,
     treatmentLoading,
+    canFindTechnologyArea: Boolean(rasterLayerInfo),
     isPdfGenerating,
     showPdfStatus,
     taskId,
@@ -228,6 +302,7 @@ export function useUserViewModel() {
     failPdfGeneration,
     handleSubmit,
     handleTreatmentSubmit,
+    handleTechnologyAreaSubmit,
     handleReport,
   };
 }

@@ -5,6 +5,7 @@ import uuid
 import tempfile
 import os
 import geopandas as gpd
+import pandas as pd
 from app.api.service.geoserver_svc.geoserver import Geoserver
 import networkx as nx
 from pyproj import Transformer
@@ -138,6 +139,24 @@ class STP_Area:
         kernel_size, required_pixels = self._calculate_required_pixels(req_m2, rx, ry)
         suitable_mask = self._find_suitable_areas(threshold_mask, kernel_size, required_pixels)
         clusters_gdf = self._extract_clusters_as_polygons(suitable_mask, transform, crs)
+
+        # If strict kernel filter yields fewer than 10 clusters, supplement with all
+        # connected suitable regions (threshold only, no kernel) sorted by area descending
+        if len(clusters_gdf) < 10:
+            all_clusters_gdf = self._extract_clusters_as_polygons(threshold_mask, transform, crs)
+            if not all_clusters_gdf.empty:
+                # Keep only clusters not already covered by the strict set (union them)
+                existing_ids = set(clusters_gdf.index) if not clusters_gdf.empty else set()
+                # Sort all by area desc, take top 30 as candidate pool
+                all_clusters_gdf = all_clusters_gdf.sort_values("area_ha", ascending=False).head(30)
+                if clusters_gdf.empty:
+                    clusters_gdf = all_clusters_gdf
+                else:
+                    clusters_gdf = gpd.GeoDataFrame(
+                        pd.concat([clusters_gdf, all_clusters_gdf], ignore_index=True),
+                        crs=crs
+                    ).drop_duplicates(subset=["cluster_id"]).reset_index(drop=True)
+
         if clusters_gdf.empty:
             raise CustomException(status_code=404, detail="Suitable area not found")
         temp_cluster_path=Settings().TEMP_DIR+"/temp_cluster.shp"
@@ -173,7 +192,10 @@ class STP_Area:
                 d = row._asdict()
                 d["mean_elev"] = m
                 out.append(d)
-        return gpd.GeoDataFrame(out, crs=gdf.crs) 
+        if not out:
+            return gpd.GeoDataFrame(geometry=[], crs=gdf.crs)
+        geoms = [d.pop("geometry") for d in out]
+        return gpd.GeoDataFrame(out, geometry=geoms, crs=gdf.crs)
     
     def _build_graph(self,crs):
         roads=gpd.read_file(self.road_path).to_crs(crs)
@@ -222,6 +244,9 @@ class STP_Area:
         except:
             return None
     def _make_graph_path(self,G:nx.Graph,clusters:gpd.GeoDataFrame,longitude:float,latitude:float,crs:str):
+        if clusters.empty:
+            return clusters, None
+
         transformer = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
         src = transformer.transform(longitude, latitude)
         dists, road_lines = [], []
@@ -239,45 +264,135 @@ class STP_Area:
                 dists.append(rline.length)
 
         dists = np.array(dists)
-        dists[np.isnan(dists)] = np.nanmax(dists)
-        clusters["score"] = (dists - dists.min()) / (dists.max() - dists.min() + 1e-9)
-        TOP_N = 3
-        final = clusters.sort_values("score").head(TOP_N)
-        clean_lines = [g for g in road_lines if g is not None and not g.is_empty]
-        clean_path=None
-        if len(clean_lines) > 0:
-            clean_path = gpd.GeoDataFrame(geometry=clean_lines, crs=crs)
-        return final,clean_path
-    
+        valid_dists = dists[~np.isnan(dists)]
+        if len(valid_dists) == 0:
+            clusters = clusters.copy()
+            clusters["score"] = 0.0
+            final = clusters.sort_values("area_ha", ascending=False).head(1)
+            return final, None
+
+        dists[np.isnan(dists)] = valid_dists.max()
+        clusters = clusters.copy()
+        clusters["_iter_pos"] = range(len(clusters))
+        clusters["score"] = dists
+        best_row = clusters.sort_values("score").iloc[0]
+        final = clusters.sort_values("score").head(1).drop(columns=["_iter_pos"])
+        best_pos = int(best_row["_iter_pos"])
+        best_line = road_lines[best_pos] if best_pos < len(road_lines) else None
+        clean_path = None
+        if best_line is not None and not best_line.is_empty:
+            clean_path = gpd.GeoDataFrame(geometry=[best_line], crs=crs)
+        return final, clean_path
+
+    def _top10_nearest_with_drain_distances(
+        self,
+        clusters: gpd.GeoDataFrame,
+        crs: str,
+        longitude: float,
+        latitude: float,
+        drain_points: list,  # [{"Drain_No": int, "latitude": float, "longitude": float}]
+        num_clusters: int = 10,
+    ) -> tuple:
+        """Return top N clusters nearest to polygon centroid (straight-line),
+        and for each cluster compute road network distance to every drain
+        (falls back to straight-line if no road path exists).
+        """
+        if clusters.empty:
+            return clusters, []
+
+        transformer = Transformer.from_crs("EPSG:4326", crs, always_xy=True)
+        src_x, src_y = transformer.transform(longitude, latitude)
+        src_pt = np.array([src_x, src_y])
+
+        # Straight-line distance from each cluster centroid to polygon centroid (for ranking only)
+        centroids = np.array([(row.geometry.centroid.x, row.geometry.centroid.y)
+                               for row in clusters.itertuples()])
+        dists_to_polygon = np.linalg.norm(centroids - src_pt, axis=1)
+
+        clusters = clusters.copy()
+        clusters["dist_to_polygon_m"] = dists_to_polygon
+        top10 = clusters.sort_values("dist_to_polygon_m").head(num_clusters).reset_index(drop=True)
+        top10["rank"] = range(1, len(top10) + 1)
+
+        # Build road graph once — reused for all cluster→drain distance calculations
+        G = self._build_graph(crs)
+
+        # Pre-project all drain points to UTM
+        drain_pts_utm = []
+        for dp in drain_points:
+            dx, dy = transformer.transform(dp["longitude"], dp["latitude"])
+            drain_pts_utm.append({"Drain_No": dp["Drain_No"], "x": dx, "y": dy})
+
+        # For each of the top N clusters, compute road network distance to each drain
+        cluster_drain_distances = []
+        for rank, row in enumerate(top10.itertuples(), start=1):
+            c = row.geometry.centroid
+            c_src = (c.x, c.y)
+            c_arr = np.array([c.x, c.y])
+
+            drain_dists = []
+            for dp in drain_pts_utm:
+                d_tgt = (dp["x"], dp["y"])
+                d_arr = np.array([dp["x"], dp["y"]])
+
+                # Try road network distance first
+                road_line = self._road_path(G, c_src, d_tgt)
+                if road_line is not None and not road_line.is_empty:
+                    dist_m = float(road_line.length)
+                else:
+                    # Fall back to straight-line if no road path found
+                    dist_m = float(np.linalg.norm(c_arr - d_arr))
+
+                drain_dists.append({"Drain_No": dp["Drain_No"], "distance_m": round(dist_m, 1)})
+
+            cluster_drain_distances.append({
+                "cluster_rank": rank,
+                "area_ha": round(float(row.area_ha), 4),
+                "dist_to_polygon_m": round(float(row.dist_to_polygon_m), 1),
+                "drains": drain_dists,
+            })
+
+        return top10, cluster_drain_distances
+
     def _find_suitable_path(self,clusters:gpd.GeoDataFrame,crs:str,location:list):
         longitude, latitude =self._centroid_location(location)
         elev, etrans, ref = self._read_elevation(longitude, latitude)
-        clusters = self._filter_by_elevation(clusters, elev, etrans, ref)
+        filtered = self._filter_by_elevation(clusters, elev, etrans, ref)
+        # if elevation filter removes everything, fall back to all clusters
+        if filtered.empty:
+            filtered = clusters
         G = self._build_graph(crs)
-        return self._make_graph_path(G,clusters,longitude, latitude, crs)
+        return self._make_graph_path(G, filtered, longitude, latitude, crs)
        
 
     
 
-@app.task(bind=True,name='find_suitable_area',pydantic=True)  
-def find_suitable_area(self, treatment_technology:float,mld_capacity:float,custom_land_per_mld: float, layer_name:str,location:list):
+@app.task(bind=True,name='find_suitable_area',pydantic=True)
+def find_suitable_area(self, treatment_technology:float,mld_capacity:float,custom_land_per_mld: float, layer_name:str,location:list, drain_points:list=None, num_clusters:int=10):
     try:
         stp_areas=STP_Area()
         task_id=self.request.id
         celery_task_update(task_id=task_id,status="started")
-        cluster_gdf ,crs= stp_areas._find_suitable_cluster(mld_capacity,treatment_technology,custom_land_per_mld,layer_name)
+        cluster_gdf, crs = stp_areas._find_suitable_cluster(mld_capacity,treatment_technology,custom_land_per_mld,layer_name)
         celery_task_update(task_id=task_id,status="running",progress=40)
-        final_cluster,road_path=stp_areas._find_suitable_path(cluster_gdf,crs,location)
+
+        longitude, latitude = stp_areas._centroid_location(location)
+
+        # Find top clusters nearest to polygon centroid + road network drain distances
+        top_gdf, cluster_drain_distances = stp_areas._top10_nearest_with_drain_distances(
+            cluster_gdf, crs, longitude, latitude, drain_points or [], num_clusters=num_clusters
+        )
         celery_task_update(task_id=task_id,status="running",progress=80)
-        final_cluster_name,road_path_name=None,None
-        if final_cluster is not None:
-            final_cluster_name=Unique_name.unique_name("final_cluster")
-            stp_areas._temporory_vector(final_cluster,final_cluster_name)
-        if road_path is not None:
-            road_path_name=Unique_name.unique_name("road_path")
-            stp_areas._temporory_vector(road_path,road_path_name)
-        
-        celery_task_update(task_id=task_id,status="completed",progress=100,layer_name=final_cluster_name,result_path=road_path_name)
+
+        final_cluster_name = None
+        if top_gdf is not None and not top_gdf.empty:
+            final_cluster_name = Unique_name.unique_name("final_cluster")
+            stp_areas._temporory_vector(top_gdf, final_cluster_name)
+
+        # Store cluster_drain_distances as JSON in result_path field
+        distances_json = json.dumps(cluster_drain_distances) if cluster_drain_distances else None
+
+        celery_task_update(task_id=task_id,status="completed",progress=100,layer_name=final_cluster_name,result_path=distances_json)
     except:
         celery_task_update(task_id=task_id,status="failed",progress=100)
         

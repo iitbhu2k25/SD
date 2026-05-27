@@ -17,6 +17,7 @@ interface UserMapStoreState {
   catchmentLayer: string | null;
   boundaryLayer: string | null;
   resultVectorLayer: string | null;
+  resultPathVectorLayer: string | null;
   riverFilter: LayerFilter;
   stretchFilter: LayerFilter;
   drainFilter: LayerFilter;
@@ -42,6 +43,7 @@ interface UserMapStoreActions {
   setDrainLayer: (layer: string | null) => void;
   setCatchmentLayer: (layer: string | null) => void;
   setResultVectorLayer: (layer: string | null) => void;
+  setResultPathVectorLayer: (layer: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setLayerOpacity: (opacity: number) => void;
@@ -64,6 +66,7 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
   catchmentLayer: DRAIN_LAYER_NAMES.CATCHMENT,
   boundaryLayer: DRAIN_LAYER_NAMES.BOUNDARY,
   resultVectorLayer: null,
+  resultPathVectorLayer: null,
   riverFilter: { filterField: null, filterValue: null },
   stretchFilter: { filterField: null, filterValue: null },
   drainFilter: { filterField: null, filterValue: null },
@@ -85,14 +88,23 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
   setStretchLayer: (stretchLayer) => set({ stretchLayer }),
   setDrainLayer: (drainLayer) => set({ drainLayer }),
   setCatchmentLayer: (catchmentLayer) => set({ catchmentLayer }),
-  setResultVectorLayer: (resultVectorLayer) => set({ resultVectorLayer }),
+  setResultVectorLayer: (resultVectorLayer) =>
+    set((state) =>
+      state.resultVectorLayer === resultVectorLayer ? state : { resultVectorLayer },
+    ),
+  setResultPathVectorLayer: (resultPathVectorLayer) =>
+    set((state) =>
+      state.resultPathVectorLayer === resultPathVectorLayer
+        ? state
+        : { resultPathVectorLayer },
+    ),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setLayerOpacity: (layerOpacity) => set({ layerOpacity }),
   setSelectedRadioLayer: (selectedRadioLayer) => set({ selectedRadioLayer }),
   setRasterLayerInfo: (rasterLayerInfo) => set({ rasterLayerInfo }),
   setShowLegend: (showLegend) => set({ showLegend }),
-  handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer }),
+  handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer, showLegend: true }),
   syncLayersWithRiverSystem: () => {
     const {
       selectedRiver,
@@ -152,10 +164,18 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
   runAnalysis: async () => {
     const { selectedCondition, selectedConstraint, setTableData, setShowTable } =
       useUserCategoryStore.getState();
-    const { selectedCatchments, selectedDrains, displayRaster } = useUserRiverStore.getState();
+    const {
+      selectedCatchments,
+      selectedDrains,
+      displayRaster,
+      selectionVectorLayer,
+      catchmentLayerName,
+    } =
+      useUserRiverStore.getState();
     const selectedCategories = [...selectedCondition, ...selectedConstraint];
+    const analysisVectorLayer = catchmentLayerName ?? selectionVectorLayer;
 
-    if (selectedCategories.length === 0 || selectedCatchments.length === 0) {
+    if (selectedCategories.length === 0 || selectedDrains.length === 0 || !analysisVectorLayer) {
       return;
     }
 
@@ -171,6 +191,7 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
         clip: selectedCatchments,
         place: "Drain",
         drain_clip: selectedDrains,
+        village_layer: analysisVectorLayer,
       });
 
       const suitabilityRaster: ClipRasters = {
@@ -221,6 +242,7 @@ export const useUserMapStore = create<UserMapStore>((set) => ({
       rasterLayerInfo: null,
       selectedRadioLayer: null,
       resultVectorLayer: null,
+      resultPathVectorLayer: null,
       showLegend: false,
       error: null,
       stpOperation: false,

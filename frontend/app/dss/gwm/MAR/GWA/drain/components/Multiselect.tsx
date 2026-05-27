@@ -27,67 +27,79 @@ export const MultiSelect = <T extends WithIdName>({
 }: MultiSelectProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const allItemIds = items.map(item => item.id);
-  const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
-  // Scroll position preservation
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const savedScrollTop = useRef(0);
+
+  const allSelected = items.length > 0 && selectedItems.length === items.length;
 
   const filteredItems = items.filter(item =>
     displayPattern(item).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const calculateDropdownPosition = () => {
+  const calculateDropdownStyle = () => {
     if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = 300;
+    const spaceBelow = window.innerHeight - rect.bottom;
 
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const dropdownHeight = 240;
-
-    const spaceBelow = viewportHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
-
-    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-      setDropdownPosition('top');
+    if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+      setDropdownStyle({
+        position: 'fixed',
+        bottom: window.innerHeight - rect.top,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 99999,
+      });
     } else {
-      setDropdownPosition('bottom');
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 2,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 99999,
+      });
     }
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    const handler = (e: MouseEvent) => {
+      if (
+        containerRef.current && !containerRef.current.contains(e.target as Node) &&
+        listRef.current && !listRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery('');
-      setDropdownPosition('bottom');
-    }
+    if (!isOpen) { setSearchQuery(''); return; }
+    calculateDropdownStyle();
+    const onScrollOrResize = () => calculateDropdownStyle();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
   }, [isOpen]);
 
   const toggleDropdown = () => {
     if (!disabled) {
-      setIsOpen(!isOpen);
-      calculateDropdownPosition();
+      if (!isOpen) calculateDropdownStyle();
+      setIsOpen(v => !v);
     }
   };
 
   const handleSelectAll = () => {
-    if (allSelected) {
-      onSelectionChange([]);
-    } else {
-      onSelectionChange([...allItemIds]);
-    }
+    onSelectionChange(allSelected ? [] : items.map(i => i.id));
   };
 
   const handleItemSelect = (itemId: number | string) => {
@@ -108,23 +120,16 @@ export const MultiSelect = <T extends WithIdName>({
     return `${selectedItems.length} ${label}s selected`;
   };
 
-  const getDropdownClasses = () => {
-    const baseClasses = "absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto";
-    return dropdownPosition === 'top' ? `${baseClasses} bottom-full mb-1` : `${baseClasses} top-full mt-1`;
-  };
-
-  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const onListScroll = (e: React.UIEvent<HTMLDivElement>) => {
     savedScrollTop.current = e.currentTarget.scrollTop;
   };
 
   useEffect(() => {
-    if (dropdownRef.current) {
-      dropdownRef.current.scrollTop = savedScrollTop.current;
-    }
+    if (listRef.current) listRef.current.scrollTop = savedScrollTop.current;
   }, [filteredItems, selectedItems]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={containerRef}>
       <label className="block text-sm font-semibold text-gray-700 mb-2">{label}:</label>
       <div
         ref={triggerRef}
@@ -132,14 +137,14 @@ export const MultiSelect = <T extends WithIdName>({
         onClick={toggleDropdown}
       >
         <span className={selectedItems.length === 0 ? 'text-gray-400' : ''}>{getDisplayText()}</span>
-        <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
         </svg>
       </div>
 
       {isOpen && !disabled && (
-        <div className={getDropdownClasses()} onScroll={onScroll}>
-          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white">
+        <div style={dropdownStyle} className="bg-white border border-gray-300 rounded-md shadow-xl">
+          <div className="sticky top-0 p-2 border-b border-gray-200 bg-white z-10">
             <div className="relative">
               <input
                 ref={searchInputRef}
@@ -147,16 +152,14 @@ export const MultiSelect = <T extends WithIdName>({
                 placeholder={`Search ${label}s...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={(e) => e.stopPropagation()}
+                autoFocus
               />
               {searchQuery && (
                 <button
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSearchQuery('');
-                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -166,35 +169,36 @@ export const MultiSelect = <T extends WithIdName>({
             </div>
           </div>
 
-          <div
-            className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${allSelected ? 'bg-blue-50' : ''}`}
-            onClick={handleSelectAll}
-          >
-            <input type="checkbox" checked={allSelected} onChange={handleSelectAll} className="mr-2" />
-            All {label}s
-          </div>
-
-          {filteredItems.length === 0 && (
-            <div className="p-3 text-center text-gray-500">
-              No {label}s found matching "{searchQuery}"
-            </div>
-          )}
-
-          {filteredItems.map(item => (
+          <div ref={listRef} className="max-h-60 overflow-y-auto" onScroll={onListScroll}>
             <div
-              key={item.id}
-              className={`p-2 hover:bg-blue-100 cursor-pointer ${selectedItems.includes(item.id) ? 'bg-blue-50' : ''}`}
-              onClick={() => handleItemSelect(item.id)}
+              className={`p-2 hover:bg-blue-100 cursor-pointer border-b border-gray-200 font-medium ${allSelected ? 'bg-blue-50' : ''}`}
+              onClick={handleSelectAll}
             >
-              <input
-                type="checkbox"
-                checked={selectedItems.includes(item.id)}
-                onChange={() => handleItemSelect(item.id)}
-                className="mr-2"
-              />
-              {displayPattern(item)}
+              <input type="checkbox" checked={allSelected} onChange={handleSelectAll} className="mr-2" onClick={e => e.stopPropagation()} />
+              All {label}s
             </div>
-          ))}
+
+            {filteredItems.length === 0 && (
+              <div className="p-3 text-center text-gray-500">No {label}s found matching "{searchQuery}"</div>
+            )}
+
+            {filteredItems.map(item => (
+              <div
+                key={item.id}
+                className={`p-2 hover:bg-blue-100 cursor-pointer ${selectedItems.includes(item.id) ? 'bg-blue-50' : ''}`}
+                onClick={() => handleItemSelect(item.id)}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedItems.includes(item.id)}
+                  onChange={() => handleItemSelect(item.id)}
+                  className="mr-2"
+                  onClick={e => e.stopPropagation()}
+                />
+                {displayPattern(item)}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

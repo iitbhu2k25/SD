@@ -1,128 +1,153 @@
 "use client";
 
-import React, { useState } from "react";
-
-// Types
-type ViewType = "admin" | "user";
-
-interface ModernSwitchProps {
-  leftLabel: string;
-  rightLabel: string;
-  value: ViewType;
-  onChange: (value: ViewType) => void;
-}
-
+import React, { useCallback, useEffect, useState } from "react";
+import { StatusBar } from "./admin/components/StatusBar";
 import GroundwaterAssessmentAdmin from "./admin/page";
 import GroundwaterAssessmentDrain from "./drain/page";
 
+type GwaMode = "admin" | "drain";
 
-const ModernSwitch: React.FC<ModernSwitchProps> = ({
-  leftLabel,
-  rightLabel,
-  value,
-  onChange,
-}) => {
-  const handleToggle = (): void => {
-    onChange(value === "admin" ? "user" : "admin");
+export default function GroundwaterAssessmentPage() {
+  const [mode, setMode] = useState<GwaMode>("admin");
+  const [activeStep, setActiveStep] = useState<number>(1);
+  const [enableGroundwaterDepth, setEnableGroundwaterDepth] = useState<boolean>(false);
+  const [enableTimeseriesAnalysis, setEnableTimeseriesAnalysis] = useState<boolean>(false);
+  const [selectionsLocked, setSelectionsLocked] = useState<boolean>(false);
+
+  const handleLockedChange = useCallback((locked: boolean) => {
+    setSelectionsLocked(locked);
+  }, []);
+
+  const handleModeChange = (newMode: GwaMode) => {
+    setMode(newMode);
+    setActiveStep(1);
+    setEnableGroundwaterDepth(false);
+    setEnableTimeseriesAnalysis(false);
+    setSelectionsLocked(false);
+  };
+
+  const getAvailableSteps = () => {
+    const steps = [1, 2, 3];
+    if (enableGroundwaterDepth) steps.push(4);
+    if (enableTimeseriesAnalysis) steps.push(5);
+    return steps.sort();
+  };
+  const availableSteps = getAvailableSteps();
+  const isFirstStep = activeStep === availableSteps[0];
+  const isLastStep = activeStep === availableSteps[availableSteps.length - 1];
+
+  const handleNext = () => {
+    if (activeStep === 1 && !selectionsLocked) return;
+    const idx = availableSteps.indexOf(activeStep);
+    if (idx < availableSteps.length - 1) setActiveStep(availableSteps[idx + 1]);
+  };
+  const handlePrevious = () => {
+    const idx = availableSteps.indexOf(activeStep);
+    if (idx > 0) setActiveStep(availableSteps[idx - 1]);
+  };
+
+  const sharedProps = {
+    activeStep,
+    enableGroundwaterDepth,
+    enableTimeseriesAnalysis,
+    onSelectionsLockedChange: handleLockedChange,
+    onModeChange: handleModeChange,
+    currentMode: mode,
   };
 
   return (
-    <div className="flex items-center space-x-4">
-      <span
-        className={`text-xl font-medium transition-colors ${value === "admin" ? "text-blue-600" : "text-gray-500"
-          }`}
-      >
-        {leftLabel}
-      </span>
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* StatusBar */}
+      <div className="flex-shrink-0">
+        <StatusBar
+          activeStep={activeStep}
+          onNext={handleNext}
+          onPrevious={handlePrevious}
+          enableGroundwaterDepth={enableGroundwaterDepth}
+          enableTimeseriesAnalysis={enableTimeseriesAnalysis}
+        />
+      </div>
 
-      <div
-        className="relative w-20 h-10 bg-gray-200 rounded-full cursor-pointer transition-all duration-300 hover:bg-gray-300"
-        onClick={handleToggle}
-        role="switch"
-        aria-checked={value === "user"}
-        tabIndex={0}
-        onKeyDown={(e: React.KeyboardEvent) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleToggle();
-          }
-        }}
-      >
-        <div
-          className={`absolute top-1 left-1 w-8 h-8 rounded-full shadow-lg transition-all duration-300 ease-in-out transform ${value === "user" ? "translate-x-10 bg-green-500" : "bg-blue-500"
-            }`}
-        >
-          <div className="flex items-center justify-center w-full h-full">
-            {value === "admin" ? (
-              <svg
-                className="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            ) : (
-              <svg
-                className="w-4 h-4 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            )}
-          </div>
+      {/* Optional Analysis Steps bar */}
+      <div className="flex-shrink-0 bg-white mx-2 sm:mx-3 mt-2 rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-blue-500">
+        <h4 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Optional Analysis Steps</h4>
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-6">
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableGroundwaterDepth}
+              onChange={(e) => {
+                setEnableGroundwaterDepth(e.target.checked);
+                if (!e.target.checked && activeStep === 4) setActiveStep(3);
+              }}
+              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Groundwater Depth Analysis</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enableTimeseriesAnalysis}
+              onChange={(e) => {
+                setEnableTimeseriesAnalysis(e.target.checked);
+                if (!e.target.checked && activeStep === 5) {
+                  const base = [1, 2, 3];
+                  if (enableGroundwaterDepth) base.push(4);
+                  setActiveStep(Math.max(...base));
+                }
+              }}
+              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Timeseries Analysis and Forecasting</span>
+          </label>
         </div>
       </div>
 
-      <span
-        className={`text-xl font-medium transition-colors ${value === "user" ? "text-green-600" : "text-gray-500"
-          }`}
-      >
-        {rightLabel}
-      </span>
-    </div>
-  );
-};
+      {/* Module (PageLayout lives inside admin/drain) */}
+      <div className="flex-1 min-h-0">
+        {mode === "admin"
+          ? <GroundwaterAssessmentAdmin {...sharedProps} />
+          : <GroundwaterAssessmentDrain {...sharedProps} />
+        }
+      </div>
 
-const GroundwaterAssessmentPage: React.FC = () => {
-  const [activeView, setActiveView] = useState<ViewType>("admin");
-
-  const handleViewChange = (newView: ViewType): void => {
-    setActiveView(newView);
-  };
-
-  return (
-    <div className="flex flex-col min-h-screen">
-      <header className="grid grid-cols-2 w-full bg-gradient-to-r from-blue-500 to-blue-200 text-white py-6 shadow-lg">
-        <div className="container mx-auto px-4">
-          <h1 className="text-5xl font-bold">Ground Water Assessment</h1>
+      {/* Bottom navigation bar */}
+      <div className="flex-shrink-0 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handlePrevious}
+            disabled={isFirstStep}
+            className={[
+              "inline-flex items-center gap-1.5 font-medium text-sm rounded-full py-2 px-4 transition-all duration-200",
+              isFirstStep
+                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400",
+            ].join(" ")}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline">Previous Step</span>
+            <span className="sm:hidden">Prev</span>
+          </button>
+          <button
+            onClick={handleNext}
+            disabled={isLastStep || (activeStep === 1 && !selectionsLocked)}
+            className={[
+              "inline-flex items-center gap-1.5 font-medium text-sm rounded-full py-2 px-4 transition-all duration-200",
+              isLastStep || (activeStep === 1 && !selectionsLocked)
+                ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400",
+            ].join(" ")}
+          >
+            <span className="hidden sm:inline">Next Step</span>
+            <span className="sm:hidden">Next</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
-        <div className="flex justify-center w-full items-center font-medium">
-          <ModernSwitch
-            leftLabel="Admin"
-            rightLabel="Drain"
-            value={activeView}
-            onChange={handleViewChange}
-          />
-        </div>
-      </header>
-
-      <div className="transition-all duration-500 ease-in-out">
-        {activeView === "admin" && <GroundwaterAssessmentAdmin />}
-        {activeView === "user" && <GroundwaterAssessmentDrain />}
       </div>
     </div>
   );
-};
-
-export default GroundwaterAssessmentPage;
+}

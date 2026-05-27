@@ -4469,7 +4469,7 @@ class CSVUploadService:
             settings = Settings()
             temp_dir = settings.TEMP_DIR
             print(temp_dir)
-           
+            os.makedirs(temp_dir, exist_ok=True)
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             unique_id = str(uuid.uuid4())[:8]

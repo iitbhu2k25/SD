@@ -16,6 +16,12 @@ interface TreatmentSubmitValues {
   customLand: number;
 }
 
+interface TechnologyAreaSubmitValues {
+  landPerMld: number;
+  mldCapacity: number;
+  technologyName: string;
+}
+
 export function useAdminViewModel() {
   const conditionCategories = useAdminCategoryStore((state) => state.conditionCategories);
   const constraintCategories = useAdminCategoryStore((state) => state.constraintCategories);
@@ -58,12 +64,17 @@ export function useAdminViewModel() {
   const selectedTownsNames = useAdminLocationStore((state) => state.selectedTownsNames);
   const selectedVillages = useAdminLocationStore((state) => state.selectedVillages);
   const selectedTowns = useAdminLocationStore((state) => state.selectedTowns);
+  const allTowns = useAdminLocationStore((state) => state.allTowns);
   const totalPopulation = useAdminLocationStore((state) => state.totalPopulation);
   const locationLoading = useAdminLocationStore((state) => state.isLoading);
   const locationError = useAdminLocationStore((state) => state.error);
 
   const runAnalysis = useAdminMapStore((state) => state.runAnalysis);
+  const rasterLayerInfo = useAdminMapStore((state) => state.rasterLayerInfo);
   const setResultVectorLayer = useAdminMapStore((state) => state.setResultVectorLayer);
+  const setResultPathVectorLayer = useAdminMapStore(
+    (state) => state.setResultPathVectorLayer,
+  );
   const loading = useAdminMapStore((state) => state.loading);
   const isMapLoading = useAdminMapStore((state) => state.isMapLoading);
   const stpOperation = useAdminMapStore((state) => state.stpOperation);
@@ -126,26 +137,90 @@ export function useAdminViewModel() {
       return;
     }
 
+    const treatmentLocations = allTowns
+      .filter((town) => selectedTowns.includes(Number(town.id)))
+      .filter((town) => Number.isFinite(Number(town.latitude)) && Number.isFinite(Number(town.longitude)))
+      .map((town) => [Number(town.latitude), Number(town.longitude)] as [number, number]);
+
+    if (treatmentLocations.length === 0) {
+      toast.error("Selected towns do not have coordinates for treatment cluster search");
+      return;
+    }
+
     setSelectedAreaOption(selectedTechnology.id);
     setTreatmentLoading(true);
 
     try {
-      const vectorLayer = await findSuitabilityAreaCluster({
-        TREATMENT_TECHNOLOGY: selectedTechnology.id,
-        MLD_CAPACITY: mldCapacity,
-        CUSTOM_LAND_PER_MLD: customLand,
+      const areaResult = await findSuitabilityAreaCluster({
+        treatment_technology: Number(selectedTechnology.tech_value),
+        mld_capacity: mldCapacity,
+        custom_land_per_mld: customLand,
         layer_name: suitabilityLayer,
+        location: treatmentLocations,
       });
 
-      if (!vectorLayer) {
+      if (!areaResult.cluster_layer && !areaResult.suitable_path) {
         toast.error("No treatment cluster found for the current configuration");
         return;
       }
 
-      setResultVectorLayer(vectorLayer);
+      setResultVectorLayer(areaResult.cluster_layer);
+      setResultPathVectorLayer(areaResult.suitable_path);
       toast.success("Treatment cluster located");
     } catch (_error) {
       toast.error("Failed to find treatment cluster");
+    } finally {
+      setTreatmentLoading(false);
+    }
+  };
+
+  const handleTechnologyAreaSubmit = async ({
+    landPerMld,
+    mldCapacity,
+    technologyName,
+  }: TechnologyAreaSubmitValues) => {
+    const suitabilityLayer =
+      rasterLayerInfo?.layer_name ??
+      displayRaster.find((option) => option.file_name === "STP_Suitability")?.layer_name;
+
+    if (!suitabilityLayer) {
+      toast.error("Run suitability analysis before finding treatment areas");
+      return false;
+    }
+
+    const treatmentLocations = allTowns
+      .filter((town) => selectedTowns.includes(Number(town.id)))
+      .filter((town) => Number.isFinite(Number(town.latitude)) && Number.isFinite(Number(town.longitude)))
+      .map((town) => [Number(town.latitude), Number(town.longitude)] as [number, number]);
+
+    if (treatmentLocations.length === 0) {
+      toast.error("Selected towns do not have coordinates for treatment area analysis");
+      return false;
+    }
+
+    setTreatmentLoading(true);
+
+    try {
+      const areaResult = await findSuitabilityAreaCluster({
+        treatment_technology: landPerMld,
+        mld_capacity: mldCapacity,
+        custom_land_per_mld: 2,
+        layer_name: suitabilityLayer,
+        location: treatmentLocations,
+      });
+
+      if (!areaResult.cluster_layer && !areaResult.suitable_path) {
+        toast.error("No treatment area layer found for the selected technology");
+        return false;
+      }
+
+      setResultVectorLayer(areaResult.cluster_layer);
+      setResultPathVectorLayer(areaResult.suitable_path);
+      toast.success(`Area analysis completed for ${technologyName}`);
+      return true;
+    } catch (_error) {
+      toast.error("Failed to run treatment area analysis");
+      return false;
     } finally {
       setTreatmentLoading(false);
     }
@@ -214,6 +289,7 @@ export function useAdminViewModel() {
     isRightPanelOpen,
     reportLoading,
     treatmentLoading,
+    canFindTechnologyArea: Boolean(rasterLayerInfo),
     isPdfGenerating,
     showPdfStatus,
     taskId,
@@ -232,6 +308,7 @@ export function useAdminViewModel() {
     failPdfGeneration,
     handleSubmit,
     handleTreatmentSubmit,
+    handleTechnologyAreaSubmit,
     handleReport,
   };
 }

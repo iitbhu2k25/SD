@@ -31,6 +31,7 @@ interface AdminLocationStoreState {
   totalPopulation: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
+  selectionVectorLayer: string | null;
   selectedStateName: string;
   selectedDistrictsNames: string[];
   selectedSubDistrictsNames: string[];
@@ -175,6 +176,7 @@ function handleAdminStateChange(set: AdminLocationSet, get: AdminLocationGet, st
     selectedVillages: [],
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -222,6 +224,7 @@ function setAdminSelectedDistricts(
     selectedVillages: [],
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -263,6 +266,7 @@ function setAdminSelectedSubDistricts(
     selectedVillages: [],
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -293,6 +297,7 @@ function setAdminSelectedTowns(set: AdminLocationSet, get: AdminLocationGet, tow
     selectedVillages: [],
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -309,10 +314,11 @@ async function confirmAdminSelections(set: AdminLocationSet, get: AdminLocationG
 
   set({ isLoading: true, error: null });
   try {
-    const displayRaster = await fetchAdminSuitabilityDisplayRaster(selectedTowns);
+    const displayResult = await fetchAdminSuitabilityDisplayRaster(selectedTowns);
     set({
       selectionsLocked: true,
-      displayRaster,
+      displayRaster: displayResult.rasterLayers,
+      selectionVectorLayer: displayResult.vectorLayer,
     });
   } catch (error) {
     set({
@@ -348,6 +354,7 @@ function resetAdminSelections(set: AdminLocationSet, get: AdminLocationGet) {
     selectedVillages: [],
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -372,6 +379,7 @@ export const useAdminLocationStore = create<AdminLocationStore>((set, get) => ({
   totalPopulation: 0,
   selectionsLocked: false,
   displayRaster: [],
+  selectionVectorLayer: null,
   selectedStateName: "",
   selectedDistrictsNames: [],
   selectedSubDistrictsNames: [],

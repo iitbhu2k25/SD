@@ -34,6 +34,7 @@ interface UserRiverStoreState {
   totalCatchments: number;
   selectionsLocked: boolean;
   displayRaster: ClipRasters[];
+  selectionVectorLayer: string | null;
   showCatchment: boolean;
   catchmentLayerName: string | null;
 }
@@ -155,6 +156,7 @@ function handleUserRiverChange(set: UserRiverSet, get: UserRiverGet, riverCode: 
     showCatchment: false,
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -185,6 +187,7 @@ function setUserSelectedStretches(set: UserRiverSet, get: UserRiverGet, stretchI
     showCatchment: false,
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -210,6 +213,7 @@ function setUserSelectedDrains(set: UserRiverSet, get: UserRiverGet, drainIds: n
     showCatchment: false,
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -236,6 +240,7 @@ function setUserSelectedCatchments(
     selectedCatchments: catchmentIds,
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     ...derived,
   });
 }
@@ -289,17 +294,19 @@ async function setUserShowCatchment(set: UserRiverSet, get: UserRiverGet, show: 
 }
 
 async function confirmUserSelections(set: UserRiverSet, get: UserRiverGet) {
-  const { selectedCatchments } = get();
-  if (selectedCatchments.length === 0) {
+  const { catchmentLayerName } = get();
+  if (!catchmentLayerName) {
+    set({ error: "Load catchments before confirming river-system selections" });
     return;
   }
 
   set({ isLoading: true, error: null });
   try {
-    const displayRaster = await fetchUserSuitabilityDisplayRaster(selectedCatchments);
+    const displayResult = await fetchUserSuitabilityDisplayRaster(catchmentLayerName);
     set({
       selectionsLocked: true,
-      displayRaster,
+      displayRaster: displayResult.rasterLayers,
+      selectionVectorLayer: displayResult.vectorLayer,
     });
   } catch (error) {
     set({
@@ -326,6 +333,7 @@ function resetUserSelections(set: UserRiverSet, get: UserRiverGet) {
     catchmentLayerName: null,
     selectionsLocked: false,
     displayRaster: [],
+    selectionVectorLayer: null,
     showCatchment: false,
     ...derived,
   });
@@ -353,6 +361,7 @@ export const useUserRiverStore = create<UserRiverStore>((set, get) => ({
   totalCatchments: 0,
   selectionsLocked: false,
   displayRaster: [],
+  selectionVectorLayer: null,
   showCatchment: false,
   catchmentLayerName: null,
   initialize: () => initializeUserRiverStore(set, get),

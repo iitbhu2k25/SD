@@ -2,13 +2,15 @@
 
 import { useCallback, useRef } from "react";
 import type {
-  Category,
   DataRow,
-  SelectRasterLayer,
   Stp_area,
 } from "../../services/stpSuitabilityTypes";
-import SuitabilityWorkflowPanel from "../../shared/ui/SuitabilityWorkflowPanel";
-import type { TreatmentSubmitValues } from "../../shared/ui/SuitabilityTreatmentCard";
+import PriorityRiskSummary from "../../components/PriorityRiskSummary";
+import SuitabilityWorkflowPanel from "../../components/SuitabilityWorkflowPanel";
+import type { TechnologyAreaSubmitValues } from "../../components/StpTechnologyDss";
+import type { TreatmentSubmitValues } from "../../components/SuitabilityTreatmentCard";
+import UserCategorySlider from "./UserCategorySlider";
+import { useUserCategoryStore } from "../stores/userCategoryStore";
 
 interface UserRightPanelProps {
   isOpen: boolean;
@@ -22,29 +24,20 @@ interface UserRightPanelProps {
   showCategories: boolean;
   categoryLoading: boolean;
   workflowError: string | null;
-  conditionCategories: Category[];
-  constraintCategories: Category[];
-  selectedCondition: SelectRasterLayer[];
-  selectedConstraint: SelectRasterLayer[];
+  selectedConditionCount: number;
+  selectedConstraintCount: number;
   areaOptions: Stp_area[];
   selectedAreaOptionId: number | null;
   categoriesEditable: boolean;
   stpProcess: boolean;
-  isPdfGenerating: boolean;
   isTreatmentLoading: boolean;
+  canFindTechnologyArea: boolean;
   tableData: DataRow[];
   toggleCategoriesEditable: () => void;
   handleSubmit: () => void | Promise<void>;
-  handleReport: () => void | Promise<void>;
   handleTreatmentSubmit: (values: TreatmentSubmitValues) => void | Promise<void>;
+  handleTechnologyAreaSubmit: (values: TechnologyAreaSubmitValues) => void | Promise<void>;
   setSelectedAreaOption: (areaId: number | null) => void;
-  toggleConditionCategory: (id: number, fileName: string) => void;
-  toggleConstraintCategory: (id: number, fileName: string) => void;
-  updateConditionCategoryInfluence: (id: number, fileName: string, influence: number) => void;
-  selectAllConditionCategories: () => void;
-  clearAllConditionCategories: () => void;
-  selectAllConstraintCategories: () => void;
-  clearAllConstraintCategories: () => void;
 }
 
 export default function UserRightPanel({
@@ -59,31 +52,23 @@ export default function UserRightPanel({
   showCategories,
   categoryLoading,
   workflowError,
-  conditionCategories,
-  constraintCategories,
-  selectedCondition,
-  selectedConstraint,
+  selectedConditionCount,
+  selectedConstraintCount,
   areaOptions,
   selectedAreaOptionId,
   categoriesEditable,
   stpProcess,
-  isPdfGenerating,
   isTreatmentLoading,
+  canFindTechnologyArea,
   tableData,
   toggleCategoriesEditable,
   handleSubmit,
-  handleReport,
   handleTreatmentSubmit,
+  handleTechnologyAreaSubmit,
   setSelectedAreaOption,
-  toggleConditionCategory,
-  toggleConstraintCategory,
-  updateConditionCategoryInfluence,
-  selectAllConditionCategories,
-  clearAllConditionCategories,
-  selectAllConstraintCategories,
-  clearAllConstraintCategories,
 }: UserRightPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const villageRiskCounts = useUserCategoryStore((state) => state.villageRiskCounts);
 
   const handleResizeMouseDown = useCallback(
     (event: React.MouseEvent) => {
@@ -123,10 +108,14 @@ export default function UserRightPanel({
 
   return (
     <>
-      {isOpen && <div className="absolute inset-0 z-20 bg-black/30 lg:hidden" onClick={onClose} />}
+      {isOpen && <div className="absolute inset-0 z-30 bg-black/30 lg:hidden" onClick={onClose} />}
       <div
         ref={containerRef}
-        className={`absolute inset-y-0 right-0 z-30 max-w-full shrink-0 overflow-hidden border-l border-stone-200 bg-[linear-gradient(180deg,#f5f1ea_0%,#f2f5f7_48%,#edf3ee_100%)] text-slate-800 shadow-2xl transition-[width] duration-300 ease-in-out lg:relative lg:inset-auto lg:z-auto ${
+        className={`${
+          isMobile
+            ? "absolute inset-y-0 right-0 z-40 max-w-full"
+            : "relative z-20 h-full shrink-0"
+        } overflow-hidden border-l border-stone-200 bg-[linear-gradient(180deg,#f5f1ea_0%,#f2f5f7_48%,#edf3ee_100%)] text-slate-800 shadow-2xl transition-[width] duration-300 ease-in-out ${
           isOpen ? "" : "w-0 border-l-0"
         }`}
         style={{ width: isOpen ? width : "0px" }}
@@ -146,30 +135,27 @@ export default function UserRightPanel({
               showCategories={showCategories}
               categoryLoading={categoryLoading}
               workflowError={workflowError}
-              conditionCategories={conditionCategories}
-              constraintCategories={constraintCategories}
-              selectedCondition={selectedCondition}
-              selectedConstraint={selectedConstraint}
+              selectedConditionCount={selectedConditionCount}
+              selectedConstraintCount={selectedConstraintCount}
               areaOptions={areaOptions}
               selectedAreaOptionId={selectedAreaOptionId}
-              categoriesEditable={categoriesEditable}
               stpProcess={stpProcess}
-              isPdfGenerating={isPdfGenerating}
               isTreatmentLoading={isTreatmentLoading}
               tableData={tableData}
-              csvFileName="STP_Suitability_Drain.csv"
-              onToggleCategoriesEditable={toggleCategoriesEditable}
+              canFindTechnologyArea={canFindTechnologyArea}
+              renderCategorySlider={() => (
+                <UserCategorySlider
+                  editable={categoriesEditable}
+                  onToggleEditable={toggleCategoriesEditable}
+                />
+              )}
+              renderPriorityRiskSummary={() => (
+                <PriorityRiskSummary counts={villageRiskCounts} />
+              )}
               onAnalyze={handleSubmit}
-              onReport={handleReport}
               onSelectAreaOption={setSelectedAreaOption}
               onTreatmentSubmit={handleTreatmentSubmit}
-              onToggleConditionCategory={toggleConditionCategory}
-              onToggleConstraintCategory={toggleConstraintCategory}
-              onUpdateConditionInfluence={updateConditionCategoryInfluence}
-              onSelectAllCondition={selectAllConditionCategories}
-              onClearAllCondition={clearAllConditionCategories}
-              onSelectAllConstraint={selectAllConstraintCategories}
-              onClearAllConstraint={clearAllConstraintCategories}
+              onTechnologyAreaSubmit={handleTechnologyAreaSubmit}
             />
           </div>
         </div>

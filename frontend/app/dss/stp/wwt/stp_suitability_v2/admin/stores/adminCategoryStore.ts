@@ -9,6 +9,11 @@ import {
   buildWeightedSelections,
   fetchSuitabilityCategories,
 } from "../../services/stpSuitabilityApi";
+import {
+  buildPriorityRiskCounts,
+  EMPTY_PRIORITY_RISK_COUNTS,
+  type PriorityRiskCounts,
+} from "../../utils/riskFactorSummary";
 
 interface AdminCategoryStoreState {
   initialized: boolean;
@@ -21,6 +26,7 @@ interface AdminCategoryStoreState {
   selectedConstraint: SelectRasterLayer[];
   selectedAreaOption: Stp_area | null;
   tableData: DataRow[];
+  villageRiskCounts: PriorityRiskCounts;
   showTable: boolean;
 }
 
@@ -59,6 +65,14 @@ function buildSelection(category: Category, fileName: string, influence: number)
     file_name: fileName,
     Influence: influence.toString(),
   };
+}
+
+function buildAllSelections(categories: Category[]): SelectRasterLayer[] {
+  return buildWeightedSelections(
+    categories.map((category) =>
+      buildSelection(category, category.file_name, Number(category.weight)),
+    ),
+  );
 }
 
 function toggleSelection(
@@ -127,6 +141,8 @@ async function initializeAdminCategoryStore(set: AdminCategorySet, get: AdminCat
       conditionCategories,
       constraintCategories,
       areaOptions,
+      selectedCondition: buildAllSelections(conditionCategories),
+      selectedConstraint: buildAllSelections(constraintCategories),
       selectedAreaOption: areaOptions[0] ?? null,
     });
   } catch (error) {
@@ -149,6 +165,7 @@ export const useAdminCategoryStore = create<AdminCategoryStore>((set, get) => ({
   selectedConstraint: [],
   selectedAreaOption: null,
   tableData: [],
+  villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
   showTable: false,
   initialize: () => initializeAdminCategoryStore(set, get),
   toggleConditionCategory: (id, fileName) =>
@@ -191,20 +208,12 @@ export const useAdminCategoryStore = create<AdminCategoryStore>((set, get) => ({
     })),
   selectAllConditionCategories: () =>
     set((state) => ({
-      selectedCondition: buildWeightedSelections(
-        state.conditionCategories.map((category) =>
-          buildSelection(category, category.file_name, Number(category.weight)),
-        ),
-      ),
+      selectedCondition: buildAllSelections(state.conditionCategories),
     })),
   clearAllConditionCategories: () => set({ selectedCondition: [] }),
   selectAllConstraintCategories: () =>
     set((state) => ({
-      selectedConstraint: buildWeightedSelections(
-        state.constraintCategories.map((category) =>
-          buildSelection(category, category.file_name, Number(category.weight)),
-        ),
-      ),
+      selectedConstraint: buildAllSelections(state.constraintCategories),
     })),
   clearAllConstraintCategories: () => set({ selectedConstraint: [] }),
   setSelectedAreaOption: (areaId) =>
@@ -214,14 +223,19 @@ export const useAdminCategoryStore = create<AdminCategoryStore>((set, get) => ({
           ? null
           : state.areaOptions.find((option) => option.id === areaId) ?? null,
     })),
-  setTableData: (rows) => set({ tableData: rows }),
+  setTableData: (rows) =>
+    set({
+      tableData: rows,
+      villageRiskCounts: buildPriorityRiskCounts(rows),
+    }),
   setShowTable: (show) => set({ showTable: show }),
   reset: () =>
     set((state) => ({
-      selectedCondition: [],
-      selectedConstraint: [],
+      selectedCondition: buildAllSelections(state.conditionCategories),
+      selectedConstraint: buildAllSelections(state.constraintCategories),
       selectedAreaOption: state.areaOptions[0] ?? null,
       tableData: [],
+      villageRiskCounts: { ...EMPTY_PRIORITY_RISK_COUNTS },
       showTable: false,
       error: null,
     })),

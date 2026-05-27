@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status,Depends
 from app.database.config.dependency import db_dependency
 from app.api.service.river_water_management.spt_service import Stp_location
-from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,celery_id,RasterVisual,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request
+from app.api.schema.stp_schema import Stp_response,Village_request,Stp_town_respons,STPDrainNewOutput,celery_id,RasterVisual,District_request,Sub_district_request,STPRiverOutput,STPCatchmentOutput,STPDrainOutput,STPStretchesOutput,STPStretchesInput,STPDrainInput,STPCatchmentInput,Town_request,STPDrainPointOutput,STPDrainBboxInput
 from app.api.service.river_water_management.stp_operation import STPPriorityMapper,STPsuitabilityMapper
 from app.utils.exception import validate
 from app.api.service.ground_water_management.gwpz_svc import Raster_visual
@@ -73,6 +73,11 @@ async def get_stretch(db:db_dependency,user: Annotated[bool, Depends(validate_us
 @validate
 async def get_stretch(db:db_dependency,user: Annotated[bool, Depends(validate_user)]):
     return Stp_location.get_drain_all(db)
+
+@router.post("/drains_in_bbox", response_model=list[STPDrainPointOutput], status_code=status.HTTP_200_OK)
+@validate
+async def get_drains_in_bbox(db: db_dependency, payload: STPDrainBboxInput, user: Annotated[bool, Depends(validate_user)]):
+    return Stp_location.get_drains_in_bbox(db, payload.min_lon, payload.min_lat, payload.max_lon, payload.max_lat)
 
 @router.post("/get_stretch",response_model=list[STPStretchesOutput],status_code=status.HTTP_201_CREATED)
 @validate
