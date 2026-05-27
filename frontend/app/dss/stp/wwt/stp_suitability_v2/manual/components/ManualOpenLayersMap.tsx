@@ -198,6 +198,7 @@ export default function ManualOpenLayersMap() {
   const selectedRadioLayer = useManualMapStore((state) => state.selectedRadioLayer);
   const resultVectorLayer = useManualMapStore((state) => state.resultVectorLayer);
   const resultPathVectorLayer = useManualMapStore((state) => state.resultPathVectorLayer);
+  const showDrainLabels = useManualMapStore((state) => state.showDrainLabels);
   const clusterDistances = useManualMapStore((state) => state.clusterDistances);
   const handleLayerSelection = useManualMapStore((state) => state.handleLayerSelection);
   const setRasterLayerInfo = useManualMapStore((state) => state.setRasterLayerInfo);
@@ -493,6 +494,7 @@ export default function ManualOpenLayersMap() {
   }, [selectionVectorLayer, polygonLayer, bufferBbox]);
 
   // Populate drain points layer — filter to selectedDrainNos if any are chosen, else show all
+  // Re-runs when showDrainLabels changes to update label visibility
   useEffect(() => {
     const layer = drainLayerRef.current;
     if (!layer) return;
@@ -508,10 +510,31 @@ export default function ManualOpenLayersMap() {
         geometry: new OlPoint(fromLonLat([dp.longitude, dp.latitude])),
         Drain_No: dp.Drain_No,
       });
+      f.setStyle(
+        new Style({
+          image: new Circle({
+            radius: 6,
+            fill: new Fill({ color: "#dc2626" }),
+            stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
+          }),
+          ...(showDrainLabels
+            ? {
+                text: new Text({
+                  text: `#${dp.Drain_No}`,
+                  font: "bold 11px sans-serif",
+                  fill: new Fill({ color: "#1e293b" }),
+                  stroke: new Stroke({ color: "#ffffff", width: 3 }),
+                  offsetY: -14,
+                  textAlign: "center",
+                }),
+              }
+            : {}),
+        }),
+      );
       return f;
     });
     source.addFeatures(features);
-  }, [drainPoints, selectedDrainNos]);
+  }, [drainPoints, selectedDrainNos, showDrainLabels]);
 
   // Preview layer — show polygon outline before Confirm Selection (from "Upload" button)
   useEffect(() => {

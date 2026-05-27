@@ -28,6 +28,7 @@ interface ManualMapStoreState {
   defaultWorkspace: string;
   geoServerUrl: string;
   drawingActive: boolean;
+  showDrainLabels: boolean;
 }
 
 interface ManualMapStoreActions {
@@ -44,6 +45,7 @@ interface ManualMapStoreActions {
   setShowLegend: (visible: boolean) => void;
   handleLayerSelection: (layer: string) => void;
   setDrawingActive: (active: boolean) => void;
+  setShowDrainLabels: (show: boolean) => void;
   runAnalysis: () => Promise<void>;
   resetMapView: () => void;
 }
@@ -67,6 +69,7 @@ export const useManualMapStore = create<ManualMapStore>((set) => ({
   defaultWorkspace: "vector_work",
   geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   drawingActive: false,
+  showDrainLabels: false,
   setPrimaryLayer: (primaryLayer) => set({ primaryLayer }),
   setResultVectorLayer: (resultVectorLayer) =>
     set((state) =>
@@ -86,6 +89,7 @@ export const useManualMapStore = create<ManualMapStore>((set) => ({
   setShowLegend: (showLegend) => set({ showLegend }),
   handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer, showLegend: true }),
   setDrawingActive: (drawingActive) => set({ drawingActive }),
+  setShowDrainLabels: (showDrainLabels) => set({ showDrainLabels }),
   runAnalysis: async () => {
     const { selectedCondition, selectedConstraint, setTableData, setShowTable } =
       useManualCategoryStore.getState();

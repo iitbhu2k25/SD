@@ -32,6 +32,7 @@ db_data/
 /fast_backend/temp
 /fast_backend/media
 /fast_backend/media.zip
+/fast_backend/Rajat_media.zip
 # Build files
 /build/
 /dist/
