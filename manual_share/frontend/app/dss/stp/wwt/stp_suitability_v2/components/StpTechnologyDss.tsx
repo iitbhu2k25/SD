@@ -282,8 +282,6 @@ function ClusterDistancesTable({ clusters }: { clusters: ClusterInfo[] }) {
   const handleClusterClick = useCallback((clusterRank: number) => {
     const currentRank = useManualMapStore.getState().selectedClusterRank;
 
-    console.log("[ClusterClick] rank=", clusterRank, "currentRank=", currentRank, "all clusters=", clusters.map(c => ({ rank: c.cluster_rank, path_layer: c.path_layer })));
-
     // Toggle off — same cluster clicked again
     if (currentRank === clusterRank) {
       setSelectedClusterRank(clusterRank); // store toggles to null
@@ -296,8 +294,6 @@ function ClusterDistancesTable({ clusters }: { clusters: ClusterInfo[] }) {
 
     const cluster = clusters.find((c) => c.cluster_rank === clusterRank);
     if (!cluster) return;
-
-    console.log("[ClusterClick] setting path layer:", cluster.path_layer);
 
     // Use the pre-computed path layer — no extra API call needed
     setResultPathVectorLayer(cluster.path_layer ?? null);

@@ -350,26 +350,11 @@ class STP_Area:
         # For each of the top N clusters, compute road network distance to each drain
         # and collect all road-line geometries so we can publish a per-cluster path layer.
         from shapely.ops import unary_union as _unary_union
-        from shapely.geometry import LineString as _LineString
-
-        # Debug: log graph size to understand if road network is loaded
-        print(f"[cluster_path] road graph nodes={G.number_of_nodes()} edges={G.number_of_edges()} crs={crs}", flush=True)
-        if G.number_of_nodes() == 0:
-            print("[cluster_path] WARNING: empty road graph — all paths will use straight-line", flush=True)
-
         cluster_drain_distances = []
         for rank, row in enumerate(top10.itertuples(), start=1):
             c = row.geometry.centroid
             c_src = (c.x, c.y)
             c_arr = np.array([c.x, c.y])
-
-            # Debug: log cluster centroid vs nearest road node
-            nearest_road_node = self._nearest(G, c_src)
-            if nearest_road_node is not None:
-                node_dist = float(np.linalg.norm(np.array(nearest_road_node) - c_arr))
-                print(f"[cluster_path] rank={rank} centroid=({c.x:.0f},{c.y:.0f}) nearest_road_node_dist={node_dist:.0f}m", flush=True)
-            else:
-                print(f"[cluster_path] rank={rank} no nearest road node found", flush=True)
 
             drain_dists = []
             road_lines = []  # collect path geometries for this cluster
@@ -382,19 +367,9 @@ class STP_Area:
                 if road_line is not None and not road_line.is_empty:
                     dist_m = float(road_line.length)
                     road_lines.append(road_line)
-                    # Also add connector lines: cluster centroid → nearest road node, and drain → nearest road node
-                    s_node = self._nearest(G, c_src)
-                    t_node = self._nearest(G, d_tgt)
-                    if s_node and tuple(s_node) != c_src:
-                        road_lines.append(_LineString([c_src, s_node]))
-                    if t_node and tuple(t_node) != d_tgt:
-                        road_lines.append(_LineString([d_tgt, t_node]))
                 else:
                     # Fall back to straight-line if no road path found
                     dist_m = float(np.linalg.norm(c_arr - d_arr))
-                    # Still show a straight line visually so user sees something
-                    road_lines.append(_LineString([c_src, d_tgt]))
-                    print(f"[cluster_path] rank={rank} drain={dp['Drain_No']} no road path — straight-line fallback {dist_m:.0f}m", flush=True)
 
                 drain_dists.append({"Drain_No": dp["Drain_No"], "distance_m": round(dist_m, 1)})
 

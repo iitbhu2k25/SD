@@ -714,9 +714,6 @@ export default function ManualOpenLayersMap() {
 
     if (!resultPathVectorLayer) return;
 
-    const isVisible = useManualMapStore.getState().selectedClusterRank !== null;
-    console.log("[MapPathLayer] creating layer for:", resultPathVectorLayer, "visible=", isVisible, "selectedRank=", useManualMapStore.getState().selectedClusterRank);
-
     const source = createWfsUrlVectorSource({
       geoServerUrl: GEOSERVER_URL,
       workspace: "vector_work",
@@ -728,22 +725,16 @@ export default function ManualOpenLayersMap() {
       source,
       style: new Style({ stroke: new Stroke({ color: "#16a34a", width: 2.5 }) }),
       zIndex: 41,
-      // Start visible when a cluster is already selected (selectedClusterRank is set before this effect runs)
-      visible: isVisible,
+      // Start hidden — becomes visible only when user clicks a cluster label
+      visible: useManualMapStore.getState().selectedClusterRank !== null,
     });
 
     source.on("featuresloadend", () => {
-      const count = source.getFeatures().length;
-      console.log("[MapPathLayer] features loaded:", count, "layer visible:", layer.getVisible());
-      setFeatureCounts((prev) => ({ ...prev, suitablePath: count }));
-    });
-    source.on("featuresloaderror", (e) => {
-      console.error("[MapPathLayer] features load ERROR:", e);
+      setFeatureCounts((prev) => ({ ...prev, suitablePath: source.getFeatures().length }));
     });
 
     resultPathLayerRef.current = layer;
     map.addLayer(layer);
-    console.log("[MapPathLayer] layer added to map");
   }, [resultPathVectorLayer]);
 
   // Multi-polygon: mirror single-file confirm behavior for each polygon entry
@@ -1025,10 +1016,8 @@ export default function ManualOpenLayersMap() {
   // Also depends on resultPathVectorLayer so it re-runs when a new layer is created
   // (the ref updates but doesn't trigger React — this dep ensures correct visibility on new layer).
   useEffect(() => {
-    const shouldBeVisible = selectedClusterRank !== null;
-    console.log("[VisibilityEffect] selectedClusterRank=", selectedClusterRank, "resultPathVectorLayer=", resultPathVectorLayer, "ref=", resultPathLayerRef.current, "→ visible=", shouldBeVisible);
     if (!resultPathLayerRef.current) return;
-    resultPathLayerRef.current.setVisible(shouldBeVisible);
+    resultPathLayerRef.current.setVisible(selectedClusterRank !== null);
   }, [selectedClusterRank, resultPathVectorLayer]);
 
   // Fullscreen listener
