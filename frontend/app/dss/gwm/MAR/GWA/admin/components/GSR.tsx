@@ -233,7 +233,7 @@ const StressIdentification: React.FC = () => {
           onClick={handleComputeStress}
           disabled={loading || !canComputeStressIdentification() || !yearsCount.trim()}
           className={[
-            "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+            "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2 px-4 text-sm",
             loading || !canComputeStressIdentification() || !yearsCount.trim()
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 shadow-md focus:outline-none focus:ring-4 focus:ring-red-400 focus:ring-opacity-50",
@@ -588,7 +588,7 @@ const GSRAnalysis: React.FC = () => {
           onClick={computeGSR}
           disabled={gsrLoading || !canComputeGSR()}
           className={[
-            "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+            "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2 px-4 text-sm",
             gsrLoading || !canComputeGSR()
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",

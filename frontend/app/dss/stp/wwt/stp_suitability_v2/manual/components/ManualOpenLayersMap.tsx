@@ -474,11 +474,11 @@ export default function ManualOpenLayersMap() {
       style: new Style({
         image: new Circle({
           radius: 6,
-          fill: new Fill({ color: "#dc2626" }),
+          fill: new Fill({ color: "#7c3aed" }),
           stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
         }),
       }),
-      zIndex: 17,
+      zIndex: 55,
       properties: { interactive: true },
     });
     drainLayerRef.current = drainLayer;
@@ -514,7 +514,7 @@ export default function ManualOpenLayersMap() {
         new Style({
           image: new Circle({
             radius: 6,
-            fill: new Fill({ color: "#dc2626" }),
+            fill: new Fill({ color: "#7c3aed" }),
             stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
           }),
           ...(showDrainLabels
@@ -801,11 +801,11 @@ export default function ManualOpenLayersMap() {
       map.addLayer(villageLayer);
       multiLayersRef.current.push(villageLayer);
 
-      // Layer 3: drain points as red circles (like single-file drainLayer)
+      // Layer 3: drain points as violet circles above raster
       const drainSource = new VectorSource();
       const drainLayer = new VectorLayer({
         source: drainSource,
-        zIndex: 17 + entry.index,
+        zIndex: 55 + entry.index,
         properties: { interactive: true },
       });
       const drainFeatures = entry.drainPoints.map((dp) => {
@@ -814,7 +814,7 @@ export default function ManualOpenLayersMap() {
           new Style({
             image: new Circle({
               radius: 6,
-              fill: new Fill({ color: "#dc2626" }),
+              fill: new Fill({ color: "#7c3aed" }),
               stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
             }),
             ...(showDrainLabels

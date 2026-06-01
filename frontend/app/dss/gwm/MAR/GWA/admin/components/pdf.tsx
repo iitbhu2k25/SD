@@ -1355,10 +1355,10 @@ const PDF: React.FC = () => {
       onClick={handleGeneratePDF}
       disabled={isGeneratingPDF || generating}
       className={[
-        "inline-flex items-center justify-center gap-2 text-white font-semibold transition-colors duration-300 ease-in-out mt -30",
+        "inline-flex items-center justify-center gap-2 text-white font-semibold text-sm transition-colors duration-300 ease-in-out rounded-full px-4 py-1.5",
         isGeneratingPDF || generating
-          ? "bg-gray-400 cursor-not-allowed rounded-full px-6 py-3"
-          : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50 rounded-full px-6 py-3",
+          ? "bg-gray-400 cursor-not-allowed"
+          : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
       ].join(" ")}
     >
       {generating ? (

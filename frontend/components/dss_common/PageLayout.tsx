@@ -42,6 +42,7 @@ interface PageLayoutProps {
   config: PanelSettings;
   railItems: PageLayoutRailItem[];
   leftPanel: React.ReactNode;
+  leftPanelTopSlot?: React.ReactNode;
   mapContent: React.ReactNode;
   rightPanel?: React.ReactNode;
   rightPanelToggle?: React.ReactNode;
@@ -65,6 +66,7 @@ export default function PageLayout({
   config,
   railItems,
   leftPanel,
+  leftPanelTopSlot,
   mapContent,
   rightPanel,
   rightPanelToggle,
@@ -178,6 +180,7 @@ export default function PageLayout({
                   )}
                 </div>
               </div>
+              {leftPanelTopSlot}
               <div className="p-3 sm:p-4">{leftPanel}</div>
             </div>
           </aside>

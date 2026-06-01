@@ -1345,19 +1345,19 @@ const Demand = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Industry
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Sub-Type
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Default Water Use
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Annual Production
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Calculated Demand (m3)
                   </th>
                 </tr>
@@ -1374,17 +1374,17 @@ const Demand = () => {
                         {subIndex === 0 && (
                           <td
                             rowSpan={subtypes.length}
-                            className="px-6 py-4 text-sm font-bold text-purple-800 bg-purple-50 whitespace-nowrap align-top"
+                            className="px-3 py-2 text-xs font-bold text-purple-800 bg-purple-50 whitespace-nowrap align-top"
                           >
                             {industry}
                           </td>
                         )}
 
-                        <td className="px-6 py-4 text-sm text-gray-800">
+                        <td className="px-3 py-2 text-xs text-gray-800">
                           {item.subtype}
                         </td>
 
-<td className="px-6 py-4">
+<td className="px-3 py-2">
   <div className="flex items-center gap-2">
     <input
       type="text"
@@ -1411,7 +1411,7 @@ const Demand = () => {
   </div>
 </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
@@ -1598,7 +1598,7 @@ const Demand = () => {
               onClick={computeDomesticDemand}
               disabled={domesticLoading || !canComputeDomesticDemand()}
               className={[
-                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2 px-4 text-sm",
                 domesticLoading || !canComputeDomesticDemand()
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -2001,7 +2001,7 @@ const Demand = () => {
               onClick={handleAgriculturalClick}
               disabled={agriculturalLoading || !canComputeAgriculturalDemand()}
               className={[
-                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5 shadow-md focus:outline-none focus:ring-4",
+                "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2 px-4 text-sm shadow-md focus:outline-none focus:ring-4",
                 agriculturalLoading || !canComputeAgriculturalDemand()
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -2163,12 +2163,12 @@ const Demand = () => {
           <IndustrialDemandInputTable />
 
           {/* Compute button and Search + Eye toggle on same row */}
-          <div className="mt-4 mb-4 mr-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="mt-4 mb-4 flex flex-wrap items-center gap-2">
 
             <button
               onClick={computeIndustrialDemand}
               disabled={industrialLoading || !canComputeIndustrialDemand()}
-              className={`flex-shrink-0 w-full sm:w-auto ${industrialLoading || !canComputeIndustrialDemand() ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 focus:ring-4 focus:ring-purple-300'} text-white font-medium py-3 px-6 rounded-md flex items-center justify-center transition-colors duration-200`}
+              className={`flex-shrink-0 inline-flex items-center justify-center gap-2 text-white font-medium text-sm py-1.5 px-4 rounded-full transition-colors duration-200 ${industrialLoading || !canComputeIndustrialDemand() ? 'bg-gray-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 focus:ring-2 focus:ring-purple-300'}`}
             >
               {industrialLoading ? (
                 <>
@@ -2183,18 +2183,18 @@ const Demand = () => {
               )}
             </button>
 
-            <div className="flex gap-2 flex-grow max-w-xs mr-4">
+            <div className="flex gap-1 min-w-0">
               <input
                 type="text"
-                placeholder="Search industrial table..."
+                placeholder="Search..."
                 value={industrialSearchInput}
                 onChange={(e) => setIndustrialSearchInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleIndustrialApplySearch()}
-                className="flex-grow px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-32 px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
               <button
                 onClick={handleIndustrialApplySearch}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-sm"
               >
                 {/* Search Icon */}
                 <svg

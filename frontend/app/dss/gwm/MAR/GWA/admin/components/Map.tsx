@@ -620,6 +620,12 @@ const MapComponent: React.FC = () => {
   );
 
   const hasLegend = !!(legendData?.raster || legendData?.contour || legendData?.trend || legendData?.gsr);
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true);
+
+  // Auto-show legend when new legend data arrives
+  useEffect(() => {
+    if (hasLegend) setIsLegendOpen(true);
+  }, [hasLegend]);
 
   return (
     <div
@@ -641,13 +647,13 @@ const MapComponent: React.FC = () => {
       {activePanel === 'basemap' && renderBasemapPanel()}
       {activePanel === 'tools' && renderToolsPanel()}
 
-      {/* LEGEND — right side panel, same style as STP */}
-      {hasLegend && (
-        <div className="absolute right-3 top-16 z-20 sm:top-20">
+      {/* LEGEND — bottom-right */}
+      {hasLegend && isLegendOpen && (
+        <div className="absolute right-3 bottom-10 z-20">
           <div className="rounded-xl border border-stone-200 bg-white/90 shadow-xl backdrop-blur-sm w-52">
             <div className="flex items-center justify-between border-b border-stone-200 px-3 py-2">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-600">Legend</span>
-              <button onClick={() => setActivePanel(null)} className="text-slate-400 hover:text-red-500 transition-colors">
+              <button onClick={() => setIsLegendOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors">
                 <CloseIcon className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -711,6 +717,21 @@ const MapComponent: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Legend toggle (i) button — bottom-right, only when legend data exists */}
+      {hasLegend && (
+        <button
+          onClick={() => setIsLegendOpen(o => !o)}
+          className={`absolute bottom-3 right-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold shadow transition-colors ${
+            isLegendOpen
+              ? 'border-blue-400 bg-blue-500 text-white'
+              : 'border-stone-300 bg-white/90 text-slate-600 hover:border-blue-300 hover:text-blue-600'
+          }`}
+          title={isLegendOpen ? 'Hide legend' : 'Show legend'}
+        >
+          i
+        </button>
       )}
 
       {/* Coordinates display */}

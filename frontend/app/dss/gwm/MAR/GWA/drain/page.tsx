@@ -21,6 +21,7 @@ import { PDFProvider } from "@/contexts/groundwater_assessment/drain/PDFContext"
 import { AdminUnitsProvider, useAdminUnits } from "@/contexts/groundwater_assessment/drain/AdminUnitsContext";
 import PageLayout from "@/components/dss_common/PageLayout";
 import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
+import { StatusBar } from "./components/StatusBar";
 import { gwaPanelSettings } from "../config/panels.config";
 import { useUiModeService } from "../services/uiModeService";
 
@@ -33,14 +34,26 @@ export interface DrainGWAProps {
   onSelectionsLockedChange?: (locked: boolean) => void;
   onModeChange?: (mode: "admin" | "drain") => void;
   currentMode?: "admin" | "drain";
+  optionalStepsBar?: React.ReactNode;
+  navigationProps?: {
+    activeStep: number;
+    onNext: () => void;
+    onPrevious: () => void;
+    isFirstStep: boolean;
+    isLastStep: boolean;
+    selectionsLocked: boolean;
+    enableGroundwaterDepth: boolean;
+    enableTimeseriesAnalysis: boolean;
+  };
 }
 
 // ─── Right panel ──────────────────────────────────────────────────────────────
 function DrainRightPanel({
-  isOpen, width, activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onClose, onWidthChange,
+  isOpen, width, activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onClose, onWidthChange, navigationProps,
 }: {
   isOpen: boolean; width: string; activeStep: number; enableGroundwaterDepth: boolean;
   enableTimeseriesAnalysis: boolean; onClose: () => void; onWidthChange: (w: string) => void;
+  navigationProps?: DrainGWAProps["navigationProps"];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { stressTableData } = useGSR();
@@ -110,6 +123,19 @@ function DrainRightPanel({
                 </svg>
               </button>
             </div>
+
+            {/* Steps bar */}
+            {navigationProps && (
+              <div className="flex-shrink-0 border-b border-stone-200">
+                <StatusBar
+                  activeStep={navigationProps.activeStep}
+                  onNext={navigationProps.onNext}
+                  onPrevious={navigationProps.onPrevious}
+                  enableGroundwaterDepth={navigationProps.enableGroundwaterDepth}
+                  enableTimeseriesAnalysis={navigationProps.enableTimeseriesAnalysis}
+                />
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {activeStep === 1 && (
                 <div className="rounded-2xl border border-stone-200 bg-white/70 p-4">
@@ -121,19 +147,19 @@ function DrainRightPanel({
               {activeStep === 4 && enableGroundwaterDepth && <GroundwaterContour activeTab="groundwater-contour" step={activeStep} />}
               {activeStep === 5 && enableTimeseriesAnalysis && <GroundwaterForecast activeTab="groundwater-forecast" step={activeStep} />}
               {activeStep >= 3 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-stone-200">
+                <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-stone-200">
                   <PDF />
                   {stressTableData?.length > 0 && (
                     isLoading ? (
-                      <button disabled className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-sm rounded-full py-2 px-4 opacity-60 cursor-not-allowed">
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <button disabled className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-xs rounded-full py-1.5 px-3 opacity-60 cursor-not-allowed">
+                        <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                         </svg>
                         Fetching...
                       </button>
                     ) : (
-                      <button onClick={handleComputeWater} className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-sm rounded-full py-2 px-4 shadow-md transition-all duration-200" title={error ?? undefined}>
+                      <button onClick={handleComputeWater} className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-xs rounded-full py-1.5 px-3 shadow-sm transition-all duration-200" title={error ?? undefined}>
                         Compute Available Water
                       </button>
                     )
@@ -141,6 +167,28 @@ function DrainRightPanel({
                 </div>
               )}
             </div>
+
+            {/* Bottom navigation */}
+            {navigationProps && (
+              <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-t border-stone-200 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+                <button
+                  onClick={navigationProps.onPrevious}
+                  disabled={navigationProps.isFirstStep}
+                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200", navigationProps.isFirstStep ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md"].join(" ")}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  Previous
+                </button>
+                <button
+                  onClick={navigationProps.onNext}
+                  disabled={navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)}
+                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200", navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked) ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md"].join(" ")}
+                >
+                  Next
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -149,7 +197,7 @@ function DrainRightPanel({
 }
 
 // ─── Inner layout ─────────────────────────────────────────────────────────────
-function DrainGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onSelectionsLockedChange, onModeChange, currentMode }: DrainGWAProps) {
+function DrainGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onSelectionsLockedChange, onModeChange, currentMode, optionalStepsBar, navigationProps }: DrainGWAProps) {
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(true);
   const [isRightOpen, setIsRightOpen] = useState<boolean>(false);
   const [rightWidth, setRightWidth] = useState<string>(gwaPanelSettings.right.widthOpen);
@@ -160,7 +208,13 @@ function DrainGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
   const toggleTheme = useUiModeService((s) => s.toggleTheme);
 
   useEffect(() => { onSelectionsLockedChange?.(selectionsLocked); }, [selectionsLocked, onSelectionsLockedChange]);
-  useEffect(() => { if (selectionsLocked && activeStep >= 2) setIsRightOpen(true); }, [selectionsLocked, activeStep]);
+  useEffect(() => {
+    if (selectionsLocked) {
+      setIsPanelOpen(false);
+      setIsRightOpen(true);
+    }
+  }, [selectionsLocked]);
+
   useEffect(() => {
     if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) computeRecharge();
   }, [activeStep]);
@@ -220,6 +274,7 @@ function DrainGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
       enableTimeseriesAnalysis={enableTimeseriesAnalysis}
       onClose={() => setIsRightOpen(false)}
       onWidthChange={setRightWidth}
+      navigationProps={navigationProps}
     />
   ) : null;
 
@@ -239,6 +294,7 @@ function DrainGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
       config={gwaPanelSettings}
       railItems={railItems}
       leftPanel={<DataSelection step={activeStep} />}
+      leftPanelTopSlot={optionalStepsBar}
       mapContent={<MapComponent />}
       rightPanel={rightPanel}
       rightPanelToggle={rightPanelToggle}

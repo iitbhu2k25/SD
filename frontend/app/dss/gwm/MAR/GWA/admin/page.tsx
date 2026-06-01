@@ -18,6 +18,7 @@ import { PDFProvider } from "@/contexts/groundwater_assessment/admin/PDFContext"
 import { RechargeProvider, useRecharge } from "@/contexts/groundwater_assessment/admin/RechargeContext";
 import { DemandProvider } from "@/contexts/groundwater_assessment/admin/DemandContext";
 import { GSRProvider, useGSR } from "@/contexts/groundwater_assessment/admin/GSRContext";
+import { StatusBar } from "./components/StatusBar";
 import PageLayout from "@/components/dss_common/PageLayout";
 import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
 import { gwaPanelSettings } from "../config/panels.config";
@@ -27,6 +28,17 @@ import { useUiModeService } from "../services/uiModeService";
 const MapComponent = dynamic(() => import("./components/Map"), { ssr: false });
 
 // ─── Props from root page ─────────────────────────────────────────────────────
+export interface NavigationProps {
+  activeStep: number;
+  onNext: () => void;
+  onPrevious: () => void;
+  isFirstStep: boolean;
+  isLastStep: boolean;
+  selectionsLocked: boolean;
+  enableGroundwaterDepth: boolean;
+  enableTimeseriesAnalysis: boolean;
+}
+
 export interface AdminGWAProps {
   activeStep: number;
   enableGroundwaterDepth: boolean;
@@ -34,6 +46,8 @@ export interface AdminGWAProps {
   onSelectionsLockedChange?: (locked: boolean) => void;
   onModeChange?: (mode: "admin" | "drain") => void;
   currentMode?: "admin" | "drain";
+  optionalStepsBar?: React.ReactNode;
+  navigationProps?: NavigationProps;
 }
 
 // ─── Right panel — analysis output ───────────────────────────────────────────
@@ -45,6 +59,7 @@ function AdminRightPanel({
   enableTimeseriesAnalysis,
   onClose,
   onWidthChange,
+  navigationProps,
 }: {
   isOpen: boolean;
   width: string;
@@ -53,6 +68,7 @@ function AdminRightPanel({
   enableTimeseriesAnalysis: boolean;
   onClose: () => void;
   onWidthChange: (w: string) => void;
+  navigationProps?: NavigationProps;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { stressTableData } = useGSR();
@@ -133,6 +149,19 @@ function AdminRightPanel({
               </button>
             </div>
 
+            {/* Steps bar */}
+            {navigationProps && (
+              <div className="flex-shrink-0 border-b border-stone-200">
+                <StatusBar
+                  activeStep={navigationProps.activeStep}
+                  onNext={navigationProps.onNext}
+                  onPrevious={navigationProps.onPrevious}
+                  enableGroundwaterDepth={navigationProps.enableGroundwaterDepth}
+                  enableTimeseriesAnalysis={navigationProps.enableTimeseriesAnalysis}
+                />
+              </div>
+            )}
+
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {activeStep === 2 && (
@@ -155,12 +184,12 @@ function AdminRightPanel({
 
               {/* PDF + Compute Available Water */}
               {activeStep >= 3 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-stone-200">
+                <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-stone-200">
                   <PDF />
                   {stressTableData?.length > 0 && (
                     <button
                       onClick={handleComputeWater}
-                      className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-sm rounded-full py-2 px-4 shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                      className="inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-xs rounded-full py-1.5 px-3 shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                     >
                       Compute Available Water
                     </button>
@@ -168,6 +197,42 @@ function AdminRightPanel({
                 </div>
               )}
             </div>
+
+            {/* Bottom navigation */}
+            {navigationProps && (
+              <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-t border-stone-200 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+                <button
+                  onClick={navigationProps.onPrevious}
+                  disabled={navigationProps.isFirstStep}
+                  className={[
+                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200",
+                    navigationProps.isFirstStep
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400",
+                  ].join(" ")}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </button>
+                <button
+                  onClick={navigationProps.onNext}
+                  disabled={navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)}
+                  className={[
+                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200",
+                    navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)
+                      ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400",
+                  ].join(" ")}
+                >
+                  Next
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -176,7 +241,7 @@ function AdminRightPanel({
 }
 
 // ─── Inner layout (needs all contexts) ───────────────────────────────────────
-function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onSelectionsLockedChange, onModeChange, currentMode }: AdminGWAProps) {
+function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAnalysis, onSelectionsLockedChange, onModeChange, currentMode, optionalStepsBar, navigationProps }: AdminGWAProps) {
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(true);
   const [isRightOpen, setIsRightOpen] = useState<boolean>(false);
   const [rightWidth, setRightWidth] = useState<string>(gwaPanelSettings.right.widthOpen);
@@ -191,10 +256,14 @@ function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
     onSelectionsLockedChange?.(selectionsLocked);
   }, [selectionsLocked, onSelectionsLockedChange]);
 
-  // Open right panel when selections are confirmed
+  // When wells confirmed: close left panel, open right panel
   useEffect(() => {
-    if (selectionsLocked && activeStep >= 2) setIsRightOpen(true);
-  }, [selectionsLocked, activeStep]);
+    if (selectionsLocked) {
+      setIsPanelOpen(false);
+      setIsRightOpen(true);
+    }
+  }, [selectionsLocked]);
+
 
   useEffect(() => {
     if (activeStep === 3 && canComputeRecharge() && tableData.length === 0) {
@@ -278,6 +347,7 @@ function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
       enableTimeseriesAnalysis={enableTimeseriesAnalysis}
       onClose={() => setIsRightOpen(false)}
       onWidthChange={setRightWidth}
+      navigationProps={navigationProps}
     />
   ) : null;
 
@@ -297,6 +367,7 @@ function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
       config={gwaPanelSettings}
       railItems={railItems}
       leftPanel={leftPanel}
+      leftPanelTopSlot={optionalStepsBar}
       mapContent={<MapComponent />}
       rightPanel={rightPanel}
       rightPanelToggle={rightPanelToggle}

@@ -307,11 +307,12 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
           </div>
         )}
       </div>
+      <div className="flex justify-center">
       <button
         onClick={handleGenerate}
         disabled={isLoading || !isFormValid()}
         className={[
-          "w-full inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-1.5 px-5 text-sm",
           isLoading || !isFormValid()
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -360,7 +361,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
           </>
         )}
       </button>
-
+      </div>
 
       {trendData && !error && !isLoading && (
         <div className="mt-4 space-y-4">
@@ -393,76 +394,19 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
             <div className="p-6 max-h-[800px] overflow-y-auto">
               {activeResultTab === 'overview' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-5 gap-4">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-blue-600">Total Villages</p>
-                          <p className="text-2xl font-semibold text-blue-900">{trendData.summary_stats?.file_info?.total_villages || 0}</p>
-                        </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { bg: 'bg-blue-50', border: 'border-blue-200', label: 'Total Villages', value: trendData.summary_stats?.file_info?.total_villages || 0, textColor: 'text-blue-600', valColor: 'text-blue-900' },
+                      { bg: 'bg-red-50', border: 'border-red-200', label: 'Increasing', value: trendData.summary_stats?.trend_distribution?.increasing || 0, textColor: 'text-red-600', valColor: 'text-red-900' },
+                      { bg: 'bg-green-50', border: 'border-green-200', label: 'Decreasing', value: trendData.summary_stats?.trend_distribution?.decreasing || 0, textColor: 'text-green-600', valColor: 'text-green-900' },
+                      { bg: 'bg-gray-50', border: 'border-gray-200', label: 'No Trend', value: trendData.summary_stats?.trend_distribution?.no_trend || 0, textColor: 'text-gray-600', valColor: 'text-gray-900' },
+                      { bg: 'bg-yellow-50', border: 'border-yellow-200', label: 'Significant', value: trendData.summary_stats?.statistical_summary?.significant_trends_count || 0, textColor: 'text-yellow-600', valColor: 'text-yellow-900' },
+                    ].map((card) => (
+                      <div key={card.label} className={`${card.bg} border ${card.border} rounded-lg p-2 text-center`}>
+                        <p className={`text-xs font-medium ${card.textColor} leading-tight`}>{card.label}</p>
+                        <p className={`text-xl font-bold ${card.valColor} mt-0.5`}>{card.value}</p>
                       </div>
-                    </div>
-
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                          </svg>
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-red-600">Increasing Trends</p>
-                          <p className="text-2xl font-semibold text-red-900">{trendData.summary_stats?.trend_distribution?.increasing || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                          </svg>
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-green-600">Decreasing Trends</p>
-                          <p className="text-2xl font-semibold text-green-900">{trendData.summary_stats?.trend_distribution?.decreasing || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                          </svg>
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-600">No Trend</p>
-                          <p className="text-2xl font-semibold text-gray-900">{trendData.summary_stats?.trend_distribution?.no_trend || 0}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.732 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                          </svg>
-                        </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-yellow-600">Significant Trends</p>
-                          <p className="text-2xl font-semibold text-yellow-900">{trendData.summary_stats?.statistical_summary?.significant_trends_count || 0}</p>
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
 

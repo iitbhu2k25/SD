@@ -149,11 +149,11 @@ function ClusterTableRows({
                     <div
                       key={d.Drain_No}
                       className={`flex shrink-0 flex-col items-center rounded-lg border px-2 py-1 text-center ${
-                        di === 0 ? "border-blue-300 bg-blue-50" : "border-slate-100 bg-slate-50"
+                        di === 0 ? "border-violet-300 bg-violet-50" : "border-slate-100 bg-slate-50"
                       }`}
                     >
-                      {/* Drain number — blue */}
-                      <span className={`text-[11px] font-bold ${di === 0 ? "text-blue-700" : "text-blue-600"}`}>
+                      {/* Drain number — violet (matches map dot color) */}
+                      <span className={`text-[11px] font-bold ${di === 0 ? "text-violet-700" : "text-violet-600"}`}>
                         #{d.Drain_No}
                       </span>
                       {/* Road distance — violet */}
@@ -232,8 +232,8 @@ function ClusterTableShell({
           <span className="text-amber-700">From polygon</span>
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-blue-200" />
-          <span className="text-blue-700">Drain #</span>
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
+          <span className="text-violet-700">Drain #</span>
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block h-2.5 w-2.5 rounded bg-violet-200" />
