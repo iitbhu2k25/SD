@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { TechnologyAreaSubmitValues } from "../../components/StpTechnologyDss";
+import type { TechnologyAreaSubmitValues } from "../components/ManualStpTechnologyDss";
 
 interface ManualUiStoreState {
   categoriesEditable: boolean;

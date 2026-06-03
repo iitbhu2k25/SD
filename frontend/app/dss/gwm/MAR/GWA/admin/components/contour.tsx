@@ -172,72 +172,64 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
         </div>
       )}
 
-      {/* Form Fields */}
-      <div className="space-y-4 mb-6">
-
-
+      {/* Form Fields — one row */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Choose Parameter <span className="text-red-500">*</span>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Parameter <span className="text-red-500">*</span>
           </label>
           <select
-            className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={parameter}
             onChange={(e) => setParameter(e.target.value)}
             disabled={isLoading}
           >
-            <option value="">Select Parameter...</option>
+            <option value="">Select...</option>
             {getParameterOptions().map((column) => (
-              <option key={column} value={column}>
-                {column}
-              </option>
+              <option key={column} value={column}>{column}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contour Interval (meters) <span className="text-red-500">*</span>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Contour Interval (m) <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
-            className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter interval (e.g., 5)"
+            className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="e.g. 5"
             value={contourInterval}
             onChange={(e) => setContourInterval(e.target.value)}
             min="0.1"
             step="0.1"
             disabled={isLoading}
           />
-          <p className="text-xs text-gray-500 mt-1">
-            💡 Recommended: 1-5m for groundwater levels, 5-20m for elevation
-          </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Method of Interpolation <span className="text-red-500">*</span>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Interpolation Method <span className="text-red-500">*</span>
           </label>
           <select
-            className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             value={interpolationMethod}
             onChange={(e) => setInterpolationMethod(e.target.value)}
             disabled={isLoading}
           >
-            <option value="">Select Method...</option>
-            <option value="idw">Inverse Distance Weighted (IDW)</option>
-            {/* <option value="kriging">Kriging</option>
-            <option value="spline">Spline</option> */}
+            <option value="">Select...</option>
+            <option value="idw">IDW</option>
           </select>
         </div>
       </div>
 
       {/* Generate Button */}
+      <div className="flex justify-center mb-4">
       <button
         onClick={handleGenerate}
         disabled={isLoading || !isFormValid() || !csvFilename}
         className={[
-          "w-full inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2.5 px-10 text-sm",
           isLoading || !isFormValid() || !csvFilename
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -286,7 +278,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
           </>
         )}
       </button>
-
+      </div>
 
       {/* Success Messages with PNG Preview */}
       {rasterData && !error && !isLoading && (

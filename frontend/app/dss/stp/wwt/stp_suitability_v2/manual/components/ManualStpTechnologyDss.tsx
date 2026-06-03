@@ -31,11 +31,11 @@ import {
   type CompatibilityScoreMaps,
   type SewageScoreMap,
 } from "../utils/stpTechnologyScoring";
-import DprCostEstimatorModal from "./DprCostEstimatorModal";
-import { useManualMapStore } from "../manual/stores/manualMapStore";
-import type { PolygonClusterGroup } from "../manual/stores/manualMapStore";
-import { useManualMultiStore } from "../manual/stores/manualMultiStore";
-import type { ClusterInfo } from "../services/stpSuitabilityTypes";
+import DprCostEstimatorModal from "./ManualDprCostEstimatorModal";
+import { useManualMapStore } from "../stores/manualMapStore";
+import type { PolygonClusterGroup } from "../stores/manualMapStore";
+import { useManualMultiStore } from "../stores/manualMultiStore";
+import type { ClusterInfo } from "../services/manual_stpSuitabilityTypes";
 
 // ── Cluster legend tooltip ────────────────────────────────────────────────────
 function ClusterLegendTooltip({ onClose }: { onClose: () => void }) {

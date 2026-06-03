@@ -6,8 +6,8 @@ import { useManualAreaStore, type AreaInputMethod } from "../stores/manualAreaSt
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
 import { useManualCategoryStore } from "../stores/manualCategoryStore";
-import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, previewPolygon } from "../../services/manual_stpSuitabilityApi";
-import type { ClipRasters, MultiPolygonEntry } from "../../services/manual_stpSuitabilityTypes";
+import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, previewPolygon } from "../services/manual_stpSuitabilityApi";
+import type { ClipRasters, MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 import { useManualMultiStore } from "../stores/manualMultiStore";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import { point } from "@turf/helpers";
@@ -883,7 +883,7 @@ export default function ManualAreaSelector() {
           multiResult.results.map(async (r, i) => {
             let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
             let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
-            let displayRasters: import("../../services/stpSuitabilityTypes").ClipRasters[] = [];
+            let displayRasters: ClipRasters[] = [];
             await Promise.all([
               fetchDrainsInBbox(r.buffer_bbox)
                 .then((d) => { drainPoints = d; })

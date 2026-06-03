@@ -1,5 +1,60 @@
 from pydantic import BaseModel, Field
-from typing import Annotated, List, Optional, Tuple
+from typing import Annotated, List, Optional, Tuple, Text
+
+
+# ── Suitability raster schemas ────────────────────────────────────────────────
+
+class ManualRasterVisualOutput(BaseModel):
+    workspace: str
+    layer_name: str
+    file_name: str
+
+class ManualSTPSuitabilityVisualOutput(BaseModel):
+    raster_layer: Annotated[List[ManualRasterVisualOutput], None]
+    vector_layer: str
+
+class ManualRasterOperationInput(BaseModel):
+    id: int
+    file_name: str
+    Influence: str
+    weight: float
+    class Config:
+        from_attributes = True
+
+class ManualSTPsuitabilityInput(BaseModel):
+    data: List[ManualRasterOperationInput] = None
+    clip: List[int] = None
+    all_data: bool = True
+    place: str = None
+    drain_clip: Optional[List[int]] = None
+    village_layer: str = None
+
+class ManualSTPsuitabilityOutput(BaseModel):
+    weight: float
+    file_name: str
+    id: int
+    details: Text
+    raster_category: str
+    class Config:
+        from_attributes = True
+
+class ManualSTP_suitability_Area(BaseModel):
+    treatment_technology: float
+    mld_capacity: float
+    custom_land_per_mld: float = Field(2.0, le=2)
+    layer_name: str
+    location: List[Tuple[float, float]]
+    drain_points: Optional[List["DrainPointInput"]] = None
+    num_clusters: int = 10
+
+class ManualCeleryId(BaseModel):
+    task_id: str
+
+class ManualSTPAreaResp(BaseModel):
+    cluster_layer: str | None = None
+    suitable_path: str | None = None
+    cluster_distances: Optional[List["ClusterInfo"]] = None
+    task_status: str | None = None
 
 
 class DrainPointInput(BaseModel):

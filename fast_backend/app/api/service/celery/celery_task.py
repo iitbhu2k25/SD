@@ -20,3 +20,6 @@ from app.api.service.celery.raster_operations.raster_heavy_task import (
 from app.api.service.celery.stp_area.stp_area import (
     find_suitable_area,
 )
+from app.api.service.celery.stp_area.manual_stp_area import (
+    manual_find_suitable_area,
+)

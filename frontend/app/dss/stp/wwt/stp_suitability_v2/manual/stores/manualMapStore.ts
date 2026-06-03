@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { ADMIN_TOWN_LAYER_NAMES, type ClipRasters } from "@/interface/raster_context";
-import { runManualSuitabilityAnalysis } from "../../services/manual_stpSuitabilityApi";
+import { runManualSuitabilityAnalysis } from "../services/manual_stpSuitabilityApi";
 import { useManualCategoryStore } from "./manualCategoryStore";
 import { useManualAreaStore } from "./manualAreaStore";
-import type { ClusterInfo } from "../../services/manual_stpSuitabilityTypes";
+import type { ClusterInfo } from "../services/manual_stpSuitabilityTypes";
 
 export interface PolygonClusterGroup {
   label: string;

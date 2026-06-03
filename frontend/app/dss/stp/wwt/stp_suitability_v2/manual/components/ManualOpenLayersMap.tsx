@@ -27,7 +27,7 @@ import MapHeaderControls from "@/components/dss_common/MapHeaderControls";
 import MapLegendOverlay from "@/components/dss_common/MapLegendOverlay";
 import MapRasterSelector from "@/components/dss_common/MapRasterSelector";
 import { createWfsUrlVectorSource } from "@/components/map_core/wfs";
-import type { ClipRasters } from "../../services/manual_stpSuitabilityTypes";
+import type { ClipRasters } from "../services/manual_stpSuitabilityTypes";
 import { useManualAreaStore } from "../stores/manualAreaStore";
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualMultiStore } from "../stores/manualMultiStore";
@@ -714,8 +714,11 @@ export default function ManualOpenLayersMap() {
 
     if (!resultPathVectorLayer) return;
 
-    const isVisible = useManualMapStore.getState().selectedClusterRank !== null;
-    console.log("[MapPathLayer] creating layer for:", resultPathVectorLayer, "visible=", isVisible, "selectedRank=", useManualMapStore.getState().selectedClusterRank);
+    // DSS mode: clusters with pre-computed path_layer — path toggled by cluster click.
+    // No-constraint mode: suitable_path used directly — always visible immediately.
+    const { selectedClusterRank: rank, clusterDistances: cds } = useManualMapStore.getState();
+    const isDssMode = cds !== null && cds.length > 0 && cds.some((c) => c.path_layer != null);
+    const isVisible = isDssMode ? rank !== null : true;
 
     const source = createWfsUrlVectorSource({
       geoServerUrl: GEOSERVER_URL,
@@ -728,22 +731,15 @@ export default function ManualOpenLayersMap() {
       source,
       style: new Style({ stroke: new Stroke({ color: "#16a34a", width: 2.5 }) }),
       zIndex: 41,
-      // Start visible when a cluster is already selected (selectedClusterRank is set before this effect runs)
       visible: isVisible,
     });
 
     source.on("featuresloadend", () => {
-      const count = source.getFeatures().length;
-      console.log("[MapPathLayer] features loaded:", count, "layer visible:", layer.getVisible());
-      setFeatureCounts((prev) => ({ ...prev, suitablePath: count }));
-    });
-    source.on("featuresloaderror", (e) => {
-      console.error("[MapPathLayer] features load ERROR:", e);
+      setFeatureCounts((prev) => ({ ...prev, suitablePath: source.getFeatures().length }));
     });
 
     resultPathLayerRef.current = layer;
     map.addLayer(layer);
-    console.log("[MapPathLayer] layer added to map");
   }, [resultPathVectorLayer]);
 
   // Multi-polygon: mirror single-file confirm behavior for each polygon entry
@@ -1021,15 +1017,13 @@ export default function ManualOpenLayersMap() {
     resultLayerRef.current?.setVisible(layerVisibility.treatmentCluster ?? true);
   }, [layerVisibility.treatmentCluster]);
 
-  // Road path visibility is controlled exclusively by selectedClusterRank.
-  // Also depends on resultPathVectorLayer so it re-runs when a new layer is created
-  // (the ref updates but doesn't trigger React — this dep ensures correct visibility on new layer).
+  // DSS mode (clusters have pre-computed path_layer): toggled by cluster click.
+  // No-constraint mode (suitable_path only): always visible.
   useEffect(() => {
-    const shouldBeVisible = selectedClusterRank !== null;
-    console.log("[VisibilityEffect] selectedClusterRank=", selectedClusterRank, "resultPathVectorLayer=", resultPathVectorLayer, "ref=", resultPathLayerRef.current, "→ visible=", shouldBeVisible);
     if (!resultPathLayerRef.current) return;
-    resultPathLayerRef.current.setVisible(shouldBeVisible);
-  }, [selectedClusterRank, resultPathVectorLayer]);
+    const isDssMode = clusterDistances !== null && clusterDistances.length > 0 && clusterDistances.some((c) => c.path_layer != null);
+    resultPathLayerRef.current.setVisible(isDssMode ? selectedClusterRank !== null : true);
+  }, [selectedClusterRank, resultPathVectorLayer, clusterDistances]);
 
   // Fullscreen listener
   useEffect(() => {

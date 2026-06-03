@@ -4,8 +4,8 @@ import { useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useManualMultiStore } from "../stores/manualMultiStore";
 import { useManualUiStore } from "../stores/manualUiStore";
-import { confirmMultiAreaSelection, fetchDrainsInBbox } from "../../services/manual_stpSuitabilityApi";
-import type { MultiPolygonEntry } from "../../services/manual_stpSuitabilityTypes";
+import { confirmMultiAreaSelection, fetchDrainsInBbox } from "../services/manual_stpSuitabilityApi";
+import type { MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 
 type MultiMethod = "shapefile" | "kml";
 

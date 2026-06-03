@@ -1,39 +1,61 @@
 import os
 import asyncio
+import uuid
+import tempfile
+import zipfile
 import numpy as np
 import geopandas as gpd
 import rasterio
+from pathlib import Path
 from sqlalchemy.orm import Session
+
 from app.api.service.geoserver_svc.geoserver import Geoserver
 from app.utils.network_conf import GeoConfig
+from app.conf.settings import Settings
+from app.conf.redis.redis_async_manager import async_redis_manager
 from app.database.crud.stp_crud import STP_suitability_crud
-from app.conf.redis_conf import async_redis_manager
 
 geo = Geoserver()
 
 
-class Unique_name:
-    @staticmethod
-    def unique_name(prefix: str) -> str:
-        import uuid
-        return f"{prefix}_{uuid.uuid4().hex[:8]}"
-
-    @staticmethod
-    def unique_name_with_ext(prefix: str, ext: str) -> str:
-        import uuid
-        return f"{prefix}_{uuid.uuid4().hex[:8]}.{ext}"
-
-
 class ManualSTPMapper:
-    """
-    All manual-mode methods extracted from STPsuitabilityMapper.
-    Add these 4 methods into your existing STPsuitabilityMapper class
-    in app/api/service/river_water_management/stp_operation.py
-    """
+    """Fully self-contained service for Manual STP mode.
+    Handles: area confirmation, suitability raster, path finding, constraint checking."""
+
+    def __init__(self):
+        self.config = GeoConfig()
+        self.BASE_DIR = Settings().BASE_DIR
+        self.TEMP_DIR = os.path.join(Settings().TEMP_DIR, "STP_suitability")
+        os.makedirs(self.TEMP_DIR, exist_ok=True)
+
+    def _load_village(self) -> gpd.GeoDataFrame:
+        """Load village shapefile lazily — only when needed."""
+        gdf = gpd.read_file(str(self.config.villages_shapefile))
+        if gdf.crs is None:
+            gdf = gdf.set_crs("EPSG:32644")
+        return gdf.to_crs("EPSG:32644")
+
+    async def _upload_vector(self, gdf: gpd.GeoDataFrame) -> str:
+        """Save GeoDataFrame as shapefile zip and upload to GeoServer. Returns layer name."""
+        random_name = uuid.uuid4().hex
+        zip_name = f"manual_{random_name}.zip"
+        output_zip_path = os.path.join(self.TEMP_DIR, zip_name)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            shp_name = f"manual_{random_name}"
+            tmp_shp = Path(tmp_dir) / f"{shp_name}.shp"
+            gdf.to_file(tmp_shp, driver="ESRI Shapefile", engine="fiona")
+            with zipfile.ZipFile(output_zip_path, "w") as zf:
+                for f in Path(tmp_dir).glob(f"{shp_name}.*"):
+                    zf.write(f, f.name)
+
+        name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
+        await geo.upload_vector("vector_work", str(output_zip_path), name_only)
+        return name_only
 
     async def confirm_manual_area(self, geometry_geojson: dict) -> dict:
-        """Parse an input GeoJSON geometry, create a 5 km buffer, find villages in buffer,
-        upload both the village buffer layer and the drawn polygon (cluster) layer to GeoServer."""
+        """Parse GeoJSON geometry, create 5 km buffer, find intersecting villages,
+        upload village layer and drawn polygon to GeoServer."""
         from shapely.geometry import shape
         import geopandas as gpd_local
 
@@ -48,7 +70,7 @@ class ManualSTPMapper:
 
         buffer_projected = geom_projected.buffer(5000)
 
-        village = self.processor.village  # already in EPSG:32644
+        village = self._load_village()
         villages_intersect = village[village.geometry.intersects(buffer_projected)].copy()
 
         if villages_intersect.empty:
@@ -67,19 +89,23 @@ class ManualSTPMapper:
             if "ID" in villages_intersect.columns:
                 villages_intersect = villages_intersect.rename(columns={"ID": "village_id"})
 
-        temp_vill_name = Unique_name.unique_name("manual_vill")
+        # Save village shp path in Redis for later raster creation
+        temp_vill_name = f"manual_vill_{uuid.uuid4().hex}"
         village_temp_path = os.path.join(self.TEMP_DIR, temp_vill_name + ".shp")
         villages_intersect.to_file(str(village_temp_path), driver="ESRI Shapefile")
-        vector_name = await self._temporory_vector(vector_temp_file=villages_intersect)
+
+        vector_name = await self._upload_vector(villages_intersect)
         await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
 
-        polygon_gdf = gpd_local.GeoDataFrame({"geometry": [geom_projected], "label": ["Selected STP Area"]}, crs="EPSG:32644")
-        polygon_layer = await self._temporory_vector(vector_temp_file=polygon_gdf)
+        polygon_gdf = gpd_local.GeoDataFrame(
+            {"geometry": [geom_projected], "label": ["Selected STP Area"]}, crs="EPSG:32644"
+        )
+        polygon_layer = await self._upload_vector(polygon_gdf)
 
         buf_bbox_gdf = gpd_local.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
         buf_bbox_wgs84 = buf_bbox_gdf.to_crs("EPSG:4326").geometry.iloc[0]
         minx, miny, maxx, maxy = buf_bbox_wgs84.bounds
-        print(f"[confirm_manual_area] centroid=({centroid_lat:.4f},{centroid_lon:.4f}) buffer_bbox=[{minx:.4f},{miny:.4f},{maxx:.4f},{maxy:.4f}]", flush=True)
+        print(f"[confirm_manual_area] centroid=({centroid_lat:.4f},{centroid_lon:.4f}) bbox=[{minx:.4f},{miny:.4f},{maxx:.4f},{maxy:.4f}]", flush=True)
 
         return {
             "vector_name": vector_name,
@@ -90,8 +116,7 @@ class ManualSTPMapper:
         }
 
     async def create_manual_suitability_raster(self, vector_layer_name: str) -> str:
-        """Convert the manual area vector (stored in Redis) into a binary suitability raster.
-        Every pixel inside the polygon = 1.0 (fully suitable), outside = NaN."""
+        """Convert confirmed manual area vector (from Redis path) into a binary suitability raster."""
         from rasterio.features import rasterize as rio_rasterize
         from shapely.geometry import mapping
 
@@ -114,38 +139,41 @@ class ManualSTPMapper:
             fill=0,
             dtype=np.float32,
         )
-
         burned = np.where(burned == 1, 1.0, np.nan).astype(np.float32)
 
-        output_name = Unique_name.unique_name_with_ext("manual_suitability", "tif")
+        output_name = f"manual_suitability_{uuid.uuid4().hex}.tif"
         output_path = os.path.join(self.config.output_path, output_name)
         ref_meta.update({
-            "driver": "GTiff",
-            "dtype": "float32",
-            "nodata": np.nan,
-            "count": 1,
-            "crs": ref_crs,
-            "transform": ref_transform,
-            "width": ref_width,
-            "height": ref_height,
+            "driver": "GTiff", "dtype": "float32", "nodata": np.nan,
+            "count": 1, "crs": ref_crs, "transform": ref_transform,
+            "width": ref_width, "height": ref_height,
         })
         with rasterio.open(output_path, "w", **ref_meta) as dst:
             dst.write(burned, 1)
 
-        raster_key = Unique_name.unique_name("manual_raster")
+        raster_key = f"manual_raster_{uuid.uuid4().hex}"
         await async_redis_manager.setex(raster_key, 10800, str(output_path))
         return raster_key
 
-    async def find_manual_path(self, polygon_geojson: dict | None, polygon_layer: str | None, location: list, drain_points: list | None = None, cluster_layer: str | None = None, cluster_rank: int | None = None, buffer_bbox: list | None = None) -> dict:
-        """Find road network path from cluster/polygon centroid to nearest drains via road network."""
+    async def find_manual_path(
+        self,
+        polygon_geojson: dict | None,
+        polygon_layer: str | None,
+        location: list,
+        drain_points: list | None = None,
+        cluster_layer: str | None = None,
+        cluster_rank: int | None = None,
+        buffer_bbox: list | None = None,
+    ) -> dict:
+        """Find road network path from polygon/cluster centroid to all drains."""
         print(f"[find_manual_path] buffer_bbox={buffer_bbox}, drain_count={len(drain_points) if drain_points else 0}, cluster_rank={cluster_rank}", flush=True)
+
         from shapely.geometry import shape
         import geopandas as gpd_local
-        from app.api.service.celery.stp_area.stp_area import STP_Area
+        from app.api.service.celery.stp_area.manual_stp_area import ManualSTPArea as STP_Area
         import aiohttp
 
         async def _fetch_layer_features(layer_name: str):
-            """Return list of GeoJSON features from a GeoServer WFS layer."""
             cfg = GeoConfig()
             wfs_url = (
                 f"{cfg.geoserver_url}/wfs?service=WFS&version=2.0.0&request=GetFeature"
@@ -166,36 +194,24 @@ class ManualSTPMapper:
             features = await _fetch_layer_features(cluster_layer)
             if not features:
                 return {"suitable_path": None}
-
-            # If a specific cluster rank is requested, filter to that feature.
-            # The backend stores rank as a feature property (set by find_suitable_area).
-            # Property name may be "rank", "cluster_rank", or index order — try all.
             if cluster_rank is not None:
-                # Try matching by 'rank' or 'cluster_rank' property
                 matched = [
                     f for f in features
                     if f.get("properties", {}).get("rank") == cluster_rank
                     or f.get("properties", {}).get("cluster_rank") == cluster_rank
                 ]
                 if not matched:
-                    # Fall back: treat features as rank-ordered (rank 1 = index 0)
                     idx = cluster_rank - 1
                     matched = [features[idx]] if 0 <= idx < len(features) else features
                 selected_features = matched
             else:
                 selected_features = features
-
             from shapely.ops import unary_union
             geoms = [shape(f["geometry"]) for f in selected_features if f.get("geometry")]
             if not geoms:
                 return {"suitable_path": None}
             cluster_geom = unary_union(geoms)
-
-            # If still multi (shouldn't be after rank filter), use the largest sub-polygon
-            if cluster_geom.geom_type in ("MultiPolygon", "GeometryCollection"):
-                geom = max(cluster_geom.geoms, key=lambda g: g.area)
-            else:
-                geom = cluster_geom
+            geom = max(cluster_geom.geoms, key=lambda g: g.area) if cluster_geom.geom_type in ("MultiPolygon", "GeometryCollection") else cluster_geom
         elif polygon_geojson is not None:
             geom = shape(polygon_geojson)
         elif polygon_layer is not None:
@@ -207,17 +223,15 @@ class ManualSTPMapper:
 
         poly_gdf = gpd_local.GeoDataFrame(
             {"cluster_id": [0], "area_ha": [geom.area / 10_000]},
-            geometry=[geom],
-            crs="EPSG:4326",
+            geometry=[geom], crs="EPSG:4326",
         )
         poly_projected = poly_gdf.to_crs("EPSG:32644")
         crs = str(poly_projected.crs)
-
         centroid_projected = poly_projected.geometry.iloc[0].centroid
         src_point = (centroid_projected.x, centroid_projected.y)
 
         if not drain_points:
-            print("[find_manual_path] no drain points provided — cannot find path", flush=True)
+            print("[find_manual_path] no drain points — cannot find path", flush=True)
             return {"suitable_path": None}
 
         if buffer_bbox and len(buffer_bbox) == 4:
@@ -256,6 +270,7 @@ class ManualSTPMapper:
             import networkx as nx
             from shapely.geometry import LineString
             from shapely.ops import unary_union as _unary_union
+
             G = stp_areas._build_graph(crs)
             if not G.nodes:
                 return None, []
@@ -319,16 +334,13 @@ class ManualSTPMapper:
 
         road_path_layer = None
         if road_path is not None and not road_path.empty:
-            road_path_name = Unique_name.unique_name("road_path")
-            import tempfile as _tempfile
-            import zipfile as _zipfile
-            from pathlib import Path as _Path
+            road_path_name = f"road_path_{uuid.uuid4().hex}"
             output_zip_path = os.path.join(stp_areas.TEMP_DIR, f"{road_path_name}.zip")
-            with _tempfile.TemporaryDirectory() as tmp_dir:
-                tmp_shp = _Path(tmp_dir) / f"{road_path_name}.shp"
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_shp = Path(tmp_dir) / f"{road_path_name}.shp"
                 road_path.to_file(tmp_shp, driver="ESRI Shapefile", engine="fiona")
-                with _zipfile.ZipFile(output_zip_path, "w") as zf:
-                    for f in _Path(tmp_dir).glob(f"{road_path_name}.*"):
+                with zipfile.ZipFile(output_zip_path, "w") as zf:
+                    for f in Path(tmp_dir).glob(f"{road_path_name}.*"):
                         zf.write(f, f.name)
             await geo.upload_vector("vector_work", output_zip_path, road_path_name)
             road_path_layer = road_path_name
@@ -346,12 +358,10 @@ class ManualSTPMapper:
         return {"suitable_path": road_path_layer, "cluster_distances": cluster_distances_result}
 
     async def check_constraints(self, polygon_geojson: dict, db: Session) -> dict:
-        """Check which constraint rasters have non-zero pixels inside the drawn polygon."""
-        from shapely.geometry import shape
+        """Check which constraint rasters intersect the drawn polygon."""
+        import concurrent.futures
         from rasterio.mask import mask as rasterio_mask
         from rasterio.warp import transform_geom
-        import numpy as np
-        import concurrent.futures
 
         constraint_rows = STP_suitability_crud(db).get_suitability_category("constraint", all_data=True)
 
@@ -384,3 +394,48 @@ class ManualSTPMapper:
 
         violations = [r for r in results if r is not None]
         return {"constraint_violations": violations, "can_proceed": len(violations) == 0}
+
+    # ── Raster suitability methods (delegate to STPsuitabilityMapper) ─────────
+    # These complex raster processing operations reuse the existing implementation.
+
+    async def get_suitability_categories(self, db, category: str, all_data: bool = False):
+        from app.api.service.river_water_management.spt_service import Stp_service
+        return Stp_service.get_raster_suitability(db, category, all_data)
+
+    async def get_stp_suitability_area(self, db):
+        from app.database.crud.stp_crud import STP_suitability_crud
+        return STP_suitability_crud(db).get_stp_area()
+
+    async def create_suitability_map(self, db, payload):
+        from app.api.service.river_water_management.stp_operation import STPsuitabilityMapper
+        return await STPsuitabilityMapper().create_suitability_map(db, payload)
+
+    async def visual_suitability_map(self, db, clip, place, layer_name):
+        from app.api.service.river_water_management.stp_operation import STPsuitabilityMapper
+        return await STPsuitabilityMapper().visual_sutabilty_map(db, clip, place, layer_name)
+
+    async def get_suitability_area_result(self, db, task_id: str):
+        import json as _json
+        from app.api.service.raster_work.raster_operation import RasterOperation
+        resp = await RasterOperation().get_result(db, task_id)
+        cluster_distances = None
+        if resp.file_path:
+            try:
+                cluster_distances = _json.loads(resp.file_path)
+            except Exception:
+                cluster_distances = None
+        return resp.layer_name, cluster_distances, resp.task_status
+
+    async def start_suitability_area_task(self, payload):
+        from app.api.service.celery.stp_area.manual_stp_area import manual_find_suitable_area
+        drain_points_raw = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (payload.drain_points or [])]
+        task = manual_find_suitable_area.delay(
+            treatment_technology=payload.treatment_technology,
+            mld_capacity=payload.mld_capacity,
+            custom_land_per_mld=payload.custom_land_per_mld,
+            layer_name=payload.layer_name,
+            location=payload.location,
+            drain_points=drain_points_raw,
+            num_clusters=payload.num_clusters,
+        )
+        return task.id

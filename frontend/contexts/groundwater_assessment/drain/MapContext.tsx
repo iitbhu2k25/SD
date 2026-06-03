@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import ReactDOM from 'react-dom';
 import Map from "ol/Map";
+import { defaults as defaultControls } from "ol/control";
 import View from "ol/View";
 import Overlay from 'ol/Overlay';
 import TileLayer from "ol/layer/Tile";
@@ -1182,6 +1183,7 @@ export const MapProvider: React.FC<MapProviderProps> = ({ children }) => {
     const map = new Map({
       target: mapContainer,
       layers: [initialBaseLayer],
+      controls: defaultControls({ attribution: false }),
       view: new View({
         center: fromLonLat([82.378970, 25.539697]),
         zoom: 9.7

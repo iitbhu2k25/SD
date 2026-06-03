@@ -222,28 +222,29 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
         </div>
       )}
 
-      <div className="space-y-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Trend Analysis Method <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value="Mann-Kendall Test"
-            readOnly
-            className="w-full p-2 border rounded-md text-sm bg-gray-100 text-gray-700"
-          />
-          <input type="hidden" name="trendMethod" value="mann_kendall" />
-        </div>
-
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="space-y-3 mb-6">
+        <div className="grid grid-cols-3 gap-3">
+          {/* Method */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Method <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value="Mann-Kendall Test"
+              readOnly
+              className="w-full p-2 border rounded-md text-xs bg-gray-100 text-gray-700"
+            />
+            <input type="hidden" name="trendMethod" value="mann_kendall" />
+          </div>
+
+          {/* From Year */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               From Year <span className="text-red-500">*</span>
             </label>
             <select
-              className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={yearStart}
               onChange={(e) => {
                 setYearStart(e.target.value);
@@ -254,35 +255,32 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
               disabled={isLoading || yearsToShow.length === 0}
             >
               <option value="">
-                {yearsToShow.length === 0 ? "No years available" : "Select from year"}
+                {yearsToShow.length === 0 ? "No years" : "From year"}
               </option>
               {yearsToShow.map(year => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
+                <option key={year} value={year}>{year}</option>
               ))}
             </select>
           </div>
 
+          {/* To Year */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               To Year <span className="text-red-500">*</span>
             </label>
             <select
-              className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={yearEnd}
               onChange={(e) => setYearEnd(e.target.value)}
               disabled={isLoading || !yearStart || yearsToShow.length === 0}
             >
               <option value="">
-                {!yearStart ? "Select from year first" : yearsToShow.length === 0 ? "No years available" : "Select to year"}
+                {!yearStart ? "Select from first" : "To year"}
               </option>
               {yearsToShow
                 .filter(year => !yearStart || parseInt(year) > parseInt(yearStart))
                 .map(year => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
+                  <option key={year} value={year}>{year}</option>
                 ))}
             </select>
           </div>
@@ -312,7 +310,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
         onClick={handleGenerate}
         disabled={isLoading || !isFormValid()}
         className={[
-          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-1.5 px-5 text-sm",
+          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2.5 px-10 text-sm",
           isLoading || !isFormValid()
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.api.routes.stp_operation import router as  stp_operation
+from app.api.routes.manual_stp_routes import router as manual_stp_operation
 from app.api.routes.location import router as location
 from app.api.routes.gwz_operation import router as  gwz_operation
 from app.api.routes.wqi import router as  wqi
@@ -34,6 +35,12 @@ app_router.include_router(
     stp_operation,
     prefix="/stp_operation",
     tags=["Stp operations"]
+)
+
+app_router.include_router(
+    manual_stp_operation,
+    prefix="/stp_manual_operation",
+    tags=["Manual Stp operations"]
 )
 
 app_router.include_router(

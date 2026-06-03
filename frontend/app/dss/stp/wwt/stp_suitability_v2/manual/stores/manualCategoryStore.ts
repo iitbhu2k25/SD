@@ -4,16 +4,16 @@ import type {
   SelectRasterLayer,
   Stp_area,
   DataRow,
-} from "../../services/manual_stpSuitabilityTypes";
+} from "../services/manual_stpSuitabilityTypes";
 import {
   buildWeightedSelections,
   fetchSuitabilityCategories,
-} from "../../services/manual_stpSuitabilityApi";
+} from "../services/manual_stpSuitabilityApi";
 import {
   buildPriorityRiskCounts,
   EMPTY_PRIORITY_RISK_COUNTS,
   type PriorityRiskCounts,
-} from "../../utils/manual_riskFactorSummary";
+} from "../utils/manual_riskFactorSummary";
 
 interface ManualCategoryStoreState {
   initialized: boolean;

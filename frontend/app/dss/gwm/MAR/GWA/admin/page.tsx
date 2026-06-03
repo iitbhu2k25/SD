@@ -205,7 +205,7 @@ function AdminRightPanel({
                   onClick={navigationProps.onPrevious}
                   disabled={navigationProps.isFirstStep}
                   className={[
-                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200",
+                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-2.5 w-28 justify-center transition-all duration-200",
                     navigationProps.isFirstStep
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                       : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400",
@@ -220,7 +220,7 @@ function AdminRightPanel({
                   onClick={navigationProps.onNext}
                   disabled={navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)}
                   className={[
-                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200",
+                    "inline-flex items-center gap-1 font-medium text-xs rounded-full py-2.5 w-28 justify-center transition-all duration-200",
                     navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)
                       ? "bg-slate-200 text-slate-400 cursor-not-allowed"
                       : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400",
@@ -334,7 +334,10 @@ function AdminGWALayout({ activeStep, enableGroundwaterDepth, enableTimeseriesAn
 
   // ── Left panel ─────────────────────────────────────────────────────────
   const leftPanel = (
-    <DataSelection step={activeStep} />
+    <DataSelection
+      step={activeStep}
+      onWellsReset={() => setIsRightOpen(false)}
+    />
   );
 
   // ── Right panel ────────────────────────────────────────────────────────

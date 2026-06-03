@@ -54,6 +54,7 @@ interface LocationContextType {
 
   // Final actions
   lockSelections: () => void;
+  unlockSelections: () => void;
   resetSelections: () => void;
 }
 
@@ -78,6 +79,7 @@ const LocationContext = createContext<LocationContextType>({
   setSelectedSubDistricts: () => { },
   handleAreaConfirm: () => { },
   lockSelections: () => { },
+  unlockSelections: () => { },
   resetSelections: () => { },
 });
 
@@ -284,6 +286,10 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
     setSelectionsLocked(true);
   };
 
+  const unlockSelections = () => {
+    setSelectionsLocked(false);
+  };
+
   // Reset all selections
   const resetSelections = (): void => {
     console.log("Resetting all selections");
@@ -336,6 +342,7 @@ export const LocationProvider: React.FC<LocationProviderProps> = ({
 
     // Final actions
     lockSelections,
+    unlockSelections,
     resetSelections,
   };
 

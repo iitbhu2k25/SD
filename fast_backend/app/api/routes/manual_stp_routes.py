@@ -2,10 +2,10 @@ from fastapi import APIRouter, status, Depends, UploadFile, File, Form
 from typing import Annotated, Optional
 from app.dependency.token_dependency import validate_user
 from app.database.config.dependency import db_dependency
-from app.api.service.river_water_management.stp_operation import STPsuitabilityMapper
+from app.api.service.river_water_management.manual_stp_service import ManualSTPMapper
 from app.utils.exception import validate
-from app.api.schema.stp_schema import category_raster
-from manual_stp_schema import (
+from app.api.schema.manual_stp_schema import (
+    category_raster,
     STPManualAreaConfirmOutput,
     STPManualFindPathInput,
     STPManualFindPathOutput,
@@ -19,6 +19,12 @@ from manual_stp_schema import (
     STPMultiAreaPayload,
     STPMultiAreaOutput,
     STPMultiAreaSingleResult,
+    ManualSTPSuitabilityVisualOutput,
+    ManualSTPsuitabilityInput,
+    ManualSTPsuitabilityOutput,
+    ManualSTP_suitability_Area,
+    ManualCeleryId,
+    ManualSTPAreaResp,
 )
 import asyncio
 
@@ -39,7 +45,7 @@ async def stp_manual_area_confirm(
     import zipfile
     from pathlib import Path
 
-    mapper = STPsuitabilityMapper()
+    mapper = ManualSTPMapper()
     geometry_geojson = None
 
     if method in ("shapefile", "kml") and file is not None:
@@ -134,7 +140,7 @@ async def stp_manual_area_raster(db: db_dependency, payload: category_raster):
     if not payload.layer_name:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="layer_name is required")
-    raster_key = await STPsuitabilityMapper().create_manual_suitability_raster(payload.layer_name)
+    raster_key = await ManualSTPMapper().create_manual_suitability_raster(payload.layer_name)
     return {"raster_layer": raster_key}
 
 
@@ -143,7 +149,7 @@ async def stp_manual_area_raster(db: db_dependency, payload: category_raster):
 async def stp_manual_find_path(payload: STPManualFindPathInput):
     """Find road network path from polygon centroid to the nearest drain."""
     drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (payload.drain_points or [])]
-    result = await STPsuitabilityMapper().find_manual_path(
+    result = await ManualSTPMapper().find_manual_path(
         polygon_geojson=payload.polygon_geojson,
         polygon_layer=payload.polygon_layer,
         cluster_layer=payload.cluster_layer,
@@ -159,7 +165,7 @@ async def stp_manual_find_path(payload: STPManualFindPathInput):
 @validate
 async def stp_manual_check_constraints(db: db_dependency, payload: STPManualCheckConstraintsInput, user: Annotated[bool, Depends(validate_user)]):
     """Check if any constraint rasters intersect the drawn polygon."""
-    result = await STPsuitabilityMapper().check_constraints(payload.polygon_geojson, db)
+    result = await ManualSTPMapper().check_constraints(payload.polygon_geojson, db)
     return STPManualCheckConstraintsOutput(
         constraint_violations=result["constraint_violations"],
         can_proceed=result["can_proceed"],
@@ -244,7 +250,7 @@ async def stp_multi_area_confirm(
     fiona.drvsupport.supported_drivers["KML"] = "rw"
     fiona.drvsupport.supported_drivers["LIBKML"] = "rw"
 
-    mapper = STPsuitabilityMapper()
+    mapper = ManualSTPMapper()
     results = []
 
     for file in files:
@@ -319,7 +325,7 @@ async def stp_multi_area_confirm(
 @validate
 async def stp_multi_find_path(payload: STPMultiFindPathInput):
     """Find road network path independently for each polygon."""
-    mapper = STPsuitabilityMapper()
+    mapper = ManualSTPMapper()
     results = []
     for poly in payload.polygons:
         drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (poly.drain_points or [])]
@@ -342,7 +348,7 @@ async def stp_multi_find_path(payload: STPMultiFindPathInput):
 @validate
 async def stp_multi_area(payload: STPMultiAreaPayload):
     """Run DSS cluster finding independently for each polygon."""
-    from app.api.service.celery.stp_area.stp_area import find_suitable_area as _find_area
+    from app.api.service.celery.stp_area.manual_stp_area import manual_find_suitable_area as _find_area
     from app.database.config.dependency import celery_session
     from app.database.crud.raster_operations import rasterOperCrud
     import json
@@ -385,3 +391,37 @@ async def stp_multi_area(payload: STPMultiAreaPayload):
             results.append(STPMultiAreaSingleResult(cluster_layer=None, cluster_distances=None))
 
     return STPMultiAreaOutput(results=results)
+
+
+# ── Suitability raster endpoints (manual-only, separate from admin/drain) ─────
+
+@router.get("/get_suitability_by_category", status_code=status.HTTP_201_CREATED, response_model=list[ManualSTPsuitabilityOutput])
+@validate
+async def manual_get_suitability_by_category(db: db_dependency, category: str, user: Annotated[bool, Depends(validate_user)], all_data: bool = False):
+    return await ManualSTPMapper().get_suitability_categories(db, category, all_data)
+
+
+@router.post("/stp_suitability_visual_display", status_code=status.HTTP_201_CREATED, response_model=ManualSTPSuitabilityVisualOutput)
+@validate
+async def manual_stp_suitability_visual_display(db: db_dependency, payload: category_raster):
+    return await ManualSTPMapper().visual_suitability_map(db, payload.clip, payload.place, payload.layer_name)
+
+
+@router.post("/stp_suitability", status_code=status.HTTP_201_CREATED)
+@validate
+async def manual_stp_suitability(db: db_dependency, payload: ManualSTPsuitabilityInput):
+    return await ManualSTPMapper().create_suitability_map(db, payload)
+
+
+@router.post("/stp_suitability_area", status_code=status.HTTP_201_CREATED, response_model=ManualCeleryId)
+@validate
+async def manual_stp_suitability_area(db: db_dependency, payload: ManualSTP_suitability_Area):
+    task_id = await ManualSTPMapper().start_suitability_area_task(payload)
+    return ManualCeleryId(task_id=task_id)
+
+
+@router.get("/stp_area/{task_id}", status_code=status.HTTP_200_OK, response_model=ManualSTPAreaResp)
+@validate
+async def manual_stp_area(db: db_dependency, task_id: str):
+    cluster_layer, cluster_distances, task_status = await ManualSTPMapper().get_suitability_area_result(db, task_id)
+    return ManualSTPAreaResp(cluster_layer=cluster_layer, suitable_path=None, cluster_distances=cluster_distances, task_status=task_status)

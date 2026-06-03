@@ -6,6 +6,10 @@ import { METERS_PER_UNIT } from 'ol/proj/Units';
 import VectorSource from 'ol/source/Vector';
 import { useMap } from '@/contexts/groundwater_assessment/drain/MapContext';
 import { useLocation } from '@/contexts/groundwater_assessment/drain/LocationContext';
+import MapHeaderControls from '@/components/dss_common/MapHeaderControls';
+import BaseMaps from '@/components/dss_common/BaseMaps';
+import CloseIcon from '@/components/dss_common/CloseIcon';
+import { baseMaps } from '@/components/MapComponents';
 
 // Base maps configuration
 const baseMapNames: Record<string, { name: string; icon: string }> = {
@@ -676,6 +680,85 @@ const MapComponent: React.FC = () => {
   // NEW: Helper function to get opacity percentage
   const getOpacityPercentage = (value: number) => `${value * 10}%`;
 
+  const hasLegend = !!(legendData?.raster || legendData?.contour || legendData?.trend || legendData?.gsr);
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (hasLegend) setIsLegendOpen(true);
+  }, [hasLegend]);
+
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const togglePanel = (panel: string) => setActivePanel(prev => prev === panel ? null : panel);
+
+  const renderLayerPanel = () => (
+    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
+      <div className="rounded-xl border border-white/50 bg-white/10 p-3 shadow-2xl backdrop-blur-md">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-800">Map Layers</h3>
+          <button onClick={() => setActivePanel(null)} className="text-white bg-slate-300 hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200">
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {getCurrentLayers().map((layer) => (
+            <div key={layer.id} className={`rounded-xl border p-3 ${layer.visible ? 'border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className={`text-sm font-semibold truncate ${layer.visible ? 'text-blue-800' : 'text-gray-600'}`}>{layer.name}</span>
+                <button
+                  onClick={() => handleLayerToggle(layer.id)}
+                  className={`relative h-5 w-10 rounded-full transition-all duration-300 ${layer.visible ? 'bg-blue-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`block h-4 w-4 rounded-full bg-white shadow-md transition-transform duration-300 ${layer.visible ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBasemapPanel = () => (
+    <BaseMaps
+      baseMaps={baseMaps}
+      selectedBaseMap={selectedBaseMap}
+      onChangeBaseMap={(key) => { changeBaseMap(key); setActivePanel(null); }}
+      onClose={() => setActivePanel(null)}
+    />
+  );
+
+  const renderToolsPanel = () => (
+    <div className="absolute left-1/2 top-16 z-30 w-full max-w-[calc(100vw-1rem)] -translate-x-1/2 px-2 sm:top-20 sm:max-w-xs">
+      <div className="rounded-xl border border-white/50 bg-white/10 p-3 shadow-2xl backdrop-blur-md">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-800">Map Tools</h3>
+          <button onClick={() => setActivePanel(null)} className="text-white bg-slate-300 hover:text-red-600 hover:bg-red-100 p-1 rounded-full cursor-pointer transition-all duration-200">
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white/70 px-3 py-3 text-sm text-gray-700">
+          <div className="mb-2 font-medium text-gray-800">Layer Opacity</div>
+          <div className="space-y-3 max-h-52 overflow-y-auto">
+            {opacityLayerConfig.filter(l => l.visible).map((layer) => (
+              <div key={layer.key}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-gray-700 font-medium">{layer.label}</span>
+                  <span className="text-blue-600 font-semibold">{getSafeOpacityValue(layer.key) * 10}%</span>
+                </div>
+                <input type="range" min="1" max="10" step="1" value={getSafeOpacityValue(layer.key)}
+                  onChange={(e) => setLayerOpacity(layer.key, parseInt(e.target.value))}
+                  className="w-full h-1.5 rounded-lg appearance-none cursor-pointer"
+                  style={{ background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(getSafeOpacityValue(layer.key) - 1) * 11.11}%, #E5E7EB ${(getSafeOpacityValue(layer.key) - 1) * 11.11}%, #E5E7EB 100%)` }}
+                />
+              </div>
+            ))}
+          </div>
+          <button onClick={resetAllOpacities} className="mt-2 w-full text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded py-1 transition-colors">Reset All</button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div
       ref={mapContainerRef}
@@ -683,472 +766,109 @@ const MapComponent: React.FC = () => {
     >
       <div className="relative w-full h-full" ref={mapRef} />
 
-      {/* Basemap Selector */}
-      <div className="absolute top-2 right-4 z-[10]" ref={basemapPanelRef}>
-        <button
-          onClick={() => setIsBasemapPanelOpen(!isBasemapPanelOpen)}
-          className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
-          title="Change Base Map"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMapNames[selectedBaseMap]?.icon} />
-          </svg>
-          <span className="text-sm font-medium text-gray-700">
-            {baseMapNames[selectedBaseMap]?.name}
-          </span>
-          <svg
-            className={`w-4 h-4 text-gray-600 transition-transform ${isBasemapPanelOpen ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+      {/* Admin-style header controls */}
+      <MapHeaderControls
+        activePanel={activePanel}
+        onTogglePanel={togglePanel}
+        onToggleFullScreen={toggleFullscreen}
+        isFullScreen={isFullscreen}
+      />
 
-        {isBasemapPanelOpen && (
-          <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001]">
-            <div className="p-2">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 px-2">Select Base Map</h3>
-              <div className="grid grid-cols-1 gap-1">
-                {Object.entries(baseMapNames).map(([key, baseMap]) => (
-                  <button
-                    key={key}
-                    onClick={() => handleBaseMapChange(key)}
-                    className={`flex items-center gap-3 w-full p-3 rounded-md text-left transition-colors duration-200 ${selectedBaseMap === key
-                      ? 'bg-blue-50 border border-blue-200 text-blue-700'
-                      : 'hover:bg-gray-50 border border-transparent text-gray-700'
-                      }`}
-                  >
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={baseMap.icon} />
-                    </svg>
-                    <span className="text-sm font-medium">{baseMap.name}</span>
-                    {selectedBaseMap === key && (
-                      <svg className="w-4 h-4 text-blue-600 ml-auto" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
+      {activePanel === 'layers' && renderLayerPanel()}
+      {activePanel === 'basemap' && renderBasemapPanel()}
+      {activePanel === 'tools' && renderToolsPanel()}
+
+      {/* Legend — bottom-right */}
+      {hasLegend && isLegendOpen && (
+        <div className="absolute right-3 bottom-10 z-20">
+          <div className="rounded-xl border border-stone-200 bg-white/90 shadow-xl backdrop-blur-sm w-52">
+            <div className="flex items-center justify-between border-b border-stone-200 px-3 py-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-600">Legend</span>
+              <button onClick={() => setIsLegendOpen(false)} className="text-slate-400 hover:text-red-500 transition-colors">
+                <CloseIcon className="h-3.5 w-3.5" />
+              </button>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Layer Control Panel */}
-      <div className="absolute top-2 left-9 z-[10]" ref={layerPanelRef}>
-        <button
-          onClick={() => setIsLayerPanelOpen(!isLayerPanelOpen)}
-          className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
-          title="Layer Controls"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span className="text-sm font-medium text-gray-700">Layers</span>
-        </button>
-
-        {isLayerPanelOpen && (
-          <div className="absolute top-full left-0 mt-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001]">
-            <div className="p-3">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Map Layers</h3>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {getCurrentLayers().map((layer) => (
-                  <div key={layer.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md">
-                    <div className="flex items-center gap-3">
-                      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={getLayerIcon(layer.type)} />
-                      </svg>
-                      <span className="text-sm text-gray-700">{layer.name}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {(layer.type === 'drainage' || layer.type === 'village-overlay') && (
-                        <button
-                          onClick={zoomToCurrentLayer}
-                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                          title="Zoom to extent"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
-                      )}
-                      {layer.type === 'raster' && (
-                        <button
-                          onClick={zoomToRaster}
-                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                          title="Zoom to raster extent"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
-                      )}
-                      {layer.type === 'contour' && (
-                        <>
-                          <button
-                            onClick={zoomToContours}
-                            className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                            title="Zoom to contour extent"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={removeContours}
-                            className="p-1 text-gray-500 hover:text-red-600 transition-colors"
-                            title="Remove contour layer"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                      {layer.type === 'trend' && (
-                        <button
-                          onClick={() => {
-                            if (removeTrendLayer) {
-                              removeTrendLayer();
-                            }
-                            setLayerVisibility(prev => ({ ...prev, 'trend-wells': false }));
-                          }}
-                          className="p-1 text-gray-500 hover:text-red-600 transition-colors"
-                          title="Remove trend wells"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      )}
-                      {layer.id === 'gsr' && (
-                        <button
-                          onClick={zoomToGsr}
-                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                          title="Zoom to GSR extent"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
-                      )}
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={layer.visible}
-                          onChange={() => handleLayerToggle(layer.id)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* NEW: Opacity Control Panel */}
-      <div className="absolute top-16 left-9 z-[10]" ref={opacityPanelRef}>
-        <button
-          onClick={() => setIsOpacityPanelOpen(!isOpacityPanelOpen)}
-          className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
-          title="Layer Opacity Controls"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-          <span className="text-sm font-medium text-gray-700">Opacity</span>
-        </button>
-
-        {isOpacityPanelOpen && (
-          <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001]">
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-700">Layer Opacity</h3>
-                <button
-                  onClick={resetAllOpacities}
-                  className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded transition-colors"
-                  title="Reset all opacities to default"
-                >
-                  Reset All
-                </button>
-              </div>
-
-              <div className="space-y-4 max-h-64 overflow-y-auto">
-                {opacityLayerConfig
-                  .filter(layer => layer.visible)
-                  .map((layer) => {
-                    const currentOpacity = getSafeOpacityValue(layer.key);
-
-                    return (
-                      <div key={layer.key} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <label className="text-sm font-medium text-gray-700">
-                                {layer.label}
-                              </label>
-                              <p className="text-xs text-gray-500">{layer.description}</p>
-                            </div>
-                          </div>
-                          <div className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                            {getOpacityPercentage(currentOpacity)}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-gray-400 w-4">1</span>
-                          <div className="flex-1 relative">
-                            <input
-                              type="range"
-                              min="1"
-                              max="10"
-                              step="1"
-                              value={currentOpacity} // Always controlled with valid number
-                              onChange={(e) => {
-                                const newValue = parseInt(e.target.value, 10);
-                                if (!isNaN(newValue)) {
-                                  setLayerOpacity(layer.key, newValue);
-                                }
-                              }}
-                              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                              style={{
-                                background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(currentOpacity - 1) * 11.11}%, #E5E7EB ${(currentOpacity - 1) * 11.11}%, #E5E7EB 100%)`
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-400 w-6">10</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Legend Control Panel */}
-      <div className="absolute bottom-27 right-4 z-[10]" ref={legendPanelRef}>
-        <button
-          onClick={() => setIsLegendPanelOpen(!isLegendPanelOpen)}
-          className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors duration-200 flex items-center gap-2"
-          title="Toggle Legend"
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          <span className="text-sm font-medium text-gray-700">Legend</span>
-        </button>
-
-        {isLegendPanelOpen && (legendData?.raster || legendData?.contour || legendData?.trend || legendData?.gsr) && (
-          <div className="absolute bottom-full right-0 mb-2 w-72 bg-white border border-gray-300 rounded-lg shadow-xl z-[1001] max-h-80 overflow-y-auto">
-            <div className="p-3">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Map Legend</h3>
-
+            <div className="p-3 space-y-3 max-h-72 overflow-y-auto">
               {legendData?.raster && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-gray-600 mb-2">
-                    Raster: {legendData.raster.parameter.toUpperCase()}
-                  </h4>
+                <div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1">{legendData.raster.parameter}</div>
                   <div className="space-y-1">
-                    {legendData.raster.colors.map((color, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: color }}
-                        />
-                        <span className="text-xs text-gray-700">
-                          {legendData?.raster && legendData.raster.colors.length === legendData.raster.labels.length && (
-                            legendData.raster.labels[index]
-                          )}
-                        </span>
+                    {legendData.raster.colors.map((color, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: color }} />
+                        <span className="text-xs text-slate-700">{legendData.raster!.labels[i] ?? ''}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
               {legendData?.gsr && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-gray-600 mb-2">GSR Classification</h4>
+                <div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1">GSR Classification</div>
                   <div className="space-y-1">
-                    {legendData.gsr.classes.map((c, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: c.color }} />
-                        <span className="text-xs text-gray-700">{c.label} ({c.count})</span>
+                    {legendData.gsr.classes.map((entry, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: entry.color }} />
+                        <span className="text-xs text-slate-700">{entry.label}{typeof entry.count === 'number' ? ` (${entry.count})` : ''}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {legendData?.contour && (
-                <div>
-                  <h4 className="text-xs font-medium text-gray-600 mb-2">
-                    Contours (Elevation)
-                  </h4>
-                  <div className="space-y-1">
-                    {(() => {
-                      const { minElevation, maxElevation, interval } = legendData.contour;
-                      const steps = Math.floor((maxElevation - minElevation) / interval) + 1;
-                      const elevationLevels = Array.from(
-                        { length: steps },
-                        (_, i) => minElevation + i * interval
-                      ).filter((elev) => elev <= maxElevation);
-
-                      return elevationLevels.map((elevation, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded"
-                            style={{
-                              backgroundColor: getContourColor(
-                                elevation,
-                                minElevation,
-                                maxElevation
-                              ),
-                            }}
-                          />
-                          <span className="text-xs text-gray-700">
-                            {elevation.toFixed(2)} m
-                          </span>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              )}
-
               {legendData?.trend && (
-                <div className="mb-4">
-                  <h4 className="text-xs font-medium text-gray-600 mb-2">Trend Wells</h4>
+                <div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Trend Wells</div>
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-red-500" />
-                      <span className="text-xs text-gray-700">Increasing Trend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-green-500" />
-                      <span className="text-xs text-gray-700">Decreasing Trend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-gray-500" />
-                      <span className="text-xs text-gray-700">No Trend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-yellow-500" />
-                      <span className="text-xs text-gray-700">Insufficient Data</span>
-                    </div>
-                  </div>
-                  <div className="mt-2 text-xs text-gray-500">
-                    <p>Total Wells: {legendData.trend.totalWells}</p>
-                    <p>Significant: {legendData.trend.significant}</p>
+                    {[['bg-red-500','Increasing'],['bg-green-500','Decreasing'],['bg-gray-500','No Trend'],['bg-yellow-500','Insufficient Data']].map(([cls, label]) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${cls}`} />
+                        <span className="text-xs text-slate-700">{label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
-
-              {/* Drainage system legend */}
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-600 mb-2">Drainage System</h4>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border border-black bg-gray-100" />
-                    <span className="text-xs text-gray-700">Basin Boundary</span>
+              {legendData?.contour && (() => {
+                const { minElevation, maxElevation, interval } = legendData.contour;
+                const steps = Math.min(6, Math.floor((maxElevation - minElevation) / interval) + 1);
+                return (
+                  <div>
+                    <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1">Contours (m)</div>
+                    <div className="space-y-1">
+                      {Array.from({ length: steps }, (_, i) => minElevation + i * Math.ceil((maxElevation - minElevation) / (steps - 1 || 1))).map((elev, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="w-4 h-3 rounded-sm" style={{ backgroundColor: getContourColor(elev, minElevation, maxElevation) }} />
+                          <span className="text-xs text-slate-700">{elev.toFixed(0)} m</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-1 bg-blue-700" />
-                    <span className="text-xs text-gray-700">Rivers</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-1 bg-purple-600" />
-                    <span className="text-xs text-gray-700">Stretches</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-1 bg-green-600" />
-                    <span className="text-xs text-gray-700">Drains</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border border-red-600 bg-red-100" />
-                    <span className="text-xs text-gray-700">Catchments</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border border-orange-500 bg-orange-100" />
-                    <span className="text-xs text-gray-700">Villages</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500 border-2 border-white" />
-                    <span className="text-xs text-gray-700">Selected Stretch</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-orange-500 border-2 border-white" />
-                    <span className="text-xs text-gray-700">Selected Drain</span>
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Map Controls */}
-      <div className="absolute bottom-4 right-4 z-[10] flex flex-col gap-2">
-        {/* Labels Toggle Button */}
-        <button
-          onClick={toggleLabels}
-          className={`bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200 ${showLabels ? 'bg-blue-50 border-blue-300' : ''}`}
-          title={showLabels ? "Hide Labels" : "Show Labels"}
-        >
-          <svg className={`w-5 h-5 ${showLabels ? 'text-blue-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
-        </button>
-
-        <button
-          onClick={toggleFullscreen}
-          className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-2 shadow-lg transition-colors duration-200"
-          title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-        >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {isFullscreen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
-            )}
-          </svg>
-        </button>
-      </div>
-
-      {/* Coordinates and Scale Display */}
-      <div className="absolute bottom-4 left-4 z-[10] bg-white/90 backdrop-blur-sm border border-gray-300 rounded-lg p-3 shadow-lg">
-        <div className="space-y-1 text-xs">
-          {coordinates && (
-            <div className="flex items-center gap-2">
-              <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-gray-700">
-                {coordinates.lat.toFixed(6)}°, {coordinates.lon.toFixed(6)}°
-              </span>
-            </div>
-          )}
-          {scale && (
-            <div className="flex items-center gap-2">
-              <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span className="text-gray-700">Scale: {scale}</span>
-            </div>
-          )}
         </div>
-      </div>
+      )}
+
+      {/* Legend i button */}
+      {hasLegend && (
+        <button
+          onClick={() => setIsLegendOpen(o => !o)}
+          className={`absolute bottom-3 right-3 z-20 flex h-7 w-7 items-center justify-center rounded-full border text-xs font-bold shadow transition-colors ${isLegendOpen ? 'border-blue-400 bg-blue-500 text-white' : 'border-stone-300 bg-white/90 text-slate-600 hover:border-blue-300 hover:text-blue-600'}`}
+          title={isLegendOpen ? 'Hide legend' : 'Show legend'}
+        >i</button>
+      )}
+
+      {/* Coordinates */}
+      {coordinates && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <div className="rounded-lg bg-white/80 px-2 py-1 text-[10px] text-slate-600 backdrop-blur-sm shadow">
+            {coordinates.lat.toFixed(6)}° N, {coordinates.lon.toFixed(6)}° E
+            {scale && <span className="ml-2 text-slate-400">| {scale}</span>}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { ClipRasters } from "../../services/manual_stpSuitabilityTypes";
+import type { ClipRasters } from "../services/manual_stpSuitabilityTypes";
 
 export type AreaInputMethod = "shapefile" | "polygon" | "kml";
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useManualMultiStore } from "../stores/manualMultiStore";
-import type { ClusterInfo } from "../../services/manual_stpSuitabilityTypes";
+import type { ClusterInfo } from "../services/manual_stpSuitabilityTypes";
 
 function DistanceRow({ drain }: { drain: { Drain_No: number; distance_m: number } }) {
   return (

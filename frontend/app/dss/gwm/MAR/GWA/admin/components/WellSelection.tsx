@@ -264,8 +264,6 @@ const WellSelection: React.FC<WellSelectionProps> = ({ onWellsConfirmed, onReset
   };
 
   const handleReset = (): void => {
-    console.log("Resetting well selections...");
-    resetWellSelections();
     setIsConfirming(false);
     if (onReset) {
       onReset();
@@ -483,10 +481,11 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
               <button
                 onClick={exportToCSV}
                 disabled={isConfirming}
-                className={`px-3 py-1 rounded text-white ${isConfirming
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-purple-500 hover:bg-purple-600'
-                  }`}
+                className={`rounded-full px-3.5 py-2 text-xs font-semibold text-white shadow-md transition duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-1 sm:px-4 sm:text-sm ${
+                  isConfirming
+                    ? 'bg-stone-300 cursor-not-allowed'
+                    : 'bg-purple-500 hover:bg-purple-600 focus:ring-purple-400'
+                }`}
               >
                 Export CSV
               </button>
@@ -633,31 +632,28 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
           </div>
 
           
-          <div className="flex justify-center space-x-4 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
+          <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-200 flex-shrink-0">
             <button
-              className={`${areaConfirmed && wellsData.length > 0
-                ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold shadow-lg transform hover:scale-105 transition duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-green-400 focus:ring-opacity-50 rounded-full py-3 px-6"
-                : "bg-gray-400 cursor-not-allowed text-white rounded-full py-3 px-6"
-                }`}
+              className={`rounded-full px-3.5 py-2 text-xs font-semibold text-white shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 sm:px-4 sm:text-sm ${
+                areaConfirmed && wellsData.length > 0
+                  ? "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 hover:scale-[1.02] focus:ring-green-400"
+                  : "bg-stone-300 cursor-not-allowed"
+              }`}
               onClick={handleFinalConfirm}
               disabled={!areaConfirmed || wellsData.length === 0 || wellsLoading || isConfirming}
             >
               {isConfirming
-                ? (isWellTableSaved ? "Confirming & Posting..." : "Saving & Confirming...")
+                ? (isWellTableSaved ? "Confirming..." : "Saving...")
                 : "Confirm Wells"}
             </button>
 
             <button
-              className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 
-             text-white font-semibold py-3 px-6 rounded-full shadow-lg 
-             transform hover:scale-105 transition duration-300 ease-in-out 
-             focus:outline-none focus:ring-4 focus:ring-red-400 focus:ring-opacity-50"
+              className="rounded-full px-3.5 py-2 text-xs font-semibold text-white shadow-md transition duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 sm:px-4 sm:text-sm bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 disabled:bg-stone-300 disabled:from-stone-300 disabled:to-stone-300 disabled:cursor-not-allowed"
               onClick={handleReset}
               disabled={wellsLoading || isConfirming}
             >
               Reset Wells
             </button>
-
           </div>
         </div>
       )}

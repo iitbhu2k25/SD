@@ -163,19 +163,21 @@ export const MultiSelect = <
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-sm font-semibold text-gray-700 mb-2">{label}:</label>
+      <label className="block text-xs font-semibold mb-1.5 sm:text-sm text-gray-700">{label}:</label>
 
       <div
         ref={triggerRef}
-        className={`w-full p-2 text-sm border border-blue-500 rounded-md flex justify-between items-center cursor-pointer ${
-          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+        className={`w-full rounded-lg border px-2.5 py-2 text-xs transition duration-200 sm:px-3 sm:py-2.5 sm:text-sm flex justify-between items-center focus:outline-none focus:ring-2 ${
+          disabled
+            ? 'cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400'
+            : 'cursor-pointer border-stone-300 bg-[#fdfcfa] hover:border-stone-400 focus:border-blue-500 focus:ring-blue-500/20'
         }`}
         onClick={toggleDropdown}
       >
-        <span className={selectedItems.length === 0 ? 'text-gray-400' : ''}>
+        <span className={`min-w-0 flex-1 truncate ${selectedItems.length === 0 ? 'text-gray-400' : 'text-gray-700'}`}>
           {getDisplayText()}
         </span>
-        <svg className="w-4 h-4 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="h-3.5 w-3.5 ml-2 shrink-0 sm:h-4 sm:w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
             d={isOpen ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
         </svg>

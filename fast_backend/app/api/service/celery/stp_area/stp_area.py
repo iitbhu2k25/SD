@@ -183,7 +183,7 @@ class STP_Area:
 
         if clusters_gdf.empty:
             raise CustomException(status_code=404, detail="Suitable area not found")
-        temp_cluster_path=Settings().TEMP_DIR+"/temp_cluster.shp"
+        temp_cluster_path=Settings().TEMP_DIR+f"/temp_cluster_{uuid.uuid4().hex}.shp"
         clusters_gdf.to_file(temp_cluster_path,driver="ESRI Shapefile")
         return clusters_gdf,crs
 

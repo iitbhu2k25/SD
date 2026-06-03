@@ -446,157 +446,45 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
       )}
 
       {/* Form Fields */}
-      <div className="space-y-4 mb-6">
-        {/* Forecast Method */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Forecast Method <span className="text-red-500">*</span>
-          </label>
-          <select
-            className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={method}
-            onChange={(e) => setMethod(e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="">Select Method...</option>
-            <option value="linear_regression">Linear Regression</option>
-            <option value="arima">ARIMA (AutoRegressive Integrated Moving Average)</option>
-          </select>
+      <div className="space-y-3 mb-4">
+        {/* Row 1: Method + Type + single year all in one row */}
+        <div className={`grid gap-3 ${forecastType === 'range' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Forecast Method <span className="text-red-500">*</span></label>
+            <select className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500" value={method} onChange={(e) => setMethod(e.target.value)} disabled={isLoading}>
+              <option value="">Select...</option>
+              <option value="linear_regression">Linear Regression</option>
+              <option value="arima">ARIMA</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Forecast Type <span className="text-red-500">*</span></label>
+            <div className="flex gap-1.5" style={{height: '34px'}}>
+              <button type="button" onClick={() => { setForecastType("single"); setForecastYear(""); setForecastYears(["", ""]); }} disabled={isLoading} className={`flex-1 rounded-md border text-xs font-medium transition-all duration-200 disabled:opacity-50 ${forecastType === "single" ? "bg-emerald-500 border-emerald-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400"}`}>Single</button>
+              <button type="button" onClick={() => { setForecastType("range"); setForecastYear(""); setForecastYears(["", ""]); }} disabled={isLoading} className={`flex-1 rounded-md border text-xs font-medium transition-all duration-200 disabled:opacity-50 ${forecastType === "range" ? "bg-emerald-500 border-emerald-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400"}`}>Range</button>
+            </div>
+          </div>
+          {forecastType === 'single' && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Forecast Year <span className="text-red-500">*</span></label>
+              <input type="number" className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500" value={forecastYear} onChange={(e) => setForecastYear(e.target.value)} placeholder="e.g. 2025" disabled={isLoading} min="2021" max="2099" />
+              {forecastYear && validateYear(forecastYear, parseInt(availableHistoricalYears.maxYear) || 0) && (<span className="text-red-500 text-[10px] mt-0.5 block">{validateYear(forecastYear, parseInt(availableHistoricalYears.maxYear) || 0)}</span>)}
+            </div>
+          )}
         </div>
 
-{/* Forecast Type - ULTRA THIN WIDE PROFESSIONAL GREEN */}
-<div className="space-y-1">
-  <label className="block text-[11px] font-semibold text-gray-700">
-    Forecast Type <span className="text-red-500">*</span>
-  </label>
-
-  <div className="flex gap-2">
-    {/* Single Year */}
-    <button
-      type="button"
-      onClick={() => {
-        setForecastType("single");
-        setForecastYear("");
-        setForecastYears(["", ""]);
-      }}
-      disabled={isLoading}
-      className={`
-        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
-        transition-all duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${
-          forecastType === "single"
-            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
-            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-        }
-      `}
-    >
-      <div className="flex justify-between items-center">
-        <span>Single</span>
-        <span className="text-[10px] opacity-75">1 Year</span>
-      </div>
-    </button>
-
-    {/* Range */}
-    <button
-      type="button"
-      onClick={() => {
-        setForecastType("range");
-        setForecastYear("");
-        setForecastYears(["", ""]);
-      }}
-      disabled={isLoading}
-      className={`
-        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
-        transition-all duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${
-          forecastType === "range"
-            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
-            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-        }
-      `}
-    >
-      <div className="flex justify-between items-center">
-        <span>Range</span>
-        <span className="text-[10px] opacity-75">Multi Year</span>
-      </div>
-    </button>
-  </div>
-</div>
-
-
-
-
-
-        {/* Year Input */}
-        {forecastType === 'single' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Forecast Year <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={forecastYear}
-              onChange={(e) => setForecastYear(e.target.value)}
-              placeholder={`Enter year (2021-2099, after ${availableHistoricalYears.maxYear || 'historical data'})`}
-              disabled={isLoading}
-              min="2021"
-              max="2099"
-            />
-            {forecastYear && validateYear(forecastYear, parseInt(availableHistoricalYears.maxYear) || 0) && (
-              <span className="text-red-500 text-sm mt-1">
-                {validateYear(forecastYear, parseInt(availableHistoricalYears.maxYear) || 0)}
-              </span>
-            )}
-          </div>
-        )}
-
         {forecastType === 'range' && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Year <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={forecastYears[0]}
-                onChange={(e) => setForecastYears([e.target.value, forecastYears[1]])}
-                placeholder={`Enter start year (2021-2099, after ${availableHistoricalYears.maxYear || 'historical data'})`}
-                disabled={isLoading}
-                min="2021"
-                max="2099"
-              />
-              {forecastYears[0] && validateYear(forecastYears[0], parseInt(availableHistoricalYears.maxYear) || 0) && (
-                <span className="text-red-500 text-sm mt-1">
-                  {validateYear(forecastYears[0], parseInt(availableHistoricalYears.maxYear) || 0)}
-                </span>
-              )}
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Start Year <span className="text-red-500">*</span></label>
+              <input type="number" className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500" value={forecastYears[0]} onChange={(e) => setForecastYears([e.target.value, forecastYears[1]])} placeholder="e.g. 2025" disabled={isLoading} min="2021" max="2099" />
+              {forecastYears[0] && validateYear(forecastYears[0], parseInt(availableHistoricalYears.maxYear) || 0) && (<span className="text-red-500 text-[10px] mt-0.5 block">{validateYear(forecastYears[0], parseInt(availableHistoricalYears.maxYear) || 0)}</span>)}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Year <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={forecastYears[1]}
-                onChange={(e) => setForecastYears([forecastYears[0], e.target.value])}
-                placeholder={`Enter end year (2021-2099, after start year)`}
-                disabled={isLoading || !forecastYears[0]}
-                min="2021"
-                max="2099"
-              />
-              {forecastYears[1] && validateYear(forecastYears[1], parseInt(availableHistoricalYears.maxYear) || 0) && (
-                <span className="text-red-500 text-sm mt-1">
-                  {validateYear(forecastYears[1], parseInt(availableHistoricalYears.maxYear) || 0)}
-                </span>
-              )}
-              {forecastYears[0] && forecastYears[1] && parseInt(forecastYears[0]) >= parseInt(forecastYears[1]) && (
-                <span className="text-red-500 text-sm mt-1">End year must be greater than start year</span>
-              )}
+              <label className="block text-xs font-semibold text-gray-600 mb-1">End Year <span className="text-red-500">*</span></label>
+              <input type="number" className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500" value={forecastYears[1]} onChange={(e) => setForecastYears([forecastYears[0], e.target.value])} placeholder="e.g. 2030" disabled={isLoading || !forecastYears[0]} min="2021" max="2099" />
+              {forecastYears[1] && validateYear(forecastYears[1], parseInt(availableHistoricalYears.maxYear) || 0) && (<span className="text-red-500 text-[10px] mt-0.5 block">{validateYear(forecastYears[1], parseInt(availableHistoricalYears.maxYear) || 0)}</span>)}
+              {forecastYears[0] && forecastYears[1] && parseInt(forecastYears[0]) >= parseInt(forecastYears[1]) && (<span className="text-red-500 text-[10px] mt-0.5 block">End year must be after start year</span>)}
             </div>
           </div>
         )}
@@ -637,11 +525,12 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
       </div>
 
       {/* Generate Button */}
+      <div className="flex justify-center">
       <button
         onClick={handleGenerate}
         disabled={isLoading || !isFormValid()}
         className={[
-          "w-full inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-1.5 px-6 text-xs",
           isLoading || !isFormValid()
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -690,8 +579,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
           </>
         )}
       </button>
-
-
+      </div>
 
       {/* Success Results */}
       {forecastData && !error && !isLoading && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { MultiAreaSingleResult, MultiFindPathSingleResult, MultiPolygonEntry } from "../../services/manual_stpSuitabilityTypes";
+import type { MultiAreaSingleResult, MultiFindPathSingleResult, MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 
 export interface MultiPolygonResult {
   index: number;
@@ -9,7 +9,7 @@ export interface MultiPolygonResult {
   clusterLayer: string | null;
   /** GeoServer layer name for the road path (non-DSS only) */
   suitablePath: string | null;
-  clusterDistances: import("../../services/manual_stpSuitabilityTypes").ClusterInfo[] | null;
+  clusterDistances: import("../services/manual_stpSuitabilityTypes").ClusterInfo[] | null;
 }
 
 interface ManualMultiStoreState {

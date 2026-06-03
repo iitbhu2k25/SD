@@ -5,16 +5,19 @@ import AreaSelection from "./AreaSelection";
 import WellSelection from "./WellSelection";
 import { useLocation } from "@/contexts/groundwater_assessment/admin/LocationContext";
 import { useWell } from "@/contexts/groundwater_assessment/admin/WellContext";
+import { useMap } from "@/contexts/groundwater_assessment/admin/MapContext";
 
 interface DataSelectionProps {
   step: number;
   onConfirm?: (selectedData: any) => void;
   onReset?: () => void;
+  onWellsReset?: () => void;
 }
 
-const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset }) => {
-  const { areaConfirmed, lockSelections, resetSelections } = useLocation();
+const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset, onWellsReset }) => {
+  const { areaConfirmed, lockSelections, resetSelections, unlockSelections } = useLocation();
   const { resetWellSelections } = useWell();
+  const { forceRemoveWellPointsLayer } = useMap();
   const [finalConfirmed, setFinalConfirmed] = useState(false);
 
   const handleAreaConfirmed = () => {
@@ -43,9 +46,11 @@ const DataSelection: React.FC<DataSelectionProps> = ({ onConfirm, onReset }) => 
   };
 
   const handleResetWells = () => {
-    console.log("Resetting well selection only...");
     setFinalConfirmed(false);
-    resetWellSelections(); // Reset only well selections
+    resetWellSelections();
+    forceRemoveWellPointsLayer();
+    unlockSelections();
+    onWellsReset?.();
   };
 
   return (

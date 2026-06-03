@@ -174,7 +174,7 @@ function DrainRightPanel({
                 <button
                   onClick={navigationProps.onPrevious}
                   disabled={navigationProps.isFirstStep}
-                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200", navigationProps.isFirstStep ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md"].join(" ")}
+                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-2.5 w-28 justify-center transition-all duration-200", navigationProps.isFirstStep ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-md"].join(" ")}
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   Previous
@@ -182,7 +182,7 @@ function DrainRightPanel({
                 <button
                   onClick={navigationProps.onNext}
                   disabled={navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked)}
-                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-1.5 px-3 transition-all duration-200", navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked) ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md"].join(" ")}
+                  className={["inline-flex items-center gap-1 font-medium text-xs rounded-full py-2.5 w-28 justify-center transition-all duration-200", navigationProps.isLastStep || (navigationProps.activeStep === 1 && !navigationProps.selectionsLocked) ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-md"].join(" ")}
                 >
                   Next
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>

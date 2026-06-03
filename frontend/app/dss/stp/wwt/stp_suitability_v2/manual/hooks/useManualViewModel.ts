@@ -4,8 +4,8 @@ import { toast } from "react-toastify";
 import { useManualAreaStore } from "../stores/manualAreaStore";
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
-import type { TechnologyAreaSubmitValues } from "../../components/StpTechnologyDss";
-import { findManualPath, findSuitabilityAreaClusterFresh } from "../../services/manual_stpSuitabilityApi";
+import type { TechnologyAreaSubmitValues } from "../components/ManualStpTechnologyDss";
+import { findManualPath, findSuitabilityAreaClusterFresh } from "../services/manual_stpSuitabilityApi";
 
 export function useManualViewModel() {
   const selectionsLocked = useManualAreaStore((state) => state.selectionsLocked);

@@ -2,17 +2,17 @@
 
 import { useCallback, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import SuitabilityWorkflowPanel from "../../components/SuitabilityWorkflowPanel";
-import StpTechnologyDss from "../../components/StpTechnologyDss";
-import type { TechnologyAreaSubmitValues } from "../../components/StpTechnologyDss";
+import ManualSuitabilityWorkflowPanel from "./ManualSuitabilityWorkflowPanel";
+import ManualStpTechnologyDss from "./ManualStpTechnologyDss";
+import type { TechnologyAreaSubmitValues } from "./ManualStpTechnologyDss";
 import ManualCategorySlider from "./ManualCategorySlider";
 import { useManualCategoryStore } from "../stores/manualCategoryStore";
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
 import { useManualMultiStore } from "../stores/manualMultiStore";
-import { findMultiPath, findMultiArea, runManualSuitabilityAnalysis } from "../../services/manual_stpSuitabilityApi";
+import { findMultiPath, findMultiArea, runManualSuitabilityAnalysis } from "../services/manual_stpSuitabilityApi";
 import type { MultiPolygonResult } from "../stores/manualMultiStore";
-import type { ClipRasters } from "../../services/manual_stpSuitabilityTypes";
+import type { ClipRasters } from "../services/manual_stpSuitabilityTypes";
 
 // ── Multi-polygon Technology DSS panel ────────────────────────────────────────
 function MultiPolygonPanel() {
@@ -88,7 +88,7 @@ function MultiPolygonPanel() {
       <p className="mb-3 text-[10px] text-slate-500">
         {polygonEntries.length} polygon(s) — results will be kept separate per polygon.
       </p>
-      <StpTechnologyDss
+      <ManualStpTechnologyDss
         canFindArea={true}
         enableDprCostEstimator={true}
         isFindingArea={isFinding}
@@ -295,7 +295,7 @@ function MultiDssWorkflowPanel() {
   };
 
   return (
-    <SuitabilityWorkflowPanel
+    <ManualSuitabilityWorkflowPanel
       showCategories={selectedCondition.length > 0}
       categoryLoading={categoryLoading}
       workflowError={categoryError}
@@ -436,7 +436,7 @@ export default function ManualRightPanel({
               <MultiPolygonPanel />
             ) : showDssWorkflow ? (
               /* ── Single-polygon DSS workflow ── */
-              <SuitabilityWorkflowPanel
+              <ManualSuitabilityWorkflowPanel
                 showCategories={selectedCondition.length > 0}
                 categoryLoading={categoryLoading}
                 workflowError={categoryError}
@@ -454,7 +454,7 @@ export default function ManualRightPanel({
               />
             ) : (
               /* ── Single-polygon normal flow ── */
-              <StpTechnologyDss
+              <ManualStpTechnologyDss
                 canFindArea={canFindTechnologyArea}
                 enableDprCostEstimator={true}
                 isFindingArea={isTreatmentLoading}

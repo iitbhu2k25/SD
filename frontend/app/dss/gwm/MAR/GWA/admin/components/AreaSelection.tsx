@@ -94,6 +94,19 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
 
   const formatSubDistrictDisplay = (subDistrict: SubDistrict): string => subDistrict.name;
 
+  const selectClass = (disabled: boolean) =>
+    `w-full rounded-lg border px-2.5 py-2 text-xs transition duration-200 sm:px-3 sm:py-2.5 sm:text-sm focus:outline-none focus:ring-2 ${
+      disabled
+        ? isDark
+          ? "cursor-not-allowed border-[#1e3a5f]/50 bg-[#060c15] text-[#1e3a5f]"
+          : "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400"
+        : isDark
+          ? "border-[#1e3a5f]/80 bg-[#080e1c] text-slate-200 focus:border-cyan-500 focus:ring-cyan-500/20"
+          : "border-stone-300 bg-[#fdfcfa] hover:border-stone-400 focus:border-blue-500 focus:ring-blue-500/20"
+    }`;
+
+  const labelClass = `block text-xs font-semibold mb-1.5 sm:text-sm ${isDark ? "text-slate-300" : "text-gray-700"}`;
+
   return (
     <div className={`rounded-2xl border p-2.5 shadow-sm sm:p-4 ${
       isDark
@@ -107,14 +120,12 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
       )}
 
       <div className="mb-3 grid grid-cols-1 gap-3 sm:mb-4 sm:gap-4">
+
+        {/* State */}
         <div>
-          <label className={`block text-sm font-semibold mb-2 ${isDark ? "text-slate-300" : "text-gray-700"}`}>State:</label>
+          <label className={labelClass}>State:</label>
           <select
-            className={`w-full p-2 text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              selectionsLocked || isLoading || areaConfirmed
-                ? "bg-gray-100 cursor-not-allowed border-gray-300 text-gray-400"
-                : "bg-white border-blue-500"
-            }`}
+            className={selectClass(selectionsLocked || isLoading || areaConfirmed)}
             value={selectedState ?? ""}
             onChange={(e) => handleStateSelect(e.target.value === "" ? null : e.target.value)}
             disabled={selectionsLocked || isLoading || areaConfirmed}
@@ -126,6 +137,7 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
           </select>
         </div>
 
+        {/* District */}
         <MultiSelect
           items={sortedEnhancedDistricts}
           selectedItems={selectedDistricts}
@@ -137,6 +149,7 @@ const AreaSelection: React.FC<AreaSelectionProps> = ({ onAreaConfirmed }) => {
           itemDisabled={(item: any) => item.__isUnavailable}
         />
 
+        {/* Sub-District */}
         <MultiSelect
           items={subDistricts}
           selectedItems={selectedSubDistricts}

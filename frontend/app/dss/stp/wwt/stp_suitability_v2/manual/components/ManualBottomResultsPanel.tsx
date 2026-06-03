@@ -2,10 +2,10 @@
 
 import DataTable from "react-data-table-component";
 import CollapseToggle from "@/components/dss_common/CollapseToggle";
-import type { BottomPanelSettings } from "../../config/manual_panels.config";
-import { suitabilityVillageColumns } from "../../config/villageTableColumns";
-import type { DataRow } from "../../services/manual_stpSuitabilityTypes";
-import { downloadSuitabilityCsv } from "../../utils/manual_downloadSuitabilityCsv";
+import type { BottomPanelSettings } from "../config/manual_panels.config";
+import { suitabilityVillageColumns } from "../config/villageTableColumns";
+import type { DataRow } from "../services/manual_stpSuitabilityTypes";
+import { downloadSuitabilityCsv } from "../utils/manual_downloadSuitabilityCsv";
 
 const lightDataTableStyles = {
   table: { style: { backgroundColor: "transparent" } },
