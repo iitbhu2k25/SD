@@ -33,30 +33,39 @@ function MultiPolygonPanel() {
     setIsFinding(true);
     setTreatmentLoading(true);
     try {
-      // No-constraint path mirrors single-file no-constraint:
-      // The polygon itself is the "cluster" and a road path is drawn from centroid → drains.
-      const pathResponse = await findMultiPath({
-        polygons: currentEntries.map((entry) => {
-          const effectiveDrains =
-            entry.selectedDrainNos.length > 0
-              ? entry.drainPoints.filter((d) => entry.selectedDrainNos.includes(d.Drain_No))
-              : entry.drainPoints;
-          return {
-            polygon_layer: entry.polygonLayer ?? undefined,
-            location: [entry.centroid] as [number, number][],
-            drain_points: effectiveDrains,
-            buffer_bbox: entry.bufferBbox,
-          };
-        }),
-      });
+      // No-constraint path: road path per polygon — sequential to avoid backend contention
+      const resultsMap = new Map<number, MultiPolygonResult>();
+      for (const entry of currentEntries) {
+        const effectiveDrains =
+          entry.selectedDrainNos.length > 0
+            ? entry.drainPoints.filter((d) => entry.selectedDrainNos.includes(d.Drain_No))
+            : entry.drainPoints;
+        try {
+          const pathResponse = await findMultiPath({
+            polygons: [{
+              polygon_layer: entry.polygonLayer ?? undefined,
+              location: [entry.centroid] as [number, number][],
+              drain_points: effectiveDrains,
+              buffer_bbox: entry.bufferBbox,
+            }],
+          });
+          const r = pathResponse.results[0];
+          if (r) {
+            resultsMap.set(entry.index, {
+              index: entry.index,
+              clusterLayer: entry.polygonLayer ?? null,
+              suitablePath: r.suitable_path ?? null,
+              clusterDistances: r.cluster_distances ?? null,
+            });
+          }
+        } catch {
+          // leave out — will show as no result for this polygon
+        }
+      }
 
-      const results: MultiPolygonResult[] = pathResponse.results.map((r, i) => ({
-        index: i,
-        // polygon layer is the "cluster" display — same as single-file no-constraint
-        clusterLayer: currentEntries[i]?.polygonLayer ?? null,
-        suitablePath: r.suitable_path ?? null,
-        clusterDistances: r.cluster_distances ?? null,
-      }));
+      const results: MultiPolygonResult[] = currentEntries.map((entry) =>
+        resultsMap.get(entry.index) ?? { index: entry.index, clusterLayer: null, suitablePath: null, clusterDistances: null }
+      );
 
       setPolygonResults(results);
 
@@ -137,16 +146,20 @@ function MultiDssWorkflowPanel() {
       // Read fresh from store — hook closure may be stale if entries changed since last render
       const currentEntries = useManualMultiStore.getState().polygonEntries;
 
-      // Run suitability analysis for every polygon in parallel
-      const results = await Promise.allSettled(
-        currentEntries.map((entry) =>
-          runManualSuitabilityAnalysis({
+      // Run suitability analysis for every polygon sequentially to avoid backend overload
+      const results: PromiseSettledResult<import("../services/manual_stpSuitabilityTypes").stp_sutability_Output>[] = [];
+      for (const entry of currentEntries) {
+        try {
+          const result = await runManualSuitabilityAnalysis({
             data: selectedCategories,
             village_layer: entry.vectorLayer,
             method: "shapefile",
-          })
-        )
-      );
+          });
+          results.push({ status: "fulfilled", value: result });
+        } catch (e) {
+          results.push({ status: "rejected", reason: e });
+        }
+      }
 
       // Update each entry's displayRasters with its suitability result
       const updatedEntries = currentEntries.map((entry, i) => {
@@ -219,52 +232,59 @@ function MultiDssWorkflowPanel() {
       const dssPolygons = polygonsWithRaster.filter((p) => p.suitabilityLayer);
       const fallbackPolygons = polygonsWithRaster.filter((p) => !p.suitabilityLayer);
 
-      // DSS path: use /stp_multi_area — backend runs find_suitable_area independently per polygon
-      // with num_clusters so it returns exactly N clusters per polygon
+      // DSS path: call /stp_multi_area one polygon at a time to avoid Celery worker contention
       const dssResultsMap = new Map<number, MultiPolygonResult>();
-      if (dssPolygons.length > 0) {
-        const multiAreaResponse = await findMultiArea({
-          polygons: dssPolygons.map((p) => ({
-            treatment_technology: values.landPerMld,
-            mld_capacity: values.mldCapacity,
-            custom_land_per_mld: 2,
-            layer_name: p.suitabilityLayer!.layer_name,
-            location: [p.entry.centroid] as [number, number][],
-            drain_points: p.effectiveDrains,
-            num_clusters: n,
-          })),
-        });
-        multiAreaResponse.results.forEach((r, idx) => {
-          const { i } = dssPolygons[idx];
-          dssResultsMap.set(i, {
-            index: i,
-            clusterLayer: r.cluster_layer ?? null,
-            suitablePath: null,
-            clusterDistances: r.cluster_distances ?? null,
+      for (const p of dssPolygons) {
+        try {
+          const multiAreaResponse = await findMultiArea({
+            polygons: [{
+              treatment_technology: values.landPerMld,
+              mld_capacity: values.mldCapacity,
+              custom_land_per_mld: 2,
+              layer_name: p.suitabilityLayer!.layer_name,
+              location: [p.entry.centroid] as [number, number][],
+              drain_points: p.effectiveDrains,
+              num_clusters: n,
+            }],
           });
-        });
+          const r = multiAreaResponse.results[0];
+          if (r) {
+            dssResultsMap.set(p.i, {
+              index: p.i,
+              clusterLayer: r.cluster_layer ?? null,
+              suitablePath: null,
+              clusterDistances: r.cluster_distances ?? null,
+            });
+          }
+        } catch {
+          // leave this polygon out of dssResultsMap — fallback will handle it
+        }
       }
 
-      // Fallback path (no suitability raster): road path per polygon
+      // Fallback path (no suitability raster): road path per polygon — sequential to avoid contention
       const fallbackResultsMap = new Map<number, MultiPolygonResult>();
-      if (fallbackPolygons.length > 0) {
-        const pathResponse = await findMultiPath({
-          polygons: fallbackPolygons.map((p) => ({
-            polygon_layer: p.entry.polygonLayer ?? undefined,
-            location: [p.entry.centroid] as [number, number][],
-            drain_points: p.effectiveDrains,
-            buffer_bbox: p.entry.bufferBbox,
-          })),
-        });
-        pathResponse.results.forEach((r, idx) => {
-          const { i, entry } = fallbackPolygons[idx];
-          fallbackResultsMap.set(i, {
-            index: i,
-            clusterLayer: entry.polygonLayer ?? null,
-            suitablePath: r.suitable_path ?? null,
-            clusterDistances: r.cluster_distances ?? null,
+      for (const p of fallbackPolygons) {
+        try {
+          const pathResponse = await findMultiPath({
+            polygons: [{
+              polygon_layer: p.entry.polygonLayer ?? undefined,
+              location: [p.entry.centroid] as [number, number][],
+              drain_points: p.effectiveDrains,
+              buffer_bbox: p.entry.bufferBbox,
+            }],
           });
-        });
+          const r = pathResponse.results[0];
+          if (r) {
+            fallbackResultsMap.set(p.i, {
+              index: p.i,
+              clusterLayer: p.entry.polygonLayer ?? null,
+              suitablePath: r.suitable_path ?? null,
+              clusterDistances: r.cluster_distances ?? null,
+            });
+          }
+        } catch {
+          // leave out — will show as no result for this polygon
+        }
       }
 
       // Merge results in original polygon order

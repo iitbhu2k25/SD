@@ -277,6 +277,48 @@ async def stp_multi_polygon_confirm(
     return STPMultiAreaConfirmOutput(results=results)
 
 
+@router.post("/stp_multi_drawn_confirm", status_code=status.HTTP_201_CREATED, response_model=STPMultiAreaConfirmOutput)
+@validate
+async def stp_multi_drawn_confirm(payload: dict):
+    """Accept a JSON array of GeoJSON polygon geometries (drawn on map).
+    Each geometry is confirmed independently — same output schema as stp_multi_area_confirm.
+    """
+    from shapely.geometry import shape as _shape
+    import geopandas as _gpd
+
+    geometries = payload.get("polygons", [])
+    if not geometries:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="No polygons provided")
+
+    mapper = ManualSTPMapper()
+    results = []
+
+    for geometry_geojson in geometries:
+        result = await mapper.confirm_manual_area(geometry_geojson)
+        try:
+            _geom = _shape(geometry_geojson)
+            _gdf = _gpd.GeoDataFrame(geometry=[_geom], crs="EPSG:4326").to_crs("EPSG:32644")
+            area_ha = float(_gdf.geometry.area.iloc[0]) / 10_000
+            _buffered_proj = _gdf.geometry.iloc[0].buffer(5000)
+            _buf_wgs84 = _gpd.GeoDataFrame(geometry=[_buffered_proj], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
+            tight_bbox = list(_buf_wgs84.bounds)
+        except Exception:
+            area_ha = 0.0
+            tight_bbox = result["buffer_bbox"]
+
+        results.append(STPMultiAreaConfirmSingleResult(
+            vector_layer=result["vector_name"],
+            polygon_layer=result["polygon_layer"],
+            centroid_lat=result["centroid_lat"],
+            centroid_lon=result["centroid_lon"],
+            buffer_bbox=tight_bbox,
+            area_ha=area_ha,
+        ))
+
+    return STPMultiAreaConfirmOutput(results=results)
+
+
 @router.post("/stp_preview_polygon", status_code=status.HTTP_200_OK)
 @validate
 async def stp_preview_polygon(

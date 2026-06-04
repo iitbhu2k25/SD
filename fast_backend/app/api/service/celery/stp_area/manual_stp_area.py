@@ -300,6 +300,9 @@ def manual_find_suitable_area(self, treatment_technology: float, mld_capacity: f
     try:
         area = ManualSTPArea()
         task_id = self.request.id
+        print(f"[manual_find_suitable_area] START task={task_id} layer={layer_name}", flush=True)
+        raster_check = redis_manager.get(layer_name)
+        print(f"[manual_find_suitable_area] redis get layer={layer_name} found={raster_check is not None}", flush=True)
         _manual_celery_task_update(task_id=task_id, status="started")
 
         cluster_gdf, crs = area._find_suitable_cluster(mld_capacity, treatment_technology, custom_land_per_mld, layer_name)
@@ -318,5 +321,6 @@ def manual_find_suitable_area(self, treatment_technology: float, mld_capacity: f
 
         distances_json = json.dumps(cluster_drain_distances) if cluster_drain_distances else None
         _manual_celery_task_update(task_id=task_id, status="completed", progress=100, layer_name=final_cluster_name, result_path=distances_json)
-    except Exception:
+    except Exception as e:
+        print(f"[manual_find_suitable_area] FAILED task={task_id} layer={layer_name} error={e}", flush=True)
         _manual_celery_task_update(task_id=task_id, status="failed", progress=100)

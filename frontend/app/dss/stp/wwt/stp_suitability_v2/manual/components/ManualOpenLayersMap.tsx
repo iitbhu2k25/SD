@@ -181,6 +181,7 @@ export default function ManualOpenLayersMap() {
   const selectedMethod = useManualAreaStore((state) => state.selectedMethod);
   const selectionsLocked = useManualAreaStore((state) => state.selectionsLocked);
   const setDrawnPolygon = useManualAreaStore((state) => state.setDrawnPolygon);
+  const addDrawnPolygon = useManualAreaStore((state) => state.addDrawnPolygon);
   const drawnPolygon = useManualAreaStore((state) => state.drawnPolygon);
   const displayRaster = useManualAreaStore((state) => state.displayRaster);
   const selectionVectorLayer = useManualAreaStore((state) => state.selectionVectorLayer);
@@ -347,11 +348,12 @@ export default function ManualOpenLayersMap() {
       setIsDrawing(false);
       const geojson = geojsonFormat.writeFeatureObject(event.feature) as GeoJSON.Feature<GeoJSON.Polygon>;
       if (geojson.geometry) {
+        // Add to list — keeps drawing active so user can draw more polygons
+        addDrawnPolygon({ geojson: geojson.geometry, label: "Drawn Polygon" });
         setDrawnPolygon({ geojson: geojson.geometry, label: "Drawn Polygon" });
         setHasDrawnPolygon(true);
-        // Deactivate drawing mode after polygon is complete
-        setDrawingActive(false);
-        toast.success("Polygon drawn — click Confirm Selection to proceed");
+        // Keep drawingActive=true so user can draw another polygon immediately
+        toast.success("Polygon drawn — draw another or click Confirm Selection to proceed");
       }
     });
 
@@ -375,7 +377,7 @@ export default function ManualOpenLayersMap() {
     drawInteractionRef.current = draw;
     modifyInteractionRef.current = modify;
     snapInteractionRef.current = snap;
-  }, [isPolygonMode, selectionsLocked, drawingActive, setDrawnPolygon, setDrawingActive]);
+  }, [isPolygonMode, selectionsLocked, drawingActive, setDrawnPolygon, addDrawnPolygon, setDrawingActive]);
 
   // When polygon mode is exited, clear draw source and reset drawing state
   useEffect(() => {
@@ -1038,6 +1040,7 @@ export default function ManualOpenLayersMap() {
   const clearDrawnPolygon = () => {
     drawSourceRef.current?.clear();
     setDrawnPolygon(null);
+    useManualAreaStore.getState().setDrawnPolygons([]);
     setHasDrawnPolygon(false);
   };
 

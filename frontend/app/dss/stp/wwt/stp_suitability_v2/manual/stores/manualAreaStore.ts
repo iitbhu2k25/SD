@@ -19,6 +19,7 @@ interface ManualAreaStoreState {
   uploadedFile: File | null;
   uploadedFiles: File[];
   drawnPolygon: DrawnPolygon | null;
+  drawnPolygons: DrawnPolygon[];
   selectionsLocked: boolean;
   isLoading: boolean;
   error: string | null;
@@ -43,6 +44,9 @@ interface ManualAreaStoreActions {
   addUploadedFile: (file: File) => void;
   removeUploadedFile: (index: number) => void;
   setDrawnPolygon: (polygon: DrawnPolygon | null) => void;
+  addDrawnPolygon: (polygon: DrawnPolygon) => void;
+  removeDrawnPolygon: (index: number) => void;
+  setDrawnPolygons: (polygons: DrawnPolygon[]) => void;
   confirmSelections: (vectorLayer: string, rasterLayers: ClipRasters[], rasterKey: string, centroid: [number, number], polygonLayer: string, bufferBbox: [number, number, number, number], drainPoints?: DrainPoint[], markedAreaHa?: number) => void;
   unlockSelections: () => void;
   setLoading: (loading: boolean) => void;
@@ -61,6 +65,7 @@ const initialState: ManualAreaStoreState = {
   uploadedFile: null,
   uploadedFiles: [],
   drawnPolygon: null,
+  drawnPolygons: [],
   selectionsLocked: false,
   isLoading: false,
   error: null,
@@ -86,6 +91,7 @@ export const useManualAreaStore = create<ManualAreaStore>((set) => ({
       uploadedFile: null,
       uploadedFiles: [],
       drawnPolygon: null,
+      drawnPolygons: [],
       error: null,
     }),
   setUploadedFile: (file) => set({ uploadedFile: file, error: null }),
@@ -95,6 +101,11 @@ export const useManualAreaStore = create<ManualAreaStore>((set) => ({
   removeUploadedFile: (index) =>
     set((state) => ({ uploadedFiles: state.uploadedFiles.filter((_, i) => i !== index) })),
   setDrawnPolygon: (polygon) => set({ drawnPolygon: polygon, error: null }),
+  addDrawnPolygon: (polygon) =>
+    set((state) => ({ drawnPolygons: [...state.drawnPolygons, polygon], error: null })),
+  removeDrawnPolygon: (index) =>
+    set((state) => ({ drawnPolygons: state.drawnPolygons.filter((_, i) => i !== index) })),
+  setDrawnPolygons: (polygons) => set({ drawnPolygons: polygons, error: null }),
   confirmSelections: (vectorLayer, rasterLayers, rasterKey, centroid, polygonLayer, bufferBbox, drainPoints = [], markedAreaHa = 0) =>
     set({
       selectionsLocked: true,

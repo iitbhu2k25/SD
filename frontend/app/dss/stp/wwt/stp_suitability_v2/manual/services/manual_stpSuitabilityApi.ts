@@ -328,6 +328,20 @@ export async function previewPolygon(payload: { method: string; files: File[] })
   return response.message ?? { type: "FeatureCollection", features: [] };
 }
 
+export async function confirmMultiDrawnPolygons(
+  polygons: (GeoJSON.Polygon | GeoJSON.MultiPolygon)[],
+): Promise<MultiAreaConfirmResponse> {
+  try {
+    const response = await api.post<MultiAreaConfirmResponse>(
+      "/stp_manual_operation/stp_multi_drawn_confirm",
+      { body: { polygons } },
+    );
+    return response.message ?? { results: [] };
+  } catch (error) {
+    normalizeApiError(error, "Failed to confirm multi drawn polygon selection");
+  }
+}
+
 export async function confirmMultiPolygonSingleFile(
   payload: { method: "shapefile" | "kml"; file: File },
 ): Promise<MultiAreaConfirmResponse> {

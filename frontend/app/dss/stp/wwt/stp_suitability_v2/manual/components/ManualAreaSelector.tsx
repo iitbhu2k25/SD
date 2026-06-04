@@ -6,7 +6,7 @@ import { useManualAreaStore, type AreaInputMethod } from "../stores/manualAreaSt
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
 import { useManualCategoryStore } from "../stores/manualCategoryStore";
-import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, confirmMultiPolygonSingleFile, previewPolygon } from "../services/manual_stpSuitabilityApi";
+import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, confirmMultiPolygonSingleFile, confirmMultiDrawnPolygons, previewPolygon } from "../services/manual_stpSuitabilityApi";
 import type { ClipRasters, MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 import { useManualMultiStore } from "../stores/manualMultiStore";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
@@ -231,14 +231,10 @@ function KmlUploader() {
 }
 
 function PolygonDrawer() {
-  const { drawnPolygon, setDrawnPolygon } = useManualAreaStore();
+  const { drawnPolygon, setDrawnPolygon, drawnPolygons, addDrawnPolygon, removeDrawnPolygon, setDrawnPolygons } = useManualAreaStore();
   const drawingActive = useManualMapStore((state) => state.drawingActive);
   const setDrawingActive = useManualMapStore((state) => state.setDrawingActive);
-  const [wktInput, setWktInput] = useState(
-    drawnPolygon
-      ? JSON.stringify(drawnPolygon.geojson, null, 2)
-      : "",
-  );
+  const [wktInput, setWktInput] = useState("");
 
   const handlePaste = () => {
     if (!wktInput.trim()) {
@@ -251,62 +247,34 @@ function PolygonDrawer() {
         toast.error("GeoJSON must be a Polygon or MultiPolygon");
         return;
       }
-      setDrawnPolygon({ geojson: parsed, label: "Custom Polygon" });
-      setDrawingActive(false);
+      addDrawnPolygon({ geojson: parsed, label: "Pasted Polygon" });
+      setDrawnPolygon({ geojson: parsed, label: "Pasted Polygon" });
+      setWktInput("");
       toast.success("Polygon loaded");
     } catch {
       toast.error("Invalid GeoJSON — please check the format");
     }
   };
 
-  const handleEditDrawn = () => {
+  const handleClearAll = () => {
     setDrawnPolygon(null);
+    setDrawnPolygons([]);
     setWktInput("");
-    setDrawingActive(true);
+    setDrawingActive(false);
+  };
+
+  const handleRemoveOne = (index: number) => {
+    removeDrawnPolygon(index);
+    // if last polygon removed, also clear drawnPolygon
+    if (drawnPolygons.length === 1) {
+      setDrawnPolygon(null);
+    }
   };
 
   return (
     <div className="space-y-2">
-      {/* State: polygon already drawn — show status card with Edit/Clear */}
-      {drawnPolygon && !drawingActive ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <div className="mb-2 flex items-center gap-1.5">
-            <svg className="h-3.5 w-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span className="text-xs font-semibold text-emerald-700">{drawnPolygon.label}</span>
-          </div>
-          {(() => {
-            const areaM2 = turfArea({ type: "Feature", geometry: drawnPolygon.geojson, properties: {} });
-            const areaHa = areaM2 / 10000;
-            return (
-              <p className="mb-2 text-xs text-emerald-600">
-                Area: <span className="font-semibold">{areaHa.toLocaleString("en-IN", { maximumFractionDigits: 2 })} ha</span>
-              </p>
-            );
-          })()}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleEditDrawn}
-              className="flex items-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-600 shadow-sm transition hover:border-violet-400 hover:bg-violet-50"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Redraw
-            </button>
-            <button
-              type="button"
-              onClick={() => { setDrawnPolygon(null); setWktInput(""); setDrawingActive(false); }}
-              className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-500 shadow-sm transition hover:border-red-300 hover:bg-red-50"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      ) : drawingActive ? (
-        /* State: drawing in progress */
+      {/* Drawing active indicator */}
+      {drawingActive && (
         <div className="flex items-center justify-between rounded-xl border-2 border-violet-400 bg-violet-50 px-3 py-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-violet-700">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-violet-500" />
@@ -317,11 +285,56 @@ function PolygonDrawer() {
             onClick={() => setDrawingActive(false)}
             className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-100"
           >
-            Cancel
+            Done
           </button>
         </div>
-      ) : (
-        /* State: no polygon yet — show Draw on Map button */
+      )}
+
+      {/* Drawn polygons list */}
+      {drawnPolygons.length > 0 && (
+        <div className="space-y-1.5">
+          {drawnPolygons.map((p, i) => {
+            const areaHa = turfArea({ type: "Feature", geometry: p.geojson, properties: {} }) / 10000;
+            return (
+              <div key={i} className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-700">Polygon {i + 1}</p>
+                  <p className="text-[10px] text-emerald-600">{areaHa.toLocaleString("en-IN", { maximumFractionDigits: 2 })} ha</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveOne(i)}
+                  className="ml-2 text-red-400 hover:text-red-600 text-xs font-semibold"
+                >
+                  ✕
+                </button>
+              </div>
+            );
+          })}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDrawingActive(true)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-violet-300 bg-white px-3 py-1.5 text-xs font-semibold text-violet-600 shadow-sm transition hover:border-violet-400 hover:bg-violet-50"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Another
+            </button>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-500 shadow-sm transition hover:border-red-300 hover:bg-red-50"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* No polygons yet — show Draw on Map button */}
+      {drawnPolygons.length === 0 && !drawingActive && (
         <button
           type="button"
           onClick={() => setDrawingActive(true)}
@@ -351,15 +364,6 @@ function PolygonDrawer() {
           >
             Load Polygon
           </button>
-          {drawnPolygon && !drawingActive && (
-            <button
-              type="button"
-              onClick={() => { setDrawnPolygon(null); setWktInput(""); }}
-              className="text-xs text-red-500 hover:text-red-700 underline"
-            >
-              Clear
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -371,9 +375,10 @@ function isReadyToConfirm(
   uploadedFiles: File[],
   drawnPolygon: { geojson: GeoJSON.Polygon | GeoJSON.MultiPolygon; label: string } | null,
   previewGeojson: GeoJSON.FeatureCollection | null,
+  drawnPolygons: { geojson: GeoJSON.Polygon | GeoJSON.MultiPolygon; label: string }[],
 ): boolean {
   if (method === "shapefile" || method === "kml") return uploadedFiles.length > 0 && previewGeojson !== null;
-  return drawnPolygon !== null;
+  return drawnPolygons.length > 0 || drawnPolygon !== null;
 }
 
 function DrainSelector() {
@@ -851,6 +856,7 @@ export default function ManualAreaSelector() {
     selectedMethod,
     uploadedFiles,
     drawnPolygon,
+    drawnPolygons,
     selectionsLocked,
     isLoading,
     error,
@@ -892,7 +898,7 @@ export default function ManualAreaSelector() {
   // Store pending multi entries so we can proceed after constraint modal (multi-file)
   const pendingMultiEntriesRef = useRef<MultiPolygonEntry[] | null>(null);
 
-  const ready = isReadyToConfirm(selectedMethod, uploadedFiles, drawnPolygon, previewGeojson);
+  const ready = isReadyToConfirm(selectedMethod, uploadedFiles, drawnPolygon, previewGeojson, drawnPolygons);
   const canUpload = (selectedMethod === "shapefile" || selectedMethod === "kml") && uploadedFiles.length > 0 && !selectionsLocked && !multiSelectionsLocked;
 
   const handleUpload = async () => {
@@ -959,6 +965,92 @@ export default function ManualAreaSelector() {
 
   const handleConfirm = async () => {
     if (!ready) return;
+
+    // Multi drawn polygon path: 2+ polygons drawn on map
+    if (selectedMethod === "polygon" && drawnPolygons.length > 1) {
+      setLoading(true);
+      setError(null);
+      try {
+        const multiResult = await confirmMultiDrawnPolygons(drawnPolygons.map((p) => p.geojson));
+        if (!multiResult.results || multiResult.results.length === 0) {
+          throw new Error("Server returned no results for multi drawn polygon");
+        }
+        const entries: MultiPolygonEntry[] = await Promise.all(
+          multiResult.results.map(async (r, i) => {
+            let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+            let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
+            let displayRasters: ClipRasters[] = [];
+            await Promise.all([
+              fetchDrainsInBbox(r.buffer_bbox)
+                .then((d) => { drainPoints = d; })
+                .catch(() => {}),
+              fetchVillageGeoJSON(r.vector_layer)
+                .then((g) => { villageGeoJSON = g; })
+                .catch(() => {}),
+              fetchManualSuitabilityDisplayRaster(r.vector_layer)
+                .then((res) => { displayRasters = res.rasterLayers ?? []; })
+                .catch(() => {}),
+            ]);
+            if (villageGeoJSON && villageGeoJSON.features.length > 0) {
+              drainPoints = filterDrainsInsideVillages(drainPoints, villageGeoJSON);
+            }
+            return {
+              index: i,
+              vectorLayer: r.vector_layer,
+              polygonLayer: r.polygon_layer ?? null,
+              centroid: [r.centroid_lat, r.centroid_lon] as [number, number],
+              bufferBbox: r.buffer_bbox,
+              areaHa: r.area_ha,
+              drainPoints,
+              selectedDrainNos: [],
+              displayRasters,
+            };
+          })
+        );
+
+        // Constraint check per polygon — identical to multi-file path
+        const perEntryViolations = await Promise.all(
+          entries.map(async (entry) => {
+            const labels: string[] = [];
+            if (!entry.polygonLayer) return labels;
+            const uploaded = await fetchVillageGeoJSON(entry.polygonLayer);
+            if (!uploaded || uploaded.features.length === 0) return labels;
+            const geom = uploaded.features[0].geometry;
+            if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") return labels;
+            const result = await checkManualConstraints({
+              polygon_geojson: geom as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+            }).catch(() => null);
+            if (result && !result.can_proceed && result.constraint_violations.length > 0) {
+              for (const v of result.constraint_violations) {
+                labels.push(`Polygon ${entry.index + 1}: ${v}`);
+              }
+            }
+            return labels;
+          })
+        );
+        const allViolations = perEntryViolations.flat();
+
+        if (allViolations.length > 0) {
+          pendingMultiEntriesRef.current = entries;
+          setConstraintViolations(allViolations);
+          setIsMultiConstraintModal(true);
+          setShowConstraintModal(true);
+          setLoading(false);
+          return;
+        }
+
+        useManualMultiStore.getState().setPolygonEntries(entries);
+        useManualMultiStore.getState().lockSelections();
+        toast.success(`${entries.length} polygons confirmed — set drain capacity and click Next`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to confirm drawn polygons";
+        setError(msg);
+        toast.error(msg);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     // Single-file multi-polygon path: ask backend to split by row; if it returns >1 result treat as multi
     if ((selectedMethod === "shapefile" || selectedMethod === "kml") && uploadedFiles.length === 1) {
