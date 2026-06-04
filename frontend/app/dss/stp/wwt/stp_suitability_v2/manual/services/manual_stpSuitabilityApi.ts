@@ -328,6 +328,23 @@ export async function previewPolygon(payload: { method: string; files: File[] })
   return response.message ?? { type: "FeatureCollection", features: [] };
 }
 
+export async function confirmMultiPolygonSingleFile(
+  payload: { method: "shapefile" | "kml"; file: File },
+): Promise<MultiAreaConfirmResponse> {
+  try {
+    const formData = new FormData();
+    formData.append("method", payload.method);
+    formData.append("file", payload.file);
+    const response = await api.post<MultiAreaConfirmResponse>(
+      "/stp_manual_operation/stp_multi_polygon_confirm",
+      { body: formData },
+    );
+    return response.message ?? { results: [] };
+  } catch (error) {
+    normalizeApiError(error, "Failed to confirm single-file multi-polygon selection");
+  }
+}
+
 export async function confirmMultiAreaSelection(
   payload: MultiAreaConfirmPayload,
 ): Promise<MultiAreaConfirmResponse> {

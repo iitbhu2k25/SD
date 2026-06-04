@@ -172,6 +172,111 @@ async def stp_manual_check_constraints(db: db_dependency, payload: STPManualChec
     )
 
 
+@router.post("/stp_multi_polygon_confirm", status_code=status.HTTP_201_CREATED, response_model=STPMultiAreaConfirmOutput)
+@validate
+async def stp_multi_polygon_confirm(
+    file: UploadFile = File(...),
+    method: str = Form(...),
+):
+    """Accept a single shapefile/KML containing multiple polygon rows.
+    Each row is confirmed independently so it gets its own unique polygon_layer
+    in GeoServer — identical behaviour to stp_multi_area_confirm per file.
+    """
+    import tempfile, zipfile, geopandas as gpd, fiona
+    from pathlib import Path as _Path
+    from shapely.geometry import shape as _shape
+    import geopandas as _gpd
+
+    fiona.drvsupport.supported_drivers["KML"] = "rw"
+    fiona.drvsupport.supported_drivers["LIBKML"] = "rw"
+
+    mapper = ManualSTPMapper()
+    results = []
+
+    contents = await file.read()
+    suffix = _Path(file.filename).suffix.lower()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = _Path(tmp_dir) / file.filename
+        tmp_path.write_bytes(contents)
+
+        if method == "shapefile":
+            if suffix == ".zip":
+                with zipfile.ZipFile(tmp_path, "r") as zf:
+                    zf.extractall(tmp_dir)
+                shp_files = list(_Path(tmp_dir).glob("*.shp"))
+                if not shp_files:
+                    from fastapi import HTTPException
+                    raise HTTPException(status_code=400, detail="No .shp file found inside the zip")
+                gdf = gpd.read_file(shp_files[0])
+            elif suffix == ".shp":
+                gdf = gpd.read_file(tmp_path)
+            else:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=400, detail="Unsupported shapefile format")
+        elif method == "kml":
+            if suffix == ".kmz":
+                with zipfile.ZipFile(tmp_path, "r") as zf:
+                    kml_files = [n for n in zf.namelist() if n.endswith(".kml")]
+                    if not kml_files:
+                        from fastapi import HTTPException
+                        raise HTTPException(status_code=400, detail="No .kml file found inside the kmz")
+                    zf.extract(kml_files[0], tmp_dir)
+                    kml_path = _Path(tmp_dir) / kml_files[0]
+            else:
+                kml_path = tmp_path
+            gdf = gpd.read_file(str(kml_path), driver="KML")
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Unsupported method: {method}")
+
+        if gdf.crs is None:
+            gdf = gdf.set_crs("EPSG:4326")
+        gdf_wgs84 = gdf.to_crs("EPSG:4326")
+
+        # Keep only valid polygon/multipolygon rows — drop nulls, empties, and non-polygon types
+        gdf_wgs84 = gdf_wgs84[
+            gdf_wgs84.geometry.notna() &
+            ~gdf_wgs84.geometry.is_empty &
+            gdf_wgs84.geometry.geom_type.isin(["Polygon", "MultiPolygon"])
+        ].reset_index(drop=True)
+
+        # Deduplicate by WKT so identical geometries are not processed twice
+        gdf_wgs84 = gdf_wgs84.loc[
+            ~gdf_wgs84.geometry.apply(lambda g: g.wkt).duplicated()
+        ].reset_index(drop=True)
+
+
+        for _, row in gdf_wgs84.iterrows():
+            geom = row.geometry
+            geometry_geojson = geom.__geo_interface__
+
+            # Each row gets its own confirm_manual_area call → unique polygon_layer in GeoServer
+            result = await mapper.confirm_manual_area(geometry_geojson)
+
+            try:
+                _geom = _shape(geometry_geojson)
+                _gdf = _gpd.GeoDataFrame(geometry=[_geom], crs="EPSG:4326").to_crs("EPSG:32644")
+                area_ha = float(_gdf.geometry.area.iloc[0]) / 10_000
+                _buffered_proj = _gdf.geometry.iloc[0].buffer(5000)
+                _buf_wgs84 = _gpd.GeoDataFrame(geometry=[_buffered_proj], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
+                tight_bbox = list(_buf_wgs84.bounds)
+            except Exception:
+                area_ha = 0.0
+                tight_bbox = result["buffer_bbox"]
+
+            results.append(STPMultiAreaConfirmSingleResult(
+                vector_layer=result["vector_name"],
+                polygon_layer=result["polygon_layer"],
+                centroid_lat=result["centroid_lat"],
+                centroid_lon=result["centroid_lon"],
+                buffer_bbox=tight_bbox,
+                area_ha=area_ha,
+            ))
+
+    return STPMultiAreaConfirmOutput(results=results)
+
+
 @router.post("/stp_preview_polygon", status_code=status.HTTP_200_OK)
 @validate
 async def stp_preview_polygon(

@@ -6,7 +6,7 @@ import { useManualAreaStore, type AreaInputMethod } from "../stores/manualAreaSt
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
 import { useManualCategoryStore } from "../stores/manualCategoryStore";
-import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, previewPolygon } from "../services/manual_stpSuitabilityApi";
+import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, confirmMultiPolygonSingleFile, previewPolygon } from "../services/manual_stpSuitabilityApi";
 import type { ClipRasters, MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 import { useManualMultiStore } from "../stores/manualMultiStore";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
@@ -868,6 +868,98 @@ export default function ManualAreaSelector() {
 
   const handleConfirm = async () => {
     if (!ready) return;
+
+    // Single-file multi-polygon path: ask backend to split by row; if it returns >1 result treat as multi
+    if ((selectedMethod === "shapefile" || selectedMethod === "kml") && uploadedFiles.length === 1) {
+      setLoading(true);
+      setError(null);
+      try {
+        const multiResult = await confirmMultiPolygonSingleFile({ method: selectedMethod, file: uploadedFiles[0] });
+
+        // Only 1 polygon found — fall through to the normal single-file path below
+        if (!multiResult.results || multiResult.results.length <= 1) {
+          setLoading(false);
+          // fall through intentionally
+        } else {
+          // Multiple polygons — identical flow to multi-file path from here
+          const entries: MultiPolygonEntry[] = await Promise.all(
+            multiResult.results.map(async (r, i) => {
+              let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+              let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
+              let displayRasters: ClipRasters[] = [];
+              await Promise.all([
+                fetchDrainsInBbox(r.buffer_bbox)
+                  .then((d) => { drainPoints = d; })
+                  .catch(() => {}),
+                fetchVillageGeoJSON(r.vector_layer)
+                  .then((g) => { villageGeoJSON = g; })
+                  .catch(() => {}),
+                fetchManualSuitabilityDisplayRaster(r.vector_layer)
+                  .then((res) => { displayRasters = res.rasterLayers ?? []; })
+                  .catch(() => {}),
+              ]);
+              if (villageGeoJSON && villageGeoJSON.features.length > 0) {
+                drainPoints = filterDrainsInsideVillages(drainPoints, villageGeoJSON);
+              }
+              return {
+                index: i,
+                vectorLayer: r.vector_layer,
+                polygonLayer: r.polygon_layer ?? null,
+                centroid: [r.centroid_lat, r.centroid_lon] as [number, number],
+                bufferBbox: r.buffer_bbox,
+                areaHa: r.area_ha,
+                drainPoints,
+                selectedDrainNos: [],
+                displayRasters,
+              };
+            })
+          );
+
+          // Constraint check — each entry checked independently, results merged after all settle
+          const perEntryViolations = await Promise.all(
+            entries.map(async (entry) => {
+              const labels: string[] = [];
+              if (!entry.polygonLayer) return labels;
+              const uploaded = await fetchVillageGeoJSON(entry.polygonLayer);
+              if (!uploaded || uploaded.features.length === 0) return labels;
+              const geom = uploaded.features[0].geometry;
+              if (geom.type !== "Polygon" && geom.type !== "MultiPolygon") return labels;
+              const result = await checkManualConstraints({
+                polygon_geojson: geom as GeoJSON.Polygon | GeoJSON.MultiPolygon,
+              }).catch(() => null);
+              if (result && !result.can_proceed && result.constraint_violations.length > 0) {
+                for (const v of result.constraint_violations) {
+                  labels.push(`Polygon ${entry.index + 1}: ${v}`);
+                }
+              }
+              return labels;
+            })
+          );
+          const allViolations = perEntryViolations.flat();
+
+          if (allViolations.length > 0) {
+            pendingMultiEntriesRef.current = entries;
+            setConstraintViolations(allViolations);
+            setIsMultiConstraintModal(true);
+            setShowConstraintModal(true);
+            setLoading(false);
+            return;
+          }
+
+          useManualMultiStore.getState().setPolygonEntries(entries);
+          useManualMultiStore.getState().lockSelections();
+          toast.success(`${entries.length} polygons confirmed — set drain capacity and click Next`);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to confirm area selection";
+        setError(msg);
+        toast.error(msg);
+        setLoading(false);
+        return;
+      }
+    }
 
     // Multi-file path (shapefile/kml with 2+ files)
     if ((selectedMethod === "shapefile" || selectedMethod === "kml") && uploadedFiles.length > 1) {
