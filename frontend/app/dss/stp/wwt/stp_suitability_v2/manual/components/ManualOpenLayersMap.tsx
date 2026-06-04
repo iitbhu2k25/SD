@@ -804,7 +804,10 @@ export default function ManualOpenLayersMap() {
         zIndex: 55 + entry.index,
         properties: { interactive: true },
       });
-      const drainFeatures = entry.drainPoints.map((dp) => {
+      const visibleDrains = entry.selectedDrainNos.length > 0
+        ? entry.drainPoints.filter((dp) => entry.selectedDrainNos.includes(dp.Drain_No))
+        : entry.drainPoints;
+      const drainFeatures = visibleDrains.map((dp) => {
         const f = new Feature({ geometry: new OlPoint(fromLonLat([dp.longitude, dp.latitude])), Drain_No: dp.Drain_No });
         f.setStyle(
           new Style({

@@ -609,6 +609,87 @@ function DrainSelector() {
   );
 }
 
+function PolygonDrainDropdown({ entry }: { entry: import("../services/manual_stpSuitabilityTypes").MultiPolygonEntry }) {
+  const updateEntryDrainNos = useManualMultiStore((s) => s.updateEntryDrainNos);
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const allSelected = entry.selectedDrainNos.length === 0;
+
+  const toggle = (no: number) => {
+    const next = entry.selectedDrainNos.includes(no)
+      ? entry.selectedDrainNos.filter((n) => n !== no)
+      : [...entry.selectedDrainNos, no];
+    updateEntryDrainNos(entry.index, next);
+  };
+
+  const label = allSelected
+    ? `All Drains (${entry.drainPoints.length})`
+    : entry.selectedDrainNos.length === 1
+    ? `Drain ${entry.selectedDrainNos[0]}`
+    : `${entry.selectedDrainNos.length} Drains selected`;
+
+  if (entry.drainPoints.length === 0) {
+    return <p className="text-[10px] text-slate-400 italic">No drains found in this area.</p>;
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition hover:border-violet-400"
+      >
+        <span>{label}</span>
+        <svg className={`h-3.5 w-3.5 text-violet-500 transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border border-violet-200 bg-white shadow-lg">
+          <button
+            type="button"
+            onClick={() => { updateEntryDrainNos(entry.index, []); setOpen(false); }}
+            className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition hover:bg-violet-50 ${allSelected ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"}`}
+          >
+            <span className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${allSelected ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"}`}>
+              {allSelected && <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+            </span>
+            All Drains ({entry.drainPoints.length})
+          </button>
+          <div className="border-t border-slate-100" />
+          {entry.drainPoints.map((dp) => {
+            const checked = entry.selectedDrainNos.includes(dp.Drain_No);
+            return (
+              <button
+                key={dp.Drain_No}
+                type="button"
+                onClick={() => toggle(dp.Drain_No)}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition hover:bg-violet-50 ${checked ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"}`}
+              >
+                <span className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${checked ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"}`}>
+                  {checked && <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                </span>
+                Drain {dp.Drain_No}
+                <span className="ml-auto text-[10px] text-slate-400">{dp.latitude.toFixed(4)}, {dp.longitude.toFixed(4)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MultiDrainSelector() {
   const polygonEntries = useManualMultiStore((s) => s.polygonEntries);
   const drainCapacityMld = useManualMultiStore((s) => s.drainCapacityMld);
@@ -639,11 +720,21 @@ function MultiDrainSelector() {
         </button>
       </div>
       <p className="mb-2 text-[10px] text-slate-500">
-        Drain capacity is shared across all polygons for path-finding.
+        Select drains per polygon for path-finding. Leave all selected to use all drains.
       </p>
 
+      {/* Per-polygon drain dropdowns */}
+      <div className="mb-3 space-y-2">
+        {polygonEntries.map((entry) => (
+          <div key={entry.index}>
+            <p className="mb-1 text-[10px] font-semibold text-violet-600">Polygon {entry.index + 1}</p>
+            <PolygonDrainDropdown entry={entry} />
+          </div>
+        ))}
+      </div>
+
       {/* Drain capacity input */}
-      <label className="block">
+      <label className="block border-t border-violet-200 pt-3">
         <span className="mb-1 block text-xs font-semibold text-violet-700">
           Drain Capacity (MLD) <span className="text-red-500">*</span>
         </span>
