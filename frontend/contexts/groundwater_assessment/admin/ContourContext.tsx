@@ -40,7 +40,7 @@ export const GroundwaterContourContext = createContext<GroundwaterContourContext
   geoJsonData: null,
   rasterData: null,
   visualizationData: null,
-  interpolationMethod: '',
+  interpolationMethod: 'idw',
   parameter: '',
   dataType: '',
   selectedYear: '',
@@ -62,7 +62,7 @@ export const GroundwaterContourProvider = ({
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   const [rasterData, setRasterData] = useState<any>(null);
   const [visualizationData, setVisualizationData] = useState<VisualizationData | null>(null);
-  const [interpolationMethod, setInterpolationMethod] = useState<string>('');
+  const [interpolationMethod, setInterpolationMethod] = useState<string>('idw');
   const [parameter, setParameter] = useState<string>('');
   const [dataType, setDataType] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<string>('');

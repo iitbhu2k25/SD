@@ -52,9 +52,9 @@ export function StatusBar({
   };
 
   return (
-    <div className="bg-blue-50 px-3 py-2">
+    <div className="bg-blue-50 px-3 py-1">
       {/* Labels row */}
-      <div className="flex items-end mb-1">
+      <div className="flex items-end mb-0.5">
         {steps.map((step, idx) => {
           const status = getStatus(step.id);
           return (

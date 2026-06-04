@@ -173,7 +173,7 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
       )}
 
       {/* Form Fields — one row */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Parameter <span className="text-red-500">*</span>
@@ -207,20 +207,6 @@ const GroundwaterContour: React.FC<GroundwaterContourProps> = ({ activeTab, step
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            Interpolation Method <span className="text-red-500">*</span>
-          </label>
-          <select
-            className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={interpolationMethod}
-            onChange={(e) => setInterpolationMethod(e.target.value)}
-            disabled={isLoading}
-          >
-            <option value="">Select...</option>
-            <option value="idw">IDW</option>
-          </select>
-        </div>
       </div>
 
       {/* Generate Button */}

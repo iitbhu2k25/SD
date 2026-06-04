@@ -367,7 +367,7 @@ async def stp_multi_area(payload: STPMultiAreaPayload):
         )
         tasks.append(task)
 
-    for _ in range(300):
+    for _ in range(900):
         if all(t.ready() for t in tasks):
             break
         await asyncio.sleep(1)

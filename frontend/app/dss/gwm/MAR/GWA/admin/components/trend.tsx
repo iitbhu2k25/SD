@@ -223,21 +223,7 @@ const GroundwaterTrend: React.FC<GroundwaterTrendProps> = ({ activeTab, step }) 
       )}
 
       <div className="space-y-3 mb-6">
-        <div className="grid grid-cols-3 gap-3">
-          {/* Method */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Method <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value="Mann-Kendall Test"
-              readOnly
-              className="w-full p-2 border rounded-md text-xs bg-gray-100 text-gray-700"
-            />
-            <input type="hidden" name="trendMethod" value="mann_kendall" />
-          </div>
-
+        <div className="grid grid-cols-2 gap-3">
           {/* From Year */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">

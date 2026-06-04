@@ -151,7 +151,7 @@ function AdminRightPanel({
 
             {/* Steps bar */}
             {navigationProps && (
-              <div className="flex-shrink-0 border-b border-stone-200">
+              <div className="flex-shrink-0 border-b border-stone-200 pb-2">
                 <StatusBar
                   activeStep={navigationProps.activeStep}
                   onNext={navigationProps.onNext}
@@ -163,7 +163,7 @@ function AdminRightPanel({
             )}
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="flex-1 overflow-y-auto p-3 pt-6 space-y-3">
               {activeStep === 2 && (
                 <GroundwaterTrend activeTab="groundwater-trend" step={activeStep} />
               )}

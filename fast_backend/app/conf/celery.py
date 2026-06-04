@@ -65,8 +65,8 @@ app.conf.update(
 
     worker_hijack_root_logger=False,
 
-    task_soft_time_limit=600,
-    task_time_limit=650,
+    task_soft_time_limit=3600,
+    task_time_limit=3660,
 )
 
 app.autodiscover_tasks()

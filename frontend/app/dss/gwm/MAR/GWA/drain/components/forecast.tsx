@@ -446,6 +446,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
 
       {/* Form Fields */}
       <div className="space-y-4 mb-6">
+      <div className="grid grid-cols-2 gap-4">
         {/* Forecast Method */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -463,66 +464,27 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
           </select>
         </div>
 
-       {/* Forecast Type - ULTRA THIN WIDE PROFESSIONAL GREEN */}
-<div className="space-y-1">
-  <label className="block text-[11px] font-semibold text-gray-700">
+       {/* Forecast Type */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
     Forecast Type <span className="text-red-500">*</span>
   </label>
-
-  <div className="flex gap-2">
-    {/* Single Year */}
+  <div className="flex gap-2" style={{height: '38px'}}>
     <button
       type="button"
-      onClick={() => {
-        setForecastType("single");
-        setForecastYear("");
-        setForecastYears(["", ""]);
-      }}
+      onClick={() => { setForecastType("single"); setForecastYear(""); setForecastYears(["", ""]); }}
       disabled={isLoading}
-      className={`
-        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
-        transition-all duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${
-          forecastType === "single"
-            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
-            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-        }
-      `}
-    >
-      <div className="flex justify-between items-center">
-        <span>Single</span>
-        <span className="text-[10px] opacity-75">1 Year</span>
-      </div>
-    </button>
-
-    {/* Range */}
+      className={`flex-1 rounded-md border text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${forecastType === "single" ? "bg-emerald-500 border-emerald-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400"}`}
+    >Single</button>
     <button
       type="button"
-      onClick={() => {
-        setForecastType("range");
-        setForecastYear("");
-        setForecastYears(["", ""]);
-      }}
+      onClick={() => { setForecastType("range"); setForecastYear(""); setForecastYears(["", ""]); }}
       disabled={isLoading}
-      className={`
-        w-36 py-1 px-3 rounded-md border text-[11px] font-medium tracking-wide
-        transition-all duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${
-          forecastType === "range"
-            ? "bg-emerald-500 border-emerald-600 text-white shadow-sm"
-            : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400 hover:text-emerald-600"
-        }
-      `}
-    >
-      <div className="flex justify-between items-center">
-        <span>Range</span>
-        <span className="text-[10px] opacity-75">Multi Year</span>
-      </div>
-    </button>
+      className={`flex-1 rounded-md border text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${forecastType === "range" ? "bg-emerald-500 border-emerald-600 text-white" : "bg-white border-gray-300 text-gray-700 hover:border-emerald-400"}`}
+    >Range</button>
   </div>
 </div>
+      </div>
 
         {/* Year Input */}
         {forecastType === 'single' && (
@@ -632,11 +594,12 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
       </div>
 
       {/* Generate Button */}
+      <div className="flex justify-center">
       <button
         onClick={handleGenerate}
         disabled={isLoading || !isFormValid()}
         className={[
-          "w-full inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-3 px-5",
+          "inline-flex items-center justify-center gap-2 text-white font-medium transition-colors duration-200 rounded-full py-2 px-8 text-sm",
           isLoading || !isFormValid()
             ? "bg-gray-400 cursor-not-allowed"
             : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50",
@@ -685,8 +648,7 @@ const GroundwaterForecast: React.FC<GroundwaterForecastProps> = ({ activeTab, st
           </>
         )}
       </button>
-
-
+      </div>
 
       {/* Success Results */}
       {forecastData && !error && !isLoading && (

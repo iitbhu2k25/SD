@@ -49,8 +49,7 @@ class ManualSTPArea:
                 for f in tmp_shp.parent.glob(f"{name}.*"):
                     zipf.write(f, f.name)
         name_only = os.path.splitext(os.path.basename(output_zip_path))[0]
-        import asyncio
-        asyncio.run(Geoserver().upload_vector("vector_work", output_zip_path, name_only))
+        Geoserver().celery_upload_vector("vector_work", output_zip_path, name_only)
         return name_only
 
     def _publish_path_sync(self, gdf: gpd.GeoDataFrame, name: str) -> str | None:
@@ -148,7 +147,7 @@ class ManualSTPArea:
 
         if clusters_gdf.empty:
             raise CustomException(status_code=404, detail="Suitable area not found")
-        temp_cluster_path = os.path.join(self.TEMP_DIR, f"manual_temp_cluster_{uuid.uuid4().hex}.shp")
+        temp_cluster_path = os.path.join(self.TEMP_DIR, "manual_temp_cluster.shp")
         clusters_gdf.to_file(temp_cluster_path, driver="ESRI Shapefile")
         return clusters_gdf, crs
 
@@ -224,11 +223,15 @@ class ManualSTPArea:
 
         print(f"[manual_cluster_path] graph nodes={G.number_of_nodes()} edges={G.number_of_edges()} crs={crs}", flush=True)
 
+        # Cache nearest road node per drain once — avoids O(N) lookup repeated per cluster
+        drain_nearest_nodes = {dp["Drain_No"]: self._nearest(G, (dp["x"], dp["y"])) for dp in drain_pts_utm}
+
         cluster_drain_distances = []
         for rank, row in enumerate(top10.itertuples(), start=1):
             c = row.geometry.centroid
             c_src = (c.x, c.y)
             c_arr = np.array([c.x, c.y])
+            c_nearest = self._nearest(G, c_src)
 
             drain_dists = []
             road_lines = []
@@ -241,10 +244,9 @@ class ManualSTPArea:
                 if road_line is not None and not road_line.is_empty:
                     dist_m = float(road_line.length)
                     road_lines.append(road_line)
-                    s_node = self._nearest(G, c_src)
-                    t_node = self._nearest(G, d_tgt)
-                    if s_node and tuple(s_node) != c_src:
-                        road_lines.append(LineString([c_src, s_node]))
+                    t_node = drain_nearest_nodes[dp["Drain_No"]]
+                    if c_nearest and tuple(c_nearest) != c_src:
+                        road_lines.append(LineString([c_src, c_nearest]))
                     if t_node and tuple(t_node) != d_tgt:
                         road_lines.append(LineString([d_tgt, t_node]))
                 else:

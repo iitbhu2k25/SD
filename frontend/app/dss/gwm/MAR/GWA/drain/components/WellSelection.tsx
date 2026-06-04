@@ -297,7 +297,7 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="relative flex-shrink-0 p-4 bg-white rounded-lg shadow-md">
+      <div className="relative flex-shrink-0 p-2 bg-white rounded-lg shadow-md">
         {wellsError && (
           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
             {wellsError}
@@ -313,11 +313,11 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
 
 
         {/* WELL SELECTION SECTION */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Well Selection</h2>
+        <div className="mb-2">
+          <h2 className="text-base font-bold text-gray-800 mb-2">Well Selection</h2>
 
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="space-y-4">
+          <div className="p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="space-y-1">
               <div className="flex space-x-6">
                 <div className="flex items-center">
                   <input
@@ -329,7 +329,7 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
                   />
                   <label
                     htmlFor="existing-wells"
-                    className="text-md font-medium text-gray-800 cursor-pointer ml-2"
+                    className="text-sm font-medium text-gray-800 cursor-pointer ml-2"
                     onClick={() => {
                       console.log("Existing wells label clicked");
                       handleRadioChange('existing_and_new');
@@ -349,7 +349,7 @@ const handleRadioChange = (mode: 'existing_and_new' | 'upload_csv') => {
                   />
                   <label
                     htmlFor="upload-csv"
-                    className="text-md font-medium text-gray-800 cursor-pointer ml-2"
+                    className="text-sm font-medium text-gray-800 cursor-pointer ml-2"
                     onClick={() => {
                       console.log("Upload CSV label clicked");
                       handleRadioChange('upload_csv');
