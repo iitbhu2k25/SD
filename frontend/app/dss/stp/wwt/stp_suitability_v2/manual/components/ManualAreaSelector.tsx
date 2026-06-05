@@ -6,7 +6,7 @@ import { useManualAreaStore, type AreaInputMethod } from "../stores/manualAreaSt
 import { useManualMapStore } from "../stores/manualMapStore";
 import { useManualUiStore } from "../stores/manualUiStore";
 import { useManualCategoryStore } from "../stores/manualCategoryStore";
-import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiAreaSelection, confirmMultiPolygonSingleFile, confirmMultiDrawnPolygons, previewPolygon } from "../services/manual_stpSuitabilityApi";
+import { confirmManualAreaSelection, fetchManualSuitabilityDisplayRaster, fetchDrainsInBbox, checkManualConstraints, confirmMultiPolygonSingleFile, confirmMultiDrawnPolygons, previewPolygon } from "../services/manual_stpSuitabilityApi";
 import type { ClipRasters, MultiPolygonEntry } from "../services/manual_stpSuitabilityTypes";
 import { useManualMultiStore } from "../stores/manualMultiStore";
 import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
@@ -1167,17 +1167,24 @@ export default function ManualAreaSelector() {
     }
 
     // Multi-file path (shapefile/kml with 2+ files)
+    // Each file is processed via confirmMultiPolygonSingleFile (row-by-row split),
+    // so a file with N polygons inside contributes N independent entries.
     if ((selectedMethod === "shapefile" || selectedMethod === "kml") && uploadedFiles.length > 1) {
       setLoading(true);
       setError(null);
       try {
-        const multiResult = await confirmMultiAreaSelection({ method: selectedMethod, files: uploadedFiles, bufferRadiusKm: surfaceRadius });
-        if (!multiResult.results || multiResult.results.length === 0) {
+        // Call stp_multi_polygon_confirm per file sequentially, flatten all results
+        const allResults: import("../services/manual_stpSuitabilityTypes").MultiAreaConfirmSingleResult[] = [];
+        for (const file of uploadedFiles) {
+          const res = await confirmMultiPolygonSingleFile({ method: selectedMethod, file, bufferRadiusKm: surfaceRadius });
+          if (res.results) allResults.push(...res.results);
+        }
+        if (allResults.length === 0) {
           throw new Error("Server returned no results for multi-area upload");
         }
         // Fetch drains + display rasters for each polygon in parallel
         const entries: MultiPolygonEntry[] = await Promise.all(
-          multiResult.results.map(async (r, i) => {
+          allResults.map(async (r, i) => {
             let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
             let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
             let displayRasters: ClipRasters[] = [];
