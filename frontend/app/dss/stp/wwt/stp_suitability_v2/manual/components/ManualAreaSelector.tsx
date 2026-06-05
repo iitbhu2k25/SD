@@ -231,59 +231,34 @@ function KmlUploader() {
 }
 
 function PolygonDrawer() {
-  const { drawnPolygon, setDrawnPolygon, drawnPolygons, addDrawnPolygon, removeDrawnPolygon, setDrawnPolygons } = useManualAreaStore();
+  const { drawnPolygon, setDrawnPolygon, drawnPolygons, removeDrawnPolygon, setDrawnPolygons } = useManualAreaStore();
   const drawingActive = useManualMapStore((state) => state.drawingActive);
   const setDrawingActive = useManualMapStore((state) => state.setDrawingActive);
-  const [wktInput, setWktInput] = useState("");
-
-  const handlePaste = () => {
-    if (!wktInput.trim()) {
-      toast.error("Please paste GeoJSON polygon coordinates");
-      return;
-    }
-    try {
-      const parsed = JSON.parse(wktInput) as GeoJSON.Polygon | GeoJSON.MultiPolygon;
-      if (parsed.type !== "Polygon" && parsed.type !== "MultiPolygon") {
-        toast.error("GeoJSON must be a Polygon or MultiPolygon");
-        return;
-      }
-      addDrawnPolygon({ geojson: parsed, label: "Pasted Polygon" });
-      setDrawnPolygon({ geojson: parsed, label: "Pasted Polygon" });
-      setWktInput("");
-      toast.success("Polygon loaded");
-    } catch {
-      toast.error("Invalid GeoJSON — please check the format");
-    }
-  };
 
   const handleClearAll = () => {
     setDrawnPolygon(null);
     setDrawnPolygons([]);
-    setWktInput("");
     setDrawingActive(false);
   };
 
   const handleRemoveOne = (index: number) => {
     removeDrawnPolygon(index);
-    // if last polygon removed, also clear drawnPolygon
-    if (drawnPolygons.length === 1) {
-      setDrawnPolygon(null);
-    }
+    if (drawnPolygons.length === 1) setDrawnPolygon(null);
   };
 
   return (
     <div className="space-y-2">
-      {/* Drawing active indicator */}
+      {/* Drawing active indicator — low opacity, informational only */}
       {drawingActive && (
-        <div className="flex items-center justify-between rounded-xl border-2 border-violet-400 bg-violet-50 px-3 py-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-violet-700">
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-violet-500" />
-            Drawing active — click map to place points
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 opacity-70">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" />
+            Click on map to draw polygons · Double click to complete polygon · Right-click or click Done to stop drawing
           </div>
           <button
             type="button"
             onClick={() => setDrawingActive(false)}
-            className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-600 hover:bg-red-100"
+            className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-200"
           >
             Done
           </button>
@@ -301,13 +276,7 @@ function PolygonDrawer() {
                   <p className="text-xs font-semibold text-emerald-700">Polygon {i + 1}</p>
                   <p className="text-[10px] text-emerald-600">{areaHa.toLocaleString("en-IN", { maximumFractionDigits: 2 })} ha</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveOne(i)}
-                  className="ml-2 text-red-400 hover:text-red-600 text-xs font-semibold"
-                >
-                  ✕
-                </button>
+                <button type="button" onClick={() => handleRemoveOne(i)} className="ml-2 text-red-400 hover:text-red-600 text-xs font-semibold">✕</button>
               </div>
             );
           })}
@@ -346,26 +315,6 @@ function PolygonDrawer() {
           Draw on Map
         </button>
       )}
-
-      <div className="border-t border-stone-100 pt-2">
-        <p className="mb-1.5 text-xs font-medium text-slate-500">Or paste GeoJSON:</p>
-        <textarea
-          className="w-full rounded-lg border border-stone-200 bg-white p-2.5 font-mono text-xs text-slate-700 placeholder-slate-300 focus:border-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-300"
-          rows={4}
-          placeholder='{"type":"Polygon","coordinates":[...]}'
-          value={wktInput}
-          onChange={(e) => setWktInput(e.target.value)}
-        />
-        <div className="mt-1.5 flex gap-2">
-          <button
-            type="button"
-            onClick={handlePaste}
-            className="rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400"
-          >
-            Load Polygon
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -782,6 +731,77 @@ function MultiDrainSelector() {
   );
 }
 
+function SurfaceRadiusInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [raw, setRaw] = useState(String(value));
+
+  // Keep raw in sync if store value changes externally
+  useEffect(() => { setRaw(String(value)); }, [value]);
+
+  const commit = (str: string) => {
+    const v = parseFloat(str);
+    if (!isNaN(v)) {
+      const clamped = parseFloat(Math.min(5, Math.max(0, v)).toFixed(2));
+      onChange(clamped);
+      setRaw(String(clamped));
+    } else {
+      setRaw(String(value));
+    }
+  };
+
+  const step = (delta: number) => {
+    const next = parseFloat(Math.min(5, Math.max(0, value + delta)).toFixed(2));
+    onChange(next);
+    setRaw(String(next));
+  };
+
+  return (
+    <div className="mb-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs font-semibold text-violet-700">Surface Radius (km)</span>
+        <span className="text-[10px] text-slate-400">Range: 0 – 5</span>
+      </div>
+      <p className="mb-1.5 text-[10px] text-slate-500">Buffer zone around the selected area for village and drain search.</p>
+      <div className="flex items-center gap-1.5">
+        {/* Decrement */}
+        <button
+          type="button"
+          onClick={() => step(-0.5)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-300 bg-white text-violet-600 transition hover:bg-violet-100 active:scale-95"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
+          </svg>
+        </button>
+        {/* Input */}
+        <div className="relative flex-1">
+          <input
+            type="number"
+            min={0}
+            max={5}
+            step={0.01}
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(raw); }}
+            className="w-full rounded-xl border border-violet-300 bg-white px-3 py-2 pr-10 text-center text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">km</span>
+        </div>
+        {/* Increment */}
+        <button
+          type="button"
+          onClick={() => step(0.5)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-300 bg-white text-violet-600 transition hover:bg-violet-100 active:scale-95"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ConstraintViolationModal({
   violations,
   onRedraw,
@@ -861,12 +881,14 @@ export default function ManualAreaSelector() {
     isLoading,
     error,
     previewGeojson,
+    surfaceRadius,
     setSelectedMethod,
     confirmSelections,
     unlockSelections,
     setLoading,
     setError,
     setPreviewGeojson,
+    setSurfaceRadius,
   } = useManualAreaStore();
 
   const multiSelectionsLocked = useManualMultiStore((s) => s.selectionsLocked);
@@ -971,7 +993,7 @@ export default function ManualAreaSelector() {
       setLoading(true);
       setError(null);
       try {
-        const multiResult = await confirmMultiDrawnPolygons(drawnPolygons.map((p) => p.geojson));
+        const multiResult = await confirmMultiDrawnPolygons(drawnPolygons.map((p) => p.geojson), surfaceRadius);
         if (!multiResult.results || multiResult.results.length === 0) {
           throw new Error("Server returned no results for multi drawn polygon");
         }
@@ -1057,7 +1079,7 @@ export default function ManualAreaSelector() {
       setLoading(true);
       setError(null);
       try {
-        const multiResult = await confirmMultiPolygonSingleFile({ method: selectedMethod, file: uploadedFiles[0] });
+        const multiResult = await confirmMultiPolygonSingleFile({ method: selectedMethod, file: uploadedFiles[0], bufferRadiusKm: surfaceRadius });
 
         // Only 1 polygon found — fall through to the normal single-file path below
         if (!multiResult.results || multiResult.results.length <= 1) {
@@ -1149,7 +1171,7 @@ export default function ManualAreaSelector() {
       setLoading(true);
       setError(null);
       try {
-        const multiResult = await confirmMultiAreaSelection({ method: selectedMethod, files: uploadedFiles });
+        const multiResult = await confirmMultiAreaSelection({ method: selectedMethod, files: uploadedFiles, bufferRadiusKm: surfaceRadius });
         if (!multiResult.results || multiResult.results.length === 0) {
           throw new Error("Server returned no results for multi-area upload");
         }
@@ -1238,6 +1260,7 @@ export default function ManualAreaSelector() {
         method: selectedMethod,
         file: uploadedFiles[0] ?? undefined,
         polygon: drawnPolygon?.geojson ?? undefined,
+        bufferRadiusKm: surfaceRadius,
       });
 
       if (!areaResult.vectorLayer) {
@@ -1395,6 +1418,11 @@ export default function ManualAreaSelector() {
 
         {error && (
           <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
+        )}
+
+        {/* Surface Radius input — shown for all methods, disabled once locked */}
+        {!selectionsLocked && !multiSelectionsLocked && (
+          <SurfaceRadiusInput value={surfaceRadius} onChange={setSurfaceRadius} />
         )}
 
         {/* Action buttons — Upload | Confirm Selection | Edit all in one row */}

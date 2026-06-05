@@ -35,6 +35,7 @@ interface ManualAreaStoreState {
   drainCapacityMld: number | null;
   markedAreaHa: number;
   previewGeojson: GeoJSON.FeatureCollection | null;
+  surfaceRadius: number;
 }
 
 interface ManualAreaStoreActions {
@@ -55,6 +56,7 @@ interface ManualAreaStoreActions {
   setSelectedDrainNos: (nos: number[]) => void;
   setDrainCapacityMld: (mld: number | null) => void;
   setPreviewGeojson: (geojson: GeoJSON.FeatureCollection | null) => void;
+  setSurfaceRadius: (radius: number) => void;
   reset: () => void;
 }
 
@@ -81,6 +83,7 @@ const initialState: ManualAreaStoreState = {
   drainCapacityMld: null,
   markedAreaHa: 0,
   previewGeojson: null,
+  surfaceRadius: 5,
 };
 
 export const useManualAreaStore = create<ManualAreaStore>((set) => ({
@@ -140,5 +143,6 @@ export const useManualAreaStore = create<ManualAreaStore>((set) => ({
   setSelectedDrainNos: (selectedDrainNos) => set({ selectedDrainNos }),
   setDrainCapacityMld: (drainCapacityMld) => set({ drainCapacityMld }),
   setPreviewGeojson: (previewGeojson) => set({ previewGeojson }),
+  setSurfaceRadius: (surfaceRadius) => set({ surfaceRadius }),
   reset: () => set({ ...initialState }),
 }));

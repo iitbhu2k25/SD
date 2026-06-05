@@ -38,6 +38,7 @@ async def stp_manual_area_confirm(
     method: str = Form(...),
     file: Optional[UploadFile] = File(None),
     polygon: Optional[str] = Form(None),
+    buffer_radius_km: float = Form(5.0),
 ):
     """Accept a shapefile (.zip/.shp), KML, or GeoJSON polygon, process the area, and return the vector layer name."""
     import json
@@ -111,7 +112,7 @@ async def stp_manual_area_confirm(
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="No valid geometry provided")
 
-    result = await mapper.confirm_manual_area(geometry_geojson)
+    result = await mapper.confirm_manual_area(geometry_geojson, buffer_radius_km=buffer_radius_km)
 
     try:
         import geopandas as _gpd
@@ -177,6 +178,7 @@ async def stp_manual_check_constraints(db: db_dependency, payload: STPManualChec
 async def stp_multi_polygon_confirm(
     file: UploadFile = File(...),
     method: str = Form(...),
+    buffer_radius_km: float = Form(5.0),
 ):
     """Accept a single shapefile/KML containing multiple polygon rows.
     Each row is confirmed independently so it gets its own unique polygon_layer
@@ -252,13 +254,14 @@ async def stp_multi_polygon_confirm(
             geometry_geojson = geom.__geo_interface__
 
             # Each row gets its own confirm_manual_area call → unique polygon_layer in GeoServer
-            result = await mapper.confirm_manual_area(geometry_geojson)
+            result = await mapper.confirm_manual_area(geometry_geojson, buffer_radius_km=buffer_radius_km)
 
             try:
                 _geom = _shape(geometry_geojson)
                 _gdf = _gpd.GeoDataFrame(geometry=[_geom], crs="EPSG:4326").to_crs("EPSG:32644")
                 area_ha = float(_gdf.geometry.area.iloc[0]) / 10_000
-                _buffered_proj = _gdf.geometry.iloc[0].buffer(5000)
+                _buffer_m = max(0, min(5000, buffer_radius_km * 1000))
+                _buffered_proj = _gdf.geometry.iloc[0].buffer(_buffer_m)
                 _buf_wgs84 = _gpd.GeoDataFrame(geometry=[_buffered_proj], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
                 tight_bbox = list(_buf_wgs84.bounds)
             except Exception:
@@ -287,6 +290,7 @@ async def stp_multi_drawn_confirm(payload: dict):
     import geopandas as _gpd
 
     geometries = payload.get("polygons", [])
+    buffer_radius_km = float(payload.get("buffer_radius_km", 5.0))
     if not geometries:
         from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="No polygons provided")
@@ -295,12 +299,13 @@ async def stp_multi_drawn_confirm(payload: dict):
     results = []
 
     for geometry_geojson in geometries:
-        result = await mapper.confirm_manual_area(geometry_geojson)
+        result = await mapper.confirm_manual_area(geometry_geojson, buffer_radius_km=buffer_radius_km)
         try:
             _geom = _shape(geometry_geojson)
             _gdf = _gpd.GeoDataFrame(geometry=[_geom], crs="EPSG:4326").to_crs("EPSG:32644")
             area_ha = float(_gdf.geometry.area.iloc[0]) / 10_000
-            _buffered_proj = _gdf.geometry.iloc[0].buffer(5000)
+            _buffer_m = max(0, min(5000, buffer_radius_km * 1000))
+            _buffered_proj = _gdf.geometry.iloc[0].buffer(_buffer_m)
             _buf_wgs84 = _gpd.GeoDataFrame(geometry=[_buffered_proj], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
             tight_bbox = list(_buf_wgs84.bounds)
         except Exception:
@@ -386,6 +391,7 @@ async def stp_preview_polygon(
 async def stp_multi_area_confirm(
     files: list[UploadFile] = File(...),
     method: str = Form(...),
+    buffer_radius_km: float = Form(5.0),
 ):
     """Accept multiple shapefiles or KML files, process each independently."""
     import json, tempfile, zipfile, geopandas as gpd, fiona
@@ -443,13 +449,14 @@ async def stp_multi_area_confirm(
             if geometry_geojson is None:
                 continue
 
-            result = await mapper.confirm_manual_area(geometry_geojson)
+            result = await mapper.confirm_manual_area(geometry_geojson, buffer_radius_km=buffer_radius_km)
 
             try:
                 _geom = _shape(geometry_geojson)
                 _gdf = _gpd.GeoDataFrame(geometry=[_geom], crs="EPSG:4326").to_crs("EPSG:32644")
                 area_ha = float(_gdf.geometry.area.iloc[0]) / 10_000
-                _buffered_proj = _gdf.geometry.iloc[0].buffer(5000)
+                buffer_m = max(0, min(5000, buffer_radius_km * 1000))
+                _buffered_proj = _gdf.geometry.iloc[0].buffer(buffer_m)
                 _buf_wgs84 = _gpd.GeoDataFrame(geometry=[_buffered_proj], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
                 tight_bbox = list(_buf_wgs84.bounds)
             except Exception:

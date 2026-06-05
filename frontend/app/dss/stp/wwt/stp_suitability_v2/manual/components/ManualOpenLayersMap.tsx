@@ -344,6 +344,21 @@ export default function ManualOpenLayersMap() {
       drawSource.clear();
     });
 
+    // Right-click = finish current polygon + stop drawing mode (same as clicking Done)
+    // Use capture phase so this fires before OpenLayers adds the spurious right-click point
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (drawInteractionRef.current) {
+        try {
+          drawInteractionRef.current.removeLastPoint(); // remove the point OL added on mousedown
+          drawInteractionRef.current.finishDrawing();
+        } catch { /* not currently drawing */ }
+      }
+      setDrawingActive(false);
+    };
+    map.getViewport().addEventListener("contextmenu", handleContextMenu, { capture: true });
+
     draw.on("drawend", (event) => {
       setIsDrawing(false);
       const geojson = geojsonFormat.writeFeatureObject(event.feature) as GeoJSON.Feature<GeoJSON.Polygon>;
@@ -377,6 +392,10 @@ export default function ManualOpenLayersMap() {
     drawInteractionRef.current = draw;
     modifyInteractionRef.current = modify;
     snapInteractionRef.current = snap;
+
+    return () => {
+      map.getViewport().removeEventListener("contextmenu", handleContextMenu, { capture: true });
+    };
   }, [isPolygonMode, selectionsLocked, drawingActive, setDrawnPolygon, addDrawnPolygon, setDrawingActive]);
 
   // When polygon mode is exited, clear draw source and reset drawing state

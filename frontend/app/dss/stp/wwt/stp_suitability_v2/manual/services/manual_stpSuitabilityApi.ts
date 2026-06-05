@@ -217,6 +217,7 @@ export async function confirmManualAreaSelection(
     formData.append("method", payload.method);
     if (payload.file) formData.append("file", payload.file);
     if (payload.polygon) formData.append("polygon", JSON.stringify(payload.polygon));
+    formData.append("buffer_radius_km", String(payload.bufferRadiusKm ?? 5));
 
     const response = await api.post<{
       raster_layer?: ClipRasters[];
@@ -330,11 +331,12 @@ export async function previewPolygon(payload: { method: string; files: File[] })
 
 export async function confirmMultiDrawnPolygons(
   polygons: (GeoJSON.Polygon | GeoJSON.MultiPolygon)[],
+  bufferRadiusKm = 5,
 ): Promise<MultiAreaConfirmResponse> {
   try {
     const response = await api.post<MultiAreaConfirmResponse>(
       "/stp_manual_operation/stp_multi_drawn_confirm",
-      { body: { polygons } },
+      { body: { polygons, buffer_radius_km: bufferRadiusKm } },
     );
     return response.message ?? { results: [] };
   } catch (error) {
@@ -343,12 +345,13 @@ export async function confirmMultiDrawnPolygons(
 }
 
 export async function confirmMultiPolygonSingleFile(
-  payload: { method: "shapefile" | "kml"; file: File },
+  payload: { method: "shapefile" | "kml"; file: File; bufferRadiusKm?: number },
 ): Promise<MultiAreaConfirmResponse> {
   try {
     const formData = new FormData();
     formData.append("method", payload.method);
     formData.append("file", payload.file);
+    formData.append("buffer_radius_km", String(payload.bufferRadiusKm ?? 5));
     const response = await api.post<MultiAreaConfirmResponse>(
       "/stp_manual_operation/stp_multi_polygon_confirm",
       { body: formData },
@@ -366,6 +369,7 @@ export async function confirmMultiAreaSelection(
     const formData = new FormData();
     formData.append("method", payload.method);
     for (const file of payload.files) formData.append("files", file);
+    formData.append("buffer_radius_km", String(payload.bufferRadiusKm ?? 5));
     const response = await api.post<MultiAreaConfirmResponse>(
       "/stp_manual_operation/stp_multi_area_confirm",
       { body: formData },

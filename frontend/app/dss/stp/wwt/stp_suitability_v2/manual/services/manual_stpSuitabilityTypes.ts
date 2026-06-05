@@ -70,6 +70,7 @@ export interface ManualAreaConfirmPayload {
   method: "shapefile" | "polygon" | "kml";
   file?: File;
   polygon?: GeoJSON.Polygon | GeoJSON.MultiPolygon;
+  bufferRadiusKm?: number;
 }
 
 export interface ManualAreaConfirmResult {
@@ -113,6 +114,7 @@ export interface MultiAreaConfirmSingleResult {
 export interface MultiAreaConfirmPayload {
   method: "shapefile" | "kml";
   files: File[];
+  bufferRadiusKm?: number;
 }
 
 export interface MultiAreaConfirmResponse {

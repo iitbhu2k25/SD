@@ -53,8 +53,8 @@ class ManualSTPMapper:
         await geo.upload_vector("vector_work", str(output_zip_path), name_only)
         return name_only
 
-    async def confirm_manual_area(self, geometry_geojson: dict) -> dict:
-        """Parse GeoJSON geometry, create 5 km buffer, find intersecting villages,
+    async def confirm_manual_area(self, geometry_geojson: dict, buffer_radius_km: float = 5.0) -> dict:
+        """Parse GeoJSON geometry, create buffer (default 5 km), find intersecting villages,
         upload village layer and drawn polygon to GeoServer."""
         from shapely.geometry import shape
         import geopandas as gpd_local
@@ -68,7 +68,8 @@ class ManualSTPMapper:
         poly_projected = poly_gdf.to_crs("EPSG:32644")
         geom_projected = poly_projected.geometry.iloc[0]
 
-        buffer_projected = geom_projected.buffer(5000)
+        buffer_m = max(0, min(5000, buffer_radius_km * 1000))
+        buffer_projected = geom_projected.buffer(buffer_m)
 
         village = self._load_village()
         villages_intersect = village[village.geometry.intersects(buffer_projected)].copy()
