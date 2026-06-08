@@ -341,7 +341,6 @@ export default function ManualOpenLayersMap() {
 
     draw.on("drawstart", () => {
       setIsDrawing(true);
-      drawSource.clear();
     });
 
     // Right-click = finish current polygon + stop drawing mode (same as clicking Done)
