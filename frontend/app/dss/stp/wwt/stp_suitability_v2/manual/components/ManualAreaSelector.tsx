@@ -332,7 +332,6 @@ function isReadyToConfirm(
 
 function DrainSelector() {
   const drainPoints = useManualAreaStore((state) => state.drainPoints);
-  const selectedDrainNos = useManualAreaStore((state) => state.selectedDrainNos);
   const setSelectedDrainNos = useManualAreaStore((state) => state.setSelectedDrainNos);
   const drainCapacityMld = useManualAreaStore((state) => state.drainCapacityMld);
   const setDrainCapacityMld = useManualAreaStore((state) => state.setDrainCapacityMld);
@@ -399,24 +398,42 @@ function DrainSelector() {
     );
   }
 
-  const allSelected = selectedDrainNos.length === 0;
+  const allIds = drainPoints.map((d) => d.Drain_No);
+  // UI state: null = all selected (default), array = explicit selection (may be empty = none)
+  const [uiSelected, setUiSelected] = useState<number[] | null>(null);
 
-  const toggleDrain = (no: number) => {
-    if (selectedDrainNos.includes(no)) {
-      const next = selectedDrainNos.filter((n) => n !== no);
-      setSelectedDrainNos(next);
+  const isAllSelected = uiSelected === null;
+  const checkedIds = uiSelected === null ? allIds : uiSelected;
+
+  const toggleAll = () => {
+    if (isAllSelected) {
+      setUiSelected([]); // deselect all
+      setSelectedDrainNos(allIds); // keep backend using all (no change to path logic)
     } else {
-      setSelectedDrainNos([...selectedDrainNos, no]);
+      setUiSelected(null); // select all
+      setSelectedDrainNos([]); // [] = use all
     }
   };
 
-  const selectAll = () => setSelectedDrainNos([]);
+  const toggleDrain = (no: number) => {
+    const current = checkedIds;
+    const next = current.includes(no) ? current.filter((n) => n !== no) : [...current, no];
+    if (next.length === allIds.length) {
+      setUiSelected(null);
+      setSelectedDrainNos([]);
+    } else {
+      setUiSelected(next);
+      setSelectedDrainNos(next);
+    }
+  };
 
-  const label = allSelected
-    ? `All Drains (${drainPoints.length})`
-    : selectedDrainNos.length === 1
-    ? `Drain ${selectedDrainNos[0]}`
-    : `${selectedDrainNos.length} Drains selected`;
+  const label = isAllSelected
+    ? "All Drains"
+    : checkedIds.length === 0
+    ? "No Drains selected"
+    : checkedIds.length === 1
+    ? `Drain ${checkedIds[0]}`
+    : `${checkedIds.length} Drains selected`;
 
   return (
     <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
@@ -431,7 +448,7 @@ function DrainSelector() {
               : "border-violet-300 bg-white text-violet-600 hover:bg-violet-50"
           }`}
         >
-          {showDrainLabels ? "Labels ON" : "Labels OFF"}
+          {showDrainLabels ? "Drain Labels" : "Drain Labels"}
         </button>
       </div>
       <p className="mb-2 text-[10px] text-slate-500">
@@ -461,30 +478,30 @@ function DrainSelector() {
             {/* All option */}
             <button
               type="button"
-              onClick={() => { selectAll(); setOpen(false); }}
+              onClick={() => { toggleAll(); }}
               className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition hover:bg-violet-50 ${
-                allSelected ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"
+                isAllSelected ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"
               }`}
             >
               <span
                 className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${
-                  allSelected ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"
+                  isAllSelected ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"
                 }`}
               >
-                {allSelected && (
+                {isAllSelected && (
                   <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </span>
-              All Drains ({drainPoints.length})
+              All Drains
             </button>
 
             <div className="border-t border-slate-100" />
 
             {/* Individual drains */}
             {drainPoints.map((dp) => {
-              const checked = selectedDrainNos.includes(dp.Drain_No);
+              const checked = checkedIds.includes(dp.Drain_No);
               return (
                 <button
                   key={dp.Drain_No}
@@ -577,20 +594,40 @@ function PolygonDrainDropdown({ entry }: { entry: import("../services/manual_stp
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const allSelected = entry.selectedDrainNos.length === 0;
+  const allIds = entry.drainPoints.map((d) => d.Drain_No);
+  // null = all selected; array = explicit selection (empty = none)
+  const [uiSelected, setUiSelected] = useState<number[] | null>(null);
+  const isAllSelected = uiSelected === null;
+  const checkedIds = uiSelected === null ? allIds : uiSelected;
 
-  const toggle = (no: number) => {
-    const next = entry.selectedDrainNos.includes(no)
-      ? entry.selectedDrainNos.filter((n) => n !== no)
-      : [...entry.selectedDrainNos, no];
-    updateEntryDrainNos(entry.index, next);
+  const toggleAll = () => {
+    if (isAllSelected) {
+      setUiSelected([]);
+      updateEntryDrainNos(entry.index, allIds);
+    } else {
+      setUiSelected(null);
+      updateEntryDrainNos(entry.index, []);
+    }
   };
 
-  const label = allSelected
-    ? `All Drains (${entry.drainPoints.length})`
-    : entry.selectedDrainNos.length === 1
-    ? `Drain ${entry.selectedDrainNos[0]}`
-    : `${entry.selectedDrainNos.length} Drains selected`;
+  const toggle = (no: number) => {
+    const next = checkedIds.includes(no) ? checkedIds.filter((n) => n !== no) : [...checkedIds, no];
+    if (next.length === allIds.length) {
+      setUiSelected(null);
+      updateEntryDrainNos(entry.index, []);
+    } else {
+      setUiSelected(next);
+      updateEntryDrainNos(entry.index, next);
+    }
+  };
+
+  const label = isAllSelected
+    ? "All Drains"
+    : checkedIds.length === 0
+    ? "No Drains selected"
+    : checkedIds.length === 1
+    ? `Drain ${checkedIds[0]}`
+    : `${checkedIds.length} Drains selected`;
 
   if (entry.drainPoints.length === 0) {
     return <p className="text-[10px] text-slate-400 italic">No drains found in this area.</p>;
@@ -612,17 +649,17 @@ function PolygonDrainDropdown({ entry }: { entry: import("../services/manual_stp
         <div className="absolute z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-lg border border-violet-200 bg-white shadow-lg">
           <button
             type="button"
-            onClick={() => { updateEntryDrainNos(entry.index, []); setOpen(false); }}
-            className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition hover:bg-violet-50 ${allSelected ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"}`}
+            onClick={toggleAll}
+            className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition hover:bg-violet-50 ${isAllSelected ? "font-semibold text-violet-700 bg-violet-50" : "text-slate-600"}`}
           >
-            <span className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${allSelected ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"}`}>
-              {allSelected && <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+            <span className={`inline-flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border ${isAllSelected ? "border-violet-500 bg-violet-500" : "border-slate-300 bg-white"}`}>
+              {isAllSelected && <svg className="h-2.5 w-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
             </span>
-            All Drains ({entry.drainPoints.length})
+            All Drains
           </button>
           <div className="border-t border-slate-100" />
           {entry.drainPoints.map((dp) => {
-            const checked = entry.selectedDrainNos.includes(dp.Drain_No);
+            const checked = checkedIds.includes(dp.Drain_No);
             return (
               <button
                 key={dp.Drain_No}
@@ -651,31 +688,45 @@ function MultiDrainSelector() {
   const setRightPanelOpen = useManualUiStore((s) => s.setRightPanelOpen);
   const showDrainLabels = useManualMapStore((s) => s.showDrainLabels);
   const setShowDrainLabels = useManualMapStore((s) => s.setShowDrainLabels);
+  const showPolygonLabels = useManualMapStore((s) => s.showPolygonLabels);
+  const setShowPolygonLabels = useManualMapStore((s) => s.setShowPolygonLabels);
   const [nextClicked, setNextClicked] = useState(false);
-
-  const totalDrains = polygonEntries.reduce((sum, e) => sum + e.drainPoints.length, 0);
 
   return (
     <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50 p-3">
       <div className="mb-1.5 flex items-center justify-between">
         <p className="text-xs font-semibold text-violet-700">
-          {polygonEntries.length} polygon(s) — {totalDrains} drain(s) found
+          {polygonEntries.length} polygon(s) found
         </p>
         <button
           type="button"
           onClick={() => setShowDrainLabels(!showDrainLabels)}
-          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${
+          className={`shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${
             showDrainLabels
               ? "border-violet-400 bg-violet-600 text-white"
               : "border-violet-300 bg-white text-violet-600 hover:bg-violet-50"
           }`}
         >
-          {showDrainLabels ? "Labels ON" : "Labels OFF"}
+          {showDrainLabels ? "Drain Labels" : "Drain Labels"}
         </button>
       </div>
       <p className="mb-2 text-[10px] text-slate-500">
         Select drains per polygon for path-finding. Leave all selected to use all drains.
       </p>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[10px] text-slate-500">Show polygon names on map</p>
+        <button
+          type="button"
+          onClick={() => setShowPolygonLabels(!showPolygonLabels)}
+          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${
+            showPolygonLabels
+              ? "border-violet-400 bg-violet-600 text-white"
+              : "border-violet-300 bg-white text-violet-600 hover:bg-violet-50"
+          }`}
+        >
+          {showPolygonLabels ? "Polygon Labels" : "Polygon Labels"}
+        </button>
+      </div>
 
       {/* Per-polygon drain dropdowns */}
       <div className="mb-3 space-y-2">

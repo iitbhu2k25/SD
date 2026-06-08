@@ -148,9 +148,15 @@ export default function ManualOpenLayersMap() {
   const clusterLimitRef = useRef<number>(10);
   // Multi-polygon layers — polygon outlines + drain points per entry, plus result path layers
   const multiLayersRef = useRef<VectorLayer<VectorSource>[]>([]);
+  const multiPolygonOutlineLayersRef = useRef<VectorLayer<VectorSource>[]>([]);
+  const multiVillageLayersRef = useRef<VectorLayer<VectorSource>[]>([]);
   const multiDrainLayersRef = useRef<VectorLayer<VectorSource>[]>([]);
   // Multi suitability raster layers — one WMS layer per polygon after DSS analyze
   const multiRasterLayersRef = useRef<ImageLayer<ImageWMS>[]>([]);
+  // Multi result layers — cluster polygons + road paths across all polygon results
+  const multiResultLayersRef = useRef<VectorLayer<VectorSource>[]>([]);
+  // Polygon label layer — one point per polygon entry for "Polygon 1/2/3" text labels
+  const polygonLabelLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const mapInstanceId = useId();
   const mouseTargetId = `mouse-position-${mapInstanceId.replace(/:/g, "")}`;
 
@@ -199,6 +205,7 @@ export default function ManualOpenLayersMap() {
   const resultVectorLayer = useManualMapStore((state) => state.resultVectorLayer);
   const resultPathVectorLayer = useManualMapStore((state) => state.resultPathVectorLayer);
   const showDrainLabels = useManualMapStore((state) => state.showDrainLabels);
+  const showPolygonLabels = useManualMapStore((state) => state.showPolygonLabels);
   const clusterDistances = useManualMapStore((state) => state.clusterDistances);
   const selectedClusterRank = useManualMapStore((state) => state.selectedClusterRank);
   const handleLayerSelection = useManualMapStore((state) => state.handleLayerSelection);
@@ -587,6 +594,43 @@ export default function ManualOpenLayersMap() {
     }
   }, [showDrainLabels]);
 
+  // Polygon label layer — "Polygon 1", "Polygon 2"... at each entry's centroid
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (polygonLabelLayerRef.current) {
+      map.removeLayer(polygonLabelLayerRef.current);
+      polygonLabelLayerRef.current = null;
+    }
+
+    if (!showPolygonLabels || multiPolygonEntries.length === 0) return;
+
+    const source = new VectorSource();
+    for (const entry of multiPolygonEntries) {
+      if (!entry.centroid) continue;
+      const [clat, clon] = entry.centroid;
+      const f = new Feature({ geometry: new OlPoint(fromLonLat([clon, clat])) });
+      f.setStyle(
+        new Style({
+          text: new Text({
+            text: `Polygon ${entry.index + 1}`,
+            font: "bold 16px sans-serif",
+            fill: new Fill({ color: "#4D5D53" }),
+            stroke: new Stroke({ color: "#ffffff", width: 4 }),
+            offsetY: -18,
+            textAlign: "center",
+          }),
+        }),
+      );
+      source.addFeature(f);
+    }
+
+    const layer = new VectorLayer({ source, zIndex: 70 });
+    polygonLabelLayerRef.current = layer;
+    map.addLayer(layer);
+  }, [multiPolygonEntries, showPolygonLabels]);
+
   // Preview layer — show polygon outline before Confirm Selection (from "Upload" button)
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -770,6 +814,8 @@ export default function ManualOpenLayersMap() {
     // Clear previous multi outline + result path layers
     for (const l of multiLayersRef.current) map.removeLayer(l);
     multiLayersRef.current = [];
+    multiPolygonOutlineLayersRef.current = [];
+    multiVillageLayersRef.current = [];
     // Clear previous multi drain layers
     for (const l of multiDrainLayersRef.current) map.removeLayer(l);
     multiDrainLayersRef.current = [];
@@ -797,6 +843,7 @@ export default function ManualOpenLayersMap() {
         });
         map.addLayer(polygonOutlineLayer);
         multiLayersRef.current.push(polygonOutlineLayer);
+        multiPolygonOutlineLayersRef.current.push(polygonOutlineLayer);
       }
 
       // Layer 2: village/buffer area from GeoServer (violet fill, like single-file selectionVectorLayer)
@@ -816,6 +863,7 @@ export default function ManualOpenLayersMap() {
       });
       map.addLayer(villageLayer);
       multiLayersRef.current.push(villageLayer);
+      multiVillageLayersRef.current.push(villageLayer);
 
       // Layer 3: drain points as violet circles above raster
       const drainSource = new VectorSource();
@@ -953,7 +1001,9 @@ export default function ManualOpenLayersMap() {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    const addedLayers: VectorLayer<VectorSource>[] = [];
+    // Clear previous multi result layers
+    for (const l of multiResultLayersRef.current) map.removeLayer(l);
+    multiResultLayersRef.current = [];
 
     for (const result of multiPolygonResults) {
       const numClusters = result.clusterDistances ? result.clusterDistances.length : 10;
@@ -987,7 +1037,7 @@ export default function ManualOpenLayersMap() {
           }
         });
         map.addLayer(layer);
-        addedLayers.push(layer);
+        multiResultLayersRef.current.push(layer);
       }
 
       // Road path layer (non-DSS mode) — same orange style as single-file resultPathVectorLayer
@@ -1013,13 +1063,9 @@ export default function ManualOpenLayersMap() {
           }
         });
         map.addLayer(layer);
-        addedLayers.push(layer);
+        multiResultLayersRef.current.push(layer);
       }
     }
-
-    return () => {
-      for (const l of addedLayers) map.removeLayer(l);
-    };
   }, [multiPolygonResults]);
 
   // Sync layer visibility state → actual OL layer visibility
@@ -1030,14 +1076,26 @@ export default function ManualOpenLayersMap() {
   useEffect(() => {
     drawLayerRef.current?.setVisible(layerVisibility.drawnPolygon ?? true);
     polygonLayerRef.current?.setVisible(layerVisibility.drawnPolygon ?? true);
+    for (const l of multiPolygonOutlineLayersRef.current) {
+      l.setVisible(layerVisibility.drawnPolygon ?? true);
+    }
   }, [layerVisibility.drawnPolygon]);
 
   useEffect(() => {
     selectionLayerRef.current?.setVisible(layerVisibility.confirmedSelection ?? true);
+    for (const l of multiVillageLayersRef.current) {
+      l.setVisible(layerVisibility.confirmedSelection ?? true);
+    }
+    for (const l of multiDrainLayersRef.current) {
+      l.setVisible(layerVisibility.confirmedSelection ?? true);
+    }
   }, [layerVisibility.confirmedSelection]);
 
   useEffect(() => {
     resultLayerRef.current?.setVisible(layerVisibility.treatmentCluster ?? true);
+    for (const l of multiResultLayersRef.current) {
+      l.setVisible(layerVisibility.treatmentCluster ?? true);
+    }
   }, [layerVisibility.treatmentCluster]);
 
   // DSS mode (clusters have pre-computed path_layer): toggled by cluster click.

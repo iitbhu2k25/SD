@@ -54,35 +54,35 @@ function ClusterLegendTooltip({ onClose }: { onClose: () => void }) {
         <div className="flex items-start gap-2.5">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-white">A</span>
           <p className="text-[11px] text-slate-600">
-            <span className="font-semibold text-slate-800">Cluster label</span> — same black circle as shown on the map. A = nearest to your polygon, B = second nearest, etc.
+            <span className="font-semibold text-slate-800">Cluster label</span> — same black circle as shown on the map. A = nearest to your polygon, B = second nearest, etc. Click on it to show road network path.
           </p>
         </div>
         {/* Area */}
         <div className="flex items-start gap-2.5">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-[9px] font-bold text-emerald-700">ha</span>
           <p className="text-[11px] text-slate-600">
-            <span className="font-semibold text-emerald-700">Area (ha)</span> — suitable land area available inside that cluster patch.
+            <span className="font-semibold text-emerald-700">Cluster Area (ha)</span> — suitable land area available inside that cluster patch.
           </p>
         </div>
         {/* Distance from polygon */}
         <div className="flex items-start gap-2.5">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-[9px] font-bold text-amber-700">↔</span>
           <p className="text-[11px] text-slate-600">
-            <span className="font-semibold text-amber-700">Distance from polygon</span> — straight-line distance from this cluster to your drawn polygon centroid.
+            <span className="font-semibold text-amber-700">Polygon distance</span> — straight-line distance from this cluster to your drawn polygon centroid.
           </p>
         </div>
         {/* Drain number */}
         <div className="flex items-start gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-[9px] font-bold text-blue-700">#</span>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-[9px] font-bold text-violet-700">#</span>
           <p className="text-[11px] text-slate-600">
-            <span className="font-semibold text-blue-700">Drain number</span> — the drain ID. Blue highlight = nearest drain to this cluster.
+            <span className="font-semibold text-violet-700">Drain ID #</span> — the drain ID. Violet highlight = nearest drain to this cluster.
           </p>
         </div>
         {/* Drain distance */}
         <div className="flex items-start gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-[9px] font-bold text-violet-700">km</span>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-[9px] font-bold text-blue-800">km</span>
           <p className="text-[11px] text-slate-600">
-            <span className="font-semibold text-violet-700">Road distance to drain</span> — road network distance from this cluster centroid to the drain outfall.
+            <span className="font-semibold text-blue-800">Road distance from drain to Cluster</span> — road network distance from the drain outfall to this cluster centroid.
           </p>
         </div>
       </div>
@@ -142,7 +142,7 @@ function ClusterTableRows({
             </td>
 
             {/* Drain chips — single scrollable row */}
-            <td className="px-2 py-2.5">
+            <td className="w-full max-w-0 px-2 py-2.5">
               {sortedDrains.length > 0 ? (
                 <div className="flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-track]:bg-transparent">
                   {sortedDrains.map((d, di) => (
@@ -156,8 +156,8 @@ function ClusterTableRows({
                       <span className={`text-[11px] font-bold ${di === 0 ? "text-violet-700" : "text-violet-600"}`}>
                         #{d.Drain_No}
                       </span>
-                      {/* Road distance — violet */}
-                      <span className={`text-[10px] font-semibold ${di === 0 ? "text-violet-600" : "text-violet-400"}`}>
+                      {/* Road distance — dark blue */}
+                      <span className={`text-[10px] font-semibold ${di === 0 ? "text-blue-800" : "text-blue-600"}`}>
                         {d.distance_m >= 1000
                           ? `${(d.distance_m / 1000).toFixed(2)} km`
                           : `${Math.round(d.distance_m)} m`}
@@ -189,14 +189,13 @@ function ClusterTableShell({
   onClusterClick?: (rank: number) => void;
 }) {
   const [showLegend, setShowLegend] = useState(false);
-  const hasPathLayer = Boolean(useManualMapStore((s) => s.resultPathVectorLayer));
   const effectiveSelectedRank = selectedRank ?? null;
   const handleClick = onClusterClick ?? (() => {});
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="relative flex items-center justify-between border-b border-slate-200 bg-slate-800 px-3 py-2">
+      <div className="relative flex items-center justify-between border-b border-slate-200 bg-slate-800 px-3 py-2 rounded-t-xl">
         <div className="flex items-center gap-2">
           <svg className="h-3.5 w-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -214,37 +213,42 @@ function ClusterTableShell({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
           </svg>
         </button>
-        {showLegend && <ClusterLegendTooltip onClose={() => setShowLegend(false)} />}
+        {showLegend && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowLegend(false)} />
+            <ClusterLegendTooltip onClose={() => setShowLegend(false)} />
+          </>
+        )}
       </div>
 
       {/* Column legend strip */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold">
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-3 w-3 rounded-full bg-slate-800" />
-          <span className="text-slate-600">Cluster</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-emerald-200" />
-          <span className="text-emerald-700">Area</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-amber-200" />
-          <span className="text-amber-700">From polygon</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
-          <span className="text-violet-700">Drain #</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded bg-violet-200" />
-          <span className="text-violet-700">Road dist</span>
-        </span>
-        {hasPathLayer && onClusterClick && (
-          <span className="ml-auto flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-emerald-700">Click label to show path</span>
+      <div className="border-b border-slate-100 bg-slate-50 px-3 py-1 text-[9px] font-semibold">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-800" />
+            <span className="text-slate-600">Cluster</span>
           </span>
-        )}
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded bg-emerald-200" />
+            <span className="text-emerald-700">Cluster Area</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded bg-amber-200" />
+            <span className="text-amber-700">Polygon distance</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-violet-500" />
+            <span className="text-violet-700">Drain ID #</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded bg-blue-800" />
+            <span className="text-blue-800">Road distance from drain to Cluster</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
+            <span className="text-slate-400/80">Click cluster to show path</span>
+          </span>
+        </div>
       </div>
 
       {clusters.length === 0 ? (

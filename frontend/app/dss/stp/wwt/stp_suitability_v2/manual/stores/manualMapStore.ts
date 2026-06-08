@@ -29,6 +29,7 @@ interface ManualMapStoreState {
   geoServerUrl: string;
   drawingActive: boolean;
   showDrainLabels: boolean;
+  showPolygonLabels: boolean;
   /** Cluster rank currently selected by user (for road-path toggle); null = path hidden */
   selectedClusterRank: number | null;
 }
@@ -48,6 +49,7 @@ interface ManualMapStoreActions {
   handleLayerSelection: (layer: string) => void;
   setDrawingActive: (active: boolean) => void;
   setShowDrainLabels: (show: boolean) => void;
+  setShowPolygonLabels: (show: boolean) => void;
   /** Toggle road-path visibility for a given cluster rank; same rank = deselect */
   setSelectedClusterRank: (rank: number | null) => void;
   runAnalysis: () => Promise<void>;
@@ -74,6 +76,7 @@ export const useManualMapStore = create<ManualMapStore>((set) => ({
   geoServerUrl: `${process.env.NEXT_PUBLIC_GEOSERVER_URL}`,
   drawingActive: false,
   showDrainLabels: false,
+  showPolygonLabels: false,
   selectedClusterRank: null,
   setPrimaryLayer: (primaryLayer) => set({ primaryLayer }),
   setResultVectorLayer: (resultVectorLayer) =>
@@ -95,6 +98,7 @@ export const useManualMapStore = create<ManualMapStore>((set) => ({
   handleLayerSelection: (selectedRadioLayer) => set({ selectedRadioLayer, showLegend: true }),
   setDrawingActive: (drawingActive) => set({ drawingActive }),
   setShowDrainLabels: (showDrainLabels) => set({ showDrainLabels }),
+  setShowPolygonLabels: (showPolygonLabels) => set({ showPolygonLabels }),
   setSelectedClusterRank: (rank) =>
     set((state) => ({ selectedClusterRank: state.selectedClusterRank === rank ? null : rank })),
   runAnalysis: async () => {
