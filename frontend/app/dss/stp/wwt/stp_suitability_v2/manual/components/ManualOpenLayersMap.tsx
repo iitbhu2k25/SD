@@ -87,21 +87,21 @@ function applyClusterLabels(
 }
 
 const drawLayerStyle = new Style({
-  stroke: new Stroke({ color: "#c8a87a", width: 2, lineDash: [5, 5] }),
-  fill: new Fill({ color: "rgba(245, 235, 210, 0.10)" }),
+  stroke: new Stroke({ color: "#06b6d4", width: 2, lineDash: [5, 5] }),
+  fill: new Fill({ color: "rgba(6, 182, 212, 0.08)" }),
   image: new Circle({
     radius: 5,
-    fill: new Fill({ color: "#c8a87a" }),
+    fill: new Fill({ color: "#06b6d4" }),
     stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
   }),
 });
 
 const activeDrawStyle = new Style({
-  stroke: new Stroke({ color: "#c8a87a", width: 2, lineDash: [6, 4] }),
-  fill: new Fill({ color: "rgba(245, 235, 210, 0.08)" }),
+  stroke: new Stroke({ color: "#06b6d4", width: 2, lineDash: [6, 4] }),
+  fill: new Fill({ color: "rgba(6, 182, 212, 0.06)" }),
   image: new Circle({
     radius: 4,
-    fill: new Fill({ color: "#d4b896" }),
+    fill: new Fill({ color: "#22d3ee" }),
     stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
   }),
 });
@@ -649,8 +649,8 @@ export default function ManualOpenLayersMap() {
     const layer = new VectorLayer({
       source,
       style: new Style({
-        stroke: new Stroke({ color: "#7c3aed", width: 2.5, lineDash: [6, 4] }),
-        fill: new Fill({ color: "rgba(124, 58, 237, 0.08)" }),
+        stroke: new Stroke({ color: "#06b6d4", width: 2.5, lineDash: [6, 4] }),
+        fill: new Fill({ color: "rgba(6, 182, 212, 0.08)" }),
       }),
       zIndex: 60,
     });
