@@ -111,7 +111,8 @@ function MultiPolygonPanel() {
           useManualMapStore.getState().resetMapView();
           useManualUiStore.getState().setRightPanelOpen(false);
         }}
-        onApplyDss={() => {
+        onApplyDss={(values) => {
+          useManualUiStore.getState().setPendingTechnologyValues(values);
           useManualCategoryStore.getState().reset();
           setShowDssWorkflow(true);
         }}
@@ -129,6 +130,7 @@ function MultiDssWorkflowPanel() {
   const selectedCondition = useManualCategoryStore((s) => s.selectedCondition);
   const selectedConstraint = useManualCategoryStore((s) => s.selectedConstraint);
   const categoryLoading = useManualCategoryStore((s) => s.isLoading);
+  const pendingTechnologyValues = useManualUiStore((s) => s.pendingTechnologyValues);
   const categoryError = useManualCategoryStore((s) => s.error);
   const tableData = useManualCategoryStore((s) => s.tableData);
   const stpOperation = useManualMapStore((s) => s.stpOperation);
@@ -326,6 +328,7 @@ function MultiDssWorkflowPanel() {
       tableData={tableData}
       canFindTechnologyArea={true}
       enableDprCostEstimator={true}
+      initialTechnologyValues={pendingTechnologyValues}
       renderCategorySlider={() => <ManualCategorySlider />}
       onAnalyze={() => void handleAnalyze()}
       onTechnologyAreaSubmit={handleFindArea}
