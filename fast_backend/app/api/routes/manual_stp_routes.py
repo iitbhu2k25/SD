@@ -149,7 +149,7 @@ async def stp_manual_area_raster(db: db_dependency, payload: category_raster):
 @validate
 async def stp_manual_find_path(payload: STPManualFindPathInput):
     """Find road network path from polygon centroid to the nearest drain."""
-    drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (payload.drain_points or [])]
+    drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": d.Elevation} for d in (payload.drain_points or [])]
     result = await ManualSTPMapper().find_manual_path(
         polygon_geojson=payload.polygon_geojson,
         polygon_layer=payload.polygon_layer,
@@ -482,7 +482,7 @@ async def stp_multi_find_path(payload: STPMultiFindPathInput):
     mapper = ManualSTPMapper()
     results = []
     for poly in payload.polygons:
-        drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (poly.drain_points or [])]
+        drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": d.Elevation} for d in (poly.drain_points or [])]
         result = await mapper.find_manual_path(
             polygon_geojson=poly.polygon_geojson,
             polygon_layer=poly.polygon_layer,
@@ -509,7 +509,7 @@ async def stp_multi_area(payload: STPMultiAreaPayload):
 
     tasks = []
     for poly in payload.polygons:
-        drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (poly.drain_points or [])]
+        drain_points = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": d.Elevation} for d in (poly.drain_points or [])]
         task = _find_area.delay(
             treatment_technology=poly.treatment_technology,
             mld_capacity=poly.mld_capacity,

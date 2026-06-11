@@ -219,7 +219,7 @@ class ManualSTPArea:
         drain_pts_utm = []
         for dp in drain_points:
             dx, dy = transformer.transform(dp["longitude"], dp["latitude"])
-            drain_pts_utm.append({"Drain_No": dp["Drain_No"], "x": dx, "y": dy})
+            drain_pts_utm.append({"Drain_No": dp["Drain_No"], "x": dx, "y": dy, "Elevation": dp.get("Elevation", 0)})
 
         print(f"[manual_cluster_path] graph nodes={G.number_of_nodes()} edges={G.number_of_edges()} crs={crs}", flush=True)
 
@@ -253,7 +253,7 @@ class ManualSTPArea:
                     dist_m = float(np.linalg.norm(c_arr - d_arr))
                     road_lines.append(LineString([c_src, d_tgt]))
 
-                drain_dists.append({"Drain_No": dp["Drain_No"], "distance_m": round(dist_m, 1)})
+                drain_dists.append({"Drain_No": dp["Drain_No"], "distance_m": round(dist_m, 1), "elevation": dp.get("Elevation", 0)})
 
             path_layer_name = None
             if road_lines:

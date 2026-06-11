@@ -273,10 +273,10 @@ export async function runManualSuitabilityAnalysis(
 
 export async function fetchDrainsInBbox(
   bbox: [number, number, number, number],
-): Promise<{ Drain_No: number; latitude: number; longitude: number }[]> {
+): Promise<{ Drain_No: number; latitude: number; longitude: number; Elevation: number }[]> {
   try {
     const [min_lon, min_lat, max_lon, max_lat] = bbox;
-    const response = await api.post<{ Drain_No: number; latitude: number; longitude: number }[]>(
+    const response = await api.post<{ Drain_No: number; latitude: number; longitude: number; Elevation: number }[]>(
       "/location/drains_in_bbox",
       { body: { min_lon, min_lat, max_lon, max_lat } },
     );

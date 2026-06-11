@@ -27,9 +27,9 @@ async function fetchVillageGeoJSON(layerName: string): Promise<GeoJSON.FeatureCo
 }
 
 function filterDrainsInsideVillages(
-  drains: { Drain_No: number; latitude: number; longitude: number }[],
+  drains: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[],
   villageGeoJSON: GeoJSON.FeatureCollection,
-): { Drain_No: number; latitude: number; longitude: number }[] {
+): { Drain_No: number; latitude: number; longitude: number; Elevation: number }[] {
   return drains.filter((d) => {
     const pt = point([d.longitude, d.latitude]);
     return villageGeoJSON.features.some((feature) =>
@@ -1003,7 +1003,7 @@ export default function ManualAreaSelector() {
     const centroid: [number, number] = [areaResult.centroidLat, areaResult.centroidLon];
 
     let displayRasters: ClipRasters[] = [];
-    let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+    let drainPoints: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[] = [];
     let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
     const bbox = areaResult.bufferBbox as [number, number, number, number];
 
@@ -1050,7 +1050,7 @@ export default function ManualAreaSelector() {
         }
         const entries: MultiPolygonEntry[] = await Promise.all(
           multiResult.results.map(async (r, i) => {
-            let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+            let drainPoints: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[] = [];
             let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
             let displayRasters: ClipRasters[] = [];
             await Promise.all([
@@ -1140,7 +1140,7 @@ export default function ManualAreaSelector() {
           // Multiple polygons — identical flow to multi-file path from here
           const entries: MultiPolygonEntry[] = await Promise.all(
             multiResult.results.map(async (r, i) => {
-              let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+              let drainPoints: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[] = [];
               let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
               let displayRasters: ClipRasters[] = [];
               await Promise.all([
@@ -1236,7 +1236,7 @@ export default function ManualAreaSelector() {
         // Fetch drains + display rasters for each polygon in parallel
         const entries: MultiPolygonEntry[] = await Promise.all(
           allResults.map(async (r, i) => {
-            let drainPoints: { Drain_No: number; latitude: number; longitude: number }[] = [];
+            let drainPoints: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[] = [];
             let villageGeoJSON: GeoJSON.FeatureCollection | null = null;
             let displayRasters: ClipRasters[] = [];
             await Promise.all([

@@ -61,12 +61,14 @@ class DrainPointInput(BaseModel):
     Drain_No: int
     latitude: float
     longitude: float
+    Elevation: int = 0
 
 
 class DrainPointSimple(BaseModel):
     Drain_No: int
     latitude: float
     longitude: float
+    Elevation: int = 0
 
 
 class RasterVisualOutput(BaseModel):
@@ -78,6 +80,7 @@ class RasterVisualOutput(BaseModel):
 class ClusterDrainDistance(BaseModel):
     Drain_No: int
     distance_m: float
+    elevation: int = 0
 
 
 class ClusterInfo(BaseModel):

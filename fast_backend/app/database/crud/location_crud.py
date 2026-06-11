@@ -126,10 +126,19 @@ class Stp_drain_new_crud(CrudBase):
     def get_drains(self,stretch_id:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(self.Model.stretch_id.in_(stretch_id))
         return self._pagination(query,all_data)
-    
+
     def get_drains_class(self,drain_no:list,all_data:bool=True):
         query=self.db.query(self.Model).filter(self.Model.Drain_No.in_(drain_no))
         return self._pagination(query,all_data)
+
+    def get_drains_in_bbox(self, min_lon: float, min_lat: float, max_lon: float, max_lat: float, all_data: bool = True):
+        query = self.db.query(self.Model).filter(
+            self.Model.longitude >= min_lon,
+            self.Model.longitude <= max_lon,
+            self.Model.latitude >= min_lat,
+            self.Model.latitude <= max_lat,
+        ).order_by(sq.asc(self.Model.Drain_No))
+        return self._pagination(query, all_data)
     
     def get_sum_elevation(self,drain_id:list,all_data:bool=True):
         query = self.db.query(func.sum(self.Model.Elevation)).filter(

@@ -181,6 +181,7 @@ class STPDrainPointOutput(BaseModel):
     Drain_No: int
     latitude: float
     longitude: float
+    Elevation: int
 
     class Config:
         from_attributes = True

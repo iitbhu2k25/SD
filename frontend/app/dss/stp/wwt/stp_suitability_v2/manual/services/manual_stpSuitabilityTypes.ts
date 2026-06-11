@@ -26,13 +26,14 @@ export interface SuitabilityAreaPayload {
   custom_land_per_mld: number;
   layer_name: string;
   location: [number, number][];
-  drain_points?: { Drain_No: number; latitude: number; longitude: number }[];
+  drain_points?: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[];
   num_clusters?: number;
 }
 
 export interface ClusterDrainDistance {
   Drain_No: number;
   distance_m: number;
+  elevation?: number;
 }
 
 export interface ClusterInfo {
@@ -57,7 +58,7 @@ export interface ManualFindPathPayload {
   /** When set, backend filters cluster_layer to this specific rank's polygon */
   cluster_rank?: number;
   location: [number, number][];
-  drain_points?: { Drain_No: number; latitude: number; longitude: number }[];
+  drain_points?: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[];
   buffer_bbox?: [number, number, number, number];
 }
 
@@ -125,7 +126,7 @@ export interface MultiFindPathSinglePayload {
   polygon_geojson?: GeoJSON.Polygon | GeoJSON.MultiPolygon;
   polygon_layer?: string;
   location: [number, number][];
-  drain_points?: { Drain_No: number; latitude: number; longitude: number }[];
+  drain_points?: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[];
   buffer_bbox?: [number, number, number, number];
 }
 
@@ -148,7 +149,7 @@ export interface MultiAreaSinglePayload {
   custom_land_per_mld: number;
   layer_name: string;
   location: [number, number][];
-  drain_points?: { Drain_No: number; latitude: number; longitude: number }[];
+  drain_points?: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[];
   num_clusters?: number;
 }
 
@@ -172,7 +173,7 @@ export interface MultiPolygonEntry {
   centroid: [number, number];
   bufferBbox: [number, number, number, number];
   areaHa: number;
-  drainPoints: { Drain_No: number; latitude: number; longitude: number }[];
+  drainPoints: { Drain_No: number; latitude: number; longitude: number; Elevation: number }[];
   selectedDrainNos: number[];
   displayRasters: ClipRasters[];
 }

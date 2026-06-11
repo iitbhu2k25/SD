@@ -12,6 +12,7 @@ export interface DrainPoint {
   Drain_No: number;
   latitude: number;
   longitude: number;
+  Elevation: number;
 }
 
 interface ManualAreaStoreState {

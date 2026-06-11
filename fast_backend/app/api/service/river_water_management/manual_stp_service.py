@@ -259,7 +259,7 @@ class ManualSTPMapper:
             bbox_minx_m = bbox_miny_m = bbox_maxx_m = bbox_maxy_m = None
 
         drain_projected = [
-            (transformer.transform(dp["longitude"], dp["latitude"]), dp["Drain_No"])
+            (transformer.transform(dp["longitude"], dp["latitude"]), dp["Drain_No"], dp.get("Elevation", 0))
             for dp in active_drains
         ]
 
@@ -295,21 +295,21 @@ class ManualSTPMapper:
             all_lines = []
             drain_road_distances = []
 
-            for (dx, dy), drain_no in drain_projected:
+            for (dx, dy), drain_no, elevation in drain_projected:
                 tgt_arr = np.array([dx, dy])
                 tgt_node = node_list[int(np.argmin(np.linalg.norm(nodes - tgt_arr, axis=1)))]
 
                 if src_node == tgt_node:
-                    drain_road_distances.append({"Drain_No": drain_no, "distance_m": 0.0})
+                    drain_road_distances.append({"Drain_No": drain_no, "distance_m": 0.0, "elevation": elevation})
                     continue
                 try:
                     path_nodes = nx.shortest_path(G, src_node, tgt_node, weight="weight")
                     road_dist = nx.shortest_path_length(G, src_node, tgt_node, weight="weight")
                 except Exception:
-                    drain_road_distances.append({"Drain_No": drain_no, "distance_m": round(float(np.linalg.norm(src_arr - tgt_arr)), 1)})
+                    drain_road_distances.append({"Drain_No": drain_no, "distance_m": round(float(np.linalg.norm(src_arr - tgt_arr)), 1), "elevation": elevation})
                     continue
 
-                drain_road_distances.append({"Drain_No": drain_no, "distance_m": round(float(road_dist), 1)})
+                drain_road_distances.append({"Drain_No": drain_no, "distance_m": round(float(road_dist), 1), "elevation": elevation})
                 road_coords = list(path_nodes)
 
                 first_node = np.array(road_coords[0])
@@ -429,7 +429,7 @@ class ManualSTPMapper:
 
     async def start_suitability_area_task(self, payload):
         from app.api.service.celery.stp_area.manual_stp_area import manual_find_suitable_area
-        drain_points_raw = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude} for d in (payload.drain_points or [])]
+        drain_points_raw = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": getattr(d, "Elevation", 0)} for d in (payload.drain_points or [])]
         task = manual_find_suitable_area.delay(
             treatment_technology=payload.treatment_technology,
             mld_capacity=payload.mld_capacity,
