@@ -1950,6 +1950,25 @@ export default function StpTechnologyDss({
                 {isAreaReadyForDpr && !multiClusterDistances && clusterDistances && clusterDistances.length > 0 && (
                   <ClusterDistancesTable clusters={clusterDistances} />
                 )}
+                {(() => {
+                  if (!isAreaReadyForDpr || landRequired <= 0) return null;
+                  const allClusters = multiClusterDistances
+                    ? multiClusterDistances.flatMap((g) => g.clusters)
+                    : clusterDistances ?? [];
+                  if (allClusters.length === 0) return null;
+                  const noneQualifies = allClusters.every((c) => (c.area_ha ?? 0) < landRequired);
+                  if (!noneQualifies) return null;
+                  return (
+                    <div className="mt-2 flex items-start gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5">
+                      <svg className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <p className="text-[11px] font-medium text-orange-800">
+                        Land required (<strong>{landRequired.toFixed(2)} ha</strong>) is too large to match any cluster area. No cluster has sufficient land for the selected technology.Try increasing Number of Clusters.
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
