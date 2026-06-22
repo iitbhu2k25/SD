@@ -1,19 +1,28 @@
-import os
 import asyncio
-import uuid
+import json
+import os
 import tempfile
+import uuid
 import zipfile
-import numpy as np
-import geopandas as gpd
-import rasterio
 from pathlib import Path
+
+import fiona
+import geopandas as gpd
+import numpy as np
+import rasterio
+from fastapi import HTTPException
+from shapely.geometry import shape
+from shapely.ops import unary_union
 from sqlalchemy.orm import Session
 
 from app.api.service.geoserver_svc.geoserver import Geoserver
-from app.utils.network_conf import GeoConfig
-from app.conf.settings import Settings
 from app.conf.redis.redis_async_manager import async_redis_manager
+from app.conf.settings import Settings
 from app.database.crud.stp_crud import STP_suitability_crud
+from app.utils.network_conf import GeoConfig
+
+fiona.drvsupport.supported_drivers["KML"] = "rw"
+fiona.drvsupport.supported_drivers["LIBKML"] = "rw"
 
 geo = Geoserver()
 
@@ -28,8 +37,93 @@ class ManualSTPMapper:
         self.TEMP_DIR = os.path.join(Settings().TEMP_DIR, "STP_suitability")
         os.makedirs(self.TEMP_DIR, exist_ok=True)
 
+    # ── Static file parsing helpers ───────────────────────────────────────────
+
+    @staticmethod
+    def parse_file_to_geojson(contents: bytes, filename: str, method: str, tmp_dir: str) -> dict:
+        """Parse a single uploaded file (shapefile zip/shp or kml/kmz) to a GeoJSON geometry dict."""
+        tmp_path = Path(tmp_dir) / filename
+        tmp_path.write_bytes(contents)
+        suffix = Path(filename).suffix.lower()
+
+        if method == "shapefile":
+            if suffix == ".zip":
+                with zipfile.ZipFile(tmp_path, "r") as zf:
+                    zf.extractall(tmp_dir)
+                shp_files = list(Path(tmp_dir).glob("*.shp"))
+                if not shp_files:
+                    raise HTTPException(status_code=400, detail="No .shp file found inside the zip")
+                gdf = gpd.read_file(shp_files[0])
+            elif suffix == ".shp":
+                gdf = gpd.read_file(tmp_path)
+            else:
+                raise HTTPException(status_code=400, detail="Unsupported shapefile format")
+
+        elif method == "kml":
+            if suffix == ".kmz":
+                with zipfile.ZipFile(tmp_path, "r") as zf:
+                    kml_files = [n for n in zf.namelist() if n.endswith(".kml")]
+                    if not kml_files:
+                        raise HTTPException(status_code=400, detail="No .kml file found inside the kmz")
+                    zf.extract(kml_files[0], tmp_dir)
+                    kml_path = Path(tmp_dir) / kml_files[0]
+            else:
+                kml_path = tmp_path
+            gdf = gpd.read_file(str(kml_path), driver="KML")
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported method: {method}")
+
+        if gdf.crs is None:
+            gdf = gdf.set_crs("EPSG:4326")
+        return unary_union(gdf.to_crs("EPSG:4326").geometry).__geo_interface__
+
+    @staticmethod
+    def compute_area_and_bbox(geometry_geojson: dict, buffer_radius_km: float, fallback_bbox: list) -> tuple:
+        """Return (area_ha, tight_bbox). Falls back to fallback_bbox on error."""
+        try:
+            geom = shape(geometry_geojson)
+            gdf = gpd.GeoDataFrame(geometry=[geom], crs="EPSG:4326").to_crs("EPSG:32644")
+            area_ha = float(gdf.geometry.area.iloc[0]) / 10_000
+            buffer_m = max(0, min(5000, buffer_radius_km * 1000))
+            buffered = gdf.geometry.iloc[0].buffer(buffer_m)
+            buf_wgs84 = gpd.GeoDataFrame(geometry=[buffered], crs="EPSG:32644").to_crs("EPSG:4326").geometry.iloc[0]
+            return area_ha, list(buf_wgs84.bounds)
+        except Exception:
+            return 0.0, fallback_bbox
+
+    @staticmethod
+    def geojson_to_preview_feature(geojson: dict, filename: str) -> dict:
+        """Convert a GeoJSON geometry dict into a GeoJSON Feature with area_ha property."""
+        try:
+            geom = shape(geojson)
+            area_ha = float(
+                gpd.GeoDataFrame(geometry=[geom], crs="EPSG:4326")
+                .to_crs("EPSG:32644").geometry.area.iloc[0]
+            ) / 10_000
+        except Exception:
+            area_ha = 0.0
+        geom_fc = json.loads(gpd.GeoSeries([shape(geojson)], crs="EPSG:4326").to_json())
+        return {
+            "type": "Feature",
+            "geometry": geom_fc["features"][0]["geometry"],
+            "properties": {"name": filename, "area_ha": round(area_ha, 2)},
+        }
+
+    @staticmethod
+    def filter_polygon_rows(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """Keep only valid, non-empty, non-duplicate Polygon/MultiPolygon rows."""
+        gdf = gdf[
+            gdf.geometry.notna() &
+            ~gdf.geometry.is_empty &
+            gdf.geometry.geom_type.isin(["Polygon", "MultiPolygon"])
+        ].reset_index(drop=True)
+        return gdf.loc[
+            ~gdf.geometry.apply(lambda g: g.wkt).duplicated()
+        ].reset_index(drop=True)
+
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
     def _load_village(self) -> gpd.GeoDataFrame:
-        """Load village shapefile lazily — only when needed."""
         gdf = gpd.read_file(str(self.config.villages_shapefile))
         if gdf.crs is None:
             gdf = gdf.set_crs("EPSG:32644")
@@ -53,18 +147,17 @@ class ManualSTPMapper:
         await geo.upload_vector("vector_work", str(output_zip_path), name_only)
         return name_only
 
-    async def confirm_manual_area(self, geometry_geojson: dict, buffer_radius_km: float = 5.0) -> dict:
-        """Parse GeoJSON geometry, create buffer (default 5 km), find intersecting villages,
-        upload village layer and drawn polygon to GeoServer."""
-        from shapely.geometry import shape
-        import geopandas as gpd_local
+    # ── Core area methods ─────────────────────────────────────────────────────
 
+    async def confirm_manual_area(self, geometry_geojson: dict, buffer_radius_km: float = 5.0) -> dict:
+        """Parse GeoJSON geometry, create buffer, find intersecting villages,
+        upload village layer and drawn polygon to GeoServer."""
         geom_wgs84 = shape(geometry_geojson)
         centroid_wgs84 = geom_wgs84.centroid
         centroid_lat = centroid_wgs84.y
         centroid_lon = centroid_wgs84.x
 
-        poly_gdf = gpd_local.GeoDataFrame(geometry=[geom_wgs84], crs="EPSG:4326")
+        poly_gdf = gpd.GeoDataFrame(geometry=[geom_wgs84], crs="EPSG:4326")
         poly_projected = poly_gdf.to_crs("EPSG:32644")
         geom_projected = poly_projected.geometry.iloc[0]
 
@@ -75,7 +168,7 @@ class ManualSTPMapper:
         villages_intersect = village[village.geometry.intersects(buffer_projected)].copy()
 
         if villages_intersect.empty:
-            buf_gdf = gpd_local.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
+            buf_gdf = gpd.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
             buf_wgs84_geom = buf_gdf.to_crs("EPSG:4326").geometry.iloc[0]
             village_wgs84 = village.to_crs("EPSG:4326")
             villages_intersect = village_wgs84[village_wgs84.geometry.intersects(buf_wgs84_geom)].copy()
@@ -83,14 +176,13 @@ class ManualSTPMapper:
                 villages_intersect = villages_intersect.to_crs("EPSG:32644")
 
         if villages_intersect.empty:
-            villages_intersect = gpd_local.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
+            villages_intersect = gpd.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
         else:
             villages_intersect = villages_intersect[villages_intersect.geometry.is_valid].copy()
             villages_intersect["geometry"] = villages_intersect.geometry.buffer(0)
             if "ID" in villages_intersect.columns:
                 villages_intersect = villages_intersect.rename(columns={"ID": "village_id"})
 
-        # Save village shp path in Redis for later raster creation
         temp_vill_name = f"manual_vill_{uuid.uuid4().hex}"
         village_temp_path = os.path.join(self.TEMP_DIR, temp_vill_name + ".shp")
         villages_intersect.to_file(str(village_temp_path), driver="ESRI Shapefile")
@@ -98,12 +190,12 @@ class ManualSTPMapper:
         vector_name = await self._upload_vector(villages_intersect)
         await async_redis_manager.setex(vector_name, 10800, str(village_temp_path))
 
-        polygon_gdf = gpd_local.GeoDataFrame(
+        polygon_gdf = gpd.GeoDataFrame(
             {"geometry": [geom_projected], "label": ["Selected STP Area"]}, crs="EPSG:32644"
         )
         polygon_layer = await self._upload_vector(polygon_gdf)
 
-        buf_bbox_gdf = gpd_local.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
+        buf_bbox_gdf = gpd.GeoDataFrame(geometry=[buffer_projected], crs="EPSG:32644")
         buf_bbox_wgs84 = buf_bbox_gdf.to_crs("EPSG:4326").geometry.iloc[0]
         minx, miny, maxx, maxy = buf_bbox_wgs84.bounds
         print(f"[confirm_manual_area] centroid=({centroid_lat:.4f},{centroid_lon:.4f}) bbox=[{minx:.4f},{miny:.4f},{maxx:.4f},{maxy:.4f}]", flush=True)
@@ -115,6 +207,41 @@ class ManualSTPMapper:
             "centroid_lon": centroid_lon,
             "buffer_bbox": [minx, miny, maxx, maxy],
         }
+
+    async def confirm_multi_polygon_file(self, contents: bytes, filename: str, method: str, buffer_radius_km: float) -> list:
+        """Parse a single file containing multiple polygon rows. Confirm each independently.
+        Returns list of confirm_manual_area result dicts with area_ha and tight_bbox added."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir) / filename
+            tmp_path.write_bytes(contents)
+            suffix = Path(filename).suffix.lower()
+
+            if method == "shapefile":
+                if suffix == ".zip":
+                    with zipfile.ZipFile(tmp_path, "r") as zf:
+                        zf.extractall(tmp_dir)
+                    shp_files = list(Path(tmp_dir).glob("*.shp"))
+                    gdf = gpd.read_file(shp_files[0] if shp_files else tmp_path)
+                else:
+                    gdf = gpd.read_file(tmp_path)
+            else:
+                kml_files = list(Path(tmp_dir).glob("*.kml"))
+                gdf = gpd.read_file(str(kml_files[0]) if kml_files else str(tmp_path), driver="KML")
+
+            if gdf.crs is None:
+                gdf = gdf.set_crs("EPSG:4326")
+            gdf_wgs84 = self.filter_polygon_rows(gdf.to_crs("EPSG:4326"))
+
+            results = []
+            for _, row in gdf_wgs84.iterrows():
+                geom_json = row.geometry.__geo_interface__
+                result = await self.confirm_manual_area(geom_json, buffer_radius_km=buffer_radius_km)
+                area_ha, tight_bbox = self.compute_area_and_bbox(geom_json, buffer_radius_km, result["buffer_bbox"])
+                results.append({**result, "area_ha": area_ha, "tight_bbox": tight_bbox})
+
+            return results
+
+    # ── Raster creation ───────────────────────────────────────────────────────
 
     async def create_manual_suitability_raster(self, vector_layer_name: str) -> str:
         """Convert confirmed manual area vector (from Redis path) into a binary suitability raster."""
@@ -156,6 +283,8 @@ class ManualSTPMapper:
         await async_redis_manager.setex(raster_key, 10800, str(output_path))
         return raster_key
 
+    # ── Path finding ──────────────────────────────────────────────────────────
+
     async def find_manual_path(
         self,
         polygon_geojson: dict | None,
@@ -169,8 +298,6 @@ class ManualSTPMapper:
         """Find road network path from polygon/cluster centroid to all drains."""
         print(f"[find_manual_path] buffer_bbox={buffer_bbox}, drain_count={len(drain_points) if drain_points else 0}, cluster_rank={cluster_rank}", flush=True)
 
-        from shapely.geometry import shape
-        import geopandas as gpd_local
         from app.api.service.celery.stp_area.manual_stp_area import ManualSTPArea as STP_Area
         import aiohttp
 
@@ -187,7 +314,6 @@ class ManualSTPMapper:
 
         async def _fetch_layer_geom(layer_name: str):
             features = await _fetch_layer_features(layer_name)
-            from shapely.ops import unary_union
             geoms = [shape(f["geometry"]) for f in features if f.get("geometry")]
             return unary_union(geoms) if geoms else None
 
@@ -207,7 +333,6 @@ class ManualSTPMapper:
                 selected_features = matched
             else:
                 selected_features = features
-            from shapely.ops import unary_union
             geoms = [shape(f["geometry"]) for f in selected_features if f.get("geometry")]
             if not geoms:
                 return {"suitable_path": None}
@@ -222,7 +347,7 @@ class ManualSTPMapper:
         else:
             return {"suitable_path": None}
 
-        poly_gdf = gpd_local.GeoDataFrame(
+        poly_gdf = gpd.GeoDataFrame(
             {"cluster_id": [0], "area_ha": [geom.area / 10_000]},
             geometry=[geom], crs="EPSG:4326",
         )
@@ -358,6 +483,8 @@ class ManualSTPMapper:
 
         return {"suitable_path": road_path_layer, "cluster_distances": cluster_distances_result}
 
+    # ── Constraint checking ───────────────────────────────────────────────────
+
     async def check_constraints(self, polygon_geojson: dict, db: Session) -> dict:
         """Check which constraint rasters intersect the drawn polygon."""
         import concurrent.futures
@@ -370,9 +497,9 @@ class ManualSTPMapper:
             try:
                 with rasterio.open(file_path) as src:
                     poly_reproj = transform_geom("EPSG:4326", src.crs, polygon_geojson)
-                    from shapely.geometry import shape as _shape, box
+                    from shapely.geometry import box
                     raster_box = box(*src.bounds)
-                    if not _shape(poly_reproj).intersects(raster_box):
+                    if not shape(poly_reproj).intersects(raster_box):
                         return None
                     out_image, _ = rasterio_mask(src, [poly_reproj], crop=True, filled=False)
                     band = out_image[0]
@@ -396,16 +523,11 @@ class ManualSTPMapper:
         violations = [r for r in results if r is not None]
         return {"constraint_violations": violations, "can_proceed": len(violations) == 0}
 
-    # ── Raster suitability methods (delegate to STPsuitabilityMapper) ─────────
-    # These complex raster processing operations reuse the existing implementation.
+    # ── Suitability delegation ────────────────────────────────────────────────
 
     async def get_suitability_categories(self, db, category: str, all_data: bool = False):
         from app.api.service.river_water_management.spt_service import Stp_service
         return Stp_service.get_raster_suitability(db, category, all_data)
-
-    async def get_stp_suitability_area(self, db):
-        from app.database.crud.stp_crud import STP_suitability_crud
-        return STP_suitability_crud(db).get_stp_area()
 
     async def create_suitability_map(self, db, payload):
         from app.api.service.river_water_management.stp_operation import STPsuitabilityMapper
@@ -416,20 +538,22 @@ class ManualSTPMapper:
         return await STPsuitabilityMapper().visual_sutabilty_map(db, clip, place, layer_name)
 
     async def get_suitability_area_result(self, db, task_id: str):
-        import json as _json
         from app.api.service.raster_work.raster_operation import RasterOperation
         resp = await RasterOperation().get_result(db, task_id)
         cluster_distances = None
         if resp.file_path:
             try:
-                cluster_distances = _json.loads(resp.file_path)
+                cluster_distances = json.loads(resp.file_path)
             except Exception:
                 cluster_distances = None
         return resp.layer_name, cluster_distances, resp.task_status
 
-    async def start_suitability_area_task(self, payload):
+    async def start_suitability_area_task(self, payload) -> str:
         from app.api.service.celery.stp_area.manual_stp_area import manual_find_suitable_area
-        drain_points_raw = [{"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": getattr(d, "Elevation", 0)} for d in (payload.drain_points or [])]
+        drain_points_raw = [
+            {"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": getattr(d, "Elevation", 0)}
+            for d in (payload.drain_points or [])
+        ]
         task = manual_find_suitable_area.delay(
             treatment_technology=payload.treatment_technology,
             mld_capacity=payload.mld_capacity,
