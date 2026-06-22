@@ -91,6 +91,21 @@ function ShapefileUploader() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleRemove = async (i: number) => {
+    removeUploadedFile(i);
+    const remaining = uploadedFiles.filter((_, idx) => idx !== i);
+    if (remaining.length === 0) {
+      setPreviewGeojson(null);
+    } else {
+      try {
+        const geojson = await previewPolygon({ method: "shapefile", files: remaining });
+        setPreviewGeojson(geojson);
+      } catch {
+        setPreviewGeojson(null);
+      }
+    }
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-xs text-slate-500">
@@ -121,7 +136,7 @@ function ShapefileUploader() {
               <span className="truncate max-w-[80%]">{f.name}</span>
               <button
                 type="button"
-                onClick={() => { removeUploadedFile(i); setPreviewGeojson(null); }}
+                onClick={() => void handleRemove(i)}
                 className="ml-2 text-red-400 hover:text-red-600 shrink-0"
               >
                 ✕
@@ -172,6 +187,21 @@ function KmlUploader() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleRemove = async (i: number) => {
+    removeUploadedFile(i);
+    const remaining = uploadedFiles.filter((_, idx) => idx !== i);
+    if (remaining.length === 0) {
+      setPreviewGeojson(null);
+    } else {
+      try {
+        const geojson = await previewPolygon({ method: "kml", files: remaining });
+        setPreviewGeojson(geojson);
+      } catch {
+        setPreviewGeojson(null);
+      }
+    }
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-xs text-slate-500">
@@ -202,7 +232,7 @@ function KmlUploader() {
               <span className="truncate max-w-[80%]">{f.name}</span>
               <button
                 type="button"
-                onClick={() => { removeUploadedFile(i); setPreviewGeojson(null); }}
+                onClick={() => void handleRemove(i)}
                 className="ml-2 text-red-400 hover:text-red-600 shrink-0"
               >
                 ✕

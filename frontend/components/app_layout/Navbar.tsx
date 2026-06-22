@@ -38,6 +38,16 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
     { label: "STP", href: "#" },
     { label: "STP Suitability", href: "/dss/stp/wwt/stp_suitability" },
   ],
+  "/dss/stp/wwt/stp_suitability_v2": [
+    { label: "STP", href: "#" },
+    { label: "STP Suitability", href: "#" },
+    { label: "DSS Mode", href: "/dss/stp/wwt/stp_suitability_v2" },
+  ],
+  "/dss/stp/wwt/stp_suitability_v2/manual": [
+    { label: "STP", href: "#" },
+    { label: "STP Suitability", href: "#" },
+    { label: "Manual Mode", href: "/dss/stp/wwt/stp_suitability_v2/manual" },
+  ],
 
   // GWM Routes
   "/dss/gwm/pumping_location": [
@@ -477,15 +487,44 @@ const Navbar = (): JSX.Element => {
                       STP Priority
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/dss/stp/wwt/stp_suitability"
-                      className="block px-4 py-2.5 text-slate-700 font-medium text-sm
-                        hover:bg-orange-50 hover:text-orange-600
-                        rounded-lg transition-all duration-200"
+                  <li
+                    className="relative group/submenu"
+                    onMouseEnter={() => toggleDropdown("stpSuitability", true)}
+                    onMouseLeave={() => toggleDropdown("stpSuitability", false)}
+                  >
+                    <div
+                      className="w-full text-left px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200 flex justify-between items-center cursor-pointer"
+                      onClick={(e) => toggleSubmenu(e, "stpSuitability")}
                     >
                       STP Suitability
-                    </Link>
+                      <ChevronRight
+                        className={`w-4 h-4 ${
+                          openDropdowns.stpSuitability ? "rotate-90" : ""
+                        } lg:group-hover/submenu:rotate-0 transition-transform duration-200`}
+                      />
+                    </div>
+                    <ul
+                      className={`${
+                        openDropdowns.stpSuitability ? "block" : "hidden"
+                      } lg:group-hover/submenu:block lg:absolute lg:left-full lg:top-0 lg:bg-white lg:shadow-2xl lg:border lg:border-slate-200 lg:rounded-xl lg:min-w-[200px] lg:p-2 lg:ml-2 lg:z-[200] ml-4 mt-1 lg:mt-0`}
+                    >
+                      <li>
+                        <Link
+                          href="/dss/stp/wwt/stp_suitability_v2"
+                          className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                        >
+                          DSS Mode
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          href="/dss/stp/wwt/stp_suitability_v2/manual"
+                          className="block px-4 py-2.5 text-slate-700 font-medium text-sm hover:bg-orange-50 hover:text-orange-600 rounded-lg transition-all duration-200"
+                        >
+                          Manual Mode
+                        </Link>
+                      </li>
+                    </ul>
                   </li>
                 </ul>
               </li>

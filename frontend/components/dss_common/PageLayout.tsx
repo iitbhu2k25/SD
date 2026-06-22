@@ -88,8 +88,8 @@ export default function PageLayout({
 
   return (
     <div className="relative flex h-full min-h-0 overflow-hidden">
-      {/* Rail sidebar */}
-      <div className={`z-50 flex w-12 shrink-0 flex-col items-center gap-2 border-r py-3 sm:w-14 ${
+      {/* Rail sidebar — hidden when no items */}
+      <div className={`z-50 flex shrink-0 flex-col items-center gap-2 border-r py-3 ${railItems.length === 0 ? "hidden" : "w-12 sm:w-14"} ${
         isDark
           ? "border-[#1e3a5f]/50 bg-[#050911] text-slate-400"
           : "border-stone-200 bg-gradient-to-b from-emerald-50 via-stone-50 to-teal-50/60 text-slate-700"

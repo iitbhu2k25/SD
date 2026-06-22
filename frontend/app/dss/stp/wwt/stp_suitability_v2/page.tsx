@@ -5,7 +5,7 @@ import ModuleInfoModal from "@/components/dss_common/ModuleInfoModal";
 import PageLayout from "@/components/dss_common/PageLayout";
 import RightPanelToggle from "@/components/dss_common/RightPanelToggle";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StpSuitabilityPdfGenerationStatus from "./PdfGenerationStatus";
 import AdminBottomResultsPanel from "./admin/components/AdminBottomResultsPanel";
 import AdminDataInit from "./admin/components/AdminDataInit";
@@ -15,15 +15,6 @@ import { useAdminViewModel } from "./admin/hooks/useAdminViewModel";
 import type { MapMode } from "./config/mapModes";
 import { getMapModeInfo } from "./config/mapModes";
 import { stpSuitabilityPanelSettings } from "./config/panels.config";
-import ManualBottomResultsPanel from "./manual/components/ManualBottomResultsPanel";
-import ManualMultiResultsPanel from "./manual/components/ManualMultiResultsPanel";
-import ManualDataInit from "./manual/components/ManualDataInit";
-import ManualLeftPanel from "./manual/components/ManualLeftPanel";
-import ManualRightPanel from "./manual/components/ManualRightPanel";
-import { useManualAreaStore } from "./manual/stores/manualAreaStore";
-import { useManualMapStore } from "./manual/stores/manualMapStore";
-import { useManualMultiStore } from "./manual/stores/manualMultiStore";
-import { useManualViewModel } from "./manual/hooks/useManualViewModel";
 import UserBottomResultsPanel from "./users/components/UserBottomResultsPanel";
 import UserDataInit from "./users/components/UserDataInit";
 import UserLeftPanel from "./users/components/UserLeftPanel";
@@ -35,10 +26,6 @@ const AdminMapView = dynamic(() => import("./admin/components/AdminOpenLayersMap
 });
 
 const UserMapView = dynamic(() => import("./users/components/UserOpenLayersMap"), {
-  ssr: false,
-});
-
-const ManualMapView = dynamic(() => import("./manual/components/ManualOpenLayersMap"), {
   ssr: false,
 });
 
@@ -63,17 +50,6 @@ const DrainIcon = () => (
   </svg>
 );
 
-const ManualIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-    />
-  </svg>
-);
-
 export default function StpSuitabilityV2Page() {
   const panelSettings = stpSuitabilityPanelSettings;
   const [selectedMode, setSelectedMode] = useState<MapMode>("admin");
@@ -84,15 +60,11 @@ export default function StpSuitabilityV2Page() {
     Number.parseInt(panelSettings.right.widthOpen, 10) || panelSettings.right.minWidthPercent,
   );
   const [bottomPanelHeight, setBottomPanelHeight] = useState(panelSettings.bottom.heightOpen);
-  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(
-    panelSettings.bottom.defaultOpen,
-  );
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(panelSettings.bottom.defaultOpen);
   const suppressNextBottomAutoOpenRef = useRef(false);
 
   const adminViewModel = useAdminViewModel();
   const userViewModel = useUserViewModel();
-  const manualViewModel = useManualViewModel();
-  const multiSelectionsLocked = useManualMultiStore((s) => s.selectionsLocked);
 
   const activeModeInfo = getMapModeInfo(selectedMode);
   const rightPanelWidth = isMobile
@@ -112,14 +84,12 @@ export default function StpSuitabilityV2Page() {
     setBottomPanelHeight(
       isDesktop ? panelSettings.bottom.heightOpen : panelSettings.bottom.mobileHeightOpen,
     );
-
     const handleChange = (event: MediaQueryListEvent) => {
       setIsMobile(!event.matches);
       setBottomPanelHeight(
         event.matches ? panelSettings.bottom.heightOpen : panelSettings.bottom.mobileHeightOpen,
       );
     };
-
     mq.addEventListener("change", handleChange);
     return () => mq.removeEventListener("change", handleChange);
   }, [panelSettings.bottom.heightOpen, panelSettings.bottom.mobileHeightOpen]);
@@ -136,14 +106,8 @@ export default function StpSuitabilityV2Page() {
     }
   }, [selectedMode, userViewModel.selectionsLocked, userViewModel.setRightPanelOpen]);
 
-  // Manual mode: right panel is opened explicitly via "Next" in DrainSelector, not auto-opened on confirm
-
   const activeTableData =
-    selectedMode === "admin"
-      ? adminViewModel.tableData
-      : selectedMode === "user"
-        ? userViewModel.tableData
-        : [];
+    selectedMode === "admin" ? adminViewModel.tableData : userViewModel.tableData;
   const canShowBottomPanel = activeTableData.length > 0;
 
   useEffect(() => {
@@ -153,7 +117,6 @@ export default function StpSuitabilityV2Page() {
         setIsBottomPanelOpen(false);
         return;
       }
-
       setIsBottomPanelOpen(true);
     }
   }, [canShowBottomPanel, selectedMode]);
@@ -191,40 +154,15 @@ export default function StpSuitabilityV2Page() {
       isActive: selectedMode === "user",
       activeClassName: "bg-emerald-600 text-white shadow-lg shadow-emerald-200",
     },
-    {
-      id: "manual",
-      icon: <ManualIcon />,
-      label: "Manual",
-      tooltip: "Manual area selection",
-      onClick: () => handleModeChange("manual"),
-      isActive: selectedMode === "manual",
-      activeClassName: "bg-violet-600 text-white shadow-lg shadow-violet-200",
-    },
   ];
 
   const adminCanShowRightPanel = adminViewModel.selectionsLocked;
   const userCanShowRightPanel = userViewModel.selectionsLocked;
-  const manualCanShowRightPanel = manualViewModel.selectionsLocked || multiSelectionsLocked;
   const shouldShowRightPanelToggle =
-    selectedMode === "admin"
-      ? adminCanShowRightPanel
-      : selectedMode === "user"
-        ? userCanShowRightPanel
-        : manualCanShowRightPanel;
+    selectedMode === "admin" ? adminCanShowRightPanel : userCanShowRightPanel;
 
-  const leftPanel =
-    selectedMode === "admin"
-      ? <AdminLeftPanel />
-      : selectedMode === "user"
-        ? <UserLeftPanel />
-        : <ManualLeftPanel />;
-
-  const mapContent =
-    selectedMode === "admin"
-      ? <AdminMapView />
-      : selectedMode === "user"
-        ? <UserMapView />
-        : <ManualMapView />;
+  const leftPanel = selectedMode === "admin" ? <AdminLeftPanel /> : <UserLeftPanel />;
+  const mapContent = selectedMode === "admin" ? <AdminMapView /> : <UserMapView />;
 
   const handleAdminAnalyze = async () => {
     suppressNextBottomAutoOpenRef.current = true;
@@ -237,15 +175,6 @@ export default function StpSuitabilityV2Page() {
     setIsBottomPanelOpen(false);
     await userViewModel.handleSubmit();
   };
-
-  const handleManualRedrawPolygon = useCallback(() => {
-    manualViewModel.setRightPanelOpen(false);
-    useManualMapStore.getState().resetMapView();
-    useManualAreaStore.getState().unlockSelections();
-    useManualAreaStore.getState().setSelectedMethod("polygon");
-    useManualMapStore.getState().setDrawingActive(true);
-  }, [manualViewModel]);
-
 
   const rightPanel =
     selectedMode === "admin"
@@ -282,92 +211,61 @@ export default function StpSuitabilityV2Page() {
             />
           )
         : null
-      : selectedMode === "user"
-        ? userCanShowRightPanel
-          ? (
-              <UserRightPanel
-                isOpen={userViewModel.isRightPanelOpen}
-                width={rightPanelWidth}
-                widthPercent={rightPanelWidthPercent}
-                minWidthPercent={panelSettings.right.minWidthPercent}
-                maxWidthPercent={panelSettings.right.maxWidthPercent}
-                onWidthChange={handleRightPanelWidthChange}
-                onClose={() => userViewModel.setRightPanelOpen(false)}
-                isMobile={isMobile}
-                showCategories={userViewModel.selectionsLocked}
-                categoryLoading={userViewModel.categoryLoading}
-                workflowError={
-                  userViewModel.categoryError ?? userViewModel.riverError ?? userViewModel.mapError
-                }
-                selectedConditionCount={userViewModel.selectedCondition.length}
-                selectedConstraintCount={userViewModel.selectedConstraint.length}
-                areaOptions={userViewModel.areaOptions}
-                selectedAreaOptionId={userViewModel.selectedAreaOption?.id ?? null}
-                categoriesEditable={userViewModel.categoriesEditable}
-                stpProcess={userViewModel.stpOperation}
-                isTreatmentLoading={userViewModel.treatmentLoading}
-                canFindTechnologyArea={userViewModel.canFindTechnologyArea}
-                tableData={userViewModel.tableData}
-                toggleCategoriesEditable={userViewModel.toggleCategoriesEditable}
-                handleSubmit={handleUserAnalyze}
-                handleTreatmentSubmit={userViewModel.handleTreatmentSubmit}
-                handleTechnologyAreaSubmit={userViewModel.handleTechnologyAreaSubmit}
-                setSelectedAreaOption={userViewModel.setSelectedAreaOption}
-              />
-            )
-          : null
-        : manualCanShowRightPanel
-          ? (
-              <ManualRightPanel
-                isOpen={manualViewModel.isRightPanelOpen}
-                width={rightPanelWidth}
-                widthPercent={rightPanelWidthPercent}
-                minWidthPercent={panelSettings.right.minWidthPercent}
-                maxWidthPercent={panelSettings.right.maxWidthPercent}
-                onWidthChange={handleRightPanelWidthChange}
-                onClose={() => manualViewModel.setRightPanelOpen(false)}
-                isMobile={isMobile}
-                isTreatmentLoading={manualViewModel.treatmentLoading}
-                canFindTechnologyArea={manualViewModel.canFindTechnologyArea}
-                drainCapacityMld={manualViewModel.drainCapacityMld}
-                markedAreaHa={manualViewModel.markedAreaHa}
-                handleTechnologyAreaSubmit={manualViewModel.handleTechnologyAreaSubmit}
-                onRedrawPolygon={handleManualRedrawPolygon}
-              />
-            )
-          : null;
+      : userCanShowRightPanel
+        ? (
+            <UserRightPanel
+              isOpen={userViewModel.isRightPanelOpen}
+              width={rightPanelWidth}
+              widthPercent={rightPanelWidthPercent}
+              minWidthPercent={panelSettings.right.minWidthPercent}
+              maxWidthPercent={panelSettings.right.maxWidthPercent}
+              onWidthChange={handleRightPanelWidthChange}
+              onClose={() => userViewModel.setRightPanelOpen(false)}
+              isMobile={isMobile}
+              showCategories={userViewModel.selectionsLocked}
+              categoryLoading={userViewModel.categoryLoading}
+              workflowError={
+                userViewModel.categoryError ?? userViewModel.riverError ?? userViewModel.mapError
+              }
+              selectedConditionCount={userViewModel.selectedCondition.length}
+              selectedConstraintCount={userViewModel.selectedConstraint.length}
+              areaOptions={userViewModel.areaOptions}
+              selectedAreaOptionId={userViewModel.selectedAreaOption?.id ?? null}
+              categoriesEditable={userViewModel.categoriesEditable}
+              stpProcess={userViewModel.stpOperation}
+              isTreatmentLoading={userViewModel.treatmentLoading}
+              canFindTechnologyArea={userViewModel.canFindTechnologyArea}
+              tableData={userViewModel.tableData}
+              toggleCategoriesEditable={userViewModel.toggleCategoriesEditable}
+              handleSubmit={handleUserAnalyze}
+              handleTreatmentSubmit={userViewModel.handleTreatmentSubmit}
+              handleTechnologyAreaSubmit={userViewModel.handleTechnologyAreaSubmit}
+              setSelectedAreaOption={userViewModel.setSelectedAreaOption}
+            />
+          )
+        : null;
 
   const rightPanelToggle = shouldShowRightPanelToggle ? (
     <RightPanelToggle
       isOpen={
         selectedMode === "admin"
           ? adminViewModel.isRightPanelOpen
-          : selectedMode === "user"
-            ? userViewModel.isRightPanelOpen
-            : manualViewModel.isRightPanelOpen
+          : userViewModel.isRightPanelOpen
       }
       openOffset={rightPanelWidth}
       onToggle={
         selectedMode === "admin"
           ? adminViewModel.toggleRightPanel
-          : selectedMode === "user"
-            ? userViewModel.toggleRightPanel
-            : manualViewModel.toggleRightPanel
+          : userViewModel.toggleRightPanel
       }
     />
   ) : null;
 
   const activeIsPdfGenerating =
-    selectedMode === "admin"
-      ? adminViewModel.isPdfGenerating
-      : selectedMode === "user"
-        ? userViewModel.isPdfGenerating
-        : manualViewModel.isPdfGenerating;
+    selectedMode === "admin" ? adminViewModel.isPdfGenerating : userViewModel.isPdfGenerating;
 
   const activeHandleReport =
-    selectedMode === "admin"
-      ? adminViewModel.handleReport
-      : userViewModel.handleReport;
+    selectedMode === "admin" ? adminViewModel.handleReport : userViewModel.handleReport;
 
   const bottomPanel = canShowBottomPanel
     ? selectedMode === "admin"
@@ -383,34 +281,18 @@ export default function StpSuitabilityV2Page() {
             onReport={activeHandleReport}
           />
         )
-      : selectedMode === "user"
-        ? (
-            <UserBottomResultsPanel
-              isOpen={isBottomPanelOpen}
-              height={bottomPanelHeight}
-              tableData={activeTableData}
-              panelSettings={panelSettings.bottom}
-              isMobile={isMobile}
-              isPdfGenerating={activeIsPdfGenerating}
-              onToggle={() => setIsBottomPanelOpen((open) => !open)}
-              onReport={activeHandleReport}
-            />
-          )
-        : (
-            <>
-              <ManualBottomResultsPanel
-                isOpen={isBottomPanelOpen}
-                height={bottomPanelHeight}
-                tableData={activeTableData}
-                panelSettings={panelSettings.bottom}
-                isMobile={isMobile}
-                isPdfGenerating={activeIsPdfGenerating}
-                onToggle={() => setIsBottomPanelOpen((open) => !open)}
-                onReport={activeHandleReport}
-              />
-              <ManualMultiResultsPanel />
-            </>
-          )
+      : (
+          <UserBottomResultsPanel
+            isOpen={isBottomPanelOpen}
+            height={bottomPanelHeight}
+            tableData={activeTableData}
+            panelSettings={panelSettings.bottom}
+            isMobile={isMobile}
+            isPdfGenerating={activeIsPdfGenerating}
+            onToggle={() => setIsBottomPanelOpen((open) => !open)}
+            onReport={activeHandleReport}
+          />
+        )
     : null;
 
   const loadingVisible =
@@ -422,68 +304,38 @@ export default function StpSuitabilityV2Page() {
         adminViewModel.treatmentLoading ||
         adminViewModel.locationLoading ||
         adminViewModel.categoryLoading
-      : selectedMode === "user"
-        ? userViewModel.loading ||
-          userViewModel.isMapLoading ||
-          userViewModel.stpOperation ||
-          userViewModel.reportLoading ||
-          userViewModel.treatmentLoading ||
-          userViewModel.riverLoading ||
-          userViewModel.categoryLoading
-        : manualViewModel.loading ||
-          manualViewModel.isMapLoading ||
-          manualViewModel.reportLoading ||
-          manualViewModel.treatmentLoading ||
-          manualViewModel.areaLoading;
+      : userViewModel.loading ||
+        userViewModel.isMapLoading ||
+        userViewModel.stpOperation ||
+        userViewModel.reportLoading ||
+        userViewModel.treatmentLoading ||
+        userViewModel.riverLoading ||
+        userViewModel.categoryLoading;
 
   const isActiveStpOperation =
-    selectedMode === "admin"
-      ? adminViewModel.stpOperation
-      : selectedMode === "user"
-        ? userViewModel.stpOperation
-        : manualViewModel.stpOperation;
+    selectedMode === "admin" ? adminViewModel.stpOperation : userViewModel.stpOperation;
 
   const isActiveReportLoading =
-    selectedMode === "admin"
-      ? adminViewModel.reportLoading
-      : selectedMode === "user"
-        ? userViewModel.reportLoading
-        : manualViewModel.reportLoading;
+    selectedMode === "admin" ? adminViewModel.reportLoading : userViewModel.reportLoading;
 
   const isActiveTreatmentLoading =
-    selectedMode === "admin"
-      ? adminViewModel.treatmentLoading
-      : selectedMode === "user"
-        ? userViewModel.treatmentLoading
-        : manualViewModel.treatmentLoading;
+    selectedMode === "admin" ? adminViewModel.treatmentLoading : userViewModel.treatmentLoading;
 
   const showPdfStatus =
-    selectedMode === "admin"
-      ? adminViewModel.showPdfStatus
-      : selectedMode === "user"
-        ? userViewModel.showPdfStatus
-        : manualViewModel.showPdfStatus;
+    selectedMode === "admin" ? adminViewModel.showPdfStatus : userViewModel.showPdfStatus;
 
   const taskId =
-    selectedMode === "admin"
-      ? adminViewModel.taskId
-      : selectedMode === "user"
-        ? userViewModel.taskId
-        : manualViewModel.taskId;
+    selectedMode === "admin" ? adminViewModel.taskId : userViewModel.taskId;
 
   const handlePdfComplete =
     selectedMode === "admin"
       ? adminViewModel.completePdfGeneration
-      : selectedMode === "user"
-        ? userViewModel.completePdfGeneration
-        : manualViewModel.completePdfGeneration;
+      : userViewModel.completePdfGeneration;
 
   const handlePdfFailure =
     selectedMode === "admin"
       ? adminViewModel.failPdfGeneration
-      : selectedMode === "user"
-        ? userViewModel.failPdfGeneration
-        : manualViewModel.failPdfGeneration;
+      : userViewModel.failPdfGeneration;
 
   const pageLayout = (
     <>
@@ -561,9 +413,5 @@ export default function StpSuitabilityV2Page() {
     return <AdminDataInit>{pageLayout}</AdminDataInit>;
   }
 
-  if (selectedMode === "user") {
-    return <UserDataInit>{pageLayout}</UserDataInit>;
-  }
-
-  return <ManualDataInit>{pageLayout}</ManualDataInit>;
+  return <UserDataInit>{pageLayout}</UserDataInit>;
 }

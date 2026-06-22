@@ -294,7 +294,7 @@ def _manual_celery_task_update(task_id: str, status: str, progress: int = 0, lay
 
 # ── Manual DSS Celery task ────────────────────────────────────────────────────
 
-@celery_app.task(bind=True, name="manual_find_suitable_area", pydantic=True)
+@celery_app.task(bind=True, name="manual_find_suitable_area", pydantic=True,)
 def manual_find_suitable_area(self, treatment_technology: float, mld_capacity: float, custom_land_per_mld: float, layer_name: str, location: list, drain_points: list = None, num_clusters: int = 10):
     """Manual-mode DSS cluster finding — completely separate from admin/drain find_suitable_area."""
     try:
