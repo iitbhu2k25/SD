@@ -9,7 +9,7 @@ import VectorSource from 'ol/source/Vector';
 import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ';
 import GeoJSON from 'ol/format/GeoJSON';
-import { Style, Stroke, Icon } from 'ol/style';
+import { Style, Stroke, Fill, Icon } from 'ol/style';
 import { fromLonLat } from 'ol/proj';
 import { defaults as defaultControls, ScaleLine } from 'ol/control';
 import { Select } from 'ol/interaction';
@@ -95,7 +95,7 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
   const basinLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const riverLayersRef = useRef<{ [key: string]: VectorLayer<VectorSource> }>({}); 
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
-  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/`;
+  const API_BASE = `${process.env.NEXT_PUBLIC_FAST_URL}/drain-water-quality/`;
 
   // Initialize map
   useEffect(() => {
@@ -119,8 +119,8 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
         target: mapRef.current,
         layers: [osmLayer, satelliteLayer],
         view: new View({
-          center: fromLonLat([82.9739, 25.3176]),
-          zoom: 12,
+          center: fromLonLat([83.065, 25.6]),
+          zoom: 9,
           maxZoom: 19,
           minZoom: 8,
         }),
@@ -198,90 +198,92 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
     };
 
     const loadRivers = async () => {
-        try {
-            const scanResp = await fetch(`${API_BASE}/rivers/scan`);
-            if (!scanResp.ok) return;
-            const scanData = await scanResp.json();
-            const riverList = Object.values(scanData.rivers) as any[];
+        const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+        const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
+        const geoJson = new GeoJSON();
 
-            for (const river of riverList) {
-                const url = `${API_BASE}rivers/geojson/${river.id}`;
-                const response = await fetch(url);
-                if (!response.ok) continue;
-                const geojson = await response.json();
+        const riverDefs = [
+            { name: 'Varuna', key: 'varuna', color: '#0066CC', width: 5, zIndex: 22 },
+            { name: 'Basuhi', key: 'basuhi', color: '#9c00aa', width: 3, zIndex: 21 },
+            { name: 'Morwa',  key: 'morwa',  color: '#FF6600', width: 3, zIndex: 21 },
+        ];
 
-                const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' });
-                features.forEach(f => f.set('__layer_id', 'River'));
+        const promises = riverDefs.map(({ name, key, color, width, zIndex }) =>
+            fetch(`${WFS_BASE}&typeName=dss_vector:Rivers&CQL_FILTER=River_Name='${name}'`)
+                .then(r => r.json())
+                .then(geojson => {
+                    if (!mapInstanceRef.current) return;
+                    const layer = new VectorLayer({
+                        source: new VectorSource({ features: geoJson.readFeatures(geojson, { featureProjection: 'EPSG:3857' }) }),
+                        style: new Style({ stroke: new Stroke({ color, width, lineCap: 'round', lineJoin: 'round' }) }),
+                        zIndex,
+                    });
+                    mapInstanceRef.current.addLayer(layer);
+                    riverLayersRef.current[key] = layer;
+                })
+                .catch(e => console.error(`Error loading ${name}:`, e))
+        );
 
-                let riverColor = '#3b82f6';
-                if (river.id.includes('varuna')) riverColor = '#00ccb1ff';
-                if (river.id.includes('basuhi')) riverColor = '#8b5cf6';
-                if (river.id.includes('morwa')) riverColor = '#f97316';
-
-                const vectorLayer = new VectorLayer({
-                    source: new VectorSource({ features }),
-                    style: new Style({
-                        stroke: new Stroke({ color: riverColor, width: 3 })
-                    }),
-                    zIndex: 20,
-                });
-
-                if (mapInstanceRef.current) {
-                    mapInstanceRef.current.addLayer(vectorLayer);
-                    riverLayersRef.current[river.id] = vectorLayer;
-                }
-            }
-        } catch (e) { console.error("Error loading rivers:", e); }
+        await Promise.allSettled(promises);
     };
 
     const loadBasin = async () => {
         try {
-          const basinUrl = `${API_BASE}sewage-infrastructure/geojson/Basin`;
-          const response = await fetch(basinUrl);
-          if (response.ok) {
+            const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+            const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
+            const response = await fetch(`${WFS_BASE}&typeName=dss_vector:basin_boundary`);
+            if (!response.ok) return;
             const geojson = await response.json();
-            if (geojson.features && geojson.features.length > 0) {
-              const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' });
-              features.forEach(f => f.set('__layer_id', 'Basin'));
+            const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' });
+            if (!features.length || !mapInstanceRef.current) return;
 
-              const basinLayer = new VectorLayer({
+            const basinLayer = new VectorLayer({
                 source: new VectorSource({ features }),
                 style: new Style({
-                    stroke: new Stroke({ color: '#8B4513', width: 2, lineDash: [5, 5] }),
-                    fill: undefined 
+                    stroke: new Stroke({ color: '#8B4513', width: 2.5 }),
+                    fill: new Fill({ color: 'rgba(139,69,19,0.05)' }),
                 }),
-                zIndex: 10, 
-              });
+                zIndex: 10,
+            });
 
-              if (mapInstanceRef.current) {
-                mapInstanceRef.current.addLayer(basinLayer);
-                basinLayerRef.current = basinLayer;
-                const extent = basinLayer.getSource()?.getExtent();
-                if (extent) mapInstanceRef.current.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 });
-              }
-            }
-          }
+            mapInstanceRef.current.addLayer(basinLayer);
+            basinLayerRef.current = basinLayer;
+
+            mapInstanceRef.current.getView().fit(
+                [...fromLonLat([82.38, 25.25]), ...fromLonLat([83.75, 25.95])] as [number, number, number, number],
+                { padding: [40, 40, 40, 320], maxZoom: 9 }
+            );
         } catch (e) { console.error("Error loading basin:", e); }
     };
 
     const loadInfrastructurePoints = async () => {
+        const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+        const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
+        const geoJson = new GeoJSON();
+
+        const geoserverLayerName: Record<string, string> = {
+            partial_tapped_drain: 'dss_vector:partial_tapped_drain',
+            tapped: 'dss_vector:tapped',
+            untapped_drain: 'dss_vector:untapped_drain',
+            STP: 'dss_vector:Export_Output_5',
+        };
+
         for (const layer of layers) {
             if (!layer.visible) continue;
             try {
-              const url = `${API_BASE}sewage-infrastructure/geojson/${layer.id}`;
-              const response = await fetch(url);
+              let geojson: any;
+              const response = await fetch(`${WFS_BASE}&typeName=${geoserverLayerName[layer.id]}`);
               if (!response.ok) continue;
-              const geojson = await response.json();
-              
-              const features = new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' });
+              geojson = await response.json();
+
+              // GeoServer returns EPSG:404000 (non-standard) but coords are lon/lat — force 4326
+              const features = geoJson.readFeatures(geojson, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' });
               features.forEach(feature => {
                 feature.set('__layer_id', layer.id);
                 feature.set('__color', layer.color);
               });
-  
-              // Normal State (isSelected = false)
+
               const iconData = getLayerIcon(layer.id, layer.color, false);
-              
               const vectorLayer = new VectorLayer({
                 source: new VectorSource({ features }),
                 style: new Style({
@@ -292,9 +294,9 @@ const SewageInfrastructure: React.FC<SewageInfrastructureProps> = ({ showNotific
                   }),
                 }),
                 zIndex: 100,
-                visible: true
+                visible: true,
               });
-  
+
               if (mapInstanceRef.current) {
                 mapInstanceRef.current.addLayer(vectorLayer);
                 layerRefsRef.current[layer.id] = vectorLayer;

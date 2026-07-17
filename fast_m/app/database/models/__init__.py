@@ -12,3 +12,12 @@ from app.database.models.basic.basic import (
 
 from app.database.models.model_water import Stretches, Drain
 from app.database.models.model_rainwater import Rainwater_raster
+from app.database.models.model_dashboard import (
+    DrainWaterQuality,
+    StoryMapStation,
+    DashboardDepth,
+    DashboardRainfall,
+    DashboardDistribution,
+    DashboardIndustrialPollution,
+)
+from app.database.models.model_varuna_simulation import SewageSimulation

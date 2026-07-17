@@ -532,7 +532,7 @@ const TrendAnalysis: React.FC = () => {
   /* ── fetches ── */
   useEffect(() => {
     (async () => {
-      const b = process.env.NEXT_PUBLIC_DJANGO_URL;
+      const b = process.env.NEXT_PUBLIC_FAST_URL;
       for (const u of [ `${b}/drain-water-quality/depth`]) {
         try { const r = await fetch(u); if (!r.ok) continue; const d = await r.json(); setDepthRecords(Array.isArray(d) ? d : []); setDepthError(null); setLoadingDepth(false); return; } catch { /**/ }
       }
@@ -542,7 +542,7 @@ const TrendAnalysis: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      const b = process.env.NEXT_PUBLIC_DJANGO_URL;
+      const b = process.env.NEXT_PUBLIC_FAST_URL;
       for (const u of [ `${b}/drain-water-quality/rainfall/`]) {
         try { const r = await fetch(u); if (!r.ok) continue; const d = await r.json(); setRainfallRecords(Array.isArray(d) ? d : []); setRainfallError(null); setLoadingRainfall(false); return; } catch { /**/ }
       }
@@ -552,7 +552,7 @@ const TrendAnalysis: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      const b = process.env.NEXT_PUBLIC_DJANGO_URL;
+      const b = process.env.NEXT_PUBLIC_FAST_URL;
       for (const u of [ `${b}/drain-water-quality/distribution/`]) {
         try { const r = await fetch(u); if (!r.ok) continue; const d = await r.json(); setDistributionRecords(Array.isArray(d) ? d : []); setDistributionError(null); setLoadingDistribution(false); return; } catch { /**/ }
       }
@@ -562,7 +562,7 @@ const TrendAnalysis: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      const b = process.env.NEXT_PUBLIC_DJANGO_URL;
+      const b = process.env.NEXT_PUBLIC_FAST_URL;
       for (const u of [ `${b}/drain-water-quality/industrial/`]) {
         try {
           const r = await fetch(u);

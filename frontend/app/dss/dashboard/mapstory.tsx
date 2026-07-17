@@ -7,9 +7,9 @@ import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
+import GeoJSON from 'ol/format/GeoJSON';
 import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ';
-import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Fill, Stroke, Circle as CircleStyle, Text } from 'ol/style';
 import { Point } from 'ol/geom';
 import { Feature } from 'ol';
@@ -20,15 +20,7 @@ import { ChevronRight, Play, Square, ChevronLeft, MapPin, Info } from 'lucide-re
 import { Select } from 'ol/interaction';
 import { click } from 'ol/events/condition';
 
-interface RiverInfo {
-  id: string;
-  display_name: string;
-  folder_path: string;
-  shapefile_path: string;
-  color?: string;
-  feature_count?: number;
-  crs?: string;
-}
+
 
 interface MapStoryProps {
   showNotification?: (title: string, message: string, type?: 'success' | 'error' | 'info') => void;
@@ -152,7 +144,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfo
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
 
   /* ---------- API BASE ---------- */
-  const API_BASE = `${process.env.NEXT_PUBLIC_DJANGO_URL}`;
+  const API_BASE = `${process.env.NEXT_PUBLIC_FAST_URL}`;
 
   /* ==============================================================
      1. INITIALISE MAP
@@ -175,8 +167,8 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfo
       target: mapRef.current,
       layers: [osmLayer, satelliteLayer],
       view: new View({
-        center: fromLonLat([82.9739, 25.3176]),
-        zoom: 11,
+        center: fromLonLat([83.065, 25.6]),
+        zoom: 8,
         maxZoom: 18,
         minZoom: 8,
       }),
@@ -305,89 +297,70 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfo
 
 
   /* ==============================================================
-     3. LOAD RIVERS & BASINS
+     3. LOAD RIVERS & BASINS (via GeoServer WMS)
      ============================================================== */
-  const loadRiversAndBasins = async () => {
+  const loadRiversAndBasins = () => {
     if (!mapInstanceRef.current) return;
 
     setLoadingRivers(true);
-    let rivers: RiverInfo[] = [];
 
-    try {
-      const scanResp = await fetch(`${API_BASE}/rivers/scan`);
-      if (!scanResp.ok) throw new Error('Scan failed');
-      const scanData = await scanResp.json();
-      if (scanData.status !== 'success') throw new Error('Invalid scan');
-
-      rivers = Object.values(scanData.rivers) as RiverInfo[];
-    } catch (e) {
-      console.warn('River scan failed, using fallback IDs');
-      rivers = [
-        { id: 'varuna', display_name: 'Varuna River', folder_path: '', shapefile_path: '' },
-        { id: 'basuhi', display_name: 'Basuhi River', folder_path: '', shapefile_path: '' },
-        { id: 'morwa', display_name: 'Morwa River', folder_path: '', shapefile_path: '' },
-        { id: 'basin', display_name: 'Varuna Basin', folder_path: '', shapefile_path: '' },
-      ];
-    }
-
+    // Remove any previously added WMS layers
     Object.values(riverLayersRef.current).forEach(layer => {
       mapInstanceRef.current?.removeLayer(layer);
     });
     riverLayersRef.current = {};
 
-    for (const river of rivers) {
-      try {
-        const geoResp = await fetch(`${API_BASE}/drain-water-quality/rivers/geojson/${river.id}`);
-        if (!geoResp.ok) continue;
-        const geojson = await geoResp.json();
+    const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+    const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
 
-        const color = river.color || getDefaultRiverColor(river.id);
-        const width = getRiverWidth(river.id);
+    const riverDefs = [
+      { name: 'Varuna', key: 'varuna', color: '#0066CC', width: 5, zIndex: 203 },
+      { name: 'Basuhi', key: 'basuhi', color: '#9c00aa', width: 3, zIndex: 202 },
+      { name: 'Morwa',  key: 'morwa',  color: '#FF6600', width: 3, zIndex: 201 },
+    ];
 
-        const style = new Style({
-          stroke: new Stroke({ color, width, lineCap: 'round', lineJoin: 'round' }),
-          fill: undefined,
-          zIndex: river.id.toLowerCase().includes('basin') ? 100 : 200,
-        });
+    const promises = riverDefs.map(({ name, key, color, width, zIndex }) =>
+      fetch(`${WFS_BASE}&typeName=dss_vector:Rivers&CQL_FILTER=River_Name='${name}'`)
+        .then(r => r.json())
+        .then(geojson => {
+          if (!mapInstanceRef.current) return;
+          const layer = new VectorLayer({
+            source: new VectorSource({ features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }) }),
+            style: new Style({ stroke: new Stroke({ color, width, lineCap: 'round', lineJoin: 'round' }) }),
+            zIndex,
+            properties: { name: key, displayName: name },
+            visible: true,
+          });
+          riverLayersRef.current[key] = layer;
+          mapInstanceRef.current.addLayer(layer);
+        })
+    );
 
+    fetch(`${WFS_BASE}&typeName=dss_vector:basin_boundary`)
+      .then(r => r.json())
+      .then(geojson => {
+        if (!mapInstanceRef.current) return;
         const layer = new VectorLayer({
-          source: new VectorSource({
-            features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }),
+          source: new VectorSource({ features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }) }),
+          style: new Style({
+            stroke: new Stroke({ color: '#8B4513', width: 2.5 }),
+            fill: new Fill({ color: 'rgba(139,69,19,0.05)' }),
           }),
-          style,
-          properties: { name: river.id, displayName: river.display_name },
+          zIndex: 100,
+          properties: { name: 'basin', displayName: 'Basin Boundary' },
           visible: true,
         });
+        riverLayersRef.current['basin'] = layer;
+        mapInstanceRef.current.addLayer(layer);
+      });
 
-        riverLayersRef.current[river.id] = layer;
-        mapInstanceRef.current?.addLayer(layer);
-      } catch (e) {
-        console.error(`Failed to load river: ${river.id}`, e);
-      }
-    }
-
-    setTimeout(() => {
-      const allFeats = Object.values(riverLayersRef.current).flatMap(
-        l => l.getSource()?.getFeatures() ?? []
+    Promise.allSettled(promises).then(() => {
+      mapInstanceRef.current?.getView().fit(
+        [...fromLonLat([82.38, 25.25]), ...fromLonLat([83.75, 25.95])] as [number, number, number, number],
+        { padding: [40, 40, 40, 320], maxZoom: 9 }
       );
-      if (allFeats.length > 0) {
-        let extent = allFeats[0].getGeometry()?.getExtent();
-        if (extent) {
-          allFeats.forEach(f => {
-            const e = f.getGeometry()?.getExtent();
-            if (e) {
-              extent[0] = Math.min(extent[0], e[0]);
-              extent[1] = Math.min(extent[1], e[1]);
-              extent[2] = Math.max(extent[2], e[2]);
-              extent[3] = Math.max(extent[3], e[3]);
-            }
-          });
-          mapInstanceRef.current?.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 800 });
-        }
-      }
-    }, 300);
-
-    setLoadingRivers(false);
+      setLoadingRivers(false);
+    });
   };
 
   /* ==============================================================
@@ -397,7 +370,7 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfo
     if (!mapInstanceRef.current || stations.length === 0) return;
 
     if (Object.keys(riverLayersRef.current).length === 0) {
-      await loadRiversAndBasins();
+      loadRiversAndBasins();
     }
 
     if (stationLayerRef.current) {
@@ -472,22 +445,6 @@ const MapStory: React.FC<MapStoryProps> = ({ showNotification = () => {}, onInfo
   /* ==============================================================
      HELPERS
      ============================================================== */
-  const getDefaultRiverColor = (id: string) => {
-    const map: Record<string, string> = {
-      varuna: '#0066CC',
-      basuhi: '#9c00aa',
-      morwa: '#FF6600',
-      basin: '#8B4513',
-    };
-    return map[id.toLowerCase()] ?? '#0ea5e9';
-  };
-
-  const getRiverWidth = (id: string) => {
-    if (id.toLowerCase().includes('varuna')) return 5;
-    if (id.toLowerCase().includes('basin')) return 2;
-    return 3;
-  };
-
   const changeBasemap = (type: 'osm' | 'satellite') => {
     Object.values(baseMapsRef.current).forEach(l => l.setVisible(false));
     baseMapsRef.current[type]?.setVisible(true);

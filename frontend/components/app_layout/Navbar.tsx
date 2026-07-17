@@ -21,6 +21,9 @@ const staticBreadcrumbs: Record<string, BreadcrumbItem[]> = {
   // Main Pages
   "/dss/about": [{ label: "About", href: "/dss/about" }],
   "/dss/dashboard": [{ label: "Dashboard", href: "/dss/dashboard" }],
+  "/dss/varuna_simulation": [
+    { label: "SD", href: "/dss/varuna_simulation" },
+  ],
   "/UserManagement/UserProfile": [
     { label: "Profile", href: "/UserManagement/UserProfile" },
   ],
@@ -1566,6 +1569,21 @@ const Navbar = (): JSX.Element => {
                     </ul>
                   </li>
                 </ul>
+              </li>
+
+              {/* SD - Varuna River Simulation */}
+              <li className="relative group flex-shrink-0">
+                <Link
+                  href="/dss/varuna_simulation"
+                  className={navLinkClasses}
+                  onClick={() =>
+                    handleMenuClick([
+                      { label: "SD", href: "/dss/varuna_simulation" },
+                    ])
+                  }
+                >
+                  SD
+                </Link>
               </li>
 
               {/* Activities */}

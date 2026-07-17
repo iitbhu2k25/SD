@@ -42,7 +42,7 @@ ALGORITHMS = {
 
 def get_wbt():
     wbt = WhiteboxTools()
-    wbt.set_whitebox_dir(os.environ["WBT_PATH"])
+    wbt.set_whitebox_dir(os.environ.get("WBT_PATH", "/opt/whitebox"))
     wbt.set_working_dir("/tmp")
     wbt.set_verbose_mode(True)
     wbt.set_compress_rasters(False)
@@ -53,7 +53,11 @@ def get_wbt():
 raster_workspace="raster_work"
 work_state=["started","in_progress","completed","failed"]
 
-wbt = get_wbt()
+try:
+    wbt = get_wbt()
+except Exception as _wbt_err:
+    print(f"[raster_heavy_task] WhiteboxTools init failed: {_wbt_err}", flush=True)
+    wbt = None
 
 class RasterMetaData:
     def _safe_float(self, value):

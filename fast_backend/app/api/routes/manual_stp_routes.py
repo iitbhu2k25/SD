@@ -90,7 +90,8 @@ async def stp_manual_area_raster(db: db_dependency, payload: category_raster):
 @router.post("/stp_manual_find_path", status_code=status.HTTP_200_OK, response_model=STPManualFindPathOutput)
 @validate
 async def stp_manual_find_path(payload: STPManualFindPathInput):
-    result = await ManualSTPMapper().find_manual_path(
+    from app.api.service.celery.stp_area.road_path_finder import find_road_path
+    result = await find_road_path(
         polygon_geojson=payload.polygon_geojson,
         polygon_layer=payload.polygon_layer,
         cluster_layer=payload.cluster_layer,
@@ -221,10 +222,10 @@ async def stp_multi_drawn_confirm(payload: dict):
 @router.post("/stp_multi_find_path", status_code=status.HTTP_200_OK, response_model=STPMultiFindPathOutput)
 @validate
 async def stp_multi_find_path(payload: STPMultiFindPathInput):
-    mapper = ManualSTPMapper()
+    from app.api.service.celery.stp_area.road_path_finder import find_road_path
     results = []
     for poly in payload.polygons:
-        result = await mapper.find_manual_path(
+        result = await find_road_path(
             polygon_geojson=poly.polygon_geojson,
             polygon_layer=poly.polygon_layer,
             cluster_layer=None,
@@ -242,38 +243,23 @@ async def stp_multi_find_path(payload: STPMultiFindPathInput):
 @router.post("/stp_multi_area", status_code=status.HTTP_200_OK, response_model=STPMultiAreaOutput)
 @validate
 async def stp_multi_area(payload: STPMultiAreaPayload):
-    from app.api.service.celery.stp_area.manual_stp_area import manual_find_suitable_area as _find_area
-    from app.database.config.dependency import celery_session
-    from app.database.crud.raster_operations import rasterOperCrud
-
-    tasks = [
-        _find_area.delay(
-            treatment_technology=poly.treatment_technology,
-            mld_capacity=poly.mld_capacity,
-            custom_land_per_mld=poly.custom_land_per_mld,
-            layer_name=poly.layer_name,
-            location=poly.location,
-            drain_points=_drain_dicts(poly.drain_points),
-            num_clusters=poly.num_clusters,
-        )
-        for poly in payload.polygons
-    ]
-
-    for _ in range(900):
-        if all(t.ready() for t in tasks):
-            break
-        await asyncio.sleep(1)
-
+    from app.api.service.celery.stp_area.cluster_finder import find_clusters_sync
+    loop = asyncio.get_event_loop()
     results = []
-    for task in tasks:
-        with celery_session() as session:
-            rec = rasterOperCrud(session).get_task(task.id)
-        if rec and rec.task_status == "completed":
-            cluster_distances = json.loads(rec.file_path) if rec.file_path else None
-            results.append(STPMultiAreaSingleResult(cluster_layer=rec.layer_name, cluster_distances=cluster_distances))
-        else:
-            results.append(STPMultiAreaSingleResult(cluster_layer=None, cluster_distances=None))
-
+    for poly in payload.polygons:
+        result = await loop.run_in_executor(None, lambda p=poly: find_clusters_sync(
+            treatment_technology=p.treatment_technology,
+            mld_capacity=p.mld_capacity,
+            custom_land_per_mld=p.custom_land_per_mld,
+            layer_name=p.layer_name,
+            location=p.location,
+            drain_points=_drain_dicts(p.drain_points),
+            num_clusters=p.num_clusters,
+        ))
+        results.append(STPMultiAreaSingleResult(
+            cluster_layer=result.get("cluster_layer"),
+            cluster_distances=result.get("cluster_distances"),
+        ))
     return STPMultiAreaOutput(results=results)
 
 
@@ -305,7 +291,33 @@ async def manual_stp_suitability(db: db_dependency, payload: ManualSTPsuitabilit
 @router.post("/stp_suitability_area", status_code=status.HTTP_201_CREATED, response_model=ManualCeleryId)
 @validate
 async def manual_stp_suitability_area(db: db_dependency, payload: ManualSTP_suitability_Area):
-    task_id = await ManualSTPMapper().start_suitability_area_task(payload)
+    import asyncio
+    from app.api.service.celery.stp_area.cluster_finder import find_clusters_sync
+    drain_points_raw = [
+        {"Drain_No": d.Drain_No, "latitude": d.latitude, "longitude": d.longitude, "Elevation": getattr(d, "Elevation", 0)}
+        for d in (payload.drain_points or [])
+    ]
+    task_id = f"sync-{__import__('uuid').uuid4().hex}"
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: find_clusters_sync(
+        treatment_technology=payload.treatment_technology,
+        mld_capacity=payload.mld_capacity,
+        custom_land_per_mld=payload.custom_land_per_mld,
+        layer_name=payload.layer_name,
+        location=payload.location,
+        drain_points=drain_points_raw,
+        num_clusters=payload.num_clusters,
+    ))
+    import json as _json
+    from app.database.config.dependency import celery_session
+    from app.database.crud.raster_operations import rasterOperCrud
+    with celery_session() as session:
+        rasterOperCrud(session).start_task(task_id, task_id, "manual_stp_area_task")
+        rasterOperCrud(session).update_task(
+            task_id, "completed",
+            result.get("cluster_layer"),
+            _json.dumps(result.get("cluster_distances")) if result.get("cluster_distances") else None,
+        )
     return ManualCeleryId(task_id=task_id)
 
 

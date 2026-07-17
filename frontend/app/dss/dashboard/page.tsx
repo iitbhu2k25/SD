@@ -374,7 +374,7 @@ export default function VarunaRiverDashboard() {
 
   // Fetch Sewage Statistics
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/sewage-infrastructure/statistics`)
+    fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/drain-water-quality/sewage-infrastructure/statistics`)
       .then(res => res.json())
       .then(data => {
         if (data && data.statistics) {
@@ -557,7 +557,7 @@ export default function VarunaRiverDashboard() {
 
   // Fetch drain data
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/main`)
+    fetch(`${process.env.NEXT_PUBLIC_FAST_URL}/drain-water-quality/main`)
       .then(async res => {
         if (!res.ok) throw new Error(await res.text());
         return res.json();
@@ -1194,11 +1194,11 @@ export default function VarunaRiverDashboard() {
                         className="appearance-none border border-blue-300 rounded-md px-3 py-2 bg-white hover:shadow-md hover:border-blue-400 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 pr-8 transition-all duration-200"
                       >
                         <option value="">All Sites</option>
-                        <option value="acidic">ðŸ”´ Acidic pH Sites</option>
-                        <option value="lowDO">ðŸŸ  Low DO Sites</option>
-                        <option value="highBOD">ðŸ”´ High BOD Sites</option>
-                        <option value="highCOD">ðŸŸ£ High COD Sites</option>
-                        <option value="coliform">ðŸ”´ Coliform Positive</option>
+                        <option value="acidic"> Acidic pH Sites</option>
+                        <option value="lowDO"> Low DO Sites</option>
+                        <option value="highBOD"> High BOD Sites</option>
+                        <option value="highCOD"> High COD Sites</option>
+                        <option value="coliform"> Coliform Positive</option>
                       </select>
                     </div>
                   </div>

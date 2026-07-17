@@ -540,6 +540,8 @@ class ManualSTPMapper:
     async def get_suitability_area_result(self, db, task_id: str):
         from app.api.service.raster_work.raster_operation import RasterOperation
         resp = await RasterOperation().get_result(db, task_id)
+        if resp is None:
+            return None, None, "pending"
         cluster_distances = None
         if resp.file_path:
             try:

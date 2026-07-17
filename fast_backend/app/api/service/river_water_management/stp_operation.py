@@ -1108,6 +1108,7 @@ class STPsuitabilityMapper:
         raster_path,raster_weights,constraintion_raster=self._get_raster_with_weight(db,payload)
         _,final_path=self._get_overlay_raster(raster_path,constraintion_raster,raster_weights)
         final_name = Unique_name.unique_name_with_ext('STP_suitability','tif') 
+        final_path="/home/app/temp/STP.tif"
         sld_path,sld_name=RasterProcess().processRaster(final_path,reverse=reverse)
         village_vector=await async_redis_manager.get(payload.village_layer)
         village_vector=gpd.read_file(village_vector)

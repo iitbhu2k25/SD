@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     "authapp",
     "gwa",
     "swa",
-    "dashboard",
     "extract",
     "datahub",  
     "rwm",

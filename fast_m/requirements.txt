@@ -44,3 +44,7 @@ cartopy
 celery-progress
 pyjwt
 rioxarray
+pysd
+faiss-cpu
+sentence-transformers
+PyPDF2

@@ -352,8 +352,8 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
       layers: [baseLayer, pointLayer],
       view: new View({
         // Initial fallback view; final view is set after basin/river layers load
-        center: fromLonLat([82.78, 25.38]),
-        zoom: 9.4,
+        center: fromLonLat([83.065, 25.6]),
+        zoom: 9,
       }),
     });
 
@@ -375,79 +375,57 @@ const PollutionSources: React.FC<PollutionSourcesProps> = ({ drainData }) => {
 
     let isCancelled = false;
 
-    const getRiverColor = (riverId: string): string => {
-      const id = riverId.toLowerCase();
-      if (id.includes('varuna')) return '#0066CC';
-      if (id.includes('basuhi')) return '#9c00aa';
-      if (id.includes('morwa')) return '#FF6600';
-      if (id.includes('basin')) return '#8B4513';
-      return '#0ea5e9';
-    };
+    const loadRiverLayers = () => {
+      const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+      const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
+      const geoJson = new GeoJSON();
 
-    const loadRiverLayers = async () => {
-      try {
-        const scanResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/scan`);
-        const scanData = await scanResponse.json();
-        if (scanData.status !== 'success' || !scanData.rivers || isCancelled) return;
+      const riverDefs = [
+        { name: 'Varuna', color: '#0066CC', width: 5, zIndex: 5 },
+        { name: 'Basuhi', color: '#9c00aa', width: 3, zIndex: 4 },
+        { name: 'Morwa',  color: '#FF6600', width: 3, zIndex: 4 },
+      ];
 
-        const rivers = Object.values(scanData.rivers) as Array<{ id: string }>;
-        const geoJson = new GeoJSON();
-
-        for (const river of rivers) {
-          const riverResponse = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/geojson/${river.id}`);
-          if (!riverResponse.ok || isCancelled) continue;
-          const riverGeojson = await riverResponse.json();
-
-          const features = geoJson.readFeatures(riverGeojson, {
-            featureProjection: 'EPSG:3857',
-          });
-
-          const color = getRiverColor(river.id);
-          const isBasin = river.id.toLowerCase().includes('basin');
-
-          const layer = new VectorLayer({
-            source: new VectorSource({ features }),
-            style: new Style({
-              stroke: new Stroke({
-                color,
-                width: isBasin ? 2 : 3,
-                lineDash: isBasin ? [6, 4] : undefined,
-              }),
-              fill: isBasin ? new Fill({ color: `${color}18` }) : undefined,
-            }),
-            zIndex: isBasin ? 3 : 4,
-          });
-
-          bodMapInstanceRef.current?.addLayer(layer);
-          bodRiverLayersRef.current.push(layer);
-        }
-
-        // After loading basin/rivers, fit map to their combined extent for a stable initial view
-        const extents = bodRiverLayersRef.current
-          .map((layer) => layer.getSource()?.getExtent())
-          .filter((e): e is [number, number, number, number] => !!e);
-
-        if (extents.length > 0 && bodMapInstanceRef.current) {
-          const combined = [...extents[0]] as [number, number, number, number];
-          for (let i = 1; i < extents.length; i++) {
-            const e = extents[i];
-            combined[0] = Math.min(combined[0], e[0]);
-            combined[1] = Math.min(combined[1], e[1]);
-            combined[2] = Math.max(combined[2], e[2]);
-            combined[3] = Math.max(combined[3], e[3]);
-          }
-
-          if (combined.every((v) => Number.isFinite(v))) {
-            bodMapInstanceRef.current.getView().fit(combined, {
-              padding: [36, 40, 36, 40],
-              maxZoom: 10.2,
-              duration: 250,
+      const promises = riverDefs.map(({ name, color, width, zIndex }) =>
+        fetch(`${WFS_BASE}&typeName=dss_vector:Rivers&CQL_FILTER=River_Name='${name}'`)
+          .then(r => r.json())
+          .then(geojson => {
+            if (isCancelled || !bodMapInstanceRef.current) return;
+            const layer = new VectorLayer({
+              source: new VectorSource({ features: geoJson.readFeatures(geojson, { featureProjection: 'EPSG:3857' }) }),
+              style: new Style({ stroke: new Stroke({ color, width, lineCap: 'round', lineJoin: 'round' }) }),
+              zIndex,
             });
-          }
-        }
-      } catch (error) {
-        console.error('Error loading river layers for BOD map:', error);
-      }
+            bodMapInstanceRef.current.addLayer(layer);
+            bodRiverLayersRef.current.push(layer);
+          })
+          .catch(console.error)
+      );
+
+      fetch(`${WFS_BASE}&typeName=dss_vector:basin_boundary`)
+        .then(r => r.json())
+        .then(geojson => {
+          if (isCancelled || !bodMapInstanceRef.current) return;
+          const layer = new VectorLayer({
+            source: new VectorSource({ features: geoJson.readFeatures(geojson, { featureProjection: 'EPSG:3857' }) }),
+            style: new Style({
+              stroke: new Stroke({ color: '#8B4513', width: 2.5 }),
+              fill: new Fill({ color: 'rgba(139,69,19,0.05)' }),
+            }),
+            zIndex: 3,
+          });
+          bodMapInstanceRef.current.addLayer(layer);
+          bodRiverLayersRef.current.push(layer);
+        })
+        .catch(console.error);
+
+      Promise.allSettled(promises).then(() => {
+        if (!bodMapInstanceRef.current) return;
+        bodMapInstanceRef.current.getView().fit(
+          [...fromLonLat([82.38, 25.25]), ...fromLonLat([83.75, 25.95])] as [number, number, number, number],
+          { padding: [40, 40, 40, 320], maxZoom: 9 }
+        );
+      });
     };
 
     loadRiverLayers();

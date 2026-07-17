@@ -1,0 +1,10 @@
+venv/
+temp/
+media/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+.pytest_cache/
+*.egg-info/

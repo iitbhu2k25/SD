@@ -6,11 +6,11 @@ import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
+import GeoJSON from 'ol/format/GeoJSON';
 import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ';
-import GeoJSON from 'ol/format/GeoJSON';
 import { Style, Fill, Stroke, Circle as CircleStyle, Text } from 'ol/style';
-import { Point, Polygon, MultiPolygon } from 'ol/geom';
+import { Point } from 'ol/geom';
 import { Feature } from 'ol';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { defaults as defaultControls, ScaleLine } from 'ol/control';
@@ -48,13 +48,7 @@ interface VarunaMapProps {
   onYearChange: (year: number) => void;
 }
 
-interface RiverInfo {
-  id: string;
-  display_name: string;
-  folder_path: string;
-  shapefile_path: string;
-  color?: string;
-}
+
 
 interface LayerState {
   varuna: boolean;
@@ -114,7 +108,6 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [coordinates, setCoordinates] = useState({ lat: 0, lng: 0 });
-  const [availableRivers, setAvailableRivers] = useState<RiverInfo[]>([]);
   const [currentBasemap, setCurrentBasemap] = useState<'osm' | 'satellite'>('osm');
   const [activeTab, setActiveTab] = useState('parameters');
   const [layerVisibility, setLayerVisibility] = useState<LayerState>({
@@ -130,20 +123,9 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
 
   // Layer references
   const riverLayersRef = useRef<{ [key: string]: VectorLayer<VectorSource> }>({});
-  const basinMaskLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const stationLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
   const baseMapsRef = useRef<{ [key: string]: TileLayer<OSM | XYZ> }>({});
   const selectInteractionRef = useRef<Select | null>(null);
-
-  const API_BASE = 'django/drain-water-quality/';
-
-  const RIVER_COLORS = {
-    varuna: '#0066CC',
-    basuhi: '#9c00aaff',
-    morwa: '#FF6600',
-    basin: '#8B4513',
-    default: '#0ea5e9',
-  };
 
   const PARAMETERS = [
     { 
@@ -207,22 +189,6 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
     } catch (error) {
       return 'Date error';
     }
-  };
-
-  const getRiverColor = (riverId: string): string => {
-    const lowerRiverId = riverId.toLowerCase();
-    if (lowerRiverId.includes('varuna')) return RIVER_COLORS.varuna;
-    if (lowerRiverId.includes('basuhi')) return RIVER_COLORS.basuhi;
-    if (lowerRiverId.includes('morwa')) return RIVER_COLORS.morwa;
-    if (lowerRiverId.includes('basin')) return RIVER_COLORS.basin;
-    return RIVER_COLORS.default;
-  };
-
-  const getRiverWidth = (riverId: string): number => {
-    const lowerRiverId = riverId.toLowerCase();
-    if (lowerRiverId.includes('varuna')) return 5;
-    if (lowerRiverId.includes('basin')) return 2;
-    return 3;
   };
 
   const getParameterValue = (station: DrainStation, parameter: string): number => {
@@ -331,59 +297,6 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
     });
   };
 
-  const updateBasinMaskLayer = () => {
-    if (!mapInstanceRef.current) return;
-
-    const basinEntry = Object.entries(riverLayersRef.current).find(([id]) =>
-      id.toLowerCase().includes('basin')
-    );
-
-    if (!basinEntry) return;
-
-    const basinFeatures = basinEntry[1].getSource()?.getFeatures() ?? [];
-    const basinRings: number[][][] = [];
-
-    basinFeatures.forEach((feature) => {
-      const geometry = feature.getGeometry();
-      if (geometry instanceof Polygon) {
-        basinRings.push(geometry.getCoordinates()[0]);
-      } else if (geometry instanceof MultiPolygon) {
-        geometry.getCoordinates().forEach((polygonCoords) => {
-          basinRings.push(polygonCoords[0]);
-        });
-      }
-    });
-
-    if (!basinRings.length) return;
-
-    if (basinMaskLayerRef.current) {
-      mapInstanceRef.current.removeLayer(basinMaskLayerRef.current);
-    }
-
-    const worldRing = [
-      [-20037508.34, -20037508.34],
-      [-20037508.34, 20037508.34],
-      [20037508.34, 20037508.34],
-      [20037508.34, -20037508.34],
-      [-20037508.34, -20037508.34],
-    ];
-
-    const maskFeature = new Feature({
-      geometry: new Polygon([worldRing, ...basinRings]),
-    });
-
-    const maskLayer = new VectorLayer({
-      source: new VectorSource({ features: [maskFeature] }),
-      style: new Style({
-        fill: new Fill({ color: 'rgba(248, 250, 252, 0.42)' }),
-      }),
-      zIndex: 500,
-    });
-
-    basinMaskLayerRef.current = maskLayer;
-    mapInstanceRef.current.addLayer(maskLayer);
-  };
-
   const formatNumericValue = (value?: number | null, digits = 2): string => {
     if (value === null || value === undefined || Number.isNaN(value)) return 'N/A';
     return value.toFixed(digits);
@@ -408,154 +321,75 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
   : [];
 
 
-  const scanAvailableRivers = async (): Promise<RiverInfo[]> => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/scan`);
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        const rivers = Object.values(data.rivers) as RiverInfo[];
-        setAvailableRivers(rivers);
-        return rivers;
-      }
-      return [];
-    } catch (error) {
-      console.error('Error scanning rivers:', error);
-      showNotification('Error', 'Could not scan for available rivers', 'error');
-      return [];
-    }
-  };
-
-  const loadRiverShapefiles = async () => {
+  const loadRiverShapefiles = () => {
     if (!mapInstanceRef.current) return;
 
-    try {
-      setLoading(true);
-      const rivers = await scanAvailableRivers();
+    Object.values(riverLayersRef.current).forEach(l => mapInstanceRef.current?.removeLayer(l));
+    riverLayersRef.current = {};
 
-      if (rivers.length === 0) {
-        showNotification('Info', 'No rivers found. Please upload shapefiles.', 'info');
-        return;
-      }
+    const GS = process.env.NEXT_PUBLIC_GEOSERVER_URL ?? '/geoserver';
+    const WFS_BASE = `${GS}/dss_vector/wfs?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json`;
 
-      // Load all rivers in parallel
-      const loadPromises = rivers.map(async (river) => {
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_DJANGO_URL}/drain-water-quality/rivers/geojson/${river.id}`);
-          if (!response.ok) return null;
-          const geoJsonData = await response.json();
-          return { river, geoJsonData };
-        } catch (error) {
-          console.error(`Error loading ${river.display_name}:`, error);
-          return null;
-        }
-      });
+    const riverDefs = [
+      { name: 'Varuna', visKey: 'varuna' as keyof LayerState, color: '#0066CC', width: 5, zIndex: 203 },
+      { name: 'Basuhi', visKey: 'basuhi' as keyof LayerState, color: '#9c00aa', width: 3, zIndex: 202 },
+      { name: 'Morwa',  visKey: 'morwa'  as keyof LayerState, color: '#FF6600', width: 3, zIndex: 201 },
+    ];
 
-      const results = await Promise.all(loadPromises);
-      let loadedCount = 0;
+    riverDefs.forEach(({ name, visKey, color, width, zIndex }) => {
+      const url = `${WFS_BASE}&typeName=dss_vector:Rivers&CQL_FILTER=River_Name='${name}'`;
+      fetch(url)
+        .then(r => r.json())
+        .then(geojson => {
+          if (!mapInstanceRef.current) return;
+          const source = new VectorSource({ features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }) });
+          const layer = new VectorLayer({
+            source,
+            style: new Style({ stroke: new Stroke({ color, width, lineCap: 'round', lineJoin: 'round' }) }),
+            zIndex,
+            properties: { name: name.toLowerCase(), displayName: name },
+            visible: layerVisibility[visKey],
+          });
+          riverLayersRef.current[visKey] = layer;
+          mapInstanceRef.current.addLayer(layer);
+        })
+        .catch(console.error);
+    });
 
-      results.forEach((result) => {
-        if (!result) return;
-        const { river, geoJsonData } = result;
-
-        if (riverLayersRef.current[river.id]) {
-          mapInstanceRef.current?.removeLayer(riverLayersRef.current[river.id]);
-        }
-
-        const riverColor = getRiverColor(river.id);
-        const riverWidth = getRiverWidth(river.id);
-
-        const style = new Style({
-          stroke: new Stroke({
-            color: riverColor,
-            width: riverWidth,
-            lineCap: 'round',
-            lineJoin: 'round',
+    // Basin boundary
+    fetch(`${WFS_BASE}&typeName=dss_vector:basin_boundary`)
+      .then(r => r.json())
+      .then(geojson => {
+        if (!mapInstanceRef.current) return;
+        const source = new VectorSource({ features: new GeoJSON().readFeatures(geojson, { featureProjection: 'EPSG:3857' }) });
+        const layer = new VectorLayer({
+          source,
+          style: new Style({
+            stroke: new Stroke({ color: '#8B4513', width: 2.5 }),
+            fill: new Fill({ color: 'rgba(139,69,19,0.05)' }),
           }),
-          fill: river.id.toLowerCase().includes('basin')
-            ? new Fill({ color: `${riverColor}15` })
-            : undefined,
+          zIndex: 100,
+          properties: { name: 'basin', displayName: 'Basin Boundary' },
+          visible: layerVisibility.basin,
         });
+        riverLayersRef.current['basin'] = layer;
+        mapInstanceRef.current.addLayer(layer);
+      })
+      .catch(console.error);
 
-        const riverLayer = new VectorLayer({
-          source: new VectorSource({
-            features: new GeoJSON().readFeatures(geoJsonData, { featureProjection: 'EPSG:3857' }),
-          }),
-          style: style,
-          properties: {
-            name: river.id,
-            displayName: river.display_name,
-          },
-          visible: layerVisibility[river.id as keyof LayerState] !== false,
-        });
-
-        riverLayersRef.current[river.id] = riverLayer;
-        mapInstanceRef.current?.addLayer(riverLayer);
-        loadedCount++;
-      });
-
-      updateBasinMaskLayer();
-
-      if (loadedCount > 0) {
-        showNotification('Success', `Loaded ${loadedCount} rivers`, 'success');
-
-        setTimeout(() => {
-          if (mapInstanceRef.current && Object.keys(riverLayersRef.current).length > 0) {
-            const allFeatures = Object.values(riverLayersRef.current).flatMap(
-              (layer) => layer.getSource()?.getFeatures() || []
-            );
-            if (allFeatures.length > 0) {
-              let extent = allFeatures[0].getGeometry()?.getExtent();
-              if (extent) {
-                allFeatures.forEach((feature) => {
-                  const geom = feature.getGeometry();
-                  if (geom) {
-                    const featureExtent = geom.getExtent();
-                    extent[0] = Math.min(extent[0], featureExtent[0]);
-                    extent[1] = Math.min(extent[1], featureExtent[1]);
-                    extent[2] = Math.max(extent[2], featureExtent[2]);
-                    extent[3] = Math.max(extent[3], featureExtent[3]);
-                  }
-                });
-                mapInstanceRef.current.getView().fit(extent, {
-                  padding: [90, 140, 110, 300],
-                  maxZoom: 10,
-                });
-              }
-            }
-          }
-        }, 500);
-      }
-    } catch (error) {
-      console.error('Error loading rivers:', error);
-      showNotification('Error', 'Failed to load rivers', 'error');
-    } finally {
-      setLoading(false);
-    }
+    // Fit to basin bounding box — same extent the old shapefile fit produced
+    mapInstanceRef.current.getView().fit(
+      [...fromLonLat([82.38, 25.25]), ...fromLonLat([83.75, 25.95])] as [number, number, number, number],
+      { padding: [40, 350, 40, 280], maxZoom: 9 }
+    );
   };
 
-  const refreshRivers = async () => {
-    try {
-      setLoading(true);
-      showNotification('Info', 'Refreshing river data...', 'info');
-
-      const response = await fetch(`django/drain-water-quality/rivers/refresh/`, { method: 'POST' });
-      const result = await response.json();
-
-      Object.values(riverLayersRef.current).forEach((layer) => mapInstanceRef.current?.removeLayer(layer));
-      riverLayersRef.current = {};
-      if (basinMaskLayerRef.current) {
-        mapInstanceRef.current?.removeLayer(basinMaskLayerRef.current);
-        basinMaskLayerRef.current = null;
-      }
-      await loadRiverShapefiles();
-    } catch (error) {
-      console.error('Error refreshing:', error);
-      showNotification('Error', 'Could not refresh rivers', 'error');
-    } finally {
-      setLoading(false);
-    }
+  /* kept for the Refresh button — just reloads the WMS layers */
+  const refreshRivers = () => {
+    loadRiverShapefiles();
+    showNotification('Success', 'Rivers refreshed', 'success');
   };
+
 
   const updateStationLayer = (stations: DrainStation[], parameter: string) => {
     if (!mapInstanceRef.current) return;
@@ -599,10 +433,10 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
     const newVis = { ...layerVisibility, [layerId]: !layerVisibility[layerId as keyof LayerState] };
     setLayerVisibility(newVis);
 
-    const layer = riverLayersRef.current[layerId];
-    if (layer) layer.setVisible(newVis[layerId as keyof LayerState]);
-    if (layerId === 'stations' && stationLayerRef.current) {
-      stationLayerRef.current.setVisible(newVis.stations);
+    if (layerId === 'stations') {
+      stationLayerRef.current?.setVisible(newVis.stations);
+    } else {
+      riverLayersRef.current[layerId]?.setVisible(newVis[layerId as keyof LayerState]);
     }
   };
 
@@ -624,7 +458,7 @@ const VarunaMap: React.FC<VarunaMapProps> = ({
       target: mapRef.current,
       layers: [osmLayer, satelliteLayer],
       view: new View({
-        center: fromLonLat([82.9739, 25.3176]),
+        center: fromLonLat([83.065, 25.6]),
         zoom: 9,
         maxZoom: 18,
         minZoom: 8,
