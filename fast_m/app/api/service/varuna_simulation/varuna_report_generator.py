@@ -176,10 +176,11 @@ def _line_chart_png(day_labels: list[int], series: list[tuple[str, list[float], 
         ax.set_axisbelow(True)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
-        ax.legend(fontsize=8.5, loc="upper left", frameon=False, ncol=len(series))
-        fig.tight_layout()
+        legend = ax.legend(fontsize=8.5, loc="lower center", bbox_to_anchor=(0.5, 1.02),
+                            ncol=len(series), frameon=False, borderaxespad=0)
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", facecolor="white")
+        fig.savefig(buf, format="png", facecolor="white", bbox_inches="tight",
+                    bbox_extra_artists=[legend], pad_inches=0.15)
         plt.close(fig)
     buf.seek(0)
     return buf.read()
@@ -222,10 +223,11 @@ def _bar_chart_png(categories: list[str], series: list[tuple[str, list[float | N
         ax.set_axisbelow(True)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
-        ax.legend(fontsize=8.5, loc="upper right", frameon=False)
-        fig.tight_layout()
+        legend = ax.legend(fontsize=8.5, loc="lower center", bbox_to_anchor=(0.5, 1.02),
+                            ncol=n_series, frameon=False, borderaxespad=0)
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", facecolor="white")
+        fig.savefig(buf, format="png", facecolor="white", bbox_inches="tight",
+                    bbox_extra_artists=[legend], pad_inches=0.15)
         plt.close(fig)
     buf.seek(0)
     return buf.read()
@@ -396,14 +398,14 @@ def _styles():
         "sec_title": ParagraphStyle("sec_title", parent=ss["Heading1"], fontName=_SERIF_BOLD, fontSize=15.5,
                                     textColor=NAVY, spaceBefore=4, spaceAfter=2),
         "sec_sub": ParagraphStyle("sec_sub", parent=ss["Normal"], fontSize=8.5, textColor=GRAY_500, spaceAfter=10),
-        "kpi_val": ParagraphStyle("kpi_val", parent=ss["Normal"], fontSize=19, textColor=NAVY, alignment=TA_CENTER,
-                                  fontName=_SERIF_BOLD),
-        "kpi_val_dark": ParagraphStyle("kpi_val_dark", parent=ss["Normal"], fontSize=13.5, textColor=WHITE,
+        "kpi_val": ParagraphStyle("kpi_val", parent=ss["Normal"], fontSize=15, leading=18, textColor=NAVY,
+                                  alignment=TA_CENTER, fontName=_SERIF_BOLD),
+        "kpi_val_dark": ParagraphStyle("kpi_val_dark", parent=ss["Normal"], fontSize=13.5, leading=16, textColor=WHITE,
                                        alignment=TA_CENTER, fontName=_SERIF_BOLD),
-        "kpi_lbl": ParagraphStyle("kpi_lbl", parent=ss["Normal"], fontSize=7.5, textColor=BLUE_DARK,
-                                  alignment=TA_CENTER, fontName="Helvetica-Bold", spaceBefore=4),
-        "kpi_lbl_dark": ParagraphStyle("kpi_lbl_dark", parent=ss["Normal"], fontSize=7.5, textColor=BLUE_LIGHT,
-                                       alignment=TA_CENTER, fontName="Helvetica-Bold", spaceBefore=4),
+        "kpi_lbl": ParagraphStyle("kpi_lbl", parent=ss["Normal"], fontSize=7.5, leading=9, textColor=BLUE_DARK,
+                                  alignment=TA_CENTER, fontName="Helvetica-Bold", spaceBefore=0),
+        "kpi_lbl_dark": ParagraphStyle("kpi_lbl_dark", parent=ss["Normal"], fontSize=7.5, leading=9, textColor=BLUE_LIGHT,
+                                       alignment=TA_CENTER, fontName="Helvetica-Bold", spaceBefore=0),
         "body": ParagraphStyle("body", parent=ss["Normal"], fontSize=9, textColor=GRAY_700, leading=13),
         "impact_title": ParagraphStyle("impact_title", parent=ss["Normal"], fontSize=9.5, textColor=NAVY,
                                        fontName="Helvetica-Bold", spaceAfter=3, leading=12),
@@ -440,8 +442,8 @@ def _kpi_row(items: list[tuple[str, str, bool]], styles) -> Table:
             ("BACKGROUND", (0, 0), (-1, -1), bg),
             ("ROUNDEDCORNERS", [12, 12, 12, 12]),
             ("TOPPADDING", (0, 0), (-1, 0), 14),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 2),
-            ("TOPPADDING", (0, 1), (-1, 1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            ("TOPPADDING", (0, 1), (-1, 1), 4),
             ("BOTTOMPADDING", (0, 1), (-1, 1), 14),
             ("BOX", (0, 0), (-1, -1), 0.75, BLUE_PALE if not is_dark else BLUE_DARK),
         ]))
@@ -670,14 +672,14 @@ def generate_pdf_report(scenario, all_scenarios: list) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=0.9 * cm, bottomMargin=1.3 * cm,
                              leftMargin=1.6 * cm, rightMargin=1.6 * cm,
-                             title=f"Varuna River Rejuvenation - Scenario Report: {scenario.name}")
+                             title=f"System Dynamics Report - Scenario Report: {scenario.name}")
     story: list = []
     now = datetime.now()
 
     # ── COVER ──────────────────────────────────────────────────────────
     story.append(Spacer(1, 1.6 * cm))
     story.append(Paragraph(f"PROJECT REPORT &nbsp;&middot;&nbsp; {now.strftime('%B %Y').upper()}", styles["cover_badge"]))
-    story.append(Paragraph("Varuna River Rejuvenation<br/>Project", styles["cover_h1"]))
+    story.append(Paragraph("System Dynamics<br/>Report", styles["cover_h1"]))
     story.append(Paragraph("Scenario Results, Inputs &amp; Comparative Analysis", styles["cover_h2"]))
 
     meta_items = [
@@ -903,22 +905,21 @@ def generate_pdf_report(scenario, all_scenarios: list) -> bytes:
         story.append(note_table)
         story.append(Spacer(1, 0.18 * cm))
 
-    story.append(Spacer(1, 0.6 * cm))
-    footer_table = Table([[
-        Paragraph("Varuna River Rejuvenation Project", styles["footer_l"]),
-        Paragraph(f"Varanasi, UP &nbsp;&middot;&nbsp; {now.strftime('%B %Y')} &nbsp;&middot;&nbsp; Confidential", styles["footer_r"]),
-    ]], colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4])
-    footer_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), NAVY),
-        ("TOPPADDING", (0, 0), (-1, -1), 10),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("LEFTPADDING", (0, 0), (-1, -1), 14),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 14),
-        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("ROUNDEDCORNERS", [10, 10, 10, 10]),
-    ]))
-    story.append(footer_table)
+    # footer_table = Table([[
+    #     Paragraph("System Dynamics Report", styles["footer_l"]),
+    #     Paragraph(f"Varanasi, UP &nbsp;&middot;&nbsp; {now.strftime('%B %Y')} &nbsp;&middot;&nbsp; Confidential", styles["footer_r"]),
+    # ]], colWidths=[CONTENT_W * 0.6, CONTENT_W * 0.4])
+    # footer_table.setStyle(TableStyle([
+    #     ("BACKGROUND", (0, 0), (-1, -1), NAVY),
+    #     ("TOPPADDING", (0, 0), (-1, -1), 10),
+    #     ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+    #     ("LEFTPADDING", (0, 0), (-1, -1), 14),
+    #     ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+    #     ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+    #     ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    #     ("ROUNDEDCORNERS", [10, 10, 10, 10]),
+    # ]))
+    # story.append(footer_table)
 
     doc.build(story, onFirstPage=_draw_cover_background, onLaterPages=_draw_body_background)
     buf.seek(0)

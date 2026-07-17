@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useVarunaSimStore } from '../shared/store/varunaSim.store';
-import { fetchSnapshot, saveScenario } from '../shared/services/varunaSim.service';
+import { fetchSnapshot, listScenarios, saveScenario } from '../shared/services/varunaSim.service';
 import {
   CONVEYANCE_LABELS,
   MAINTENANCE_FACTOR_OPTIONS,
@@ -874,7 +874,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
 }
 
 function ImplementationCostsPanel() {
-  const { params, setParam, strategies, resetToDefaults } = useVarunaSimStore();
+  const { params, setParam, strategies, resetToDefaults, setScenarios } = useVarunaSimStore();
   const [scenarioName, setScenarioName] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -888,6 +888,8 @@ function ImplementationCostsPanel() {
     setMessage(null);
     try {
       await saveScenario(scenarioName.trim(), params, strategies);
+      const res = await listScenarios();
+      setScenarios(res.scenarios);
       setMessage({ type: 'success', text: `Scenario "${scenarioName}" saved! Go to Scenario Results tab.` });
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save scenario.' });
@@ -952,8 +954,8 @@ function ImplementationCostsPanel() {
         </div>
       </Section>
 
-      <div className={`${sectionCard} flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-5`}>
-        <div className="flex-1">
+      <div className={`${sectionCard} flex flex-col items-center gap-3 p-4 sm:flex-row sm:items-end sm:justify-center sm:p-5`}>
+        <div className="w-full sm:w-64">
           <Label>Scenario name</Label>
           <Input className={numberInput} value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="e.g. Baseline 2025" />
         </div>
