@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useVarunaSimStore } from '../shared/store/varunaSim.store';
 import { fetchSnapshot, saveScenario } from '../shared/services/varunaSim.service';
@@ -15,6 +16,7 @@ import {
   banner,
   helpText,
   innerCard,
+  numberInput,
   pillTabActive,
   pillTabInactive,
   pillTabsWrapper,
@@ -53,16 +55,23 @@ function StreamlitSlider({
   max,
   step = 1,
   onChange,
+  label,
+  className = '',
 }: {
   value: number;
   min: number;
   max: number;
   step?: number;
   onChange: (v: number) => void;
+  label?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex-1">
-      <div className="mb-1 text-right text-xs font-semibold text-slate-700">{value}</div>
+    <div className={`flex-1 ${className}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        {label ? <span className={smallLabel}>{label}</span> : <span />}
+        <span className="text-xs font-semibold leading-none text-slate-700">{value}</span>
+      </div>
       <input
         type="range"
         min={min}
@@ -70,16 +79,26 @@ function StreamlitSlider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-stone-200 accent-emerald-500
+        className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-stone-200 accent-emerald-500 transition-colors hover:bg-stone-300
           [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none
           [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500
           [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow
+          [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150
+          hover:[&::-webkit-slider-thumb]:scale-125 active:[&::-webkit-slider-thumb]:scale-110
           [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full
-          [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-emerald-500"
+          [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-emerald-500
+          [&::-moz-range-thumb]:transition-transform [&::-moz-range-thumb]:duration-150
+          hover:[&::-moz-range-thumb]:scale-125 active:[&::-moz-range-thumb]:scale-110"
       />
     </div>
   );
 }
+
+const selectWrapperClass = 'relative';
+const selectClass =
+  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-stone-200 bg-white pl-2.5 pr-8 text-sm text-slate-700 outline-none transition hover:border-stone-300 focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/50';
+const selectChevronClass =
+  'pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition-colors';
 
 function NativeSelect({
   value,
@@ -91,15 +110,18 @@ function NativeSelect({
   options: string[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-sm text-slate-700 outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-400/50"
-    >
-      {options.map((o) => (
-        <option key={o} value={o}>{o}</option>
-      ))}
-    </select>
+    <div className={selectWrapperClass}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={selectClass}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+      <ChevronDown className={selectChevronClass} />
+    </div>
   );
 }
 
@@ -113,15 +135,18 @@ function NumberSelect({
   options: { label: string; value: number }[];
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-sm text-slate-700 outline-none transition focus-visible:ring-2 focus-visible:ring-emerald-400/50"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
+    <div className={selectWrapperClass}>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={selectClass}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown className={selectChevronClass} />
+    </div>
   );
 }
 
@@ -211,11 +236,11 @@ function ContextualParametersPanel({ onNext }: { onNext: () => void }) {
           multiplied by per capita sewage generation gives total sewage generated in the catchment.
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
-          <div>
+          <div className={`${innerCard} flex flex-col justify-center gap-2`}>
             <Label>Current population</Label>
             <Input
               type="number"
-              className="rounded-lg border-stone-200"
+              className={numberInput}
               value={params.population}
               min={100000}
               max={50000000}
@@ -223,16 +248,16 @@ function ContextualParametersPanel({ onNext }: { onNext: () => void }) {
               onChange={(e) => setParam('population', Number(e.target.value))}
             />
           </div>
-          <div>
-            <Label>Per capita sewage (L/person/day)</Label>
+          <div className={`${innerCard} flex flex-col justify-center gap-2`}>
             <StreamlitSlider
+              label="Per capita sewage (L/person/day)"
               value={params.per_capita_sewage}
               min={50}
               max={250}
               onChange={(v) => setParam('per_capita_sewage', v)}
             />
           </div>
-          <div>
+          <div className={`${innerCard} flex flex-col justify-center gap-2`}>
             <Label>Total sewage generated (calculated)</Label>
             <div className="text-lg font-semibold text-emerald-700">{totalSewage} MLD</div>
           </div>
@@ -295,13 +320,11 @@ function ContextualParametersPanel({ onNext }: { onNext: () => void }) {
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <Label>STP capacity (MLD)</Label>
-            <StreamlitSlider value={params.stp_capacity} min={0} max={1000}
+            <StreamlitSlider label="STP capacity (MLD)" value={params.stp_capacity} min={0} max={1000}
               onChange={(v) => setParam('stp_capacity', v)} />
           </div>
           <div>
-            <Label>Pumping capacity (MLD)</Label>
-            <StreamlitSlider value={params.pump_capacity} min={0} max={1000}
+            <StreamlitSlider label="Pumping capacity (MLD)" value={params.pump_capacity} min={0} max={1000}
               onChange={(v) => setParam('pump_capacity', v)} />
           </div>
         </div>
@@ -381,23 +404,25 @@ function ContextualParametersPanel({ onNext }: { onNext: () => void }) {
 
         <div className="mt-4 flex flex-col gap-3">
           <Label className="normal-case tracking-normal text-slate-700">Annual O&amp;M cost (Cr.) for current maintenance</Label>
-          <div>
-            <Label>For total installed STPs capacity</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.01} value={params.om_stp} onChange={(e) => setParam('om_stp', Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>For total installed pumping capacity</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.om_pump} onChange={(e) => setParam('om_pump', Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>For whole tapped (gravity and non-gravity) network</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.om_tapped}
-              onChange={(e) => setParam('om_tapped', Number(e.target.value))} />
-          </div>
-          <div>
-            <Label>For whole sewer (gravity and non-gravity) network</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.om_sewer_network}
-              onChange={(e) => setParam('om_sewer_network', Number(e.target.value))} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="max-w-[220px]">
+              <Label>For total installed STPs capacity</Label>
+              <Input type="number" className={numberInput} step={0.01} value={params.om_stp} onChange={(e) => setParam('om_stp', Number(e.target.value))} />
+            </div>
+            <div className="max-w-[220px]">
+              <Label>For total installed pumping capacity</Label>
+              <Input type="number" className={numberInput} step={0.1} value={params.om_pump} onChange={(e) => setParam('om_pump', Number(e.target.value))} />
+            </div>
+            <div className="max-w-[220px]">
+              <Label>For whole tapped (gravity and non-gravity) network</Label>
+              <Input type="number" className={numberInput} step={0.1} value={params.om_tapped}
+                onChange={(e) => setParam('om_tapped', Number(e.target.value))} />
+            </div>
+            <div className="max-w-[220px]">
+              <Label>For whole sewer (gravity and non-gravity) network</Label>
+              <Input type="number" className={numberInput} step={0.1} value={params.om_sewer_network}
+                onChange={(e) => setParam('om_sewer_network', Number(e.target.value))} />
+            </div>
           </div>
         </div>
       </Section>
@@ -416,16 +441,21 @@ function Label({ children, className = '' }: { children: React.ReactNode; classN
 function DecisionsPanel({ onNext }: { onNext: () => void }) {
   const { params, strategies, setStrategies, snapshot, setSnapshot, setParam } = useVarunaSimStore();
   const setNumericParam = setParam as (key: NumericParamKey, value: number) => void;
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!snapshot);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetchSnapshot(params)
-      .then((res) => { if (!cancelled) setSnapshot(res); })
-      .catch(() => { if (!cancelled) setSnapshot(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    const isFirstLoad = !snapshot;
+    if (isFirstLoad) setLoading(true);
+
+    const timeoutId = setTimeout(() => {
+      fetchSnapshot(params)
+        .then((res) => { if (!cancelled) setSnapshot(res); })
+        .catch(() => { if (!cancelled) setSnapshot(null); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, isFirstLoad ? 0 : 400);
+
+    return () => { cancelled = true; clearTimeout(timeoutId); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(params)]);
 
@@ -445,17 +475,17 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
           parameters. Consider these situations to make your decisions.
         </p>
 
-        {loading ? (
+        {loading && !snapshot ? (
           <p className="mt-3 text-slate-500">Computing...</p>
         ) : snapshot ? (
-          <div className="mt-3 flex flex-col gap-1">
-            <p><strong className="text-slate-900">Current sewage generation</strong> = {snapshot.total_sewage} MLD</p>
-            <p><strong className="text-slate-900">STP installed capacity</strong> = {snapshot.stp_installed_capacity} MLD</p>
-            <p><strong className="text-slate-900">Capacity deficit</strong> = {snapshot.capacity_deficit} MLD</p>
-            <p><strong className="text-slate-900">STP unutilised capacity</strong> = {snapshot.stp_unutilised_capacity} MLD</p>
-            <p><strong className="text-slate-900">Treatment deficit</strong> = {snapshot.treatment_deficit} MLD</p>
-            <p><strong className="text-slate-900">Untreated flow from untapped drains</strong> = {snapshot.untreated_untapped} MLD</p>
-            <p><strong className="text-slate-900">Overflows from tapped drains</strong> = {snapshot.overflow_tapped} MLD</p>
+          <div className={`mt-3 flex flex-col gap-1.5 text-[15px] transition-opacity duration-150 ${loading ? 'opacity-60' : 'opacity-100'}`}>
+            <p><strong className="font-bold text-slate-900">Current sewage generation</strong> = <strong className="font-bold text-emerald-700">{snapshot.total_sewage} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">STP installed capacity</strong> = <strong className="font-bold text-emerald-700">{snapshot.stp_installed_capacity} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">Capacity deficit</strong> = <strong className="font-bold text-emerald-700">{snapshot.capacity_deficit} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">STP unutilised capacity</strong> = <strong className="font-bold text-emerald-700">{snapshot.stp_unutilised_capacity} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">Treatment deficit</strong> = <strong className="font-bold text-emerald-700">{snapshot.treatment_deficit} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">Untreated flow from untapped drains</strong> = <strong className="font-bold text-emerald-700">{snapshot.untreated_untapped} MLD</strong></p>
+            <p><strong className="font-bold text-slate-900">Overflows from tapped drains</strong> = <strong className="font-bold text-emerald-700">{snapshot.overflow_tapped} MLD</strong></p>
           </div>
         ) : (
           <p className="mt-3 text-slate-500">Snapshot unavailable.</p>
@@ -515,8 +545,8 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
 
       {strategies.includes('Treatment Capacity Augmentation') && (
         <Section title="Treatment Capacity Augmentation">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className={`${innerCard} flex min-w-[260px] flex-1 flex-col gap-3`}>
               <div>
                 <Label>Choose planning type</Label>
                 <div className="flex gap-4 text-sm text-slate-700">
@@ -532,14 +562,13 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
               </div>
               {params.planning_choice === 2 && (
                 <div>
-                  <Label>Addition number of STPs required</Label>
-                  <StreamlitSlider value={params.num_stp_required} min={0} max={20}
+                  <StreamlitSlider label="Addition number of STPs required" value={params.num_stp_required} min={0} max={20}
                     onChange={(v) => setParam('num_stp_required', v)} />
                 </div>
               )}
-              <div>
+              <div className="max-w-[220px]">
                 <Label>Unit size of additional STPs (MLD)</Label>
-                <Input type="number" className="rounded-lg border-stone-200" min={0} step={5} value={params.unit_stp_size}
+                <Input type="number" className={numberInput} min={0} step={5} value={params.unit_stp_size}
                   onChange={(e) => setParam('unit_stp_size', Number(e.target.value))} />
               </div>
               <div>
@@ -548,7 +577,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                   {(params.unit_stp_size * (params.planning_choice === 2 ? Math.max(params.num_stp_required, 1) : 1)).toFixed(1)} MLD
                 </div>
               </div>
-              <div>
+              <div className="max-w-[280px]">
                 <Label>Treatment Technology</Label>
                 <NumberSelect
                   value={params.technology_choice}
@@ -557,37 +586,31 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                 />
               </div>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className={`${innerCard} flex min-w-[260px] flex-1 flex-col gap-3`}>
               <Label className="normal-case tracking-normal text-slate-700">STP Time Delays</Label>
               <div>
-                <Label>Proposal to approval basetime (yrs)</Label>
-                <StreamlitSlider value={params.proposal_approval_time} min={0} max={5}
+                <StreamlitSlider label="Proposal to approval basetime (yrs)" value={params.proposal_approval_time} min={0} max={5}
                   onChange={(v) => setParam('proposal_approval_time', v)} />
               </div>
               <div>
-                <Label>Approval to under-construction basetime (yrs)</Label>
-                <StreamlitSlider value={params.approval_construction_time} min={0} max={5}
+                <StreamlitSlider label="Approval to under-construction basetime (yrs)" value={params.approval_construction_time} min={0} max={5}
                   onChange={(v) => setParam('approval_construction_time', v)} />
               </div>
               <div>
-                <Label>Under-construction basetime (yrs)</Label>
-                <StreamlitSlider value={params.underconstruction_time} min={0} max={5}
+                <StreamlitSlider label="Under-construction basetime (yrs)" value={params.underconstruction_time} min={0} max={5}
                   onChange={(v) => setParam('underconstruction_time', v)} />
               </div>
               <p className={`${helpText} mt-1`}>Further delays can occur due to administrative reasons:</p>
               <div>
-                <Label>Budget allocation delay (yrs)</Label>
-                <StreamlitSlider value={params.budget_allocation_delay} min={0} max={3} step={0.25}
+                <StreamlitSlider label="Budget allocation delay (yrs)" value={params.budget_allocation_delay} min={0} max={3} step={0.25}
                   onChange={(v) => setParam('budget_allocation_delay', v)} />
               </div>
               <div>
-                <Label>Land acquisition delay (yrs)</Label>
-                <StreamlitSlider value={params.land_acquisition_delay} min={0} max={3} step={0.25}
+                <StreamlitSlider label="Land acquisition delay (yrs)" value={params.land_acquisition_delay} min={0} max={3} step={0.25}
                   onChange={(v) => setParam('land_acquisition_delay', v)} />
               </div>
               <div>
-                <Label>Operational clearance delay (yrs)</Label>
-                <StreamlitSlider value={params.operational_clearance_time} min={0} max={3} step={0.25}
+                <StreamlitSlider label="Operational clearance delay (yrs)" value={params.operational_clearance_time} min={0} max={3} step={0.25}
                   onChange={(v) => setParam('operational_clearance_time', v)} />
               </div>
             </div>
@@ -606,40 +629,38 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
             <div className={`${innerCard} flex flex-col gap-3`}>
               <Label className="normal-case tracking-normal text-slate-700">Drain Tapping (non gravity)</Label>
               <Label>Sewage to be tapped using non gravity based infra (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={5} value={params.drain_tap_nongravity}
+              <Input type="number" className={numberInput} min={0} step={5} value={params.drain_tap_nongravity}
                 onChange={(e) => setParam('drain_tap_nongravity', Number(e.target.value))} />
-              <Label>Time (yrs) to complete tapping (non gravity)</Label>
-              <StreamlitSlider value={params.drain_tap_nongravity_time} min={0} max={5}
+              <StreamlitSlider label="Time (yrs) to complete tapping (non gravity)" value={params.drain_tap_nongravity_time} min={0} max={5}
                 onChange={(v) => setParam('drain_tap_nongravity_time', v)} />
             </div>
             <div className={`${innerCard} flex flex-col gap-3`}>
               <Label className="normal-case tracking-normal text-slate-700">Drain Tapping (gravity)</Label>
               <Label>Sewage to be tapped using gravity based infra (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={5} value={params.drain_tap_gravity}
+              <Input type="number" className={numberInput} min={0} step={5} value={params.drain_tap_gravity}
                 onChange={(e) => setParam('drain_tap_gravity', Number(e.target.value))} />
-              <Label>Time (yrs) to complete tapping (gravity)</Label>
-              <StreamlitSlider value={params.drain_tap_gravity_time} min={0} max={5}
+              <StreamlitSlider label="Time (yrs) to complete tapping (gravity)" value={params.drain_tap_gravity_time} min={0} max={5}
                 onChange={(v) => setParam('drain_tap_gravity_time', v)} />
             </div>
           </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid items-start gap-4 sm:grid-cols-2">
             <div className={`${innerCard} flex flex-col gap-3`}>
               <Label className="normal-case tracking-normal text-slate-700">Sewer Network (non gravity)</Label>
               <Label>Untapped flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_untapped_nongravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_untapped_nongravity}
                 onChange={(e) => setParam('sewer_flow_untapped_nongravity', Number(e.target.value))} />
               <Label>Tapped (nongravity) flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_tapped_nongravity_nongravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_tapped_nongravity_nongravity}
                 onChange={(e) => setParam('sewer_flow_tapped_nongravity_nongravity', Number(e.target.value))} />
               <Label>Tapped (gravity) flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_tapped_gravity_nongravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_tapped_gravity_nongravity}
                 onChange={(e) => setParam('sewer_flow_tapped_gravity_nongravity', Number(e.target.value))} />
               <Label>In-situ flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_insitu_nongravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_insitu_nongravity}
                 onChange={(e) => setParam('sewer_flow_insitu_nongravity', Number(e.target.value))} />
               <Label>Non-STP sewer flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_nonstp_nongravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_nonstp_nongravity}
                 onChange={(e) => setParam('sewer_flow_nonstp_nongravity', Number(e.target.value))} />
               <p className="text-sm font-semibold text-emerald-700">
                 Total non-gravity sewer flow added = {(
@@ -648,26 +669,25 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                   + params.sewer_flow_nonstp_nongravity
                 ).toFixed(1)} MLD
               </p>
-              <Label>Time (yrs) to complete sewer (non gravity) network</Label>
-              <StreamlitSlider value={params.sewer_time_nongravity} min={0} max={10} step={0.25}
+              <StreamlitSlider label="Time (yrs) to complete sewer (non gravity) network" value={params.sewer_time_nongravity} min={0} max={10} step={0.25}
                 onChange={(v) => setParam('sewer_time_nongravity', v)} />
             </div>
             <div className={`${innerCard} flex flex-col gap-3`}>
               <Label className="normal-case tracking-normal text-slate-700">Sewer Network (gravity)</Label>
               <Label>Untapped flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_untapped_gravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_untapped_gravity}
                 onChange={(e) => setParam('sewer_flow_untapped_gravity', Number(e.target.value))} />
               <Label>Tapped (nongravity) flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_tapped_nongravity_gravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_tapped_nongravity_gravity}
                 onChange={(e) => setParam('sewer_flow_tapped_nongravity_gravity', Number(e.target.value))} />
               <Label>Tapped (gravity) flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_tapped_gravity_gravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_tapped_gravity_gravity}
                 onChange={(e) => setParam('sewer_flow_tapped_gravity_gravity', Number(e.target.value))} />
               <Label>In-situ flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_insitu_gravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_insitu_gravity}
                 onChange={(e) => setParam('sewer_flow_insitu_gravity', Number(e.target.value))} />
               <Label>Non-STP sewer flow to be connected (MLD)</Label>
-              <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.sewer_flow_nonstp_gravity}
+              <Input type="number" className={numberInput} min={0} step={1} value={params.sewer_flow_nonstp_gravity}
                 onChange={(e) => setParam('sewer_flow_nonstp_gravity', Number(e.target.value))} />
               <p className="text-sm font-semibold text-emerald-700">
                 Total gravity sewer flow added = {(
@@ -676,41 +696,45 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                   + params.sewer_flow_nonstp_gravity
                 ).toFixed(1)} MLD
               </p>
-              <Label>Time (yrs) to complete sewer (gravity) network</Label>
-              <StreamlitSlider value={params.sewer_time_gravity} min={0} max={10} step={0.25}
+              <StreamlitSlider label="Time (yrs) to complete sewer (gravity) network" value={params.sewer_time_gravity} min={0} max={10} step={0.25}
                 onChange={(v) => setParam('sewer_time_gravity', v)} />
             </div>
           </div>
 
-          <div className={`${innerCard} mt-4 flex flex-col gap-3`}>
-            <Label className="normal-case tracking-normal text-slate-700">Total Sewer Network Length Addition</Label>
-            <p className={helpText}>
-              Based on the total wastewater flow to be connected with sewer network above, a default value of
-              required sewer network length is estimated by the model. If you don&apos;t agree with the default
-              value then enter below:
-            </p>
-            <Label>Sewer network (gravity + nongravity) required (Km)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" min={0} step={1} value={params.user_input_sewer_network_length}
-              onChange={(e) => setParam('user_input_sewer_network_length', Number(e.target.value))} />
-          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className={`${innerCard} flex flex-col gap-3`}>
+              <Label className="normal-case tracking-normal text-slate-700">Total Sewer Network Length Addition</Label>
+              <p className={helpText}>
+                Based on the total wastewater flow to be connected with sewer network above, a default value of
+                required sewer network length is estimated by the model. If you don&apos;t agree with the default
+                value then enter below:
+              </p>
+              <div className="max-w-[220px]">
+                <Label>Sewer network (gravity + nongravity) required (Km)</Label>
+                <Input type="number" className={numberInput} min={0} step={1} value={params.user_input_sewer_network_length}
+                  onChange={(e) => setParam('user_input_sewer_network_length', Number(e.target.value))} />
+              </div>
+            </div>
 
-          <div className={`${innerCard} mt-4 flex flex-col gap-3`}>
-            <Label className="normal-case tracking-normal text-slate-700">Pumping Capacity</Label>
-            <p className={helpText}>
-              If you need more pumping capacity based on added gravity based conveyance infrastructure,
-              please enter below.
-            </p>
-            <Label>Additional Pumping Capacity Required (MLD)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" min={0} step={5} value={params.additional_pumping}
-              onChange={(e) => setParam('additional_pumping', Number(e.target.value))} />
-            {params.drain_tap_nongravity === 0 && params.sewer_flow_untapped_nongravity + params.sewer_flow_tapped_nongravity_nongravity
-              + params.sewer_flow_tapped_gravity_nongravity + params.sewer_flow_insitu_nongravity + params.sewer_flow_nonstp_nongravity === 0 && (
-              <>
-                <Label>Time (yrs) to add pumping station</Label>
-                <StreamlitSlider value={params.pumping_station_time} min={0} max={5}
-                  onChange={(v) => setParam('pumping_station_time', v)} />
-              </>
-            )}
+            <div className={`${innerCard} flex flex-col gap-3`}>
+              <Label className="normal-case tracking-normal text-slate-700">Pumping Capacity</Label>
+              <p className={helpText}>
+                If you need more pumping capacity based on added gravity based conveyance infrastructure,
+                please enter below.
+              </p>
+              <div className="max-w-[220px]">
+                <Label>Additional Pumping Capacity Required (MLD)</Label>
+                <Input type="number" className={numberInput} min={0} step={5} value={params.additional_pumping}
+                  onChange={(e) => setParam('additional_pumping', Number(e.target.value))} />
+              </div>
+              {params.drain_tap_nongravity === 0 && params.sewer_flow_untapped_nongravity + params.sewer_flow_tapped_nongravity_nongravity
+                + params.sewer_flow_tapped_gravity_nongravity + params.sewer_flow_insitu_nongravity + params.sewer_flow_nonstp_nongravity === 0 && (
+                <div className="max-w-[280px]">
+                  <StreamlitSlider label="Time (yrs) to add pumping station" value={params.pumping_station_time} min={0} max={5}
+                    onChange={(v) => setParam('pumping_station_time', v)} />
+                </div>
+              )}
+            </div>
           </div>
         </Section>
       )}
@@ -757,8 +781,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change</Label>
-                  <StreamlitSlider value={params.maint_time_stp} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change" value={params.maint_time_stp} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_stp', v)} />
                 </div>
               )}
@@ -772,8 +795,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change in quality of efforts</Label>
-                  <StreamlitSlider value={params.maint_time_pump} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change in quality of efforts" value={params.maint_time_pump} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_pump', v)} />
                 </div>
               )}
@@ -793,8 +815,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change</Label>
-                  <StreamlitSlider value={params.maint_time_tapped_ng} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change" value={params.maint_time_tapped_ng} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_tapped_ng', v)} />
                 </div>
               )}
@@ -808,8 +829,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change</Label>
-                  <StreamlitSlider value={params.maint_time_tapped_g} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change" value={params.maint_time_tapped_g} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_tapped_g', v)} />
                 </div>
               )}
@@ -823,8 +843,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change</Label>
-                  <StreamlitSlider value={params.maint_time_sewer_nongravity} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change" value={params.maint_time_sewer_nongravity} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_sewer_nongravity', v)} />
                 </div>
               )}
@@ -838,8 +857,7 @@ function DecisionsPanel({ onNext }: { onNext: () => void }) {
                     params={params}
                     setParam={setNumericParam}
                   />
-                  <Label>Time (yrs) for change</Label>
-                  <StreamlitSlider value={params.maint_time_sewer_gravity} min={0} max={3} step={0.25}
+                  <StreamlitSlider className="mt-2" label="Time (yrs) for change" value={params.maint_time_sewer_gravity} min={0} max={3} step={0.25}
                     onChange={(v) => setParam('maint_time_sewer_gravity', v)} />
                 </div>
               )}
@@ -889,40 +907,46 @@ function ImplementationCostsPanel() {
 
         <div className={`${innerCard} mb-4 flex flex-col gap-3`}>
           <Label className="normal-case tracking-normal text-slate-700">STP unit MLD costs</Label>
-          <Label>STP construction (Cr.)</Label>
-          <Input type="number" className="rounded-lg border-stone-200" step={0.5} value={params.stp_construction}
-            onChange={(e) => setParam('stp_construction', Number(e.target.value))} />
-          <Label>STP annual O&amp;M (Cr.)</Label>
-          <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.stp_om_cost}
-            onChange={(e) => setParam('stp_om_cost', Number(e.target.value))} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="max-w-[220px]">
+              <Label>STP construction (Cr.)</Label>
+              <Input type="number" className={numberInput} step={0.5} value={params.stp_construction}
+                onChange={(e) => setParam('stp_construction', Number(e.target.value))} />
+            </div>
+            <div className="max-w-[220px]">
+              <Label>STP annual O&amp;M (Cr.)</Label>
+              <Input type="number" className={numberInput} step={0.1} value={params.stp_om_cost}
+                onChange={(e) => setParam('stp_om_cost', Number(e.target.value))} />
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div className={`${innerCard} flex flex-col gap-3`}>
             <Label className="normal-case tracking-normal text-slate-700">Tapping unit MLD costs</Label>
             <Label>Tapped network construction (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.5} value={params.tap_construction}
+            <Input type="number" className={numberInput} step={0.5} value={params.tap_construction}
               onChange={(e) => setParam('tap_construction', Number(e.target.value))} />
             <Label>Tapped network annual O&amp;M (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.tap_om_cost}
+            <Input type="number" className={numberInput} step={0.1} value={params.tap_om_cost}
               onChange={(e) => setParam('tap_om_cost', Number(e.target.value))} />
           </div>
           <div className={`${innerCard} flex flex-col gap-3`}>
             <Label className="normal-case tracking-normal text-slate-700">Sewer Network Unit KM Cost</Label>
             <Label>Network construction cost (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.sewer_network_construction_per_km}
+            <Input type="number" className={numberInput} step={0.1} value={params.sewer_network_construction_per_km}
               onChange={(e) => setParam('sewer_network_construction_per_km', Number(e.target.value))} />
             <Label>Network annual O&amp;M (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.01} value={params.sewer_network_om_per_km}
+            <Input type="number" className={numberInput} step={0.01} value={params.sewer_network_om_per_km}
               onChange={(e) => setParam('sewer_network_om_per_km', Number(e.target.value))} />
           </div>
           <div className={`${innerCard} flex flex-col gap-3`}>
             <Label className="normal-case tracking-normal text-slate-700">Pumping unit MLD costs</Label>
             <Label>Pumping Station construction (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.5} value={params.pump_construction}
+            <Input type="number" className={numberInput} step={0.5} value={params.pump_construction}
               onChange={(e) => setParam('pump_construction', Number(e.target.value))} />
             <Label>Pumping station annual O&amp;M (Cr.)</Label>
-            <Input type="number" className="rounded-lg border-stone-200" step={0.1} value={params.pump_om_cost}
+            <Input type="number" className={numberInput} step={0.1} value={params.pump_om_cost}
               onChange={(e) => setParam('pump_om_cost', Number(e.target.value))} />
           </div>
         </div>
@@ -931,7 +955,7 @@ function ImplementationCostsPanel() {
       <div className={`${sectionCard} flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-5`}>
         <div className="flex-1">
           <Label>Scenario name</Label>
-          <Input className="rounded-lg border-stone-200" value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="e.g. Baseline 2025" />
+          <Input className={numberInput} value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="e.g. Baseline 2025" />
         </div>
         <button type="button" className={primaryButton} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save & Simulate'}

@@ -45,3 +45,9 @@ export const banner = {
 
 export const infoBadge =
   'inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-200 text-[8px] font-bold text-amber-900';
+
+// Standard numeric/text input styling used across scenario input forms —
+// adds a visible hover state and emerald focus ring on top of the shared
+// shadcn Input primitive.
+export const numberInput =
+  'rounded-lg border-stone-200 transition-colors hover:border-stone-300 focus-visible:border-emerald-400 focus-visible:ring-emerald-400/40';
